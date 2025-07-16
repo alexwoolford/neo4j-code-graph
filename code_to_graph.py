@@ -9,10 +9,14 @@ from neo4j import GraphDatabase
 from transformers import AutoTokenizer, AutoModel
 import torch
 import javalang
+from dotenv import load_dotenv
+
+load_dotenv()
 
 NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
+NEO4J_USERNAME = os.environ.get("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "neo4j")
+NEO4J_DATABASE = os.environ.get("NEO4J_DATABASE", "neo4j")
 
 
 def compute_embedding(code, tokenizer, model):
@@ -64,7 +68,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         )
 
 
-def load_repo(repo_url, driver):
+def load_repo(repo_url, driver, database=None):
     tmpdir = tempfile.mkdtemp()
     try:
         print(f"Cloning {repo_url}...")
@@ -72,7 +76,7 @@ def load_repo(repo_url, driver):
         tokenizer = AutoTokenizer.from_pretrained("microsoft/graphcodebert-base")
         model = AutoModel.from_pretrained("microsoft/graphcodebert-base")
         repo_root = Path(tmpdir)
-        with driver.session() as session:
+        with driver.session(database=database) as session:
             for path in repo_root.rglob("*.java"):
                 process_java_file(path, tokenizer, model, session, repo_root)
     finally:
@@ -84,8 +88,8 @@ def main():
         print("Usage: python code_to_graph.py <git_repo_url>")
         sys.exit(1)
     repo_url = sys.argv[1]
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-    load_repo(repo_url, driver)
+    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
+    load_repo(repo_url, driver, NEO4J_DATABASE)
     driver.close()
 
 

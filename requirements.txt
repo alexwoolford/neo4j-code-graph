@@ -3,3 +3,4 @@ transformers
 torch
 javalang
 neo4j
+python-dotenv

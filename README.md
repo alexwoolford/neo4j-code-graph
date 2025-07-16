@@ -11,17 +11,17 @@ Neo4j's vector search capabilities.
 Install Python dependencies:
 
 ```bash
-pip install gitpython transformers torch javalang neo4j
+pip install gitpython transformers torch javalang neo4j python-dotenv
 ```
 
 ## Usage
 
-Set environment variables for your Neo4j instance:
+Create a `.env` file with connection details for your Neo4j instance. You can
+use `.env.example` as a starting point:
 
 ```bash
-export NEO4J_URI=bolt://localhost:7687
-export NEO4J_USER=neo4j
-export NEO4J_PASSWORD=secret
+cp .env.example .env
+# then edit .env with your credentials
 ```
 
 Run the loader with a Git repository URL. For example, to load the
