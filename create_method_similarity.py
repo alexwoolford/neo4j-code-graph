@@ -61,14 +61,18 @@ def run_knn(gds, top_k=5, cutoff=0.8):
     try:
         gds.knn.write(**base_config)
     except Exception as e:
-        # Older GDS versions expect a graph name as the first argument.
-        if "Type mismatch" not in str(e):
+        # Older GDS versions expect a graph name as the first argument, which
+        # results in a TypeError complaining about a missing "G" parameter.
+        if (
+            "Type mismatch" not in str(e)
+            and "missing 1 required positional argument" not in str(e)
+        ):
             raise
 
-        gds.graph.project("methodGraph", "Method", {})
+        graph, _ = gds.graph.project("methodGraph", "Method", {})
         config = {k: base_config[k] for k in base_config if k != "nodeProjection"}
-        gds.knn.write("methodGraph", **config)
-        gds.graph.drop("methodGraph")
+        gds.knn.write(graph, **config)
+        graph.drop()
 
 
 def main():
