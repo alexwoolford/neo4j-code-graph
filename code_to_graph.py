@@ -42,6 +42,11 @@ NEO4J_USERNAME = os.environ.get("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "neo4j")
 NEO4J_DATABASE = os.environ.get("NEO4J_DATABASE", "neo4j")
 
+# Embedding metadata
+EMBEDDING_DIM = 768
+EMBEDDING_TYPE = "graphcodebert-base"
+MODEL_NAME = "microsoft/graphcodebert-base"
+
 
 def compute_embedding(code, tokenizer, model):
     tokens = tokenizer(code, return_tensors="pt", truncation=True, max_length=512)
@@ -60,9 +65,10 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     # create File node
     file_embedding = compute_embedding(code, tokenizer, model)
     session.run(
-        "MERGE (f:File {path: $path}) SET f.embedding = $embedding",
+        "MERGE (f:File {path: $path}) SET f.embedding = $embedding, f.embedding_type = $etype",
         path=rel_path,
         embedding=file_embedding,
+        etype=EMBEDDING_TYPE,
     )
 
     try:
@@ -91,7 +97,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         session.run(
             """
             MERGE (m:Method {name:$name, file:$file, line:$line})
-            SET m.embedding=$embedding
+            SET m.embedding=$embedding, m.embedding_type=$etype
             MERGE (f:File {path:$file})
             MERGE (f)-[:DECLARES]->(m)
             """,
@@ -99,6 +105,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
             file=rel_path,
             line=start,
             embedding=m_embedding,
+            etype=EMBEDDING_TYPE,
         )
 
 
@@ -107,8 +114,8 @@ def load_repo(repo_url, driver, database=None):
     try:
         print(f"Cloning {repo_url}...")
         Repo.clone_from(repo_url, tmpdir)
-        tokenizer = AutoTokenizer.from_pretrained("microsoft/graphcodebert-base")
-        model = AutoModel.from_pretrained("microsoft/graphcodebert-base")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        model = AutoModel.from_pretrained(MODEL_NAME)
         repo_root = Path(tmpdir)
         with driver.session(database=database) as session:
             for path in repo_root.rglob("*.java"):
