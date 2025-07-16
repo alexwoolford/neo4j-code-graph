@@ -10,10 +10,32 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 import javalang
 from dotenv import load_dotenv
+from urllib.parse import urlparse, urlunparse
 
 load_dotenv()
 
-NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+
+def ensure_port(uri, default=7687):
+    """Return URI with default port if none specified."""
+    parsed = urlparse(uri)
+    # When no netloc is present urlparse puts the host into the path
+    host = parsed.hostname or parsed.path
+    port = parsed.port
+    if port is None:
+        # Reconstruct URI with default port and existing auth info
+        auth = ""
+        if parsed.username:
+            auth = parsed.username
+            if parsed.password:
+                auth += f":{parsed.password}"
+            auth += "@"
+        netloc = f"{auth}{host}:{default}"
+        parsed = parsed._replace(netloc=netloc, path="")
+        uri = urlunparse(parsed)
+    return uri
+
+# Apply a default port if one is missing from the URI
+NEO4J_URI = ensure_port(os.environ.get("NEO4J_URI", "bolt://localhost:7687"))
 NEO4J_USERNAME = os.environ.get("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "neo4j")
 NEO4J_DATABASE = os.environ.get("NEO4J_DATABASE", "neo4j")

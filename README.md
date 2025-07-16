@@ -24,6 +24,9 @@ cp .env.example .env
 # then edit .env with your credentials
 ```
 
+If the `NEO4J_URI` in your `.env` file omits a port, the script
+automatically uses `7687` which is the default for the Neo4j Bolt protocol.
+
 Run the loader with a Git repository URL. For example, to load the
 open-source Neo4j project:
 
