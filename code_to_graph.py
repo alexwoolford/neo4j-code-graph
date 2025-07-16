@@ -71,10 +71,20 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         return  # skip unparsable files
     for _, node in tree.filter(javalang.tree.MethodDeclaration):
         start = node.position.line if node.position else None
+
+        end = start
+        if node.body:
+            if isinstance(node.body, list):
+                # For normal methods javalang returns a list of statements
+                # each with its own position.
+                if node.body and hasattr(node.body[-1], "position"):
+                    end = node.body[-1].position.line
+            elif hasattr(node.body, "position"):
+                # Some nodes expose a body object with a position attribute
+                end = node.body.position.line
+
         method_code = (
-            code.splitlines()[node.position.line - 1 : node.body.position.line]
-            if node.body
-            else ""
+            "\n".join(code.splitlines()[start - 1 : end]) if start and end else ""
         )
         m_embedding = compute_embedding(method_code, tokenizer, model)
         method_name = node.name
