@@ -11,7 +11,7 @@ Neo4j's vector search capabilities.
 Install Python dependencies:
 
 ```bash
-pip install gitpython transformers torch javalang neo4j python-dotenv
+pip install gitpython transformers torch javalang neo4j graphdatascience python-dotenv
 ```
 
 ## Usage
