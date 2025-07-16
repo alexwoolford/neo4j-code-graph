@@ -1,7 +1,7 @@
 import os
 from urllib.parse import urlparse, urlunparse
 from dotenv import load_dotenv
-from neo4j import GraphDatabase
+from graphdatascience import GraphDataScience
 
 # Load env vars
 load_dotenv(override=True)
@@ -32,8 +32,8 @@ NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 EMBEDDING_DIM = 768
 
 
-def create_index(session):
-    session.run(
+def create_index(gds):
+    gds.run_cypher(
         """
         CREATE VECTOR INDEX method_embeddings IF NOT EXISTS
         FOR (m:Method) ON (m.embedding)
@@ -42,35 +42,46 @@ def create_index(session):
             `vector.similarity_function`: 'cosine'
         }}
         """,
-        dim=EMBEDDING_DIM,
+        params={"dim": EMBEDDING_DIM},
     )
-    session.run("CALL db.awaitIndex('method_embeddings')")
+    gds.run_cypher("CALL db.awaitIndex('method_embeddings')")
 
 
-def run_knn(session, top_k=5, cutoff=0.8):
-    session.run(
-        """
-        CALL gds.knn.write({
-            nodeProjection: 'Method',
-            nodeProperties: 'embedding',
-            topK: $top_k,
-            similarityCutoff: $cutoff,
-            writeRelationshipType: 'SIMILAR',
-            writeProperty: 'score'
-        })
-        """,
-        top_k=top_k,
-        cutoff=cutoff,
-    )
+def run_knn(gds, top_k=5, cutoff=0.8):
+    """Run the KNN algorithm and create SIMILAR relationships."""
+    base_config = {
+        "nodeProjection": "Method",
+        "nodeProperties": "embedding",
+        "topK": top_k,
+        "similarityCutoff": cutoff,
+        "writeRelationshipType": "SIMILAR",
+        "writeProperty": "score",
+    }
+
+    try:
+        gds.knn.write(**base_config)
+    except Exception as e:
+        # Older GDS versions expect a graph name as the first argument.
+        if "Type mismatch" not in str(e):
+            raise
+
+        gds.graph.project("methodGraph", "Method", {})
+        config = {k: base_config[k] for k in base_config if k != "nodeProjection"}
+        gds.knn.write("methodGraph", **config)
+        gds.graph.drop("methodGraph")
 
 
 def main():
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
-    driver.verify_connectivity()
-    with driver.session(database=NEO4J_DATABASE) as session:
-        create_index(session)
-        run_knn(session)
-    driver.close()
+    gds = GraphDataScience(
+        NEO4J_URI,
+        auth=(NEO4J_USERNAME, NEO4J_PASSWORD),
+        database=NEO4J_DATABASE,
+        arrow=False,
+    )
+    gds.run_cypher("RETURN 1")  # verify connectivity
+    create_index(gds)
+    run_knn(gds)
+    gds.close()
 
 
 if __name__ == '__main__':

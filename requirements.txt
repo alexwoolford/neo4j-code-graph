@@ -3,4 +3,5 @@ transformers
 torch
 javalang
 neo4j
+graphdatascience
 python-dotenv
