@@ -44,7 +44,7 @@ def create_index(session):
         """,
         dim=EMBEDDING_DIM,
     )
-    session.run("CALL db.index.awaitIndex('method_embeddings')")
+    session.run("CALL db.awaitIndex('method_embeddings')")
 
 
 def run_knn(session, top_k=5, cutoff=0.8):
