@@ -36,3 +36,17 @@ python code_to_graph.py https://github.com/neo4j/neo4j.git
 
 The script clones the repository, processes all `*.java` files, and
 creates `File` and `Method` nodes with embedding vectors in Neo4j.
+
+### Build similarity relationships
+
+Once the graph contains method embeddings you can generate `SIMILAR`
+relationships between the closest methods using the Graph Data Science
+KNN algorithm:
+
+```bash
+python create_method_similarity.py
+```
+
+This script creates a vector index on the `Method.embedding` property if
+one does not already exist and then writes `SIMILAR` relationships with a
+`score` property for pairs of methods that exceed the similarity cutoff.
