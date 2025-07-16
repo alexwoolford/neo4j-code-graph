@@ -12,7 +12,9 @@ import javalang
 from dotenv import load_dotenv
 from urllib.parse import urlparse, urlunparse
 
-load_dotenv()
+# Load environment variables from a .env file and override any existing
+# variables so that local configuration takes precedence.
+load_dotenv(override=True)
 
 
 def ensure_port(uri, default=7687):
@@ -111,6 +113,8 @@ def main():
         sys.exit(1)
     repo_url = sys.argv[1]
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
+    # Fail fast if the Neo4j connection details are incorrect
+    driver.verify_connectivity()
     load_repo(repo_url, driver, NEO4J_DATABASE)
     driver.close()
 
