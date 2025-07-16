@@ -69,7 +69,18 @@ def run_knn(gds, top_k=5, cutoff=0.8):
         ):
             raise
 
-        graph, _ = gds.graph.project("methodGraph", "Method", {})
+        # Drop any existing graph with the same name
+        try:
+            gds.graph.drop("methodGraph")
+        except:
+            pass  # Graph doesn't exist, which is fine
+        
+        # Create graph projection with node properties included
+        graph, _ = gds.graph.project(
+            "methodGraph", 
+            {"Method": {"properties": "embedding"}}, 
+            "*"
+        )
         config = {k: base_config[k] for k in base_config if k != "nodeProjection"}
         gds.knn.write(graph, **config)
         graph.drop()
