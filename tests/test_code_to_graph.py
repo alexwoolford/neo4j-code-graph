@@ -54,3 +54,23 @@ def test_load_repo_executes_cypher(tmp_path):
     queries = [c.args[0] for c in session_mock.run.call_args_list]
     assert any("MERGE (f:File" in q for q in queries)
     assert any("MERGE (m:Method" in q for q in queries)
+
+
+def test_process_java_file_creates_directories(tmp_path):
+    repo_root = tmp_path / "repo"
+    file_dir = repo_root / "a" / "b"
+    file_dir.mkdir(parents=True)
+    java_file = file_dir / "Foo.java"
+    java_file.write_text("class Foo { void bar() {} }")
+
+    session_mock = MagicMock()
+
+    with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
+        code_to_graph.process_java_file(
+            java_file, MagicMock(), MagicMock(), session_mock, repo_root
+        )
+
+    queries = [c.args[0] for c in session_mock.run.call_args_list]
+    assert any("MERGE (:Directory {path:$path})" in q for q in queries)
+    assert any("MERGE (p:Directory" in q and "CONTAINS" in q for q in queries)
+    assert any("MERGE (d:Directory" in q and "CONTAINS" in q and "File" in q for q in queries)
