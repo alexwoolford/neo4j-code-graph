@@ -78,7 +78,36 @@ This script creates a vector index on the `Method.embedding` property if
 one does not already exist and then writes `SIMILAR` relationships with a
 `score` property for pairs of methods that exceed the similarity cutoff.
 
+## Example queries
+
+After loading a repository you can explore the graph using Neo4j Browser or
+Neo4j Desktop. Connect using the Bolt URI and credentials defined in your
+`.env` file. A local Neo4j instance is typically available at
+`bolt://localhost:7687`, which you can access via [Neo4j Browser](https://neo4j.com/developer/neo4j-browser/) by navigating to
+`http://localhost:7474` in your web browser or by adding a connection in
+Neo4j Desktop.
+
+The following Cypher snippets demonstrate how to inspect the different node
+and relationship types created by the scripts:
+
+```cypher
+// List a few files that were processed
+MATCH (f:File)
+RETURN f.path
+LIMIT 10;
+
+// Show methods declared in a specific file
+MATCH (f:File {path: $path})-[:DECLARES]->(m:Method)
+RETURN m.name, m.line
+LIMIT 10;
+
+// Examine method similarity relationships
+MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
+RETURN m1.name, m2.name, s.score
+ORDER BY s.score DESC
+LIMIT 10;
+```
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
