@@ -11,31 +11,11 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 import javalang
 from dotenv import load_dotenv
-from urllib.parse import urlparse, urlunparse
+from utils import ensure_port
 
 # Load environment variables from a .env file and override any existing
 # variables so that local configuration takes precedence.
 load_dotenv(override=True)
-
-
-def ensure_port(uri, default=7687):
-    """Return URI with default port if none specified."""
-    parsed = urlparse(uri)
-    # When no netloc is present urlparse puts the host into the path
-    host = parsed.hostname or parsed.path
-    port = parsed.port
-    if port is None:
-        # Reconstruct URI with default port and existing auth info
-        auth = ""
-        if parsed.username:
-            auth = parsed.username
-            if parsed.password:
-                auth += f":{parsed.password}"
-            auth += "@"
-        netloc = f"{auth}{host}:{default}"
-        parsed = parsed._replace(netloc=netloc, path="")
-        uri = urlunparse(parsed)
-    return uri
 
 # Apply a default port if one is missing from the URI
 NEO4J_URI = ensure_port(os.environ.get("NEO4J_URI", "bolt://localhost:7687"))

@@ -1,28 +1,12 @@
 import os
-from urllib.parse import urlparse, urlunparse
 from dotenv import load_dotenv
 from graphdatascience import GraphDataScience
 import argparse
 
+from utils import ensure_port
+
 # Load env vars
 load_dotenv(override=True)
-
-
-def ensure_port(uri, default=7687):
-    parsed = urlparse(uri)
-    host = parsed.hostname or parsed.path
-    port = parsed.port
-    if port is None:
-        auth = ""
-        if parsed.username:
-            auth = parsed.username
-            if parsed.password:
-                auth += f":{parsed.password}"
-            auth += "@"
-        netloc = f"{auth}{host}:{default}"
-        parsed = parsed._replace(netloc=netloc, path="")
-        uri = urlunparse(parsed)
-    return uri
 
 
 NEO4J_URI = ensure_port(os.getenv("NEO4J_URI", "bolt://localhost:7687"))
