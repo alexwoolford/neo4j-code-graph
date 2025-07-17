@@ -50,3 +50,8 @@ python create_method_similarity.py
 This script creates a vector index on the `Method.embedding` property if
 one does not already exist and then writes `SIMILAR` relationships with a
 `score` property for pairs of methods that exceed the similarity cutoff.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
