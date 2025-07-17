@@ -8,10 +8,23 @@ Neo4j's vector search capabilities.
 
 ## Requirements
 
-Install Python dependencies:
+Install Python dependencies (versions pinned in `requirements.txt`):
 
 ```bash
-pip install gitpython transformers torch javalang neo4j graphdatascience python-dotenv
+pip install -r requirements.txt
+```
+
+The `requirements.txt` file pins the library versions used by this
+project:
+
+```
+gitpython==3.1.44
+transformers==4.53.2
+torch==2.7.1
+javalang==0.13.0
+neo4j==5.28.1
+graphdatascience==1.16
+python-dotenv==1.1.1
 ```
 
 ## Usage
@@ -34,6 +47,13 @@ open-source Neo4j project:
 python code_to_graph.py https://github.com/neo4j/neo4j.git
 ```
 
+You can also override the Neo4j connection details on the command line:
+
+```bash
+python code_to_graph.py https://github.com/neo4j/neo4j.git \
+  --uri bolt://localhost:7687 --username neo4j --password secret --database neo4j
+```
+
 The script clones the repository, processes all `*.java` files, and
 creates `File` and `Method` nodes with embedding vectors in Neo4j.
 
@@ -47,6 +67,47 @@ KNN algorithm:
 python create_method_similarity.py
 ```
 
+You can specify a different Neo4j connection or adjust the kNN parameters:
+
+```bash
+python create_method_similarity.py --top-k 10 --cutoff 0.85 \
+  --uri bolt://localhost:7687 --username neo4j --password secret
+```
+
 This script creates a vector index on the `Method.embedding` property if
 one does not already exist and then writes `SIMILAR` relationships with a
 `score` property for pairs of methods that exceed the similarity cutoff.
+
+## Example queries
+
+After loading a repository you can explore the graph using Neo4j Browser or
+Neo4j Desktop. Connect using the Bolt URI and credentials defined in your
+`.env` file. A local Neo4j instance is typically available at
+`bolt://localhost:7687`, which you can access via [Neo4j Browser](https://neo4j.com/developer/neo4j-browser/) by navigating to
+`http://localhost:7474` in your web browser or by adding a connection in
+Neo4j Desktop.
+
+The following Cypher snippets demonstrate how to inspect the different node
+and relationship types created by the scripts:
+
+```cypher
+// List a few files that were processed
+MATCH (f:File)
+RETURN f.path
+LIMIT 10;
+
+// Show methods declared in a specific file
+MATCH (f:File {path: $path})-[:DECLARES]->(m:Method)
+RETURN m.name, m.line
+LIMIT 10;
+
+// Examine method similarity relationships
+MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
+RETURN m1.name, m2.name, s.score
+ORDER BY s.score DESC
+LIMIT 10;
+```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

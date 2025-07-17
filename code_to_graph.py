@@ -3,6 +3,7 @@ import sys
 import tempfile
 import shutil
 from pathlib import Path
+import argparse
 
 from git import Repo
 from neo4j import GraphDatabase
@@ -41,6 +42,30 @@ NEO4J_URI = ensure_port(os.environ.get("NEO4J_URI", "bolt://localhost:7687"))
 NEO4J_USERNAME = os.environ.get("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "neo4j")
 NEO4J_DATABASE = os.environ.get("NEO4J_DATABASE", "neo4j")
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Load a Java Git repository into Neo4j with embeddings"
+    )
+    parser.add_argument("repo_url", help="URL of the Git repository to load")
+    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
+    parser.add_argument(
+        "--username", default=NEO4J_USERNAME, help="Neo4j authentication username"
+    )
+    parser.add_argument(
+        "--password", default=NEO4J_PASSWORD, help="Neo4j authentication password"
+    )
+    parser.add_argument(
+        "--database",
+        default=NEO4J_DATABASE,
+        help="Neo4j database to use",
+    )
+    return parser.parse_args()
 
 # Embedding metadata
 EMBEDDING_DIM = 768
