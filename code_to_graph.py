@@ -89,16 +89,21 @@ def process_java_file(path, tokenizer, model, session, repo_root):
 
     # create File node
     file_embedding = compute_embedding(code, tokenizer, model)
-    session.run(
-        "MERGE (f:File {path: $path}) SET f.embedding = $embedding, f.embedding_type = $etype",
-        path=rel_path,
-        embedding=file_embedding,
-        etype=EMBEDDING_TYPE,
-    )
+    try:
+        session.run(
+            "MERGE (f:File {path: $path}) SET f.embedding = $embedding, f.embedding_type = $etype",
+            path=rel_path,
+            embedding=file_embedding,
+            etype=EMBEDDING_TYPE,
+        )
+    except Exception as e:
+        print(f"Neo4j error creating File node for {rel_path}: {e}")
+        return
 
     try:
         tree = javalang.parse.parse(code)
-    except Exception:
+    except Exception as e:
+        print(f"Failed to parse {rel_path}: {e}")
         return  # skip unparsable files
     for _, node in tree.filter(javalang.tree.MethodDeclaration):
         start = node.position.line if node.position else None
@@ -119,46 +124,67 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         )
         m_embedding = compute_embedding(method_code, tokenizer, model)
         method_name = node.name
-        session.run(
-            """
-            MERGE (m:Method {name:$name, file:$file, line:$line})
-            SET m.embedding=$embedding, m.embedding_type=$etype
-            MERGE (f:File {path:$file})
-            MERGE (f)-[:DECLARES]->(m)
-            """,
-            name=method_name,
-            file=rel_path,
-            line=start,
-            embedding=m_embedding,
-            etype=EMBEDDING_TYPE,
-        )
+        try:
+            session.run(
+                """
+                MERGE (m:Method {name:$name, file:$file, line:$line})
+                SET m.embedding=$embedding, m.embedding_type=$etype
+                MERGE (f:File {path:$file})
+                MERGE (f)-[:DECLARES]->(m)
+                """,
+                name=method_name,
+                file=rel_path,
+                line=start,
+                embedding=m_embedding,
+                etype=EMBEDDING_TYPE,
+            )
+        except Exception as e:
+            print(
+                f"Neo4j error creating Method node {method_name} in {rel_path}: {e}"
+            )
 
 
 def load_repo(repo_url, driver, database=None):
     tmpdir = tempfile.mkdtemp()
     try:
         print(f"Cloning {repo_url}...")
-        Repo.clone_from(repo_url, tmpdir)
+        try:
+            Repo.clone_from(repo_url, tmpdir)
+        except Exception as e:
+            print(f"Error cloning {repo_url}: {e}")
+            return
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         model = AutoModel.from_pretrained(MODEL_NAME)
         repo_root = Path(tmpdir)
-        with driver.session(database=database) as session:
-            for path in repo_root.rglob("*.java"):
-                process_java_file(path, tokenizer, model, session, repo_root)
+        try:
+            with driver.session(database=database) as session:
+                for path in repo_root.rglob("*.java"):
+                    process_java_file(path, tokenizer, model, session, repo_root)
+        except Exception as e:
+            print(f"Neo4j error while processing repository: {e}")
     finally:
-        shutil.rmtree(tmpdir)
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def main():
-    args = parse_args()
+    if len(sys.argv) != 2:
+        print("Usage: python code_to_graph.py <git_repo_url>")
+        sys.exit(1)
+    repo_url = sys.argv[1]
+    try:
+        driver = GraphDatabase.driver(
+            NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD)
+        )
+        # Fail fast if the Neo4j connection details are incorrect
+        driver.verify_connectivity()
+    except Exception as e:
+        print(f"Failed to connect to Neo4j: {e}")
+        sys.exit(1)
 
-    driver = GraphDatabase.driver(
-        ensure_port(args.uri), auth=(args.username, args.password)
-    )
-    # Fail fast if the Neo4j connection details are incorrect
-    driver.verify_connectivity()
-    load_repo(args.repo_url, driver, args.database)
-    driver.close()
+    try:
+        load_repo(repo_url, driver, NEO4J_DATABASE)
+    finally:
+        driver.close()
 
 
 if __name__ == "__main__":
