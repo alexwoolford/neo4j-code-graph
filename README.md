@@ -14,6 +14,13 @@ Install Python dependencies (versions pinned in `requirements.txt`):
 pip install -r requirements.txt
 ```
 
+For development tasks such as running the tests, install the additional
+packages listed in `dev-requirements.txt`:
+
+```bash
+pip install -r dev-requirements.txt
+```
+
 The `requirements.txt` file pins the library versions used by this
 project:
 
@@ -106,6 +113,14 @@ MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
 RETURN m1.name, m2.name, s.score
 ORDER BY s.score DESC
 LIMIT 10;
+```
+
+## Testing
+
+After installing the development requirements you can run the test suite with:
+
+```bash
+pytest -q
 ```
 
 ## License
