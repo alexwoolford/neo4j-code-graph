@@ -8,10 +8,23 @@ Neo4j's vector search capabilities.
 
 ## Requirements
 
-Install Python dependencies:
+Install Python dependencies (versions pinned in `requirements.txt`):
 
 ```bash
-pip install gitpython transformers torch javalang neo4j graphdatascience python-dotenv
+pip install -r requirements.txt
+```
+
+The `requirements.txt` file pins the library versions used by this
+project:
+
+```
+gitpython==3.1.44
+transformers==4.53.2
+torch==2.7.1
+javalang==0.13.0
+neo4j==5.28.1
+graphdatascience==1.16
+python-dotenv==1.1.1
 ```
 
 ## Usage
