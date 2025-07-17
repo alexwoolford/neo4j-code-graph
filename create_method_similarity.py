@@ -2,6 +2,7 @@ import os
 from urllib.parse import urlparse, urlunparse
 from dotenv import load_dotenv
 from graphdatascience import GraphDataScience
+import argparse
 
 # Load env vars
 load_dotenv(override=True)
@@ -30,6 +31,32 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "neo4j")
 NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 
 EMBEDDING_DIM = 768
+
+
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Create SIMILAR relationships between methods"
+    )
+    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
+    parser.add_argument(
+        "--username", default=NEO4J_USERNAME, help="Neo4j authentication username"
+    )
+    parser.add_argument(
+        "--password", default=NEO4J_PASSWORD, help="Neo4j authentication password"
+    )
+    parser.add_argument(
+        "--database",
+        default=NEO4J_DATABASE,
+        help="Neo4j database to use",
+    )
+    parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of nearest neighbours"
+    )
+    parser.add_argument(
+        "--cutoff", type=float, default=0.8, help="Similarity cutoff"
+    )
+    return parser.parse_args()
 
 
 def create_index(gds):
@@ -87,15 +114,17 @@ def run_knn(gds, top_k=5, cutoff=0.8):
 
 
 def main():
+    args = parse_args()
+
     gds = GraphDataScience(
-        NEO4J_URI,
-        auth=(NEO4J_USERNAME, NEO4J_PASSWORD),
-        database=NEO4J_DATABASE,
+        ensure_port(args.uri),
+        auth=(args.username, args.password),
+        database=args.database,
         arrow=False,
     )
     gds.run_cypher("RETURN 1")  # verify connectivity
     create_index(gds)
-    run_knn(gds)
+    run_knn(gds, args.top_k, args.cutoff)
     gds.close()
 
 
