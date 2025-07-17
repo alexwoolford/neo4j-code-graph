@@ -34,6 +34,13 @@ open-source Neo4j project:
 python code_to_graph.py https://github.com/neo4j/neo4j.git
 ```
 
+You can also override the Neo4j connection details on the command line:
+
+```bash
+python code_to_graph.py https://github.com/neo4j/neo4j.git \
+  --uri bolt://localhost:7687 --username neo4j --password secret --database neo4j
+```
+
 The script clones the repository, processes all `*.java` files, and
 creates `File` and `Method` nodes with embedding vectors in Neo4j.
 
@@ -45,6 +52,13 @@ KNN algorithm:
 
 ```bash
 python create_method_similarity.py
+```
+
+You can specify a different Neo4j connection or adjust the kNN parameters:
+
+```bash
+python create_method_similarity.py --top-k 10 --cutoff 0.85 \
+  --uri bolt://localhost:7687 --username neo4j --password secret
 ```
 
 This script creates a vector index on the `Method.embedding` property if
