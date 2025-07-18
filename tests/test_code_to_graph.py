@@ -109,3 +109,25 @@ def test_process_java_file_creates_directories(tmp_path):
         for c in calls
         if "File" in c.args[0] and "dir" in c.kwargs
     )
+
+
+def test_process_java_file_creates_class_and_calls(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    java_file = repo_root / "Foo.java"
+    java_file.write_text(
+        "class Foo extends Bar implements Baz { void bar() { baz(); } void baz() {} }"
+    )
+
+    session_mock = MagicMock()
+
+    with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
+        code_to_graph.process_java_file(
+            java_file, MagicMock(), MagicMock(), session_mock, repo_root
+        )
+
+    queries = [c.args[0] for c in session_mock.run.call_args_list]
+    assert any("MERGE (c:Class" in q for q in queries)
+    assert any("EXTENDS" in q for q in queries)
+    assert any("IMPLEMENTS" in q for q in queries)
+    assert any("CALLS" in q for q in queries)

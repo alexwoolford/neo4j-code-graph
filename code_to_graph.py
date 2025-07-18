@@ -150,7 +150,49 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     except Exception as e:
         print(f"Failed to parse {rel_path}: {e}")
         return  # skip unparsable files
-    for _, node in tree.filter(javalang.tree.MethodDeclaration):
+
+    # -------------------------------------------------------------------
+    # Classes and interfaces
+    # -------------------------------------------------------------------
+    for _, cls in tree.filter(javalang.tree.ClassDeclaration):
+        try:
+            session.run(
+                """
+                MERGE (c:Class {name:$name, file:$file})
+                MERGE (f:File {path:$file})
+                MERGE (f)-[:DECLARES]->(c)
+                """,
+                name=cls.name,
+                file=rel_path,
+            )
+
+            if cls.extends:
+                session.run(
+                    """
+                    MERGE (child:Class {name:$name, file:$file})
+                    MERGE (parent:Class {name:$parent})
+                    MERGE (child)-[:EXTENDS]->(parent)
+                    """,
+                    name=cls.name,
+                    file=rel_path,
+                    parent=cls.extends.name,
+                )
+
+            for impl in cls.implements or []:
+                session.run(
+                    """
+                    MERGE (child:Class {name:$name, file:$file})
+                    MERGE (iface:Interface {name:$iface})
+                    MERGE (child)-[:IMPLEMENTS]->(iface)
+                    """,
+                    name=cls.name,
+                    file=rel_path,
+                    iface=impl.name,
+                )
+        except Exception as e:
+            print(f"Neo4j error creating Class node for {cls.name} in {rel_path}: {e}")
+
+    for path_nodes, node in tree.filter(javalang.tree.MethodDeclaration):
         start = node.position.line if node.position else None
 
         end = start
@@ -171,6 +213,13 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         )
         m_embedding = compute_embedding(method_code, tokenizer, model)
         method_name = node.name
+
+        # Find the nearest enclosing class for this method
+        cls_name = None
+        for ancestor in reversed(path_nodes):
+            if isinstance(ancestor, javalang.tree.ClassDeclaration):
+                cls_name = ancestor.name
+                break
         try:
             session.run(
                 """
@@ -185,6 +234,33 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 embedding=m_embedding,
                 etype=EMBEDDING_TYPE,
             )
+
+            if cls_name:
+                session.run(
+                    """
+                    MATCH (c:Class {name:$cname, file:$file})
+                    MATCH (m:Method {name:$name, file:$file, line:$line})
+                    MERGE (c)-[:DECLARES]->(m)
+                    """,
+                    cname=cls_name,
+                    file=rel_path,
+                    name=method_name,
+                    line=start,
+                )
+
+            for _, inv in node.filter(javalang.tree.MethodInvocation):
+                callee = inv.member
+                session.run(
+                    """
+                    MATCH (caller:Method {name:$caller, file:$file, line:$line})
+                    MATCH (callee:Method {name:$callee})
+                    MERGE (caller)-[:CALLS]->(callee)
+                    """,
+                    caller=method_name,
+                    callee=callee,
+                    file=rel_path,
+                    line=start,
+                )
         except Exception as e:
             print(
                 "Neo4j error creating Method node "
