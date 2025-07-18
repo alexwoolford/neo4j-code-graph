@@ -5,3 +5,4 @@ javalang==0.13.0
 neo4j==5.28.1
 graphdatascience==1.16
 python-dotenv==1.1.1
+tqdm==4.66.4
