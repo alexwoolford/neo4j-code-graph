@@ -85,6 +85,28 @@ This script creates a vector index on the `Method.embedding` property if
 one does not already exist and then writes `SIMILAR` relationships with a
 `score` property for pairs of methods that exceed the similarity cutoff.
 
+## Directory nodes
+
+Each level of a file's path is represented by a `Directory` node. Parent
+directories are linked to their immediate subdirectories and files with
+`CONTAINS` relationships. For example, when processing
+`src/com/example/Foo.java` the script creates
+
+```
+(:Directory {path: 'src'})-[:CONTAINS]->(:Directory {path: 'src/com'})
+(:Directory {path: 'src/com'})-[:CONTAINS]->(:Directory {path: 'src/com/example'})
+(:Directory {path: 'src/com/example'})-[:CONTAINS]->(:File {path: 'src/com/example/Foo.java'})
+```
+
+This structure allows traversing the repository hierarchy. The query below
+lists everything contained in the `src` directory and its descendants:
+
+```cypher
+MATCH (d:Directory {path: 'src'})-[:CONTAINS*]->(n)
+RETURN labels(n)[0] AS type, n.path
+ORDER BY type, n.path;
+```
+
 ## Example queries
 
 After loading a repository you can explore the graph using Neo4j Browser or
