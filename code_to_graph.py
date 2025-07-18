@@ -53,6 +53,10 @@ def parse_args():
         default="INFO",
         help="Logging level (DEBUG, INFO, WARNING, ERROR)",
     )
+    parser.add_argument(
+        "--log-file",
+        help="Write logs to this file as well as the console",
+    )
     return parser.parse_args()
 
 
@@ -211,7 +215,8 @@ def process_java_file(path, tokenizer, model, session, repo_root):
             if inv.qualifier and inv.qualifier[0].isupper():
                 callee_class = inv.qualifier.split(".")[-1]
             cypher = (
-                "MATCH (caller:Method {name:$caller_name, file:$caller_file, line:$caller_line, class:$caller_class}) "
+                "MATCH (caller:Method {name:$caller_name, file:$caller_file, "
+                "line:$caller_line, class:$caller_class}) "
                 "MERGE (callee:Method {name:$callee_name"
             )
             params = {
@@ -273,7 +278,14 @@ def load_repo(repo_url, driver, database=None):
 
 def main():
     args = parse_args()
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), "INFO"))
+    handlers = [logging.StreamHandler(sys.stdout)]
+    if args.log_file:
+        handlers.append(logging.FileHandler(args.log_file))
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), "INFO"),
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=handlers,
+    )
     try:
         driver = GraphDatabase.driver(
             ensure_port(args.uri), auth=(args.username, args.password)
