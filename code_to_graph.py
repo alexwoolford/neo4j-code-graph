@@ -150,8 +150,14 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     except Exception as e:
         print(f"Failed to parse {rel_path}: {e}")
         return  # skip unparsable files
-    for _, node in tree.filter(javalang.tree.MethodDeclaration):
+    for path, node in tree.filter(javalang.tree.MethodDeclaration):
         start = node.position.line if node.position else None
+
+        class_name = None
+        for anc in reversed(path):
+            if isinstance(anc, javalang.tree.ClassDeclaration):
+                class_name = anc.name
+                break
 
         end = start
         if node.body:
@@ -174,22 +180,53 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         try:
             session.run(
                 """
-                MERGE (m:Method {name:$name, file:$file, line:$line})
+                MERGE (m:Method {name:$name, file:$file, line:$line, class:$class})
                 SET m.embedding=$embedding, m.embedding_type=$etype
                 MERGE (f:File {path:$file})
                 MERGE (f)-[:DECLARES]->(m)
                 """,
-                name=method_name,
-                file=rel_path,
-                line=start,
-                embedding=m_embedding,
-                etype=EMBEDDING_TYPE,
+                {
+                    "name": method_name,
+                    "file": rel_path,
+                    "line": start,
+                    "class": class_name,
+                    "embedding": m_embedding,
+                    "etype": EMBEDDING_TYPE,
+                },
             )
         except Exception as e:
             print(
                 "Neo4j error creating Method node "
                 f"{method_name} in {rel_path}: {e}"
             )
+
+        for _, inv in node.filter(javalang.tree.MethodInvocation):
+            callee_name = inv.member
+            callee_class = None
+            if inv.qualifier and inv.qualifier[0].isupper():
+                callee_class = inv.qualifier.split(".")[-1]
+            cypher = (
+                "MATCH (caller:Method {name:$caller_name, file:$caller_file, line:$caller_line, class:$caller_class}) "
+                "MERGE (callee:Method {name:$callee_name"
+            )
+            params = {
+                "caller_name": method_name,
+                "caller_file": rel_path,
+                "caller_line": start,
+                "caller_class": class_name,
+                "callee_name": callee_name,
+            }
+            if callee_class:
+                cypher += ", class:$callee_class"
+                params["callee_class"] = callee_class
+            cypher += "}) MERGE (caller)-[:CALLS]->(callee)"
+            try:
+                session.run(cypher, params)
+            except Exception as e:
+                print(
+                    "Neo4j error creating CALLS relationship "
+                    f"{method_name} -> {callee_name} in {rel_path}: {e}"
+                )
 
 
 def load_repo(repo_url, driver, database=None):

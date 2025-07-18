@@ -109,3 +109,23 @@ def test_process_java_file_creates_directories(tmp_path):
         for c in calls
         if "File" in c.args[0] and "dir" in c.kwargs
     )
+
+
+def test_process_java_file_creates_calls(tmp_path):
+    java_file = tmp_path / "Foo.java"
+    java_file.write_text(
+        "class Foo { void bar() { baz(); } void baz() {} }"
+    )
+
+    session_mock = MagicMock()
+
+    with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
+        code_to_graph.process_java_file(
+            java_file, MagicMock(), MagicMock(), session_mock, tmp_path
+        )
+
+    call_params = [c for c in session_mock.run.call_args_list if "CALLS" in c.args[0]]
+    assert call_params
+    params = call_params[0].args[1]
+    assert params.get("caller_name") == "bar"
+    assert params.get("callee_name") == "baz"
