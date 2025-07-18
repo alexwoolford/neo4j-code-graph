@@ -68,22 +68,31 @@ MODEL_NAME = "microsoft/graphcodebert-base"
 logger = logging.getLogger(__name__)
 
 
-def compute_embedding(code, tokenizer, model):
+def compute_embeddings(snippets, tokenizer, model, device=None):
+    """Return embeddings for all ``snippets`` in a single forward pass."""
+    if device is None:
+        device = model.device
     tokens = tokenizer(
-        code,
-        return_tensors="pt",
+        snippets,
+        padding=True,
         truncation=True,
         max_length=512,
-    )
+        return_tensors="pt",
+    ).to(device)
+    model = model.to(device)
     with torch.no_grad():
         outputs = model(**tokens)
-        vec = outputs.last_hidden_state[:, 0, :].squeeze().cpu().numpy()
-    embedding = vec.tolist()
-    logger.debug("Computed embedding of length %d", len(embedding))
-    return embedding
+        vecs = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+    embeddings = [v.tolist() for v in vecs]
+    logger.debug("Computed %d embeddings", len(embeddings))
+    return embeddings
 
 
-def process_java_file(path, tokenizer, model, session, repo_root):
+def compute_embedding(code, tokenizer, model, device=None):
+    return compute_embeddings([code], tokenizer, model, device=device)[0]
+
+
+def process_java_file(path, tokenizer, model, session, repo_root, device=None):
     """Parse a Java file, create file and method nodes with embeddings."""
     rel_path = str(path.relative_to(repo_root))
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
@@ -134,7 +143,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
             logger.error("Neo4j error linking directories %s -> %s: %s", p, c, e)
 
     # create File node
-    file_embedding = compute_embedding(code, tokenizer, model)
+    file_embedding = compute_embedding(code, tokenizer, model, device=device)
     try:
         session.run(
             "MERGE (f:File {path: $path}) "
@@ -185,7 +194,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         method_code = (
             "\n".join(code.splitlines()[start - 1 : end]) if start and end else ""
         )
-        m_embedding = compute_embedding(method_code, tokenizer, model)
+        m_embedding = compute_embedding(method_code, tokenizer, model, device=device)
         method_name = node.name
         try:
             cypher = "MERGE (m:Method {name:$name, file:$file, line:$line"
@@ -250,6 +259,12 @@ def load_repo(repo_url, driver, database=None):
             return
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         model = AutoModel.from_pretrained(MODEL_NAME)
+        if hasattr(torch, "device"):
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            device = "cpu"
+        if hasattr(model, "to"):
+            model = model.to(device)
         repo_root = Path(tmpdir)
         try:
             java_files = list(repo_root.rglob("*.java"))
@@ -263,6 +278,7 @@ def load_repo(repo_url, driver, database=None):
                         model,
                         session,
                         repo_root,
+                        device,
                     )
                     logger.debug("Processed %s in %.2fs", path, perf_counter() - start)
             logger.info(
