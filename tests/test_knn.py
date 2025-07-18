@@ -4,12 +4,13 @@ from unittest.mock import MagicMock
 import pytest
 
 # Stub heavy modules before importing the code under test
-sys.modules.setdefault('graphdatascience', types.ModuleType('graphdatascience'))
-sys.modules['graphdatascience'].GraphDataScience = object
-sys.modules.setdefault('dotenv', types.ModuleType('dotenv'))
-sys.modules['dotenv'].load_dotenv = lambda override=True: None
+sys.modules.setdefault("graphdatascience", types.ModuleType("graphdatascience"))
+sys.modules["graphdatascience"].GraphDataScience = object
+sys.modules.setdefault("dotenv", types.ModuleType("dotenv"))
+sys.modules["dotenv"].load_dotenv = lambda override=True: None
 
 from create_method_similarity import run_knn
+
 
 @pytest.mark.parametrize(
     "modern,top_k,cutoff",

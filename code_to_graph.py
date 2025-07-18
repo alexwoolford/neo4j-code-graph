@@ -188,22 +188,20 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         m_embedding = compute_embedding(method_code, tokenizer, model)
         method_name = node.name
         try:
-            session.run(
-                """
-                MERGE (m:Method {name:$name, file:$file, line:$line, class:$class})
-                SET m.embedding=$embedding, m.embedding_type=$etype
-                MERGE (f:File {path:$file})
-                MERGE (f)-[:DECLARES]->(m)
-                """,
-                {
-                    "name": method_name,
-                    "file": rel_path,
-                    "line": start,
-                    "class": class_name,
-                    "embedding": m_embedding,
-                    "etype": EMBEDDING_TYPE,
-                },
-            )
+            cypher = "MERGE (m:Method {name:$name, file:$file, line:$line"
+            params = {
+                "name": method_name,
+                "file": rel_path,
+                "line": start,
+                "embedding": m_embedding,
+                "etype": EMBEDDING_TYPE,
+            }
+            if class_name is not None:
+                cypher += ", class:$class"
+                params["class"] = class_name
+            cypher += "}) SET m.embedding=$embedding, m.embedding_type=$etype "
+            cypher += "MERGE (f:File {path:$file}) MERGE (f)-[:DECLARES]->(m)"
+            session.run(cypher, params)
         except Exception as e:
             print(
                 "Neo4j error creating Method node " f"{method_name} in {rel_path}: {e}"
@@ -215,17 +213,19 @@ def process_java_file(path, tokenizer, model, session, repo_root):
             if inv.qualifier and inv.qualifier[0].isupper():
                 callee_class = inv.qualifier.split(".")[-1]
             cypher = (
-                "MATCH (caller:Method {name:$caller_name, file:$caller_file, "
-                "line:$caller_line, class:$caller_class}) "
-                "MERGE (callee:Method {name:$callee_name"
+                "MATCH (caller:Method {name:$caller_name, file:$caller_file,"
+                " line:$caller_line"
             )
             params = {
                 "caller_name": method_name,
                 "caller_file": rel_path,
                 "caller_line": start,
-                "caller_class": class_name,
                 "callee_name": callee_name,
             }
+            if class_name is not None:
+                cypher += ", class:$caller_class"
+                params["caller_class"] = class_name
+            cypher += "}) MERGE (callee:Method {name:$callee_name"
             if callee_class:
                 cypher += ", class:$callee_class"
                 params["callee_class"] = callee_class
