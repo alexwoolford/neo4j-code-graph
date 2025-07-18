@@ -75,7 +75,6 @@ def create_index(gds):
 def run_knn(gds, top_k=5, cutoff=0.8):
     """Run the KNN algorithm and create SIMILAR relationships."""
     base_config = {
-        "nodeProjection": "Method",
         "nodeProperties": "embedding",
         "topK": top_k,
         "similarityCutoff": cutoff,
@@ -83,47 +82,31 @@ def run_knn(gds, top_k=5, cutoff=0.8):
         "writeProperty": "score",
     }
 
-    try:
-        start = perf_counter()
-        gds.knn.write(**base_config)
-        logger.info(
-            "kNN wrote relationships for top %d with cutoff %.2f in %.2fs",
-            top_k,
-            cutoff,
-            perf_counter() - start,
-        )
-    except Exception as e:
-        # Older GDS versions expect a graph name as the first argument,
-        # which results in a TypeError complaining about a missing "G"
-        # parameter.
-        if "Type mismatch" not in str(
-            e
-        ) and "missing 1 required positional argument" not in str(e):
-            raise
+    missing = gds.run_cypher(
+        "MATCH (m:Method) WHERE m.embedding IS NULL RETURN count(m) AS missing"
+    )[0]["missing"]
+    if missing:
+        logger.warning("Ignoring %d Method nodes without embeddings", missing)
 
-        logger.debug("Falling back to legacy GDS API")
-        # Drop any existing graph with the same name
-        try:
-            gds.graph.drop("methodGraph")
-        except Exception:
-            pass  # Graph doesn't exist, which is fine
+    graph_name = "methodGraph"
+    if gds.graph.exists(graph_name):
+        gds.graph.drop(graph_name)
 
-        # Create graph projection with node properties included
-        graph, _ = gds.graph.project(
-            "methodGraph",
-            {"Method": {"properties": "embedding"}},
-            "*",
-        )
-        config = {k: base_config[k] for k in base_config if k != "nodeProjection"}
-        start = perf_counter()
-        gds.knn.write(graph, **config)
-        graph.drop()
-        logger.info(
-            "kNN (legacy) wrote relationships for top %d with cutoff %.2f in %.2fs",
-            top_k,
-            cutoff,
-            perf_counter() - start,
-        )
+    graph, _ = gds.graph.project(
+        graph_name,
+        {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
+        "*",
+    )
+
+    start = perf_counter()
+    gds.knn.write(graph, **base_config)
+    logger.info(
+        "kNN wrote relationships for top %d with cutoff %.2f in %.2fs",
+        top_k,
+        cutoff,
+        perf_counter() - start,
+    )
+    graph.drop()
 
 
 def main():
