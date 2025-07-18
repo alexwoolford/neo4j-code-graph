@@ -27,7 +27,10 @@ def test_run_knn_legacy_api():
     gds = MagicMock()
     graph_mock = MagicMock()
     gds.graph.project.return_value = (graph_mock, None)
-    gds.knn.write.side_effect = [TypeError("missing 1 required positional argument"), None]
+    gds.knn.write.side_effect = [
+        TypeError("missing 1 required positional argument"),
+        None,
+    ]
 
     run_knn(gds, top_k=4, cutoff=0.7)
 

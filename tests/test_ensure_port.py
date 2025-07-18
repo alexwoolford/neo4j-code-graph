@@ -20,7 +20,10 @@ def _stub_module(name, attrs=None):
 HEAVY_MODULES = {
     "git": _stub_module("git", ["Repo"]),
     "neo4j": _stub_module("neo4j", ["GraphDatabase"]),
-    "transformers": _stub_module("transformers", ["AutoTokenizer", "AutoModel"]),
+    "transformers": _stub_module(
+        "transformers",
+        ["AutoTokenizer", "AutoModel"],
+    ),
     "torch": _stub_module("torch"),
     "javalang": _stub_module("javalang"),
     "dotenv": _stub_module("dotenv", ["load_dotenv"]),
@@ -28,7 +31,10 @@ HEAVY_MODULES = {
 }
 
 
-@pytest.mark.parametrize("module_name", ["code_to_graph", "create_method_similarity"])
+@pytest.mark.parametrize(
+    "module_name",
+    ["code_to_graph", "create_method_similarity"],
+)
 @pytest.mark.parametrize(
     "uri, expected",
     [
@@ -42,4 +48,3 @@ def test_ensure_port(module_name, uri, expected):
     with patch.dict(sys.modules, HEAVY_MODULES):
         module = importlib.import_module(module_name)
         assert module.ensure_port(uri) == expected
-

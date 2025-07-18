@@ -33,12 +33,20 @@ def parse_args():
         description="Load a Java Git repository into Neo4j with embeddings"
     )
     parser.add_argument("repo_url", help="URL of the Git repository to load")
-    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
     parser.add_argument(
-        "--username", default=NEO4J_USERNAME, help="Neo4j authentication username"
+        "--uri",
+        default=NEO4J_URI,
+        help="Neo4j connection URI",
     )
     parser.add_argument(
-        "--password", default=NEO4J_PASSWORD, help="Neo4j authentication password"
+        "--username",
+        default=NEO4J_USERNAME,
+        help="Neo4j authentication username",
+    )
+    parser.add_argument(
+        "--password",
+        default=NEO4J_PASSWORD,
+        help="Neo4j authentication password",
     )
     parser.add_argument(
         "--database",
@@ -54,7 +62,12 @@ MODEL_NAME = "microsoft/graphcodebert-base"
 
 
 def compute_embedding(code, tokenizer, model):
-    tokens = tokenizer(code, return_tensors="pt", truncation=True, max_length=512)
+    tokens = tokenizer(
+        code,
+        return_tensors="pt",
+        truncation=True,
+        max_length=512,
+    )
     with torch.no_grad():
         outputs = model(**tokens)
         vec = outputs.last_hidden_state[:, 0, :].squeeze().cpu().numpy()
@@ -89,7 +102,9 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     else:
         try:
             session.run(
-                "MERGE (p:Directory {path:''}) MERGE (c:Directory {path:$child}) MERGE (p)-[:CONTAINS]->(c)",
+                "MERGE (p:Directory {path:''}) "
+                "MERGE (c:Directory {path:$child}) "
+                "MERGE (p)-[:CONTAINS]->(c)",
                 child=dir_paths[0],
             )
         except Exception as e:
@@ -98,7 +113,9 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     for p, c in zip(dir_paths[:-1], dir_paths[1:]):
         try:
             session.run(
-                "MERGE (p:Directory {path:$parent}) MERGE (c:Directory {path:$child}) MERGE (p)-[:CONTAINS]->(c)",
+                "MERGE (p:Directory {path:$parent}) "
+                "MERGE (c:Directory {path:$child}) "
+                "MERGE (p)-[:CONTAINS]->(c)",
                 parent=p,
                 child=c,
             )
@@ -109,14 +126,18 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     file_embedding = compute_embedding(code, tokenizer, model)
     try:
         session.run(
-            "MERGE (f:File {path: $path}) SET f.embedding = $embedding, f.embedding_type = $etype",
+            "MERGE (f:File {path: $path}) "
+            "SET f.embedding = $embedding, "
+            "f.embedding_type = $etype",
             path=rel_path,
             embedding=file_embedding,
             etype=EMBEDDING_TYPE,
         )
         if dir_paths:
             session.run(
-                "MERGE (d:Directory {path:$dir}) MERGE (f:File {path:$file}) MERGE (d)-[:CONTAINS]->(f)",
+                "MERGE (d:Directory {path:$dir}) "
+                "MERGE (f:File {path:$file}) "
+                "MERGE (d)-[:CONTAINS]->(f)",
                 dir=dir_paths[-1],
                 file=rel_path,
             )
@@ -144,7 +165,9 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 end = node.body.position.line
 
         method_code = (
-            "\n".join(code.splitlines()[start - 1 : end]) if start and end else ""
+            "\n".join(code.splitlines()[start - 1 : end])
+            if start and end
+            else ""
         )
         m_embedding = compute_embedding(method_code, tokenizer, model)
         method_name = node.name
@@ -164,7 +187,8 @@ def process_java_file(path, tokenizer, model, session, repo_root):
             )
         except Exception as e:
             print(
-                f"Neo4j error creating Method node {method_name} in {rel_path}: {e}"
+                "Neo4j error creating Method node "
+                f"{method_name} in {rel_path}: {e}"
             )
 
 
@@ -183,7 +207,13 @@ def load_repo(repo_url, driver, database=None):
         try:
             with driver.session(database=database) as session:
                 for path in repo_root.rglob("*.java"):
-                    process_java_file(path, tokenizer, model, session, repo_root)
+                    process_java_file(
+                        path,
+                        tokenizer,
+                        model,
+                        session,
+                        repo_root,
+                    )
         except Exception as e:
             print(f"Neo4j error while processing repository: {e}")
     finally:
