@@ -212,8 +212,11 @@ def process_java_file(path, tokenizer, model, session, repo_root, device=None):
             cypher += "MERGE (f:File {path:$file}) MERGE (f)-[:DECLARES]->(m)"
             session.run(cypher, params)
         except Exception as e:
-            print(
-                "Neo4j error creating Method node " f"{method_name} in {rel_path}: {e}"
+            logger.error(
+                "Neo4j error creating Method node %s in %s: %s",
+                method_name,
+                rel_path,
+                e,
             )
 
         for _, inv in node.filter(javalang.tree.MethodInvocation):
@@ -242,9 +245,12 @@ def process_java_file(path, tokenizer, model, session, repo_root, device=None):
             try:
                 session.run(cypher, params)
             except Exception as e:
-                print(
-                    "Neo4j error creating CALLS relationship "
-                    f"{method_name} -> {callee_name} in {rel_path}: {e}"
+                logger.error(
+                    "Neo4j error creating CALLS relationship %s -> %s in %s: %s",
+                    method_name,
+                    callee_name,
+                    rel_path,
+                    e,
                 )
 
 

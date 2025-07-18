@@ -107,10 +107,10 @@ def run_knn(gds, top_k=5, cutoff=0.8):
     if exists:
         gds.graph.drop(graph_name)
 
-    graph, _ = gds.graph.project.cypher(
+    graph, _ = gds.graph.project(
         graph_name,
-        "MATCH (m:Method) WHERE m.embedding IS NOT NULL RETURN id(m) AS id, m.embedding AS embedding",
-        "RETURN null AS source, null AS target LIMIT 0"
+        {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
+        "*",
     )
 
     start = perf_counter()
