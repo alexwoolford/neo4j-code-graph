@@ -136,3 +136,32 @@ def test_process_java_file_creates_calls(tmp_path):
     params = call_params[0].args[1]
     assert params.get("caller_name") == "bar"
     assert params.get("callee_name") == "baz"
+
+
+def test_main_accepts_optional_arguments(monkeypatch):
+    args = types.SimpleNamespace(
+        repo_url="https://example.com/repo.git",
+        uri="bolt://example",
+        username="neo4j",
+        password="secret",
+        database="testdb",
+    )
+
+    driver_instance = MagicMock()
+    monkeypatch.setattr(code_to_graph, "parse_args", lambda: args)
+    ensure_port_mock = MagicMock(return_value="bolt://example:9999")
+    monkeypatch.setattr(code_to_graph, "ensure_port", ensure_port_mock)
+    monkeypatch.setattr(code_to_graph.GraphDatabase, "driver", MagicMock(return_value=driver_instance))
+    load_repo_mock = MagicMock()
+    monkeypatch.setattr(code_to_graph, "load_repo", load_repo_mock)
+
+    code_to_graph.main()
+
+    ensure_port_mock.assert_called_once_with(args.uri)
+    code_to_graph.GraphDatabase.driver.assert_called_once_with(
+        "bolt://example:9999",
+        auth=(args.username, args.password),
+    )
+    load_repo_mock.assert_called_once_with(args.repo_url, driver_instance, args.database)
+    driver_instance.verify_connectivity.assert_called_once()
+    driver_instance.close.assert_called_once()
