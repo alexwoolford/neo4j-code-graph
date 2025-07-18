@@ -20,7 +20,10 @@ class _NoGrad:
     def __exit__(self, *exc):
         pass
 
-sys.modules.setdefault("torch", types.SimpleNamespace(no_grad=lambda: _NoGrad()))
+sys.modules.setdefault(
+    "torch",
+    types.SimpleNamespace(no_grad=lambda: _NoGrad()),
+)
 
 
 import code_to_graph
@@ -42,11 +45,22 @@ def test_load_repo_executes_cypher(tmp_path):
     driver_mock = MagicMock()
     driver_mock.session.return_value = session_cm
 
-    with patch.object(code_to_graph.GraphDatabase, "driver", return_value=driver_mock) as mock_driver, \
-         patch.object(code_to_graph.Repo, "clone_from", side_effect=fake_clone_from), \
-         patch.object(code_to_graph, "AutoTokenizer"), \
-         patch.object(code_to_graph, "AutoModel"), \
-         patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
+    with patch.object(
+        code_to_graph.GraphDatabase,
+        "driver",
+        return_value=driver_mock,
+    ) as mock_driver, patch.object(
+        code_to_graph.Repo,
+        "clone_from",
+        side_effect=fake_clone_from,
+    ), patch.object(code_to_graph, "AutoTokenizer"), patch.object(
+        code_to_graph,
+        "AutoModel",
+    ), patch.object(
+        code_to_graph,
+        "compute_embedding",
+        return_value=[0.0],
+    ):
         driver = code_to_graph.GraphDatabase.driver("bolt://localhost:7687")
         code_to_graph.load_repo("dummy_url", driver)
         mock_driver.assert_called_once()
@@ -71,7 +85,11 @@ def test_process_java_file_creates_directories(tmp_path):
         )
 
     calls = session_mock.run.call_args_list
-    dir_paths = [c.kwargs["path"] for c in calls if c.args[0].startswith("MERGE (:Directory")]
+    dir_paths = [
+        c.kwargs["path"]
+        for c in calls
+        if c.args[0].startswith("MERGE (:Directory")
+    ]
     assert dir_paths == ["a", "a/b"]
 
     assert any(

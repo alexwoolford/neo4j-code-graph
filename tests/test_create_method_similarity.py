@@ -19,7 +19,10 @@ def make_gds(modern=True):
     if modern:
         gds.knn.write.return_value = None
     else:
-        gds.knn.write.side_effect = [TypeError("missing 1 required positional argument"), None]
+        gds.knn.write.side_effect = [
+            TypeError("missing 1 required positional argument"),
+            None,
+        ]
     return gds, graph_obj
 
 
