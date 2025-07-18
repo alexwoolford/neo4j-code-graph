@@ -17,6 +17,7 @@ def _stub_module(name, attrs=None):
         setattr(mod, attr, MagicMock())
     return mod
 
+
 HEAVY_MODULES = {
     "git": _stub_module("git", ["Repo"]),
     "neo4j": _stub_module("neo4j", ["GraphDatabase"]),
