@@ -1,6 +1,7 @@
 import sys
 import types
 from unittest.mock import MagicMock
+
 import pytest
 
 # Stub heavy modules before importing the code under test
@@ -12,80 +13,46 @@ sys.modules["dotenv"].load_dotenv = lambda override=True: None
 from create_method_similarity import run_knn
 
 
-@pytest.mark.parametrize(
-    "modern,top_k,cutoff",
-    [
-        (True, 3, 0.5),
-        (False, 4, 0.7),
-    ],
-)
-def test_run_knn(modern, top_k, cutoff):
+def test_run_knn_creates_projection_and_runs():
     gds = MagicMock()
-    gds.graph = MagicMock()
+    gds.run_cypher.return_value = [{"missing": 2}]
+    gds.graph.exists.return_value = True
     graph_obj = MagicMock()
     gds.graph.project.return_value = (graph_obj, None)
 
-    if modern:
-        gds.knn.write.return_value = None
-    else:
-        gds.knn.write.side_effect = [
-            TypeError("missing 1 required positional argument"),
-            None,
-        ]
+    run_knn(gds, top_k=3, cutoff=0.5)
 
-    run_knn(gds, top_k=top_k, cutoff=cutoff)
-
-    if modern:
-        gds.knn.write.assert_called_once_with(
-            nodeProjection={
-                "Method": {
-                    "properties": "embedding",
-                    "where": "m.embedding IS NOT NULL",
-                }
-            },
-            nodeProperties="embedding",
-            topK=top_k,
-            similarityCutoff=cutoff,
-            writeRelationshipType="SIMILAR",
-            writeProperty="score",
-        )
-        gds.graph.drop.assert_not_called()
-        gds.graph.project.assert_not_called()
-    else:
-        assert gds.knn.write.call_count == 2
-        first_call = gds.knn.write.call_args_list[0]
-        assert "nodeProjection" in first_call.kwargs
-        gds.graph.drop.assert_called_with("methodGraph")
-        gds.graph.project.assert_called_with(
-            "methodGraph",
-            {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
-            "*",
-        )
-        graph_obj.drop.assert_called_once()
-        second_call = gds.knn.write.call_args_list[1]
-        assert second_call.args[0] is graph_obj
-        assert "nodeProjection" not in second_call.kwargs
-
-
-def test_run_knn_legacy_without_where_support():
-    gds = MagicMock()
-    gds.graph = MagicMock()
-    graph_obj = MagicMock()
-    gds.graph.project.side_effect = Exception("Unexpected configuration key: where")
-    gds.graph.project.cypher.return_value = (graph_obj, None)
-
-    gds.knn.write.side_effect = [
-        TypeError("missing 1 required positional argument"),
-        None,
-    ]
-
-    run_knn(gds)
-
-    assert gds.knn.write.call_count == 2
-    gds.graph.project.assert_called_with(
+    gds.run_cypher.assert_called_once_with(
+        "MATCH (m:Method) WHERE m.embedding IS NULL RETURN count(m) AS missing"
+    )
+    gds.graph.exists.assert_called_once_with("methodGraph")
+    gds.graph.drop.assert_called_once_with("methodGraph")
+    gds.graph.project.assert_called_once_with(
         "methodGraph",
         {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
         "*",
     )
-    gds.graph.project.cypher.assert_called_once()
+    gds.knn.write.assert_called_once_with(
+        graph_obj,
+        nodeProperties="embedding",
+        topK=3,
+        similarityCutoff=0.5,
+        writeRelationshipType="SIMILAR",
+        writeProperty="score",
+    )
+    graph_obj.drop.assert_called_once()
 
+
+def test_run_knn_without_existing_projection():
+    gds = MagicMock()
+    gds.run_cypher.return_value = [{"missing": 0}]
+    gds.graph.exists.return_value = False
+    graph_obj = MagicMock()
+    gds.graph.project.return_value = (graph_obj, None)
+
+    run_knn(gds)
+
+    gds.graph.drop.assert_not_called()
+    gds.graph.project.assert_called_once()
+    gds.knn.write.assert_called_once()
+    graph_obj.drop.assert_called_once()
