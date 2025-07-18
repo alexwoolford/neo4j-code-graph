@@ -132,6 +132,13 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 dir=dir_paths[-1],
                 file=rel_path,
             )
+        else:
+            session.run(
+                "MERGE (d:Directory {path:''}) "
+                "MERGE (f:File {path:$file}) "
+                "MERGE (d)-[:CONTAINS]->(f)",
+                file=rel_path,
+            )
     except Exception as e:
         print(f"Neo4j error creating File node for {rel_path}: {e}")
         return

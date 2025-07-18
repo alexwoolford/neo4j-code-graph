@@ -136,3 +136,26 @@ def test_process_java_file_creates_calls(tmp_path):
     params = call_params[0].args[1]
     assert params.get("caller_name") == "bar"
     assert params.get("callee_name") == "baz"
+
+
+def test_process_java_file_links_root_to_file(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    java_file = repo_root / "Foo.java"
+    java_file.write_text("class Foo {}")
+
+    session_mock = MagicMock()
+
+    with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
+        code_to_graph.process_java_file(
+            java_file, MagicMock(), MagicMock(), session_mock, repo_root
+        )
+
+    calls = session_mock.run.call_args_list
+
+    assert any(
+        "path:''" in c.args[0]
+        and c.kwargs.get("file") == "Foo.java"
+        and "CONTAINS" in c.args[0]
+        for c in calls
+    )
