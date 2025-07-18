@@ -82,9 +82,11 @@ def run_knn(gds, top_k=5, cutoff=0.8):
         "writeProperty": "score",
     }
 
-    missing = gds.run_cypher(
+    missing_df = gds.run_cypher(
         "MATCH (m:Method) WHERE m.embedding IS NULL RETURN count(m) AS missing"
-    )[0]["missing"]
+    )
+    missing = missing_df.iloc[0]["missing"]
+
     if missing:
         logger.warning("Ignoring %d Method nodes without embeddings", missing)
 
