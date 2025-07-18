@@ -67,13 +67,13 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         code = f.read()
 
-    # Create Directory nodes for the file path and link them
+    # Create Directory nodes for each level of the file path
+    parts = Path(rel_path).parent.parts
     dir_paths = []
-    parent = Path(rel_path).parent
-    while str(parent) not in ("", "."):
-        dir_paths.append(str(parent).replace("\\", "/"))
-        parent = parent.parent
-    dir_paths.reverse()
+    current = []
+    for part in parts:
+        current.append(part)
+        dir_paths.append("/".join(current))
 
     for dp in dir_paths:
         try:

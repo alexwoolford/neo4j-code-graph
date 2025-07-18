@@ -70,7 +70,18 @@ def test_process_java_file_creates_directories(tmp_path):
             java_file, MagicMock(), MagicMock(), session_mock, repo_root
         )
 
-    queries = [c.args[0] for c in session_mock.run.call_args_list]
-    assert any("MERGE (:Directory {path:$path})" in q for q in queries)
-    assert any("MERGE (p:Directory" in q and "CONTAINS" in q for q in queries)
-    assert any("MERGE (d:Directory" in q and "CONTAINS" in q and "File" in q for q in queries)
+    calls = session_mock.run.call_args_list
+    dir_paths = [c.kwargs["path"] for c in calls if c.args[0].startswith("MERGE (:Directory")]
+    assert dir_paths == ["a", "a/b"]
+
+    assert any(
+        c.kwargs.get("parent") == "a" and c.kwargs.get("child") == "a/b"
+        for c in calls
+        if "CONTAINS" in c.args[0] and "child" in c.kwargs
+    )
+
+    assert any(
+        c.kwargs.get("dir") == "a/b" and c.kwargs.get("file") == "a/b/Foo.java"
+        for c in calls
+        if "File" in c.args[0] and "dir" in c.kwargs
+    )
