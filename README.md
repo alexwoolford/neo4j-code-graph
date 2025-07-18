@@ -107,6 +107,25 @@ RETURN labels(n)[0] AS type, n.path
 ORDER BY type, n.path;
 ```
 
+## Class and interface nodes
+
+The loader now parses class and interface declarations. Each `Class` or
+`Interface` node stores the `name` of the declaration and is connected to the
+declaring `File` with a `DECLARES` relationship. Inheritance is represented
+using `EXTENDS` for classes and `IMPLEMENTS` for interfaces. Method calls are
+linked with `CALLS`.
+
+Example structure:
+
+```
+(:Class {name: 'Foo'})-[:EXTENDS]->(:Class {name: 'Bar'})
+(:Class {name: 'Foo'})-[:IMPLEMENTS]->(:Interface {name: 'Baz'})
+(:Method {name: 'foo'})-[:CALLS]->(:Method {name: 'bar'})
+```
+
+These features are enabled by default when running the loader; no additional
+command-line options are required.
+
 ## Example queries
 
 After loading a repository you can explore the graph using Neo4j Browser or
@@ -135,6 +154,19 @@ MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
 RETURN m1.name, m2.name, s.score
 ORDER BY s.score DESC
 LIMIT 10;
+```
+
+// Traverse class inheritance
+MATCH (c:Class {name: $name})-[:EXTENDS*]->(sup)
+RETURN sup.name;
+
+// Explore which interfaces a class implements
+MATCH (c:Class {name: $name})-[:IMPLEMENTS]->(i:Interface)
+RETURN i.name;
+
+// Follow a chain of method calls
+MATCH p=(m:Method {name: $method})-[:CALLS*]->(called)
+RETURN called.name LIMIT 10;
 ```
 
 ## Testing
