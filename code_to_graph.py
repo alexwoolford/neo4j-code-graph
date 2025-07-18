@@ -47,7 +47,6 @@ def parse_args():
     return parser.parse_args()
 
 # Embedding metadata
-EMBEDDING_DIM = 768
 EMBEDDING_TYPE = "graphcodebert-base"
 MODEL_NAME = "microsoft/graphcodebert-base"
 
