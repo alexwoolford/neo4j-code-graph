@@ -3,6 +3,7 @@ import logging
 import sys
 from time import perf_counter
 from graphdatascience import GraphDataScience
+import pandas as pd
 
 from utils import ensure_port, get_neo4j_config
 
@@ -92,8 +93,14 @@ def run_knn(gds, top_k=5, cutoff=0.8):
 
     graph_name = "methodGraph"
     exists_result = gds.graph.exists(graph_name)
+    exists = False
     try:
-        exists = bool(exists_result["exists"])
+        if isinstance(exists_result, pd.DataFrame):
+            exists = bool(exists_result.loc[0, "exists"])
+        elif isinstance(exists_result, pd.Series):
+            exists = bool(exists_result.get("exists", False))
+        else:
+            exists = bool(exists_result)
     except Exception:
         exists = bool(exists_result)
 
