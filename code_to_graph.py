@@ -150,46 +150,91 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     except Exception as e:
         print(f"Failed to parse {rel_path}: {e}")
         return  # skip unparsable files
-    for _, node in tree.filter(javalang.tree.MethodDeclaration):
-        start = node.position.line if node.position else None
 
-        end = start
-        if node.body:
-            if isinstance(node.body, list):
-                # For normal methods javalang returns a list of statements
-                # each with its own position.
-                if node.body and hasattr(node.body[-1], "position"):
-                    end = node.body[-1].position.line
-            elif hasattr(node.body, "position"):
-                # Some nodes expose a body object with a position attribute
-                end = node.body.position.line
+    for type_decl in tree.types:
+        if isinstance(type_decl, (javalang.tree.ClassDeclaration, javalang.tree.InterfaceDeclaration)):
+            label = "Class" if isinstance(type_decl, javalang.tree.ClassDeclaration) else "Interface"
+            t_line = type_decl.position.line if type_decl.position else None
+            try:
+                session.run(
+                    f"MERGE (c:{label} {{name:$name, file:$file, line:$line}}) "
+                    "MERGE (f:File {path:$file}) "
+                    "MERGE (f)-[:DECLARES]->(c)",
+                    name=type_decl.name,
+                    file=rel_path,
+                    line=t_line,
+                )
+            except Exception as e:
+                print(f"Neo4j error creating {label} node {type_decl.name} in {rel_path}: {e}")
 
-        method_code = (
-            "\n".join(code.splitlines()[start - 1 : end])
-            if start and end
-            else ""
-        )
-        m_embedding = compute_embedding(method_code, tokenizer, model)
-        method_name = node.name
-        try:
-            session.run(
-                """
-                MERGE (m:Method {name:$name, file:$file, line:$line})
-                SET m.embedding=$embedding, m.embedding_type=$etype
-                MERGE (f:File {path:$file})
-                MERGE (f)-[:DECLARES]->(m)
-                """,
-                name=method_name,
-                file=rel_path,
-                line=start,
-                embedding=m_embedding,
-                etype=EMBEDDING_TYPE,
-            )
-        except Exception as e:
-            print(
-                "Neo4j error creating Method node "
-                f"{method_name} in {rel_path}: {e}"
-            )
+            if isinstance(type_decl, javalang.tree.ClassDeclaration):
+                if type_decl.extends:
+                    try:
+                        session.run(
+                            "MERGE (c:Class {name:$name, file:$file}) "
+                            "MERGE (s:Class {name:$sname}) "
+                            "MERGE (c)-[:EXTENDS]->(s)",
+                            name=type_decl.name,
+                            file=rel_path,
+                            sname=type_decl.extends.name,
+                        )
+                    except Exception as e:
+                        print(
+                            f"Neo4j error creating EXTENDS relationship for {type_decl.name} in {rel_path}: {e}"
+                        )
+                for impl in type_decl.implements or []:
+                    try:
+                        session.run(
+                            "MERGE (c:Class {name:$name, file:$file}) "
+                            "MERGE (i:Interface {name:$iname}) "
+                            "MERGE (c)-[:IMPLEMENTS]->(i)",
+                            name=type_decl.name,
+                            file=rel_path,
+                            iname=impl.name,
+                        )
+                    except Exception as e:
+                        print(
+                            f"Neo4j error creating IMPLEMENTS relationship for {type_decl.name} in {rel_path}: {e}"
+                        )
+
+            for member in type_decl.body:
+                if isinstance(member, javalang.tree.MethodDeclaration):
+                    start = member.position.line if member.position else None
+                    end = start
+                    if member.body:
+                        if isinstance(member.body, list):
+                            if member.body and hasattr(member.body[-1], "position"):
+                                end = member.body[-1].position.line
+                        elif hasattr(member.body, "position"):
+                            end = member.body.position.line
+
+                    method_code = (
+                        "\n".join(code.splitlines()[start - 1 : end])
+                        if start and end
+                        else ""
+                    )
+                    m_embedding = compute_embedding(method_code, tokenizer, model)
+                    method_name = member.name
+                    try:
+                        session.run(
+                            f"""
+                            MERGE (m:Method {{name:$name, file:$file, line:$line}})
+                            SET m.embedding=$embedding, m.embedding_type=$etype
+                            MERGE (p:{label} {{name:$pname, file:$file}})
+                            MERGE (p)-[:DECLARES]->(m)
+                            """,
+                            name=method_name,
+                            file=rel_path,
+                            line=start,
+                            embedding=m_embedding,
+                            etype=EMBEDDING_TYPE,
+                            pname=type_decl.name,
+                        )
+                    except Exception as e:
+                        print(
+                            "Neo4j error creating Method node "
+                            f"{method_name} in {rel_path}: {e}"
+                        )
 
 
 def load_repo(repo_url, driver, database=None):

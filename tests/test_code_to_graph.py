@@ -25,6 +25,13 @@ sys.modules.setdefault(
     types.SimpleNamespace(no_grad=lambda: _NoGrad()),
 )
 
+sys.modules.setdefault("git", types.SimpleNamespace(Repo=MagicMock()))
+sys.modules.setdefault(
+    "neo4j",
+    types.SimpleNamespace(GraphDatabase=MagicMock())
+)
+sys.modules.setdefault("dotenv", types.SimpleNamespace(load_dotenv=lambda **k: None))
+
 
 import code_to_graph
 
@@ -108,4 +115,51 @@ def test_process_java_file_creates_directories(tmp_path):
         c.kwargs.get("dir") == "a/b" and c.kwargs.get("file") == "a/b/Foo.java"
         for c in calls
         if "File" in c.args[0] and "dir" in c.kwargs
+    )
+
+
+def test_process_java_file_parses_classes(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    java_file = repo_root / "Foo.java"
+    java_file.write_text(
+        "\n".join(
+            [
+                "interface Baz {}",
+                "class Bar {}",
+                "class Foo extends Bar implements Baz {",
+                "    void doIt() {}",
+                "}",
+            ]
+        )
+    )
+
+    session_mock = MagicMock()
+
+    with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
+        code_to_graph.process_java_file(
+            java_file, MagicMock(), MagicMock(), session_mock, repo_root
+        )
+
+    calls = session_mock.run.call_args_list
+    assert any(
+        "MERGE (c:Class" in c.args[0] and c.kwargs.get("name") == "Foo"
+        for c in calls
+    )
+    assert any(
+        "Interface" in c.args[0] and c.kwargs.get("name") == "Baz"
+        for c in calls
+    )
+    assert any(
+        "EXTENDS" in c.args[0] and c.kwargs.get("sname") == "Bar"
+        for c in calls
+    )
+    assert any(
+        "IMPLEMENTS" in c.args[0] and c.kwargs.get("iname") == "Baz"
+        for c in calls
+    )
+    assert any(
+        "MERGE (p:Class" in c.args[0] and c.kwargs.get("pname") == "Foo"
+        for c in calls
+        if "DECLARES" in c.args[0]
     )
