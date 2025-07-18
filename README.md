@@ -63,7 +63,8 @@ python code_to_graph.py <repo_url> \
   --uri bolt://localhost:7687 \
   --username neo4j \
   --password secret \
-  --database neo4j
+  --database neo4j \
+  --log-level INFO
 ```
 
 Where:
@@ -77,6 +78,8 @@ creates `File` nodes for each source file and `Method` nodes for each
 method. Method invocations are linked with `CALLS` relationships, and
 each node stores an embedding vector for similarity search. Similarity
 relationships are created separately using `create_method_similarity.py`.
+Logging output can be controlled with the `--log-level` option, and a
+progress bar is displayed while processing files.
 
 ### Build similarity relationships
 
@@ -136,9 +139,10 @@ RETURN called.name LIMIT 10;
 
 ## Testing
 
-Run the test suite with `pytest`:
+Run the style checks and test suite:
 
 ```bash
+flake8
 pytest -q
 ```
 

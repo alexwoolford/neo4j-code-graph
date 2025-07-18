@@ -3,6 +3,9 @@ import tempfile
 import shutil
 from pathlib import Path
 import argparse
+import logging
+from time import perf_counter
+from tqdm import tqdm
 
 from git import Repo
 from neo4j import GraphDatabase
@@ -17,6 +20,7 @@ NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
+
 
 def parse_args():
     """Parse command line arguments."""
@@ -44,11 +48,20 @@ def parse_args():
         default=NEO4J_DATABASE,
         help="Neo4j database to use",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
+    )
     return parser.parse_args()
+
 
 # Embedding metadata
 EMBEDDING_TYPE = "graphcodebert-base"
 MODEL_NAME = "microsoft/graphcodebert-base"
+
+
+logger = logging.getLogger(__name__)
 
 
 def compute_embedding(code, tokenizer, model):
@@ -61,7 +74,9 @@ def compute_embedding(code, tokenizer, model):
     with torch.no_grad():
         outputs = model(**tokens)
         vec = outputs.last_hidden_state[:, 0, :].squeeze().cpu().numpy()
-    return vec.tolist()
+    embedding = vec.tolist()
+    logger.debug("Computed embedding of length %d", len(embedding))
+    return embedding
 
 
 def process_java_file(path, tokenizer, model, session, repo_root):
@@ -82,13 +97,13 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         try:
             session.run("MERGE (:Directory {path:$path})", path=dp)
         except Exception as e:
-            print(f"Neo4j error creating Directory node for {dp}: {e}")
+            logger.error("Neo4j error creating Directory node for %s: %s", dp, e)
 
     if not dir_paths:
         try:
             session.run("MERGE (:Directory {path:''})")
         except Exception as e:
-            print(f"Neo4j error creating Directory node for root: {e}")
+            logger.error("Neo4j error creating Directory node for root: %s", e)
     else:
         try:
             session.run(
@@ -98,7 +113,9 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 child=dir_paths[0],
             )
         except Exception as e:
-            print(f"Neo4j error linking root directory to {dir_paths[0]}: {e}")
+            logger.error(
+                "Neo4j error linking root directory to %s: %s", dir_paths[0], e
+            )
 
     for p, c in zip(dir_paths[:-1], dir_paths[1:]):
         try:
@@ -110,7 +127,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 child=c,
             )
         except Exception as e:
-            print(f"Neo4j error linking directories {p} -> {c}: {e}")
+            logger.error("Neo4j error linking directories %s -> %s: %s", p, c, e)
 
     # create File node
     file_embedding = compute_embedding(code, tokenizer, model)
@@ -132,13 +149,13 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 file=rel_path,
             )
     except Exception as e:
-        print(f"Neo4j error creating File node for {rel_path}: {e}")
+        logger.error("Neo4j error creating File node for %s: %s", rel_path, e)
         return
 
     try:
         tree = javalang.parse.parse(code)
     except Exception as e:
-        print(f"Failed to parse {rel_path}: {e}")
+        logger.warning("Failed to parse %s: %s", rel_path, e)
         return  # skip unparsable files
 
     for path, node in tree.filter(javalang.tree.MethodDeclaration):
@@ -162,9 +179,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 end = node.body.position.line
 
         method_code = (
-            "\n".join(code.splitlines()[start - 1 : end])
-            if start and end
-            else ""
+            "\n".join(code.splitlines()[start - 1 : end]) if start and end else ""
         )
         m_embedding = compute_embedding(method_code, tokenizer, model)
         method_name = node.name
@@ -187,8 +202,7 @@ def process_java_file(path, tokenizer, model, session, repo_root):
             )
         except Exception as e:
             print(
-                "Neo4j error creating Method node "
-                f"{method_name} in {rel_path}: {e}"
+                "Neo4j error creating Method node " f"{method_name} in {rel_path}: {e}"
             )
 
         for _, inv in node.filter(javalang.tree.MethodInvocation):
@@ -223,18 +237,21 @@ def process_java_file(path, tokenizer, model, session, repo_root):
 def load_repo(repo_url, driver, database=None):
     tmpdir = tempfile.mkdtemp()
     try:
-        print(f"Cloning {repo_url}...")
+        logger.info("Cloning %s...", repo_url)
         try:
             Repo.clone_from(repo_url, tmpdir)
         except Exception as e:
-            print(f"Error cloning {repo_url}: {e}")
+            logger.error("Error cloning %s: %s", repo_url, e)
             return
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         model = AutoModel.from_pretrained(MODEL_NAME)
         repo_root = Path(tmpdir)
         try:
+            java_files = list(repo_root.rglob("*.java"))
+            start_total = perf_counter()
             with driver.session(database=database) as session:
-                for path in repo_root.rglob("*.java"):
+                for path in tqdm(java_files, desc="Processing Java files"):
+                    start = perf_counter()
                     process_java_file(
                         path,
                         tokenizer,
@@ -242,14 +259,21 @@ def load_repo(repo_url, driver, database=None):
                         session,
                         repo_root,
                     )
+                    logger.debug("Processed %s in %.2fs", path, perf_counter() - start)
+            logger.info(
+                "Processed %d files in %.2fs",
+                len(java_files),
+                perf_counter() - start_total,
+            )
         except Exception as e:
-            print(f"Neo4j error while processing repository: {e}")
+            logger.error("Neo4j error while processing repository: %s", e)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def main():
     args = parse_args()
+    logging.basicConfig(level=getattr(logging, args.log_level.upper(), "INFO"))
     try:
         driver = GraphDatabase.driver(
             ensure_port(args.uri), auth=(args.username, args.password)
@@ -257,7 +281,7 @@ def main():
         # Fail fast if the Neo4j connection details are incorrect
         driver.verify_connectivity()
     except Exception as e:
-        print(f"Failed to connect to Neo4j: {e}")
+        logger.error("Failed to connect to Neo4j: %s", e)
         sys.exit(1)
 
     try:
