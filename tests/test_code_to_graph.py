@@ -143,6 +143,7 @@ def test_main_accepts_optional_arguments(monkeypatch):
         password="secret",
         database="testdb",
         log_level="INFO",
+        log_file=None,
     )
 
     driver_instance = MagicMock()

@@ -1,5 +1,6 @@
 import argparse
 import logging
+import sys
 from time import perf_counter
 from graphdatascience import GraphDataScience
 
@@ -47,6 +48,10 @@ def parse_args():
         "--log-level",
         default="INFO",
         help="Logging level (DEBUG, INFO, WARNING, ERROR)",
+    )
+    parser.add_argument(
+        "--log-file",
+        help="Write logs to this file as well as the console",
     )
     return parser.parse_args()
 
@@ -123,7 +128,14 @@ def run_knn(gds, top_k=5, cutoff=0.8):
 
 def main():
     args = parse_args()
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), "INFO"))
+    handlers = [logging.StreamHandler(sys.stdout)]
+    if args.log_file:
+        handlers.append(logging.FileHandler(args.log_file))
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), "INFO"),
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=handlers,
+    )
 
     gds = GraphDataScience(
         ensure_port(args.uri),
