@@ -86,6 +86,7 @@ def run_knn(gds, top_k=5, cutoff=0.8):
         "MATCH (m:Method) WHERE m.embedding IS NULL RETURN count(m) AS missing"
     )
     missing = missing_df.iloc[0]["missing"]
+
     if missing:
         logger.warning("Ignoring %d Method nodes without embeddings", missing)
 
