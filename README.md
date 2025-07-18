@@ -4,7 +4,8 @@ This repository contains a simple demonstration script for loading a Git
 repository into a Neo4j database. It uses GraphCodeBERT to generate
 embeddings for Java source files and methods. These embeddings are stored
 on nodes in Neo4j so that they can be queried with Cypher or used with
-Neo4j's vector search capabilities.
+Neo4j's vector search capabilities. The loader creates `File` and
+`Method` nodes linked by `CALLS` relationships.
 
 ## Requirements
 
@@ -54,15 +55,28 @@ open-source Neo4j project:
 python code_to_graph.py https://github.com/neo4j/neo4j.git
 ```
 
-You can also override the Neo4j connection details on the command line:
+The script accepts several options when you want to override the connection
+information from your `.env` file:
 
 ```bash
-python code_to_graph.py https://github.com/neo4j/neo4j.git \
-  --uri bolt://localhost:7687 --username neo4j --password secret --database neo4j
+python code_to_graph.py <repo_url> \
+  --uri bolt://localhost:7687 \
+  --username neo4j \
+  --password secret \
+  --database neo4j
 ```
 
+Where:
+
+- `--uri` sets the Neo4j Bolt URI.
+- `--username` and `--password` supply authentication credentials.
+- `--database` selects the target database.
+
 The script clones the repository, processes all `*.java` files, and
-creates `File` and `Method` nodes with embedding vectors in Neo4j.
+creates `File` nodes for each source file and `Method` nodes for each
+method. Method invocations are linked with `CALLS` relationships, and
+each node stores an embedding vector for similarity search. Similarity
+relationships are created separately using `create_method_similarity.py`.
 
 ### Build similarity relationships
 
@@ -85,46 +99,6 @@ This script creates a vector index on the `Method.embedding` property if
 one does not already exist and then writes `SIMILAR` relationships with a
 `score` property for pairs of methods that exceed the similarity cutoff.
 
-## Directory nodes
-
-Each level of a file's path is represented by a `Directory` node. Parent
-directories are linked to their immediate subdirectories and files with
-`CONTAINS` relationships. For example, when processing
-`src/com/example/Foo.java` the script creates
-
-```
-(:Directory {path: 'src'})-[:CONTAINS]->(:Directory {path: 'src/com'})
-(:Directory {path: 'src/com'})-[:CONTAINS]->(:Directory {path: 'src/com/example'})
-(:Directory {path: 'src/com/example'})-[:CONTAINS]->(:File {path: 'src/com/example/Foo.java'})
-```
-
-This structure allows traversing the repository hierarchy. The query below
-lists everything contained in the `src` directory and its descendants:
-
-```cypher
-MATCH (d:Directory {path: 'src'})-[:CONTAINS*]->(n)
-RETURN labels(n)[0] AS type, n.path
-ORDER BY type, n.path;
-```
-
-## Class and interface nodes
-
-The loader now parses class and interface declarations. Each `Class` or
-`Interface` node stores the `name` of the declaration and is connected to the
-declaring `File` with a `DECLARES` relationship. Inheritance is represented
-using `EXTENDS` for classes and `IMPLEMENTS` for interfaces. Method calls are
-linked with `CALLS`.
-
-Example structure:
-
-```
-(:Class {name: 'Foo'})-[:EXTENDS]->(:Class {name: 'Bar'})
-(:Class {name: 'Foo'})-[:IMPLEMENTS]->(:Interface {name: 'Baz'})
-(:Method {name: 'foo'})-[:CALLS]->(:Method {name: 'bar'})
-```
-
-These features are enabled by default when running the loader; no additional
-command-line options are required.
 
 ## Example queries
 
@@ -154,15 +128,6 @@ MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
 RETURN m1.name, m2.name, s.score
 ORDER BY s.score DESC
 LIMIT 10;
-```
-
-// Traverse class inheritance
-MATCH (c:Class {name: $name})-[:EXTENDS*]->(sup)
-RETURN sup.name;
-
-// Explore which interfaces a class implements
-MATCH (c:Class {name: $name})-[:IMPLEMENTS]->(i:Interface)
-RETURN i.name;
 
 // Follow a chain of method calls
 MATCH p=(m:Method {name: $method})-[:CALLS*]->(called)
