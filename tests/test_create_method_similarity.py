@@ -48,3 +48,19 @@ def test_run_knn_legacy_api():
         '*'
     )
     graph_obj.drop.assert_called_once()
+
+
+def test_create_index_executes_cypher():
+    gds = mock.MagicMock()
+
+    cms.create_index(gds)
+
+    calls = gds.run_cypher.call_args_list
+    assert len(calls) == 2
+
+    first_call = calls[0]
+    assert "CREATE VECTOR INDEX method_embeddings" in first_call.args[0]
+    assert first_call.kwargs["params"] == {"dim": cms.EMBEDDING_DIM}
+
+    second_call = calls[1]
+    assert second_call.args[0] == "CALL db.awaitIndex('method_embeddings')"
