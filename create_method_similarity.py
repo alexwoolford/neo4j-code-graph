@@ -91,7 +91,13 @@ def run_knn(gds, top_k=5, cutoff=0.8):
         logger.warning("Ignoring %d Method nodes without embeddings", missing)
 
     graph_name = "methodGraph"
-    if gds.graph.exists(graph_name):
+    exists_result = gds.graph.exists(graph_name)
+    try:
+        exists = bool(exists_result["exists"])
+    except Exception:
+        exists = bool(exists_result)
+
+    if exists:
         gds.graph.drop(graph_name)
 
     graph, _ = gds.graph.project(

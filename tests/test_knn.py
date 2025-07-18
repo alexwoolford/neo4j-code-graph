@@ -17,7 +17,7 @@ from create_method_similarity import run_knn
 def test_run_knn_creates_projection_and_runs():
     gds = MagicMock()
     gds.run_cypher.return_value = pd.DataFrame([{"missing": 2}])
-    gds.graph.exists.return_value = True
+    gds.graph.exists.return_value = pd.Series({"exists": True})
     graph_obj = MagicMock()
     gds.graph.project.return_value = (graph_obj, None)
 
@@ -47,7 +47,7 @@ def test_run_knn_creates_projection_and_runs():
 def test_run_knn_without_existing_projection():
     gds = MagicMock()
     gds.run_cypher.return_value = pd.DataFrame([{"missing": 0}])
-    gds.graph.exists.return_value = False
+    gds.graph.exists.return_value = pd.Series({"exists": False})
     graph_obj = MagicMock()
     gds.graph.project.return_value = (graph_obj, None)
 
