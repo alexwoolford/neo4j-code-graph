@@ -37,7 +37,12 @@ def test_run_knn(modern, top_k, cutoff):
 
     if modern:
         gds.knn.write.assert_called_once_with(
-            nodeProjection="Method",
+            nodeProjection={
+                "Method": {
+                    "properties": "embedding",
+                    "where": "m.embedding IS NOT NULL",
+                }
+            },
             nodeProperties="embedding",
             topK=top_k,
             similarityCutoff=cutoff,
@@ -53,10 +58,30 @@ def test_run_knn(modern, top_k, cutoff):
         gds.graph.drop.assert_called_with("methodGraph")
         gds.graph.project.assert_called_with(
             "methodGraph",
-            {"Method": {"properties": "embedding"}},
+            {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
             "*",
         )
         graph_obj.drop.assert_called_once()
         second_call = gds.knn.write.call_args_list[1]
         assert second_call.args[0] is graph_obj
         assert "nodeProjection" not in second_call.kwargs
+
+
+def test_run_knn_filters_missing_embeddings():
+    gds = MagicMock()
+    gds.graph = MagicMock()
+    graph_obj = MagicMock()
+    gds.graph.project.return_value = (graph_obj, None)
+    gds.knn.write.side_effect = [
+        TypeError("missing 1 required positional argument"),
+        None,
+    ]
+
+    run_knn(gds)
+
+    assert gds.knn.write.call_count == 2
+    gds.graph.project.assert_called_with(
+        "methodGraph",
+        {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
+        "*",
+    )
