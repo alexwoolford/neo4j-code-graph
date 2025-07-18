@@ -73,6 +73,7 @@ def test_run_knn_legacy_without_where_support():
     graph_obj = MagicMock()
     gds.graph.project.side_effect = Exception("Unexpected configuration key: where")
     gds.graph.project.cypher.return_value = (graph_obj, None)
+
     gds.knn.write.side_effect = [
         TypeError("missing 1 required positional argument"),
         None,
@@ -87,3 +88,4 @@ def test_run_knn_legacy_without_where_support():
         "*",
     )
     gds.graph.project.cypher.assert_called_once()
+

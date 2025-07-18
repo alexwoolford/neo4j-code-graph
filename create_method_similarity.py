@@ -138,6 +138,7 @@ def run_knn(gds, top_k=5, cutoff=0.8):
                 )
             else:
                 raise
+
         config = {k: base_config[k] for k in base_config if k != "nodeProjection"}
         start = perf_counter()
         gds.knn.write(graph, **config)
