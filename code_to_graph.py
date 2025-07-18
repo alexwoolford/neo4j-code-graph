@@ -250,13 +250,10 @@ def load_repo(repo_url, driver, database=None):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python code_to_graph.py <git_repo_url>")
-        sys.exit(1)
-    repo_url = sys.argv[1]
+    args = parse_args()
     try:
         driver = GraphDatabase.driver(
-            NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD)
+            ensure_port(args.uri), auth=(args.username, args.password)
         )
         # Fail fast if the Neo4j connection details are incorrect
         driver.verify_connectivity()
@@ -265,7 +262,7 @@ def main():
         sys.exit(1)
 
     try:
-        load_repo(repo_url, driver, NEO4J_DATABASE)
+        load_repo(args.repo_url, driver, args.database)
     finally:
         driver.close()
 
