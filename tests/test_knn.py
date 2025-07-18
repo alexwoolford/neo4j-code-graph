@@ -67,11 +67,13 @@ def test_run_knn(modern, top_k, cutoff):
         assert "nodeProjection" not in second_call.kwargs
 
 
-def test_run_knn_filters_missing_embeddings():
+def test_run_knn_legacy_without_where_support():
     gds = MagicMock()
     gds.graph = MagicMock()
     graph_obj = MagicMock()
-    gds.graph.project.return_value = (graph_obj, None)
+    gds.graph.project.side_effect = Exception("Unexpected configuration key: where")
+    gds.graph.project.cypher.return_value = (graph_obj, None)
+
     gds.knn.write.side_effect = [
         TypeError("missing 1 required positional argument"),
         None,
@@ -85,3 +87,5 @@ def test_run_knn_filters_missing_embeddings():
         {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
         "*",
     )
+    gds.graph.project.cypher.assert_called_once()
+
