@@ -1,4 +1,3 @@
-import os
 import sys
 import tempfile
 import shutil
@@ -10,18 +9,10 @@ from neo4j import GraphDatabase
 from transformers import AutoTokenizer, AutoModel
 import torch
 import javalang
-from dotenv import load_dotenv
-from utils import ensure_port
+from utils import ensure_port, get_neo4j_config
 
-# Load environment variables from a .env file and override any existing
-# variables so that local configuration takes precedence.
-load_dotenv(override=True)
-
-# Apply a default port if one is missing from the URI
-NEO4J_URI = ensure_port(os.environ.get("NEO4J_URI", "bolt://localhost:7687"))
-NEO4J_USERNAME = os.environ.get("NEO4J_USERNAME", "neo4j")
-NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "neo4j")
-NEO4J_DATABASE = os.environ.get("NEO4J_DATABASE", "neo4j")
+# Read connection settings from the environment
+NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
 # ---------------------------------------------------------------------------
 # Argument parsing
