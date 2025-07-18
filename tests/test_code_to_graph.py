@@ -118,48 +118,21 @@ def test_process_java_file_creates_directories(tmp_path):
     )
 
 
-def test_process_java_file_parses_classes(tmp_path):
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-    java_file = repo_root / "Foo.java"
+def test_process_java_file_creates_calls(tmp_path):
+    java_file = tmp_path / "Foo.java"
     java_file.write_text(
-        "\n".join(
-            [
-                "interface Baz {}",
-                "class Bar {}",
-                "class Foo extends Bar implements Baz {",
-                "    void doIt() {}",
-                "}",
-            ]
-        )
+        "class Foo { void bar() { baz(); } void baz() {} }"
     )
 
     session_mock = MagicMock()
 
     with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
         code_to_graph.process_java_file(
-            java_file, MagicMock(), MagicMock(), session_mock, repo_root
+            java_file, MagicMock(), MagicMock(), session_mock, tmp_path
         )
 
-    calls = session_mock.run.call_args_list
-    assert any(
-        "MERGE (c:Class" in c.args[0] and c.kwargs.get("name") == "Foo"
-        for c in calls
-    )
-    assert any(
-        "Interface" in c.args[0] and c.kwargs.get("name") == "Baz"
-        for c in calls
-    )
-    assert any(
-        "EXTENDS" in c.args[0] and c.kwargs.get("sname") == "Bar"
-        for c in calls
-    )
-    assert any(
-        "IMPLEMENTS" in c.args[0] and c.kwargs.get("iname") == "Baz"
-        for c in calls
-    )
-    assert any(
-        "MERGE (p:Class" in c.args[0] and c.kwargs.get("pname") == "Foo"
-        for c in calls
-        if "DECLARES" in c.args[0]
-    )
+    call_params = [c for c in session_mock.run.call_args_list if "CALLS" in c.args[0]]
+    assert call_params
+    params = call_params[0].args[1]
+    assert params.get("caller_name") == "bar"
+    assert params.get("callee_name") == "baz"
