@@ -67,6 +67,30 @@ def process_java_file(path, tokenizer, model, session, repo_root):
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         code = f.read()
 
+    # Create Directory nodes for each level of the file path
+    parts = Path(rel_path).parent.parts
+    dir_paths = []
+    current = []
+    for part in parts:
+        current.append(part)
+        dir_paths.append("/".join(current))
+
+    for dp in dir_paths:
+        try:
+            session.run("MERGE (:Directory {path:$path})", path=dp)
+        except Exception as e:
+            print(f"Neo4j error creating Directory node for {dp}: {e}")
+
+    for p, c in zip(dir_paths[:-1], dir_paths[1:]):
+        try:
+            session.run(
+                "MERGE (p:Directory {path:$parent}) MERGE (c:Directory {path:$child}) MERGE (p)-[:CONTAINS]->(c)",
+                parent=p,
+                child=c,
+            )
+        except Exception as e:
+            print(f"Neo4j error linking directories {p} -> {c}: {e}")
+
     # create File node
     file_embedding = compute_embedding(code, tokenizer, model)
     try:
@@ -76,6 +100,12 @@ def process_java_file(path, tokenizer, model, session, repo_root):
             embedding=file_embedding,
             etype=EMBEDDING_TYPE,
         )
+        if dir_paths:
+            session.run(
+                "MERGE (d:Directory {path:$dir}) MERGE (f:File {path:$file}) MERGE (d)-[:CONTAINS]->(f)",
+                dir=dir_paths[-1],
+                file=rel_path,
+            )
     except Exception as e:
         print(f"Neo4j error creating File node for {rel_path}: {e}")
         return

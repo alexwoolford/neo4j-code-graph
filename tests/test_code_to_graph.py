@@ -54,3 +54,34 @@ def test_load_repo_executes_cypher(tmp_path):
     queries = [c.args[0] for c in session_mock.run.call_args_list]
     assert any("MERGE (f:File" in q for q in queries)
     assert any("MERGE (m:Method" in q for q in queries)
+
+
+def test_process_java_file_creates_directories(tmp_path):
+    repo_root = tmp_path / "repo"
+    file_dir = repo_root / "a" / "b"
+    file_dir.mkdir(parents=True)
+    java_file = file_dir / "Foo.java"
+    java_file.write_text("class Foo { void bar() {} }")
+
+    session_mock = MagicMock()
+
+    with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
+        code_to_graph.process_java_file(
+            java_file, MagicMock(), MagicMock(), session_mock, repo_root
+        )
+
+    calls = session_mock.run.call_args_list
+    dir_paths = [c.kwargs["path"] for c in calls if c.args[0].startswith("MERGE (:Directory")]
+    assert dir_paths == ["a", "a/b"]
+
+    assert any(
+        c.kwargs.get("parent") == "a" and c.kwargs.get("child") == "a/b"
+        for c in calls
+        if "CONTAINS" in c.args[0] and "child" in c.kwargs
+    )
+
+    assert any(
+        c.kwargs.get("dir") == "a/b" and c.kwargs.get("file") == "a/b/Foo.java"
+        for c in calls
+        if "File" in c.args[0] and "dir" in c.kwargs
+    )
