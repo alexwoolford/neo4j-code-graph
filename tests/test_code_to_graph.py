@@ -35,8 +35,16 @@ sys.modules.setdefault("dotenv", types.SimpleNamespace(load_dotenv=lambda **k: N
 import code_to_graph
 
 
+def _setup_session_with_tx():
+    session = MagicMock()
+    tx_mock = MagicMock()
+    tx_cm = MagicMock()
+    tx_cm.__enter__.return_value = tx_mock
+    session.begin_transaction.return_value = tx_cm
+    return session, tx_mock
+
+
 def test_load_repo_executes_cypher(tmp_path):
-    # Prepare a dummy repository with a single Java file
     repo_src = tmp_path / "src"
     repo_src.mkdir()
     java_file = repo_src / "Foo.java"
@@ -45,7 +53,7 @@ def test_load_repo_executes_cypher(tmp_path):
     def fake_clone_from(url, dest):
         shutil.copytree(repo_src, dest, dirs_exist_ok=True)
 
-    session_mock = MagicMock()
+    session_mock, tx_mock = _setup_session_with_tx()
     session_cm = MagicMock()
     session_cm.__enter__.return_value = session_mock
     driver_mock = MagicMock()
@@ -65,17 +73,15 @@ def test_load_repo_executes_cypher(tmp_path):
         code_to_graph,
         "AutoModel",
     ), patch.object(
-        code_to_graph,
-        "compute_embedding",
-        return_value=[0.0],
+        code_to_graph, "compute_embedding", return_value=[0.0]
     ):
         driver = code_to_graph.GraphDatabase.driver("bolt://localhost:7687")
         code_to_graph.load_repo("dummy_url", driver)
         mock_driver.assert_called_once()
 
-    queries = [c.args[0] for c in session_mock.run.call_args_list]
+    queries = [c.args[0] for c in tx_mock.run.call_args_list]
     assert any("MERGE (f:File" in q for q in queries)
-    assert any("MERGE (m:Method" in q for q in queries)
+    assert any("UNWIND $methods" in q for q in queries)
 
 
 def test_process_java_file_creates_directories(tmp_path):
@@ -85,14 +91,14 @@ def test_process_java_file_creates_directories(tmp_path):
     java_file = file_dir / "Foo.java"
     java_file.write_text("class Foo { void bar() {} }")
 
-    session_mock = MagicMock()
+    session_mock, tx_mock = _setup_session_with_tx()
 
     with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
         code_to_graph.process_java_file(
             java_file, MagicMock(), MagicMock(), session_mock, repo_root
         )
 
-    calls = session_mock.run.call_args_list
+    calls = tx_mock.run.call_args_list
     dir_paths = [
         c.kwargs["path"] for c in calls if c.args[0].startswith("MERGE (:Directory")
     ]
@@ -121,16 +127,16 @@ def test_process_java_file_creates_calls(tmp_path):
     java_file = tmp_path / "Foo.java"
     java_file.write_text("class Foo { void bar() { baz(); } void baz() {} }")
 
-    session_mock = MagicMock()
+    session_mock, tx_mock = _setup_session_with_tx()
 
     with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
         code_to_graph.process_java_file(
             java_file, MagicMock(), MagicMock(), session_mock, tmp_path
         )
 
-    call_params = [c for c in session_mock.run.call_args_list if "CALLS" in c.args[0]]
+    call_params = [c for c in tx_mock.run.call_args_list if "CALLS" in c.args[0]]
     assert call_params
-    params = call_params[0].args[1]
+    params = call_params[0].args[1]["calls"][0]
     assert params.get("caller_name") == "bar"
     assert params.get("callee_name") == "baz"
 

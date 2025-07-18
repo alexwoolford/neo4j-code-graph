@@ -97,71 +97,76 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         current.append(part)
         dir_paths.append("/".join(current))
 
-    for dp in dir_paths:
+    with session.begin_transaction() as tx:
+
+        for dp in dir_paths:
+            try:
+                tx.run("MERGE (:Directory {path:$path})", path=dp)
+            except Exception as e:
+                logger.error("Neo4j error creating Directory node for %s: %s", dp, e)
+
+        if not dir_paths:
+            try:
+                tx.run("MERGE (:Directory {path:''})")
+            except Exception as e:
+                logger.error("Neo4j error creating Directory node for root: %s", e)
+        else:
+            try:
+                tx.run(
+                    "MERGE (p:Directory {path:''}) "
+                    "MERGE (c:Directory {path:$child}) "
+                    "MERGE (p)-[:CONTAINS]->(c)",
+                    child=dir_paths[0],
+                )
+            except Exception as e:
+                logger.error(
+                    "Neo4j error linking root directory to %s: %s", dir_paths[0], e
+                )
+
+        for p, c in zip(dir_paths[:-1], dir_paths[1:]):
+            try:
+                tx.run(
+                    "MERGE (p:Directory {path:$parent}) "
+                    "MERGE (c:Directory {path:$child}) "
+                    "MERGE (p)-[:CONTAINS]->(c)",
+                    parent=p,
+                    child=c,
+                )
+            except Exception as e:
+                logger.error("Neo4j error linking directories %s -> %s: %s", p, c, e)
+
+        # create File node
+        file_embedding = compute_embedding(code, tokenizer, model)
         try:
-            session.run("MERGE (:Directory {path:$path})", path=dp)
+            tx.run(
+                "MERGE (f:File {path: $path}) "
+                "SET f.embedding = $embedding, "
+                "f.embedding_type = $etype",
+                path=rel_path,
+                embedding=file_embedding,
+                etype=EMBEDDING_TYPE,
+            )
+            if dir_paths:
+                tx.run(
+                    "MERGE (d:Directory {path:$dir}) "
+                    "MERGE (f:File {path:$file}) "
+                    "MERGE (d)-[:CONTAINS]->(f)",
+                    dir=dir_paths[-1],
+                    file=rel_path,
+                )
         except Exception as e:
-            logger.error("Neo4j error creating Directory node for %s: %s", dp, e)
+            logger.error("Neo4j error creating File node for %s: %s", rel_path, e)
+            return
 
-    if not dir_paths:
         try:
-            session.run("MERGE (:Directory {path:''})")
+            tree = javalang.parse.parse(code)
         except Exception as e:
-            logger.error("Neo4j error creating Directory node for root: %s", e)
-    else:
-        try:
-            session.run(
-                "MERGE (p:Directory {path:''}) "
-                "MERGE (c:Directory {path:$child}) "
-                "MERGE (p)-[:CONTAINS]->(c)",
-                child=dir_paths[0],
-            )
-        except Exception as e:
-            logger.error(
-                "Neo4j error linking root directory to %s: %s", dir_paths[0], e
-            )
+            logger.warning("Failed to parse %s: %s", rel_path, e)
+            return  # skip unparsable files
 
-    for p, c in zip(dir_paths[:-1], dir_paths[1:]):
-        try:
-            session.run(
-                "MERGE (p:Directory {path:$parent}) "
-                "MERGE (c:Directory {path:$child}) "
-                "MERGE (p)-[:CONTAINS]->(c)",
-                parent=p,
-                child=c,
-            )
-        except Exception as e:
-            logger.error("Neo4j error linking directories %s -> %s: %s", p, c, e)
-
-    # create File node
-    file_embedding = compute_embedding(code, tokenizer, model)
-    try:
-        session.run(
-            "MERGE (f:File {path: $path}) "
-            "SET f.embedding = $embedding, "
-            "f.embedding_type = $etype",
-            path=rel_path,
-            embedding=file_embedding,
-            etype=EMBEDDING_TYPE,
-        )
-        if dir_paths:
-            session.run(
-                "MERGE (d:Directory {path:$dir}) "
-                "MERGE (f:File {path:$file}) "
-                "MERGE (d)-[:CONTAINS]->(f)",
-                dir=dir_paths[-1],
-                file=rel_path,
-            )
-    except Exception as e:
-        logger.error("Neo4j error creating File node for %s: %s", rel_path, e)
-        return
-
-    try:
-        tree = javalang.parse.parse(code)
-    except Exception as e:
-        logger.warning("Failed to parse %s: %s", rel_path, e)
-        return  # skip unparsable files
-
+    methods = []
+    calls_with_class = []
+    calls_no_class = []
     for path, node in tree.filter(javalang.tree.MethodDeclaration):
         start = node.position.line if node.position else None
 
@@ -187,38 +192,21 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         )
         m_embedding = compute_embedding(method_code, tokenizer, model)
         method_name = node.name
-        try:
-            session.run(
-                """
-                MERGE (m:Method {name:$name, file:$file, line:$line, class:$class})
-                SET m.embedding=$embedding, m.embedding_type=$etype
-                MERGE (f:File {path:$file})
-                MERGE (f)-[:DECLARES]->(m)
-                """,
-                {
-                    "name": method_name,
-                    "file": rel_path,
-                    "line": start,
-                    "class": class_name,
-                    "embedding": m_embedding,
-                    "etype": EMBEDDING_TYPE,
-                },
-            )
-        except Exception as e:
-            print(
-                "Neo4j error creating Method node " f"{method_name} in {rel_path}: {e}"
-            )
+        methods.append(
+            {
+                "name": method_name,
+                "file": rel_path,
+                "line": start,
+                "class": class_name,
+                "embedding": m_embedding,
+            }
+        )
 
         for _, inv in node.filter(javalang.tree.MethodInvocation):
             callee_name = inv.member
             callee_class = None
             if inv.qualifier and inv.qualifier[0].isupper():
                 callee_class = inv.qualifier.split(".")[-1]
-            cypher = (
-                "MATCH (caller:Method {name:$caller_name, file:$caller_file, "
-                "line:$caller_line, class:$caller_class}) "
-                "MERGE (callee:Method {name:$callee_name"
-            )
             params = {
                 "caller_name": method_name,
                 "caller_file": rel_path,
@@ -227,16 +215,58 @@ def process_java_file(path, tokenizer, model, session, repo_root):
                 "callee_name": callee_name,
             }
             if callee_class:
-                cypher += ", class:$callee_class"
                 params["callee_class"] = callee_class
-            cypher += "}) MERGE (caller)-[:CALLS]->(callee)"
-            try:
-                session.run(cypher, params)
-            except Exception as e:
-                print(
-                    "Neo4j error creating CALLS relationship "
-                    f"{method_name} -> {callee_name} in {rel_path}: {e}"
-                )
+                calls_with_class.append(params)
+            else:
+                calls_no_class.append(params)
+
+    if methods:
+        tx.run(
+            """
+            UNWIND $methods AS m
+            MERGE (node:Method {name:m.name, file:m.file, line:m.line, class:m.class})
+            SET node.embedding=m.embedding, node.embedding_type=$etype
+            MERGE (f:File {path:m.file})
+            MERGE (f)-[:DECLARES]->(node)
+            """,
+            {"methods": methods, "etype": EMBEDDING_TYPE},
+        )
+
+    if calls_with_class:
+        tx.run(
+            """
+            UNWIND $calls AS c
+            MATCH (
+                caller:Method {
+                    name:c.caller_name,
+                    file:c.caller_file,
+                    line:c.caller_line,
+                    class:c.caller_class
+                }
+            )
+            MERGE (callee:Method {name:c.callee_name, class:c.callee_class})
+            MERGE (caller)-[:CALLS]->(callee)
+            """,
+            {"calls": calls_with_class},
+        )
+
+    if calls_no_class:
+        tx.run(
+            """
+            UNWIND $calls AS c
+            MATCH (
+                caller:Method {
+                    name:c.caller_name,
+                    file:c.caller_file,
+                    line:c.caller_line,
+                    class:c.caller_class
+                }
+            )
+            MERGE (callee:Method {name:c.callee_name})
+            MERGE (caller)-[:CALLS]->(callee)
+            """,
+            {"calls": calls_no_class},
+        )
 
 
 def load_repo(repo_url, driver, database=None):
