@@ -75,7 +75,9 @@ def create_index(gds):
 def run_knn(gds, top_k=5, cutoff=0.8):
     """Run the KNN algorithm and create SIMILAR relationships."""
     base_config = {
-        "nodeProjection": "Method",
+        "nodeProjection": {
+            "Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}
+        },
         "nodeProperties": "embedding",
         "topK": top_k,
         "similarityCutoff": cutoff,
@@ -109,11 +111,33 @@ def run_knn(gds, top_k=5, cutoff=0.8):
             pass  # Graph doesn't exist, which is fine
 
         # Create graph projection with node properties included
-        graph, _ = gds.graph.project(
-            "methodGraph",
-            {"Method": {"properties": "embedding"}},
-            "*",
-        )
+        try:
+            graph, _ = gds.graph.project(
+                "methodGraph",
+                {
+                    "Method": {
+                        "properties": "embedding",
+                        "where": "m.embedding IS NOT NULL",
+                    }
+                },
+                "*",
+            )
+        except Exception as project_error:
+            if "Unexpected configuration key: where" in str(project_error):
+                logger.debug("`where` not supported; falling back to Cypher projection")
+                graph, _ = gds.graph.project.cypher(
+                    "methodGraph",
+                    (
+                        "MATCH (m:Method) WHERE m.embedding IS NOT NULL "
+                        "RETURN id(m) AS id, m.embedding AS embedding"
+                    ),
+                    (
+                        "MATCH (m:Method)-[r]->(n:Method) "
+                        "RETURN id(m) AS source, id(n) AS target, type(r) AS type"
+                    ),
+                )
+            else:
+                raise
         config = {k: base_config[k] for k in base_config if k != "nodeProjection"}
         start = perf_counter()
         gds.knn.write(graph, **config)
