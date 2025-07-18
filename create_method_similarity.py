@@ -109,7 +109,8 @@ def run_knn(gds, top_k=5, cutoff=0.8):
 
     graph, _ = gds.graph.project.cypher(
         graph_name,
-        "MATCH (m:Method) WHERE m.embedding IS NOT NULL RETURN id(m) AS id, m.embedding AS embedding",
+        ("MATCH (m:Method) WHERE m.embedding IS NOT NULL "
+         "RETURN id(m) AS id, m.embedding AS embedding"),
         "RETURN null AS source, null AS target LIMIT 0"
     )
 

@@ -17,9 +17,11 @@ from utils import ensure_port, get_neo4j_config
 # Read connection settings from the environment
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
-# ---------------------------------------------------------------------------
-# Argument parsing
-# ---------------------------------------------------------------------------
+# Embedding metadata
+EMBEDDING_TYPE = "graphcodebert-base"
+MODEL_NAME = "microsoft/graphcodebert-base"
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -60,18 +62,18 @@ def parse_args():
     return parser.parse_args()
 
 
-# Embedding metadata
-EMBEDDING_TYPE = "graphcodebert-base"
-MODEL_NAME = "microsoft/graphcodebert-base"
+def get_device():
+    """Get the appropriate device for PyTorch computations."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        return torch.device("mps")
+    else:
+        return torch.device("cpu")
 
 
-logger = logging.getLogger(__name__)
-
-
-def compute_embeddings(snippets, tokenizer, model, device=None):
+def compute_embeddings(snippets, tokenizer, model, device):
     """Return embeddings for all ``snippets`` in a single forward pass."""
-    if device is None:
-        device = model.device
     tokens = tokenizer(
         snippets,
         padding=True,
@@ -79,27 +81,33 @@ def compute_embeddings(snippets, tokenizer, model, device=None):
         max_length=512,
         return_tensors="pt",
     ).to(device)
-    model = model.to(device)
+
     with torch.no_grad():
         outputs = model(**tokens)
         vecs = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+
     embeddings = [v.tolist() for v in vecs]
     logger.debug("Computed %d embeddings", len(embeddings))
     return embeddings
 
 
-def compute_embedding(code, tokenizer, model, device=None):
-    return compute_embeddings([code], tokenizer, model, device=device)[0]
+def compute_embedding(code, tokenizer, model, device):
+    """Compute embedding for a single code snippet."""
+    return compute_embeddings([code], tokenizer, model, device)[0]
 
 
-def process_java_file(path, tokenizer, model, session, repo_root, device=None):
-    """Parse a Java file, create file and method nodes with embeddings."""
-    rel_path = str(path.relative_to(repo_root))
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
-        code = f.read()
+def create_directory_structure(session, file_path):
+    """Create directory nodes and relationships for the given file path."""
+    parts = Path(file_path).parent.parts
+    if not parts:
+        # File is in root directory
+        try:
+            session.run("MERGE (:Directory {path:''})")
+        except Exception as e:
+            logger.error("Neo4j error creating root Directory node: %s", e)
+        return
 
-    # Create Directory nodes for each level of the file path
-    parts = Path(rel_path).parent.parts
+    # Create all directory nodes
     dir_paths = []
     current = []
     for part in parts:
@@ -110,151 +118,197 @@ def process_java_file(path, tokenizer, model, session, repo_root, device=None):
         try:
             session.run("MERGE (:Directory {path:$path})", path=dp)
         except Exception as e:
-            logger.error("Neo4j error creating Directory node for %s: %s", dp, e)
-
-    if not dir_paths:
-        try:
-            session.run("MERGE (:Directory {path:''})")
-        except Exception as e:
-            logger.error("Neo4j error creating Directory node for root: %s", e)
-    else:
-        try:
-            session.run(
-                "MERGE (p:Directory {path:''}) "
-                "MERGE (c:Directory {path:$child}) "
-                "MERGE (p)-[:CONTAINS]->(c)",
-                child=dir_paths[0],
-            )
-        except Exception as e:
             logger.error(
-                "Neo4j error linking root directory to %s: %s", dir_paths[0], e
+                "Neo4j error creating Directory node for %s: %s", dp, e
             )
 
-    for p, c in zip(dir_paths[:-1], dir_paths[1:]):
+    # Link root to first directory
+    try:
+        session.run(
+            "MERGE (p:Directory {path:''}) "
+            "MERGE (c:Directory {path:$child}) "
+            "MERGE (p)-[:CONTAINS]->(c)",
+            child=dir_paths[0],
+        )
+    except Exception as e:
+        logger.error(
+            "Neo4j error linking root directory to %s: %s", dir_paths[0], e
+        )
+
+    # Link adjacent directories
+    for parent, child in zip(dir_paths[:-1], dir_paths[1:]):
         try:
             session.run(
                 "MERGE (p:Directory {path:$parent}) "
                 "MERGE (c:Directory {path:$child}) "
                 "MERGE (p)-[:CONTAINS]->(c)",
-                parent=p,
-                child=c,
+                parent=parent,
+                child=child,
             )
         except Exception as e:
-            logger.error("Neo4j error linking directories %s -> %s: %s", p, c, e)
+            logger.error(
+                "Neo4j error linking directories %s -> %s: %s", parent, child, e
+            )
 
-    # create File node
-    file_embedding = compute_embedding(code, tokenizer, model, device=device)
+
+def create_method_calls(session, caller_method, caller_class, caller_file,
+                        caller_line, method_node):
+    """Create CALLS relationships for method invocations."""
+    for _, inv in method_node.filter(javalang.tree.MethodInvocation):
+        callee_name = inv.member
+        callee_class = None
+        if inv.qualifier and inv.qualifier[0].isupper():
+            callee_class = inv.qualifier.split(".")[-1]
+
+        cypher = (
+            "MATCH (caller:Method {name:$caller_name, file:$caller_file, "
+            "line:$caller_line"
+        )
+        params = {
+            "caller_name": caller_method,
+            "caller_file": caller_file,
+            "caller_line": caller_line,
+            "callee_name": callee_name,
+        }
+
+        if caller_class is not None:
+            cypher += ", class:$caller_class"
+            params["caller_class"] = caller_class
+
+        cypher += "}) MERGE (callee:Method {name:$callee_name"
+
+        if callee_class:
+            cypher += ", class:$callee_class"
+            params["callee_class"] = callee_class
+
+        cypher += "}) MERGE (caller)-[:CALLS]->(callee)"
+
+        try:
+            session.run(cypher, params)
+        except Exception as e:
+            logger.error(
+                "Neo4j error creating CALLS relationship %s -> %s in %s: %s",
+                caller_method,
+                callee_name,
+                caller_file,
+                e,
+            )
+
+
+def process_java_file(path, tokenizer, model, session, repo_root, device):
+    """Parse a Java file, create file and method nodes with embeddings."""
+    rel_path = str(path.relative_to(repo_root))
+
     try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            code = f.read()
+    except Exception as e:
+        logger.error("Error reading file %s: %s", rel_path, e)
+        return
+
+    # Create directory structure
+    create_directory_structure(session, rel_path)
+
+    # Create File node
+    try:
+        file_embedding = compute_embedding(code, tokenizer, model, device)
         session.run(
             "MERGE (f:File {path: $path}) "
-            "SET f.embedding = $embedding, "
-            "f.embedding_type = $etype",
+            "SET f.embedding = $embedding, f.embedding_type = $etype",
             path=rel_path,
             embedding=file_embedding,
             etype=EMBEDDING_TYPE,
         )
-        if dir_paths:
-            session.run(
-                "MERGE (d:Directory {path:$dir}) "
-                "MERGE (f:File {path:$file}) "
-                "MERGE (d)-[:CONTAINS]->(f)",
-                dir=dir_paths[-1],
-                file=rel_path,
-            )
+
+        # Link file to its parent directory
+        parent_dir = (str(Path(rel_path).parent)
+                      if Path(rel_path).parent != Path('.') else '')
+        session.run(
+            "MERGE (d:Directory {path:$dir}) "
+            "MERGE (f:File {path:$file}) "
+            "MERGE (d)-[:CONTAINS]->(f)",
+            dir=parent_dir,
+            file=rel_path,
+        )
     except Exception as e:
         logger.error("Neo4j error creating File node for %s: %s", rel_path, e)
         return
 
+    # Parse Java code
     try:
         tree = javalang.parse.parse(code)
     except Exception as e:
-        logger.warning("Failed to parse %s: %s", rel_path, e)
-        return  # skip unparsable files
+        logger.warning("Failed to parse Java file %s: %s", rel_path, e)
+        return
 
-    for path, node in tree.filter(javalang.tree.MethodDeclaration):
-        start = node.position.line if node.position else None
-
-        class_name = None
-        for anc in reversed(path):
-            if isinstance(anc, javalang.tree.ClassDeclaration):
-                class_name = anc.name
-                break
-
-        end = start
-        if node.body:
-            if isinstance(node.body, list):
-                # For normal methods javalang returns a list of statements
-                # each with its own position.
-                if node.body and hasattr(node.body[-1], "position"):
-                    end = node.body[-1].position.line
-            elif hasattr(node.body, "position"):
-                # Some nodes expose a body object with a position attribute
-                end = node.body.position.line
-
-        method_code = (
-            "\n".join(code.splitlines()[start - 1 : end]) if start and end else ""
-        )
-        m_embedding = compute_embedding(method_code, tokenizer, model, device=device)
-        method_name = node.name
+    # Process methods
+    for path_to_node, node in tree.filter(javalang.tree.MethodDeclaration):
         try:
-            cypher = "MERGE (m:Method {name:$name, file:$file, line:$line"
-            params = {
-                "name": method_name,
-                "file": rel_path,
-                "line": start,
-                "embedding": m_embedding,
-                "etype": EMBEDDING_TYPE,
-            }
-            if class_name is not None:
-                cypher += ", class:$class"
-                params["class"] = class_name
-            cypher += "}) SET m.embedding=$embedding, m.embedding_type=$etype "
-            cypher += "MERGE (f:File {path:$file}) MERGE (f)-[:DECLARES]->(m)"
-            session.run(cypher, params)
+            process_method(
+                node, path_to_node, code, rel_path, tokenizer, model, session,
+                device
+            )
         except Exception as e:
             logger.error(
-                "Neo4j error creating Method node %s in %s: %s",
-                method_name,
-                rel_path,
-                e,
+                "Error processing method %s in %s: %s", node.name, rel_path, e
             )
 
-        for _, inv in node.filter(javalang.tree.MethodInvocation):
-            callee_name = inv.member
-            callee_class = None
-            if inv.qualifier and inv.qualifier[0].isupper():
-                callee_class = inv.qualifier.split(".")[-1]
-            cypher = (
-                "MATCH (caller:Method {name:$caller_name, file:$caller_file,"
-                " line:$caller_line"
-            )
-            params = {
-                "caller_name": method_name,
-                "caller_file": rel_path,
-                "caller_line": start,
-                "callee_name": callee_name,
-            }
-            if class_name is not None:
-                cypher += ", class:$caller_class"
-                params["caller_class"] = class_name
-            cypher += "}) MERGE (callee:Method {name:$callee_name"
-            if callee_class:
-                cypher += ", class:$callee_class"
-                params["callee_class"] = callee_class
-            cypher += "}) MERGE (caller)-[:CALLS]->(callee)"
-            try:
-                session.run(cypher, params)
-            except Exception as e:
-                logger.error(
-                    "Neo4j error creating CALLS relationship %s -> %s in %s: %s",
-                    method_name,
-                    callee_name,
-                    rel_path,
-                    e,
-                )
+
+def process_method(node, path_to_node, code, rel_path, tokenizer, model,
+                   session, device):
+    """Process a single method declaration."""
+    start = node.position.line if node.position else None
+    method_name = node.name
+
+    # Find containing class
+    class_name = None
+    for anc in reversed(path_to_node):
+        if isinstance(anc, javalang.tree.ClassDeclaration):
+            class_name = anc.name
+            break
+
+    # Determine method end line
+    end = start
+    if node.body and isinstance(node.body, list) and node.body:
+        if hasattr(node.body[-1], "position"):
+            end = node.body[-1].position.line
+    elif node.body and hasattr(node.body, "position"):
+        end = node.body.position.line
+
+    # Extract method code
+    method_code = ""
+    if start and end:
+        method_code = "\n".join(code.splitlines()[start - 1: end])
+
+    # Create method embedding
+    m_embedding = compute_embedding(method_code, tokenizer, model, device)
+
+    # Create Method node
+    cypher = "MERGE (m:Method {name:$name, file:$file, line:$line"
+    params = {
+        "name": method_name,
+        "file": rel_path,
+        "line": start,
+        "embedding": m_embedding,
+        "etype": EMBEDDING_TYPE,
+    }
+
+    if class_name is not None:
+        cypher += ", class:$class"
+        params["class"] = class_name
+
+    cypher += "}) SET m.embedding=$embedding, m.embedding_type=$etype "
+    cypher += "MERGE (f:File {path:$file}) MERGE (f)-[:DECLARES]->(m)"
+
+    session.run(cypher, params)
+
+    # Create method call relationships
+    create_method_calls(session, method_name, class_name, rel_path, start,
+                        node)
 
 
 def load_repo(repo_url, driver, database=None):
+    """Load a Git repository into Neo4j."""
     tmpdir = tempfile.mkdtemp()
     try:
         logger.info("Cloning %s...", repo_url)
@@ -263,43 +317,46 @@ def load_repo(repo_url, driver, database=None):
         except Exception as e:
             logger.error("Error cloning %s: %s", repo_url, e)
             return
+
+        # Initialize model and tokenizer
+        logger.info("Loading GraphCodeBERT model...")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         model = AutoModel.from_pretrained(MODEL_NAME)
-        if hasattr(torch, "device"):
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            device = "cpu"
-        if hasattr(model, "to"):
-            model = model.to(device)
+        device = get_device()
+        model = model.to(device)
+        logger.info("Using device: %s", device)
+
+        # Process Java files
         repo_root = Path(tmpdir)
-        try:
-            java_files = list(repo_root.rglob("*.java"))
-            start_total = perf_counter()
-            with driver.session(database=database) as session:
-                for path in tqdm(java_files, desc="Processing Java files"):
-                    start = perf_counter()
-                    process_java_file(
-                        path,
-                        tokenizer,
-                        model,
-                        session,
-                        repo_root,
-                        device,
-                    )
-                    logger.debug("Processed %s in %.2fs", path, perf_counter() - start)
-            logger.info(
-                "Processed %d files in %.2fs",
-                len(java_files),
-                perf_counter() - start_total,
-            )
-        except Exception as e:
-            logger.error("Neo4j error while processing repository: %s", e)
+        java_files = list(repo_root.rglob("*.java"))
+        logger.info("Found %d Java files to process", len(java_files))
+
+        start_total = perf_counter()
+        with driver.session(database=database) as session:
+            for path in tqdm(java_files, desc="Processing Java files"):
+                start = perf_counter()
+                process_java_file(
+                    path, tokenizer, model, session, repo_root, device
+                )
+                logger.debug(
+                    "Processed %s in %.2fs", path, perf_counter() - start
+                )
+
+        logger.info(
+            "Processed %d files in %.2fs",
+            len(java_files),
+            perf_counter() - start_total,
+        )
+    except Exception as e:
+        logger.error("Error while processing repository: %s", e)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def main():
     args = parse_args()
+
+    # Setup logging
     handlers = [logging.StreamHandler(sys.stdout)]
     if args.log_file:
         handlers.append(logging.FileHandler(args.log_file))
@@ -308,12 +365,14 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=handlers,
     )
+
+    # Connect to Neo4j
     try:
         driver = GraphDatabase.driver(
             ensure_port(args.uri), auth=(args.username, args.password)
         )
-        # Fail fast if the Neo4j connection details are incorrect
         driver.verify_connectivity()
+        logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
     except Exception as e:
         logger.error("Failed to connect to Neo4j: %s", e)
         sys.exit(1)

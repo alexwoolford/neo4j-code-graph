@@ -33,6 +33,7 @@ javalang==0.13.0
 neo4j==5.28.1
 graphdatascience==1.16
 python-dotenv==1.1.1
+tqdm==4.66.4
 ```
 
 ## Usage
@@ -72,14 +73,15 @@ Where:
 - `--uri` sets the Neo4j Bolt URI.
 - `--username` and `--password` supply authentication credentials.
 - `--database` selects the target database.
+- `--log-level` controls logging verbosity (DEBUG, INFO, WARNING, ERROR).
+- `--log-file` optionally writes logs to a file in addition to the console.
 
 The script clones the repository, processes all `*.java` files, and
 creates `File` nodes for each source file and `Method` nodes for each
 method. Method invocations are linked with `CALLS` relationships, and
-each node stores an embedding vector for similarity search. Similarity
-relationships are created separately using `create_method_similarity.py`.
-Logging output can be controlled with the `--log-level` option, and a
-progress bar is displayed while processing files.
+each node stores an embedding vector for similarity search. Directory
+structure is preserved with `Directory` nodes and `CONTAINS` relationships.
+A progress bar is displayed while processing files.
 
 ### Build similarity relationships
 
@@ -98,10 +100,34 @@ python create_method_similarity.py --top-k 10 --cutoff 0.85 \
   --uri bolt://localhost:7687 --username neo4j --password secret
 ```
 
+Where:
+
+- `--top-k` sets the number of nearest neighbors to find for each method (default: 5).
+- `--cutoff` sets the minimum similarity score threshold (default: 0.8).
+- `--log-level` controls logging verbosity.
+- `--log-file` optionally writes logs to a file.
+
 This script creates a vector index on the `Method.embedding` property if
 one does not already exist and then writes `SIMILAR` relationships with a
 `score` property for pairs of methods that exceed the similarity cutoff.
 
+## Graph Schema
+
+The scripts create the following node types and relationships:
+
+**Nodes:**
+- `Directory`: Represents directories in the repository structure
+  - Properties: `path` (string)
+- `File`: Represents Java source files  
+  - Properties: `path` (string), `embedding` (vector), `embedding_type` (string)
+- `Method`: Represents Java methods
+  - Properties: `name` (string), `file` (string), `line` (integer), `class` (string, optional), `embedding` (vector), `embedding_type` (string)
+
+**Relationships:**
+- `CONTAINS`: Directory contains subdirectories or files
+- `DECLARES`: File declares methods
+- `CALLS`: Method calls another method
+- `SIMILAR`: Methods are similar based on embedding similarity (created by similarity script)
 
 ## Example queries
 
@@ -123,18 +149,35 @@ LIMIT 10;
 
 // Show methods declared in a specific file
 MATCH (f:File {path: $path})-[:DECLARES]->(m:Method)
-RETURN m.name, m.line
+RETURN m.name, m.line, m.class
 LIMIT 10;
 
 // Examine method similarity relationships
 MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
-RETURN m1.name, m2.name, s.score
+RETURN m1.name, m1.class, m2.name, m2.class, s.score
 ORDER BY s.score DESC
 LIMIT 10;
 
 // Follow a chain of method calls
-MATCH p=(m:Method {name: $method})-[:CALLS*]->(called)
-RETURN called.name LIMIT 10;
+MATCH p=(m:Method {name: $method})-[:CALLS*1..3]->(called)
+RETURN called.name, called.class 
+LIMIT 10;
+
+// Find methods in the same class that are similar
+MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
+WHERE m1.class = m2.class AND m1.class IS NOT NULL
+RETURN m1.name, m2.name, m1.class, s.score
+ORDER BY s.score DESC
+LIMIT 10;
+
+// Explore directory structure
+MATCH (d:Directory)-[:CONTAINS]->(item)
+WHERE d.path = 'src/main/java'
+RETURN type(item) as item_type, 
+       CASE WHEN item:File THEN item.path 
+            WHEN item:Directory THEN item.path 
+       END as name
+LIMIT 20;
 ```
 
 ## Testing

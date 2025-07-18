@@ -1,7 +1,7 @@
 import os
 import sys
 import shutil
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 import types
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -24,7 +24,14 @@ class _NoGrad:
 
 sys.modules.setdefault(
     "torch",
-    types.SimpleNamespace(no_grad=lambda: _NoGrad()),
+    types.SimpleNamespace(
+        no_grad=lambda: _NoGrad(),
+        cuda=types.SimpleNamespace(is_available=lambda: False),
+        backends=types.SimpleNamespace(
+            mps=types.SimpleNamespace(is_available=lambda: False)
+        ),
+        device=lambda x: f"device({x})"
+    ),
 )
 
 sys.modules.setdefault("git", types.SimpleNamespace(Repo=MagicMock()))
@@ -89,7 +96,7 @@ def test_process_java_file_creates_directories(tmp_path):
 
     with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
         code_to_graph.process_java_file(
-            java_file, MagicMock(), MagicMock(), session_mock, repo_root
+            java_file, MagicMock(), MagicMock(), session_mock, repo_root, MagicMock()
         )
 
     calls = session_mock.run.call_args_list
@@ -125,7 +132,7 @@ def test_process_java_file_creates_calls(tmp_path):
 
     with patch.object(code_to_graph, "compute_embedding", return_value=[0.0]):
         code_to_graph.process_java_file(
-            java_file, MagicMock(), MagicMock(), session_mock, tmp_path
+            java_file, MagicMock(), MagicMock(), session_mock, tmp_path, MagicMock()
         )
 
     call_params = [c for c in session_mock.run.call_args_list if "CALLS" in c.args[0]]
@@ -158,7 +165,8 @@ def test_main_accepts_optional_arguments(monkeypatch):
 
     code_to_graph.main()
 
-    ensure_port_mock.assert_called_once_with(args.uri)
+    assert ensure_port_mock.call_count == 2
+    ensure_port_mock.assert_has_calls([call(args.uri), call(args.uri)])
     code_to_graph.GraphDatabase.driver.assert_called_once_with(
         "bolt://example:9999",
         auth=(args.username, args.password),

@@ -19,7 +19,7 @@ def test_run_knn_creates_projection_and_runs():
     gds.run_cypher.return_value = pd.DataFrame([{"missing": 2}])
     gds.graph.exists.return_value = pd.Series({"exists": True})
     graph_obj = MagicMock()
-    gds.graph.project.return_value = (graph_obj, None)
+    gds.graph.project.cypher.return_value = (graph_obj, None)
 
     run_knn(gds, top_k=3, cutoff=0.5)
 
@@ -28,10 +28,11 @@ def test_run_knn_creates_projection_and_runs():
     )
     gds.graph.exists.assert_called_once_with("methodGraph")
     gds.graph.drop.assert_called_once_with("methodGraph")
-    gds.graph.project.assert_called_once_with(
+    gds.graph.project.cypher.assert_called_once_with(
         "methodGraph",
-        {"Method": {"properties": "embedding", "where": "m.embedding IS NOT NULL"}},
-        "*",
+        ("MATCH (m:Method) WHERE m.embedding IS NOT NULL "
+         "RETURN id(m) AS id, m.embedding AS embedding"),
+        "RETURN null AS source, null AS target LIMIT 0"
     )
     gds.knn.write.assert_called_once_with(
         graph_obj,
@@ -49,11 +50,11 @@ def test_run_knn_without_existing_projection():
     gds.run_cypher.return_value = pd.DataFrame([{"missing": 0}])
     gds.graph.exists.return_value = pd.Series({"exists": False})
     graph_obj = MagicMock()
-    gds.graph.project.return_value = (graph_obj, None)
+    gds.graph.project.cypher.return_value = (graph_obj, None)
 
     run_knn(gds)
 
     gds.graph.drop.assert_not_called()
-    gds.graph.project.assert_called_once()
+    gds.graph.project.cypher.assert_called_once()
     gds.knn.write.assert_called_once()
     graph_obj.drop.assert_called_once()
