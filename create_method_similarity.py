@@ -1,18 +1,10 @@
-import os
-from dotenv import load_dotenv
-from graphdatascience import GraphDataScience
 import argparse
+from graphdatascience import GraphDataScience
 
-from utils import ensure_port
+from utils import ensure_port, get_neo4j_config
 
-# Load env vars
-load_dotenv(override=True)
-
-
-NEO4J_URI = ensure_port(os.getenv("NEO4J_URI", "bolt://localhost:7687"))
-NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "neo4j")
-NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
+# Connection settings
+NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
 EMBEDDING_DIM = 768
 

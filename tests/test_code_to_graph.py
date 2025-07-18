@@ -25,6 +25,13 @@ sys.modules.setdefault(
     types.SimpleNamespace(no_grad=lambda: _NoGrad()),
 )
 
+sys.modules.setdefault("git", types.SimpleNamespace(Repo=MagicMock()))
+sys.modules.setdefault(
+    "neo4j",
+    types.SimpleNamespace(GraphDatabase=MagicMock())
+)
+sys.modules.setdefault("dotenv", types.SimpleNamespace(load_dotenv=lambda **k: None))
+
 
 import code_to_graph
 
