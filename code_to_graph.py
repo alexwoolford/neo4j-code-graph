@@ -81,6 +81,20 @@ def process_java_file(path, tokenizer, model, session, repo_root):
         except Exception as e:
             print(f"Neo4j error creating Directory node for {dp}: {e}")
 
+    if not dir_paths:
+        try:
+            session.run("MERGE (:Directory {path:''})")
+        except Exception as e:
+            print(f"Neo4j error creating Directory node for root: {e}")
+    else:
+        try:
+            session.run(
+                "MERGE (p:Directory {path:''}) MERGE (c:Directory {path:$child}) MERGE (p)-[:CONTAINS]->(c)",
+                child=dir_paths[0],
+            )
+        except Exception as e:
+            print(f"Neo4j error linking root directory to {dir_paths[0]}: {e}")
+
     for p, c in zip(dir_paths[:-1], dir_paths[1:]):
         try:
             session.run(

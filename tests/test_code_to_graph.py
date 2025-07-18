@@ -75,6 +75,12 @@ def test_process_java_file_creates_directories(tmp_path):
     assert dir_paths == ["a", "a/b"]
 
     assert any(
+        "path:''" in c.args[0] and c.kwargs.get("child") == "a"
+        for c in calls
+        if "CONTAINS" in c.args[0]
+    )
+
+    assert any(
         c.kwargs.get("parent") == "a" and c.kwargs.get("child") == "a/b"
         for c in calls
         if "CONTAINS" in c.args[0] and "child" in c.kwargs
