@@ -110,6 +110,12 @@ Where:
 This script creates a vector index on the `Method.embedding` property if
 one does not already exist and then writes `SIMILAR` relationships with a
 `score` property for pairs of methods that exceed the similarity cutoff.
+After the similarity step it also runs the Louvain algorithm on the
+`SIMILAR` graph. Only relationships whose `score` is above
+`--community-threshold` are included in the projection. The resulting
+community id is stored on each `Method` node using the property specified
+by `--community-property` (default: `similarityCommunity`). Pass
+`--no-knn` if you want to skip the kNN step and only compute communities.
 
 ## Graph Schema
 
@@ -121,7 +127,7 @@ The scripts create the following node types and relationships:
 - `File`: Represents Java source files  
   - Properties: `path` (string), `embedding` (vector), `embedding_type` (string)
 - `Method`: Represents Java methods
-  - Properties: `name` (string), `file` (string), `line` (integer), `class` (string, optional), `embedding` (vector), `embedding_type` (string)
+  - Properties: `name` (string), `file` (string), `line` (integer), `class` (string, optional), `embedding` (vector), `embedding_type` (string), `similarityCommunity` (integer)
 
 **Relationships:**
 - `CONTAINS`: Directory contains subdirectories or files
@@ -156,6 +162,12 @@ LIMIT 10;
 MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
 RETURN m1.name, m1.class, m2.name, m2.class, s.score
 ORDER BY s.score DESC
+LIMIT 10;
+
+// Inspect the largest similarity communities
+MATCH (m:Method)
+RETURN m.similarityCommunity AS community, count(*) AS size
+ORDER BY size DESC
 LIMIT 10;
 
 // Follow a chain of method calls
