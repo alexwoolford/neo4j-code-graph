@@ -66,7 +66,7 @@ def get_device():
     """Get the appropriate device for PyTorch computations."""
     if torch.cuda.is_available():
         return torch.device("cuda")
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return torch.device("mps")
     else:
         return torch.device("cpu")
@@ -118,9 +118,7 @@ def create_directory_structure(session, file_path):
         try:
             session.run("MERGE (:Directory {path:$path})", path=dp)
         except Exception as e:
-            logger.error(
-                "Neo4j error creating Directory node for %s: %s", dp, e
-            )
+            logger.error("Neo4j error creating Directory node for %s: %s", dp, e)
 
     # Link root to first directory
     try:
@@ -131,9 +129,7 @@ def create_directory_structure(session, file_path):
             child=dir_paths[0],
         )
     except Exception as e:
-        logger.error(
-            "Neo4j error linking root directory to %s: %s", dir_paths[0], e
-        )
+        logger.error("Neo4j error linking root directory to %s: %s", dir_paths[0], e)
 
     # Link adjacent directories
     for parent, child in zip(dir_paths[:-1], dir_paths[1:]):
@@ -151,8 +147,9 @@ def create_directory_structure(session, file_path):
             )
 
 
-def create_method_calls(session, caller_method, caller_class, caller_file,
-                        caller_line, method_node):
+def create_method_calls(
+    session, caller_method, caller_class, caller_file, caller_line, method_node
+):
     """Create CALLS relationships for method invocations."""
     for _, inv in method_node.filter(javalang.tree.MethodInvocation):
         callee_name = inv.member
@@ -221,8 +218,9 @@ def process_java_file(path, tokenizer, model, session, repo_root, device):
         )
 
         # Link file to its parent directory
-        parent_dir = (str(Path(rel_path).parent)
-                      if Path(rel_path).parent != Path('.') else '')
+        parent_dir = (
+            str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else ""
+        )
         session.run(
             "MERGE (d:Directory {path:$dir}) "
             "MERGE (f:File {path:$file}) "
@@ -245,17 +243,15 @@ def process_java_file(path, tokenizer, model, session, repo_root, device):
     for path_to_node, node in tree.filter(javalang.tree.MethodDeclaration):
         try:
             process_method(
-                node, path_to_node, code, rel_path, tokenizer, model, session,
-                device
+                node, path_to_node, code, rel_path, tokenizer, model, session, device
             )
         except Exception as e:
-            logger.error(
-                "Error processing method %s in %s: %s", node.name, rel_path, e
-            )
+            logger.error("Error processing method %s in %s: %s", node.name, rel_path, e)
 
 
-def process_method(node, path_to_node, code, rel_path, tokenizer, model,
-                   session, device):
+def process_method(
+    node, path_to_node, code, rel_path, tokenizer, model, session, device
+):
     """Process a single method declaration."""
     start = node.position.line if node.position else None
     method_name = node.name
@@ -278,7 +274,7 @@ def process_method(node, path_to_node, code, rel_path, tokenizer, model,
     # Extract method code
     method_code = ""
     if start and end:
-        method_code = "\n".join(code.splitlines()[start - 1: end])
+        method_code = "\n".join(code.splitlines()[start - 1 : end])
 
     # Create method embedding
     m_embedding = compute_embedding(method_code, tokenizer, model, device)
@@ -303,8 +299,7 @@ def process_method(node, path_to_node, code, rel_path, tokenizer, model,
     session.run(cypher, params)
 
     # Create method call relationships
-    create_method_calls(session, method_name, class_name, rel_path, start,
-                        node)
+    create_method_calls(session, method_name, class_name, rel_path, start, node)
 
 
 def load_repo(repo_url, driver, database=None):
@@ -335,12 +330,8 @@ def load_repo(repo_url, driver, database=None):
         with driver.session(database=database) as session:
             for path in tqdm(java_files, desc="Processing Java files"):
                 start = perf_counter()
-                process_java_file(
-                    path, tokenizer, model, session, repo_root, device
-                )
-                logger.debug(
-                    "Processed %s in %.2fs", path, perf_counter() - start
-                )
+                process_java_file(path, tokenizer, model, session, repo_root, device)
+                logger.debug("Processed %s in %.2fs", path, perf_counter() - start)
 
         logger.info(
             "Processed %d files in %.2fs",

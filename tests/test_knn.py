@@ -30,9 +30,11 @@ def test_run_knn_creates_projection_and_runs():
     gds.graph.drop.assert_called_once_with("methodGraph")
     gds.graph.project.cypher.assert_called_once_with(
         "methodGraph",
-        ("MATCH (m:Method) WHERE m.embedding IS NOT NULL "
-         "RETURN id(m) AS id, m.embedding AS embedding"),
-        "RETURN null AS source, null AS target LIMIT 0"
+        (
+            "MATCH (m:Method) WHERE m.embedding IS NOT NULL "
+            "RETURN id(m) AS id, m.embedding AS embedding"
+        ),
+        "RETURN null AS source, null AS target LIMIT 0",
     )
     gds.knn.write.assert_called_once_with(
         graph_obj,

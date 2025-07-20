@@ -30,7 +30,7 @@ sys.modules.setdefault(
         backends=types.SimpleNamespace(
             mps=types.SimpleNamespace(is_available=lambda: False)
         ),
-        device=lambda x: f"device({x})"
+        device=lambda x: f"device({x})",
     ),
 )
 
