@@ -117,6 +117,21 @@ community id is stored on each `Method` node using the property specified
 by `--community-property` (default: `similarityCommunity`). Pass
 `--no-knn` if you want to skip the kNN step and only compute communities.
 
+### Import Git history
+
+The `git_history_to_graph.py` script loads commit history and developer
+information so you can explore how a repository evolved over time. Run it
+with a Git URL in the same way as the main loader:
+
+```bash
+python git_history_to_graph.py https://github.com/neo4j/neo4j.git
+```
+
+The command line options mirror those of `code_to_graph.py` (`--uri`,
+`--username`, `--password`, `--database`, etc.). Embeddings are only
+stored for the most recent version of each file to keep resource usage
+reasonable.
+
 ## Graph Schema
 
 The scripts create the following node types and relationships:
@@ -124,16 +139,26 @@ The scripts create the following node types and relationships:
 **Nodes:**
 - `Directory`: Represents directories in the repository structure
   - Properties: `path` (string)
-- `File`: Represents Java source files  
+- `File`: Represents Java source files
   - Properties: `path` (string), `embedding` (vector), `embedding_type` (string)
 - `Method`: Represents Java methods
   - Properties: `name` (string), `file` (string), `line` (integer), `class` (string, optional), `embedding` (vector), `embedding_type` (string), `similarityCommunity` (integer)
+- `Developer`: Represents a Git author or committer
+  - Properties: `name` (string), `email` (string)
+- `Commit`: Represents a Git commit
+  - Properties: `sha` (string), `message` (string), `timestamp` (datetime)
+- `FileVer`: Represents a file at a specific commit
+  - Properties: `path` (string), `sha` (string), `embedding` (vector, latest version only), `embedding_type` (string)
 
 **Relationships:**
 - `CONTAINS`: Directory contains subdirectories or files
 - `DECLARES`: File declares methods
 - `CALLS`: Method calls another method
 - `SIMILAR`: Methods are similar based on embedding similarity (created by similarity script)
+- `AUTHORED`: Developer authored a commit
+- `MODIFIED`: Commit produced a new file version
+- `HAS_VERSION`: File links to all `FileVer` nodes
+- `PREVIOUS`: Connects a `FileVer` to the prior version of the same file
 
 ## Example queries
 
