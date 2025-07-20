@@ -26,11 +26,9 @@ def test_run_louvain_creates_projection_and_runs():
         "similarityGraph",
         "MATCH (m:Method) RETURN id(m) AS id",
         ANY,
-        {
-            "relationshipProperties": "score",
-            "parameters": {"threshold": 0.9},
-            "relationshipOrientation": "UNDIRECTED",
-        },
+        relationshipProperties="score",
+        parameters={"threshold": 0.9},
+        relationshipOrientation="UNDIRECTED"
     )
     gds.louvain.write.assert_called_once_with(graph_obj, writeProperty="simComm")
     graph_obj.drop.assert_called_once()

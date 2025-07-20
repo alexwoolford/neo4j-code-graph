@@ -176,11 +176,9 @@ def run_louvain(gds, threshold=0.8, community_property="similarityCommunity"):
         graph_name,
         node_query,
         rel_query,
-        {
-            "relationshipProperties": "score",
-            "parameters": {"threshold": threshold},
-            "relationshipOrientation": "UNDIRECTED",
-        },
+        relationshipProperties="score",
+        parameters={"threshold": threshold},
+        relationshipOrientation="UNDIRECTED",
     )
 
     start = perf_counter()
