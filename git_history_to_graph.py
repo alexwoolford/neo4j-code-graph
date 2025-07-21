@@ -361,7 +361,7 @@ def load_history(
                 ]
                 logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
 
-                for fallback in ["main", "master", "dev", "develop"]:
+                for fallback in ["main", "master", "dev", "develop", "HEAD"]:
                     if fallback in available_branches:
                         logger.info(f"Falling back to branch: {fallback}")
                         repo.git.checkout(fallback)
