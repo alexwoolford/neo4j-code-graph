@@ -70,7 +70,8 @@ def cleanup_communities(session, community_property="similarityCommunity", dry_r
         logger.info("[DRY RUN] Would remove %s property from %d nodes", community_property, count)
     else:
         session.run(
-            f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL REMOVE m.{community_property}"
+            f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL "
+            f"REMOVE m.{community_property}"
         )
         logger.info("Removed %s property from %d Method nodes", community_property, count)
 

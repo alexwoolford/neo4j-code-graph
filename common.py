@@ -17,7 +17,7 @@ def setup_logging(log_level="INFO", log_file=None):
     handlers = [logging.StreamHandler(sys.stdout)]
     if log_file:
         handlers.append(logging.FileHandler(log_file))
-    
+
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), "INFO"),
         format="%(asctime)s [%(levelname)s] %(message)s",
