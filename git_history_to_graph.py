@@ -357,7 +357,7 @@ def load_history(
                 logger.info(f"Checked out branch: {branch}")
             except Exception as e:
                 available_branches = [
-                    ref.name.split("/")[-1] for ref in repo.refs if "remotes/origin" in ref.name
+                    ref.name.split("/")[-1] for ref in repo.remotes.origin.refs
                 ]
                 logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
 
