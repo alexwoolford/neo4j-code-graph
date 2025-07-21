@@ -141,7 +141,7 @@ The scripts create the following node types and relationships:
 - `File`: Java source files (`path`, `embedding`, `embedding_type`)
 - `Method`: Java methods (`name`, `file`, `line`, `class`, `embedding`, `embedding_type`, `similarityCommunity`)
 - `Developer`: Git authors (`name`, `email`)
-- `Commit`: Git commits (`sha`, `message`, `date`)
+- `Commit`: Git commits (`sha`, `message`, `date` as `datetime`)
 - `FileVer`: File versions at specific commits (`path`, `sha`)
 
 **Relationships:**

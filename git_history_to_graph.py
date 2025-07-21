@@ -12,7 +12,6 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 import time
-import gc
 
 from git import Repo
 from neo4j import GraphDatabase
@@ -111,10 +110,13 @@ def extract_git_history(repo_path, branch, max_commits=None):
     total_time = git_time + parse_time
 
     logger.info(
-        f"Parsed {commits_processed} commits and {len(file_changes)} file changes in {parse_time:.2f}s"
+        "Parsed %d commits and %d file changes in %.2fs",
+        commits_processed,
+        len(file_changes),
+        parse_time,
     )
     logger.info(
-        f"Total extraction: {total_time:.2f}s ({commits_processed/total_time:.1f} commits/sec)"
+        "Total extraction: %.2fs (%.1f commits/sec)", total_time, commits_processed / total_time
     )
 
     return commits, file_changes
@@ -180,12 +182,16 @@ def bulk_load_to_neo4j(
         with driver.session(database=database) as session:
             logger.info("Creating constraints and indexes...")
             session.run(
-                "CREATE CONSTRAINT commit_sha IF NOT EXISTS FOR (c:Commit) REQUIRE c.sha IS UNIQUE"
+                "CREATE CONSTRAINT commit_sha IF NOT EXISTS FOR (c:Commit) "
+                "REQUIRE c.sha IS UNIQUE"
             )
             session.run(
-                "CREATE CONSTRAINT developer_email IF NOT EXISTS FOR (d:Developer) REQUIRE d.email IS UNIQUE"
+                "CREATE CONSTRAINT developer_email IF NOT EXISTS FOR (d:Developer) "
+                "REQUIRE d.email IS UNIQUE"
             )
-            session.run("CREATE INDEX file_path_index IF NOT EXISTS FOR (f:File) ON (f.path)")
+            session.run(
+                "CREATE INDEX file_path_index IF NOT EXISTS FOR (f:File) ON (f.path)"
+            )
 
         # Load developers
         with driver.session(database=database) as session:
@@ -206,7 +212,9 @@ def bulk_load_to_neo4j(
         logger.info(f"Loading {len(commits_df)} commits...")
         commits_data = commits_df.to_dict("records")
         for commit in commits_data:
-            commit["date"] = commit["date"].isoformat()
+            # Use native datetime objects so Neo4j stores the value as a
+            # DateTime instead of a plain string
+            commit["date"] = commit["date"].to_pydatetime()
 
         commit_batch_size = 5000  # Smaller batches for better reliability
         for i in range(0, len(commits_data), commit_batch_size):
@@ -227,7 +235,9 @@ def bulk_load_to_neo4j(
                     f"commits batch {i//commit_batch_size + 1}",
                 )
                 logger.info(
-                    f"Loaded {min(i + commit_batch_size, len(commits_data))}/{len(commits_data)} commits"
+                    "Loaded %d/%d commits",
+                    min(i + commit_batch_size, len(commits_data)),
+                    len(commits_data),
                 )
 
         # Load files
@@ -281,16 +291,21 @@ def bulk_load_to_neo4j(
             batch_time = time.time() - batch_start
             elapsed_total = time.time() - start_time
             processed = min(i + batch_size, len(file_changes_data))
-            remaining = len(file_changes_data) - processed
-
             if processed > 0:
                 avg_time_per_batch = elapsed_total / batch_num
                 eta_seconds = avg_time_per_batch * (total_batches - batch_num)
                 eta_minutes = eta_seconds / 60
 
                 logger.info(
-                    f"Batch {batch_num}/{total_batches}: {processed:,}/{len(file_changes_data):,} file changes "
-                    f"(batch: {batch_time:.1f}s, avg: {avg_time_per_batch:.1f}s/batch, ETA: {eta_minutes:.1f}min)"
+                    "Batch %d/%d: %s/%s file changes "
+                    "(batch: %.1fs, avg: %.1fs/batch, ETA: %.1fmin)",
+                    batch_num,
+                    total_batches,
+                    f"{processed:,}",
+                    f"{len(file_changes_data):,}",
+                    batch_time,
+                    avg_time_per_batch,
+                    eta_minutes,
                 )
 
         # Force garbage collection between batches
