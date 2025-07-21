@@ -142,9 +142,7 @@ def create_directory_structure(session, file_path):
                 child=child,
             )
         except Exception as e:
-            logger.error(
-                "Neo4j error linking directories %s -> %s: %s", parent, child, e
-            )
+            logger.error("Neo4j error linking directories %s -> %s: %s", parent, child, e)
 
 
 def create_method_calls(
@@ -157,10 +155,7 @@ def create_method_calls(
         if inv.qualifier and inv.qualifier[0].isupper():
             callee_class = inv.qualifier.split(".")[-1]
 
-        cypher = (
-            "MATCH (caller:Method {name:$caller_name, file:$caller_file, "
-            "line:$caller_line"
-        )
+        cypher = "MATCH (caller:Method {name:$caller_name, file:$caller_file, " "line:$caller_line"
         params = {
             "caller_name": caller_method,
             "caller_file": caller_file,
@@ -218,9 +213,7 @@ def process_java_file(path, tokenizer, model, session, repo_root, device):
         )
 
         # Link file to its parent directory
-        parent_dir = (
-            str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else ""
-        )
+        parent_dir = str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else ""
         session.run(
             "MERGE (d:Directory {path:$dir}) "
             "MERGE (f:File {path:$file}) "
@@ -242,16 +235,12 @@ def process_java_file(path, tokenizer, model, session, repo_root, device):
     # Process methods
     for path_to_node, node in tree.filter(javalang.tree.MethodDeclaration):
         try:
-            process_method(
-                node, path_to_node, code, rel_path, tokenizer, model, session, device
-            )
+            process_method(node, path_to_node, code, rel_path, tokenizer, model, session, device)
         except Exception as e:
             logger.error("Error processing method %s in %s: %s", node.name, rel_path, e)
 
 
-def process_method(
-    node, path_to_node, code, rel_path, tokenizer, model, session, device
-):
+def process_method(node, path_to_node, code, rel_path, tokenizer, model, session, device):
     """Process a single method declaration."""
     start = node.position.line if node.position else None
     method_name = node.name
@@ -359,9 +348,7 @@ def main():
 
     # Connect to Neo4j
     try:
-        driver = GraphDatabase.driver(
-            ensure_port(args.uri), auth=(args.username, args.password)
-        )
+        driver = GraphDatabase.driver(ensure_port(args.uri), auth=(args.username, args.password))
         driver.verify_connectivity()
         logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
     except Exception as e:

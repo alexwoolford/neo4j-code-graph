@@ -44,14 +44,17 @@ def parse_args():
         default=NEO4J_DATABASE,
         help="Neo4j database to use",
     )
-    parser.add_argument(
-        "--top-k", type=int, default=5, help="Number of nearest neighbours"
-    )
+    parser.add_argument("--top-k", type=int, default=5, help="Number of nearest neighbours")
     parser.add_argument("--cutoff", type=float, default=0.8, help="Similarity cutoff")
     parser.add_argument(
         "--no-knn",
         action="store_true",
         help="Skip kNN step and only run community detection",
+    )
+    parser.add_argument(
+        "--no-louvain",
+        action="store_true",
+        help="Skip Louvain community detection step",
     )
     parser.add_argument(
         "--community-threshold",
@@ -176,9 +179,7 @@ def run_louvain(gds, threshold=0.8, community_property="similarityCommunity"):
         graph_name,
         node_query,
         rel_query,
-        relationshipProperties="score",
         parameters={"threshold": threshold},
-        relationshipOrientation="UNDIRECTED",
     )
 
     start = perf_counter()
@@ -214,7 +215,8 @@ def main():
     create_index(gds)
     if not args.no_knn:
         run_knn(gds, args.top_k, args.cutoff)
-    run_louvain(gds, args.community_threshold, args.community_property)
+    if not args.no_louvain:
+        run_louvain(gds, args.community_threshold, args.community_property)
     gds.close()
 
 
