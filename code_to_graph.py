@@ -1,63 +1,45 @@
-import sys
-import tempfile
-import shutil
-from pathlib import Path
+#!/usr/bin/env python3
+
 import argparse
 import logging
+import tempfile
+from pathlib import Path
 from time import perf_counter
-from tqdm import tqdm
+import gc
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections import defaultdict
 
-from git import Repo
-from neo4j import GraphDatabase
-from transformers import AutoTokenizer, AutoModel
 import torch
 import javalang
-from utils import ensure_port, get_neo4j_config
+from neo4j import GraphDatabase
+from transformers import AutoModel, AutoTokenizer
+from tqdm import tqdm
 
-# Read connection settings from the environment
-NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
-
-# Embedding metadata
-EMBEDDING_TYPE = "graphcodebert-base"
-MODEL_NAME = "microsoft/graphcodebert-base"
+from common import setup_logging, create_neo4j_driver, add_common_args
 
 logger = logging.getLogger(__name__)
+
+MODEL_NAME = "microsoft/graphcodebert-base"
+EMBEDDING_TYPE = "graphcodebert"
 
 
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Load a Java Git repository into Neo4j with embeddings"
+        description="Ultra-optimized Java code structure and embeddings loader"
     )
-    parser.add_argument("repo_url", help="URL of the Git repository to load")
+    add_common_args(parser)
+    parser.add_argument("repo_url", help="Git repository URL to analyze")
     parser.add_argument(
-        "--uri",
-        default=NEO4J_URI,
-        help="Neo4j connection URI",
-    )
-    parser.add_argument(
-        "--username",
-        default=NEO4J_USERNAME,
-        help="Neo4j authentication username",
+        "--batch-size",
+        type=int,
+        help="Override automatic batch size selection"
     )
     parser.add_argument(
-        "--password",
-        default=NEO4J_PASSWORD,
-        help="Neo4j authentication password",
-    )
-    parser.add_argument(
-        "--database",
-        default=NEO4J_DATABASE,
-        help="Neo4j database to use",
-    )
-    parser.add_argument(
-        "--log-level",
-        default="INFO",
-        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
-    )
-    parser.add_argument(
-        "--log-file",
-        help="Write logs to this file as well as the console",
+        "--parallel-files",
+        type=int,
+        default=4,
+        help="Number of files to process in parallel"
     )
     return parser.parse_args()
 
@@ -72,294 +54,360 @@ def get_device():
         return torch.device("cpu")
 
 
-def compute_embeddings(snippets, tokenizer, model, device):
-    """Return embeddings for all ``snippets`` in a single forward pass."""
-    tokens = tokenizer(
-        snippets,
-        padding=True,
-        truncation=True,
-        max_length=512,
-        return_tensors="pt",
-    ).to(device)
-
-    with torch.no_grad():
-        outputs = model(**tokens)
-        vecs = outputs.last_hidden_state[:, 0, :].cpu().numpy()
-
-    embeddings = [v.tolist() for v in vecs]
-    logger.debug("Computed %d embeddings", len(embeddings))
-    return embeddings
+def get_optimal_batch_size(device):
+    """Determine optimal batch size based on device and available memory."""
+    if device.type == "cuda":
+        gpu_memory = torch.cuda.get_device_properties(0).total_memory
+        if gpu_memory > 20 * 1024**3:  # >20GB (RTX 4090, etc.)
+            return 512  # Push even harder
+        elif gpu_memory > 10 * 1024**3:  # >10GB 
+            return 256
+        else:  # 8GB or less
+            return 128
+    elif device.type == "mps":
+        return 64
+    else:
+        return 32
 
 
-def compute_embedding(code, tokenizer, model, device):
-    """Compute embedding for a single code snippet."""
-    return compute_embeddings([code], tokenizer, model, device)[0]
-
-
-def create_directory_structure(session, file_path):
-    """Create directory nodes and relationships for the given file path."""
-    parts = Path(file_path).parent.parts
-    if not parts:
-        # File is in root directory
-        try:
-            session.run("MERGE (:Directory {path:''})")
-        except Exception as e:
-            logger.error("Neo4j error creating root Directory node: %s", e)
-        return
-
-    # Create all directory nodes
-    dir_paths = []
-    current = []
-    for part in parts:
-        current.append(part)
-        dir_paths.append("/".join(current))
-
-    for dp in dir_paths:
-        try:
-            session.run("MERGE (:Directory {path:$path})", path=dp)
-        except Exception as e:
-            logger.error("Neo4j error creating Directory node for %s: %s", dp, e)
-
-    # Link root to first directory
-    try:
-        session.run(
-            "MERGE (p:Directory {path:''}) "
-            "MERGE (c:Directory {path:$child}) "
-            "MERGE (p)-[:CONTAINS]->(c)",
-            child=dir_paths[0],
+def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
+    """Compute embeddings for all snippets using maximum batching."""
+    if not snippets:
+        return []
+    
+    logger.info(f"Computing {len(snippets)} embeddings with batch size {batch_size}")
+    
+    all_embeddings = []
+    use_amp = device.type == "cuda" and hasattr(torch.cuda, "amp")
+    
+    # Process in batches
+    for i in tqdm(range(0, len(snippets), batch_size), desc="Computing embeddings"):
+        batch_snippets = snippets[i:i + batch_size]
+        
+        # Tokenize batch
+        tokens = tokenizer(
+            batch_snippets,
+            padding=True,
+            truncation=True,
+            max_length=512,
+            return_tensors="pt",
         )
-    except Exception as e:
-        logger.error("Neo4j error linking root directory to %s: %s", dir_paths[0], e)
+        
+        # Move to device efficiently
+        tokens = {k: v.to(device, non_blocking=True) for k, v in tokens.items()}
 
-    # Link adjacent directories
-    for parent, child in zip(dir_paths[:-1], dir_paths[1:]):
-        try:
-            session.run(
-                "MERGE (p:Directory {path:$parent}) "
-                "MERGE (c:Directory {path:$child}) "
-                "MERGE (p)-[:CONTAINS]->(c)",
-                parent=parent,
-                child=child,
-            )
-        except Exception as e:
-            logger.error("Neo4j error linking directories %s -> %s: %s", parent, child, e)
-
-
-def create_method_calls(
-    session, caller_method, caller_class, caller_file, caller_line, method_node
-):
-    """Create CALLS relationships for method invocations."""
-    for _, inv in method_node.filter(javalang.tree.MethodInvocation):
-        callee_name = inv.member
-        callee_class = None
-        if inv.qualifier and inv.qualifier[0].isupper():
-            callee_class = inv.qualifier.split(".")[-1]
-
-        cypher = "MATCH (caller:Method {name:$caller_name, file:$caller_file, " "line:$caller_line"
-        params = {
-            "caller_name": caller_method,
-            "caller_file": caller_file,
-            "caller_line": caller_line,
-            "callee_name": callee_name,
-        }
-
-        if caller_class is not None:
-            cypher += ", class:$caller_class"
-            params["caller_class"] = caller_class
-
-        cypher += "}) MERGE (callee:Method {name:$callee_name"
-
-        if callee_class:
-            cypher += ", class:$callee_class"
-            params["callee_class"] = callee_class
-
-        cypher += "}) MERGE (caller)-[:CALLS]->(callee)"
-
-        try:
-            session.run(cypher, params)
-        except Exception as e:
-            logger.error(
-                "Neo4j error creating CALLS relationship %s -> %s in %s: %s",
-                caller_method,
-                callee_name,
-                caller_file,
-                e,
-            )
+        # Compute embeddings
+        with torch.no_grad():
+            if use_amp:
+                with torch.amp.autocast('cuda'):
+                    outputs = model(**tokens)
+            else:
+                outputs = model(**tokens)
+            
+            # Use [CLS] token embedding (first token)
+            embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+            
+        # Convert to lists and store
+        batch_embeddings = [embedding.tolist() for embedding in embeddings]
+        all_embeddings.extend(batch_embeddings)
+        
+        # Cleanup
+        del tokens, outputs, embeddings
+        if i % (batch_size * 4) == 0:  # Periodic cleanup
+            gc.collect()
+            if device.type == "cuda":
+                torch.cuda.empty_cache()
+    
+    logger.info(f"Computed {len(all_embeddings)} embeddings")
+    return all_embeddings
 
 
-def process_java_file(path, tokenizer, model, session, repo_root, device):
-    """Parse a Java file, create file and method nodes with embeddings."""
-    rel_path = str(path.relative_to(repo_root))
-
+def extract_file_data(file_path, repo_root):
+    """Extract all data from a single Java file."""
+    rel_path = str(file_path.relative_to(repo_root))
+    
     try:
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        # Read file
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
     except Exception as e:
-        logger.error("Error reading file %s: %s", rel_path, e)
-        return
+        logger.error("Error reading file %s: %s", file_path, e)
+        return None
 
-    # Create directory structure
-    create_directory_structure(session, rel_path)
-
-    # Create File node
-    try:
-        file_embedding = compute_embedding(code, tokenizer, model, device)
-        session.run(
-            "MERGE (f:File {path: $path}) "
-            "SET f.embedding = $embedding, f.embedding_type = $etype",
-            path=rel_path,
-            embedding=file_embedding,
-            etype=EMBEDDING_TYPE,
-        )
-
-        # Link file to its parent directory
-        parent_dir = str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else ""
-        session.run(
-            "MERGE (d:Directory {path:$dir}) "
-            "MERGE (f:File {path:$file}) "
-            "MERGE (d)-[:CONTAINS]->(f)",
-            dir=parent_dir,
-            file=rel_path,
-        )
-    except Exception as e:
-        logger.error("Neo4j error creating File node for %s: %s", rel_path, e)
-        return
-
-    # Parse Java code
+    # Parse Java and extract methods
+    methods = []
     try:
         tree = javalang.parse.parse(code)
+        
+        # Extract method declarations
+        for path_to_node, node in tree.filter(javalang.tree.MethodDeclaration):
+            try:
+                start_line = node.position.line if node.position else None
+                method_name = node.name
+
+                # Find containing class
+                class_name = None
+                for ancestor in reversed(path_to_node):
+                    if isinstance(ancestor, (javalang.tree.ClassDeclaration, javalang.tree.InterfaceDeclaration)):
+                        class_name = ancestor.name
+                        break
+
+                # Extract method code (simple approach)
+                method_code = ""
+                if start_line:
+                    code_lines = code.splitlines()
+                    end_line = start_line
+                    brace_count = 0
+                    
+                    # Find method end by counting braces
+                    for i, line in enumerate(code_lines[start_line - 1:], start_line - 1):
+                        if '{' in line:
+                            brace_count += line.count('{')
+                        if '}' in line:
+                            brace_count -= line.count('}')
+                            if brace_count <= 0:
+                                end_line = i + 1
+                                break
+                        if i - start_line > 200:  # Safety limit
+                            end_line = i + 1
+                            break
+                    
+                    method_code = "\n".join(code_lines[start_line - 1:end_line])
+
+                methods.append({
+                    'name': method_name,
+                    'class': class_name,
+                    'line': start_line,
+                    'code': method_code,
+                    'file': rel_path
+                })
+
+            except Exception as e:
+                logger.debug("Error processing method %s in %s: %s", node.name, rel_path, e)
+                continue
+
     except Exception as e:
         logger.warning("Failed to parse Java file %s: %s", rel_path, e)
-        return
 
-    # Process methods
-    for path_to_node, node in tree.filter(javalang.tree.MethodDeclaration):
-        try:
-            process_method(node, path_to_node, code, rel_path, tokenizer, model, session, device)
-        except Exception as e:
-            logger.error("Error processing method %s in %s: %s", node.name, rel_path, e)
-
-
-def process_method(node, path_to_node, code, rel_path, tokenizer, model, session, device):
-    """Process a single method declaration."""
-    start = node.position.line if node.position else None
-    method_name = node.name
-
-    # Find containing class
-    class_name = None
-    for anc in reversed(path_to_node):
-        if isinstance(anc, javalang.tree.ClassDeclaration):
-            class_name = anc.name
-            break
-
-    # Determine method end line
-    end = start
-    if node.body and isinstance(node.body, list) and node.body:
-        if hasattr(node.body[-1], "position"):
-            end = node.body[-1].position.line
-    elif node.body and hasattr(node.body, "position"):
-        end = node.body.position.line
-
-    # Extract method code
-    method_code = ""
-    if start and end:
-        method_code = "\n".join(code.splitlines()[start - 1 : end])
-
-    # Create method embedding
-    m_embedding = compute_embedding(method_code, tokenizer, model, device)
-
-    # Create Method node
-    cypher = "MERGE (m:Method {name:$name, file:$file, line:$line"
-    params = {
-        "name": method_name,
-        "file": rel_path,
-        "line": start,
-        "embedding": m_embedding,
-        "etype": EMBEDDING_TYPE,
+    return {
+        'path': rel_path,
+        'code': code,
+        'methods': methods
     }
 
-    if class_name is not None:
-        cypher += ", class:$class"
-        params["class"] = class_name
 
-    cypher += "}) SET m.embedding=$embedding, m.embedding_type=$etype "
-    cypher += "MERGE (f:File {path:$file}) MERGE (f)-[:DECLARES]->(m)"
-
-    session.run(cypher, params)
-
-    # Create method call relationships
-    create_method_calls(session, method_name, class_name, rel_path, start, node)
-
-
-def load_repo(repo_url, driver, database=None):
-    """Load a Git repository into Neo4j."""
-    tmpdir = tempfile.mkdtemp()
-    try:
-        logger.info("Cloning %s...", repo_url)
-        try:
-            Repo.clone_from(repo_url, tmpdir)
-        except Exception as e:
-            logger.error("Error cloning %s: %s", repo_url, e)
-            return
-
-        # Initialize model and tokenizer
-        logger.info("Loading GraphCodeBERT model...")
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-        model = AutoModel.from_pretrained(MODEL_NAME)
-        device = get_device()
-        model = model.to(device)
-        logger.info("Using device: %s", device)
-
-        # Process Java files
-        repo_root = Path(tmpdir)
-        java_files = list(repo_root.rglob("*.java"))
-        logger.info("Found %d Java files to process", len(java_files))
-
-        start_total = perf_counter()
-        with driver.session(database=database) as session:
-            for path in tqdm(java_files, desc="Processing Java files"):
-                start = perf_counter()
-                process_java_file(path, tokenizer, model, session, repo_root, device)
-                logger.debug("Processed %s in %.2fs", path, perf_counter() - start)
-
-        logger.info(
-            "Processed %d files in %.2fs",
-            len(java_files),
-            perf_counter() - start_total,
+def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, method_embeddings):
+    """Create all nodes and relationships using bulk operations."""
+    logger.info("Creating directory structure...")
+    
+    # 1. Create all directories first
+    directories = set()
+    for file_data in files_data:
+        path_parts = Path(file_data['path']).parent.parts
+        for i in range(len(path_parts) + 1):
+            dir_path = str(Path(*path_parts[:i])) if i > 0 else ""
+            directories.add(dir_path)
+    
+    # Bulk create directories
+    session.run(
+        "UNWIND $directories AS dir_path "
+        "MERGE (:Directory {path: dir_path})",
+        directories=list(directories)
+    )
+    
+    # 2. Create directory relationships
+    dir_relationships = []
+    for directory in directories:
+        if directory:  # Not root
+            parent = str(Path(directory).parent) if Path(directory).parent != Path(".") else ""
+            dir_relationships.append({"parent": parent, "child": directory})
+    
+    if dir_relationships:
+        session.run(
+            "UNWIND $rels AS rel "
+            "MATCH (parent:Directory {path: rel.parent}) "
+            "MATCH (child:Directory {path: rel.child}) "
+            "MERGE (parent)-[:CONTAINS]->(child)",
+            rels=dir_relationships
         )
-    except Exception as e:
-        logger.error("Error while processing repository: %s", e)
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+    
+    logger.info("Creating file nodes...")
+    
+    # 3. Bulk create file nodes
+    file_nodes = []
+    for i, file_data in enumerate(files_data):
+        file_nodes.append({
+            "path": file_data['path'],
+            "embedding": file_embeddings[i],
+            "embedding_type": EMBEDDING_TYPE
+        })
+    
+    session.run(
+        "UNWIND $files AS file "
+        "MERGE (f:File {path: file.path}) "
+        "SET f.embedding = file.embedding, f.embedding_type = file.embedding_type",
+        files=file_nodes
+    )
+    
+    # 4. Create file-to-directory relationships
+    file_dir_rels = []
+    for file_data in files_data:
+        parent_dir = str(Path(file_data['path']).parent) if Path(file_data['path']).parent != Path(".") else ""
+        file_dir_rels.append({"file": file_data['path'], "directory": parent_dir})
+    
+    session.run(
+        "UNWIND $rels AS rel "
+        "MATCH (d:Directory {path: rel.directory}) "
+        "MATCH (f:File {path: rel.file}) "
+        "MERGE (d)-[:CONTAINS]->(f)",
+        rels=file_dir_rels
+    )
+    
+    logger.info("Creating method nodes...")
+    
+    # 5. Bulk create method nodes
+    method_nodes = []
+    method_idx = 0
+    
+    for file_data in files_data:
+        for method in file_data['methods']:
+            method_node = {
+                "name": method['name'],
+                "file": method['file'],
+                "line": method['line'],
+                "embedding": method_embeddings[method_idx],
+                "embedding_type": EMBEDDING_TYPE
+            }
+            if method['class']:
+                method_node["class"] = method['class']
+            
+            method_nodes.append(method_node)
+            method_idx += 1
+    
+    # Split method creation into batches to avoid huge queries
+    batch_size = 1000
+    for i in range(0, len(method_nodes), batch_size):
+        batch = method_nodes[i:i + batch_size]
+        session.run(
+            "UNWIND $methods AS method "
+            "MERGE (m:Method {name: method.name, file: method.file, line: method.line}) "
+            "SET m.embedding = method.embedding, m.embedding_type = method.embedding_type "
+            + ("SET m.class = method.class " if any("class" in m for m in batch) else ""),
+            methods=batch
+        )
+    
+    # 6. Create method-to-file relationships
+    method_file_rels = []
+    for file_data in files_data:
+        for method in file_data['methods']:
+            method_file_rels.append({
+                "method_name": method['name'],
+                "method_line": method['line'],
+                "file_path": method['file']
+            })
+    
+    # Batch the relationships too
+    for i in range(0, len(method_file_rels), batch_size):
+        batch = method_file_rels[i:i + batch_size]
+        session.run(
+            "UNWIND $rels AS rel "
+            "MATCH (f:File {path: rel.file_path}) "
+            "MATCH (m:Method {name: rel.method_name, file: rel.file_path, line: rel.method_line}) "
+            "MERGE (f)-[:DECLARES]->(m)",
+            rels=batch
+        )
+    
+    logger.info("Bulk creation completed!")
 
 
 def main():
+    """Main function."""
     args = parse_args()
-
-    # Setup logging
-    handlers = [logging.StreamHandler(sys.stdout)]
-    if args.log_file:
-        handlers.append(logging.FileHandler(args.log_file))
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), "INFO"),
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=handlers,
-    )
-
-    # Connect to Neo4j
+    
+    setup_logging(args.log_level, args.log_file)
+    driver = create_neo4j_driver(args.uri, args.username, args.password)
+    
     try:
-        driver = GraphDatabase.driver(ensure_port(args.uri), auth=(args.username, args.password))
-        driver.verify_connectivity()
-        logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
-    except Exception as e:
-        logger.error("Failed to connect to Neo4j: %s", e)
-        sys.exit(1)
+        with driver.session(database=args.database) as session:
+            # Clone repository
+            with tempfile.TemporaryDirectory() as tmpdir:
+                logger.info("Cloning %s...", args.repo_url)
+                import git
+                git.Repo.clone_from(args.repo_url, tmpdir)
+                
+                repo_root = Path(tmpdir)
+                java_files = list(repo_root.rglob("*.java"))
+                logger.info("Found %d Java files to process", len(java_files))
+                
+                # Phase 1: Extract all file data in parallel
+                logger.info("Phase 1: Extracting file data...")
+                start_phase1 = perf_counter()
+                
+                files_data = []
+                with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
+                    future_to_file = {
+                        executor.submit(extract_file_data, file_path, repo_root): file_path 
+                        for file_path in java_files
+                    }
+                    
+                    for future in tqdm(as_completed(future_to_file), total=len(java_files), desc="Extracting files"):
+                        result = future.result()
+                        if result:
+                            files_data.append(result)
+                
+                phase1_time = perf_counter() - start_phase1
+                logger.info("Phase 1 completed in %.2fs", phase1_time)
+                
+                # Phase 2: Compute all embeddings in bulk
+                logger.info("Phase 2: Computing embeddings...")
+                start_phase2 = perf_counter()
+                
+                # Initialize model
+                logger.info("Loading GraphCodeBERT model...")
+                tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+                model = AutoModel.from_pretrained(MODEL_NAME)
+                device = get_device()
+                model = model.to(device)
+                
+                batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
+                logger.info("Using device: %s", device)
+                logger.info("Using batch size: %d", batch_size)
+                
+                # Collect all code snippets
+                file_snippets = [file_data['code'] for file_data in files_data]
+                method_snippets = []
+                for file_data in files_data:
+                    for method in file_data['methods']:
+                        method_snippets.append(method['code'])
+                
+                logger.info("Computing embeddings for %d files and %d methods", 
+                           len(file_snippets), len(method_snippets))
+                
+                # Compute embeddings
+                file_embeddings = compute_embeddings_bulk(file_snippets, tokenizer, model, device, batch_size)
+                method_embeddings = compute_embeddings_bulk(method_snippets, tokenizer, model, device, batch_size)
+                
+                phase2_time = perf_counter() - start_phase2
+                logger.info("Phase 2 completed in %.2fs", phase2_time)
+                
+                # Phase 3: Bulk insert into Neo4j
+                logger.info("Phase 3: Bulk database operations...")
+                start_phase3 = perf_counter()
+                
+                bulk_create_nodes_and_relationships(session, files_data, file_embeddings, method_embeddings)
+                
+                phase3_time = perf_counter() - start_phase3
+                logger.info("Phase 3 completed in %.2fs", phase3_time)
+                
+                total_time = phase1_time + phase2_time + phase3_time
+                logger.info("TOTAL: Processed %d files in %.2fs (%.2f files/sec)", 
+                           len(files_data), total_time, len(files_data) / total_time)
+                logger.info("Phase breakdown: Extract=%.1fs, Embeddings=%.1fs, Database=%.1fs",
+                           phase1_time, phase2_time, phase3_time)
 
-    try:
-        load_repo(args.repo_url, driver, args.database)
     finally:
         driver.close()
 
 
 if __name__ == "__main__":
-    main()
+    main() 
