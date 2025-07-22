@@ -96,7 +96,8 @@ class UniversalCVEAnalyzer:
         for ecosystem, deps in dependencies.items():
             for dep in deps:
                 # Universal patterns that work across languages
-                search_terms.add(dep.lower())
+                if dep and isinstance(dep, str):  # Filter out None values and non-strings
+                    search_terms.add(dep.lower())
                 
                 # Extract meaningful parts from different naming conventions
                 parts = []

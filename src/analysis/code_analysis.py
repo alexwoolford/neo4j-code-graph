@@ -133,13 +133,42 @@ def extract_file_data(file_path, repo_root):
         logger.error("Error reading file %s: %s", file_path, e)
         return None
 
-    # Parse Java and extract classes, interfaces, and methods
+    # Parse Java and extract imports, classes, interfaces, and methods
     methods = []
     classes = []
     interfaces = []
+    imports = []
 
     try:
         tree = javalang.parse.parse(code)
+        
+        # Extract import declarations
+        if hasattr(tree, 'imports') and tree.imports:
+            for import_stmt in tree.imports:
+                try:
+                    import_path = import_stmt.path
+                    is_static = import_stmt.static if hasattr(import_stmt, 'static') else False
+                    is_wildcard = import_stmt.wildcard if hasattr(import_stmt, 'wildcard') else False
+                    
+                    # Classify import type
+                    import_type = "external"
+                    if import_path.startswith("java.") or import_path.startswith("javax."):
+                        import_type = "standard"
+                    elif import_path.startswith("org.neo4j"):
+                        import_type = "internal"
+                    
+                    import_info = {
+                        "import_path": import_path,
+                        "is_static": is_static,
+                        "is_wildcard": is_wildcard,
+                        "import_type": import_type,
+                        "file": rel_path
+                    }
+                    imports.append(import_info)
+                    
+                except Exception as e:
+                    logger.debug("Error processing import in %s: %s", rel_path, e)
+                    continue
 
         # Extract class declarations
         for path_to_node, node in tree.filter(javalang.tree.ClassDeclaration):
@@ -291,6 +320,9 @@ def extract_file_data(file_path, repo_root):
         "methods": methods,
         "classes": classes,
         "interfaces": interfaces,
+        "imports": imports,
+        "language": "java",  # Set language for CVE analysis
+        "ecosystem": "maven",  # Java ecosystem
         "total_lines": file_lines,
         "code_lines": code_lines,
         "method_count": len(methods),
@@ -434,6 +466,8 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
             "path": file_data["path"],
             "embedding": file_embeddings[i],
             "embedding_type": EMBEDDING_TYPE,
+            "language": file_data.get("language", "java"),
+            "ecosystem": file_data.get("ecosystem", "maven"),
             "total_lines": file_data.get("total_lines", 0),
             "code_lines": file_data.get("code_lines", 0),
             "method_count": file_data.get("method_count", 0),
@@ -446,6 +480,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
         "UNWIND $files AS file "
         "MERGE (f:File {path: file.path}) "
         "SET f.embedding = file.embedding, f.embedding_type = file.embedding_type, "
+        "f.language = file.language, f.ecosystem = file.ecosystem, "
         "f.total_lines = file.total_lines, f.code_lines = file.code_lines, "
         "f.method_count = file.method_count, f.class_count = file.class_count, "
         "f.interface_count = file.interface_count",
@@ -775,6 +810,80 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
             )
 
     # 8. Create method call relationships (CALLS)
+    # 9. Create Import nodes and IMPORTS relationships
+    logger.info("Creating import nodes and relationships...")
+    
+    # Collect all imports and create external dependencies
+    all_imports = []
+    external_dependencies = set()
+    
+    for file_data in files_data:
+        for import_info in file_data.get("imports", []):
+            all_imports.append(import_info)
+            
+            # Create external dependency entries for external imports
+            if import_info["import_type"] == "external":
+                # Extract base package for dependency grouping
+                import_path = import_info["import_path"]
+                if "." in import_path:
+                    # Group by organization (e.g., com.fasterxml.jackson.* -> com.fasterxml.jackson)
+                    parts = import_path.split(".")
+                    if len(parts) >= 3:
+                        base_package = ".".join(parts[:3])  # e.g., com.fasterxml.jackson
+                        external_dependencies.add(base_package)
+    
+    # Bulk create Import nodes
+    if all_imports:
+        logger.info(f"Creating {len(all_imports)} import nodes...")
+        session.run(
+            "UNWIND $imports AS imp "
+            "MERGE (i:Import {import_path: imp.import_path}) "
+            "SET i.is_static = imp.is_static, i.is_wildcard = imp.is_wildcard, "
+            "i.import_type = imp.import_type",
+            imports=all_imports,
+        )
+        
+        # Create IMPORTS relationships
+        logger.info(f"Creating {len(all_imports)} IMPORTS relationships...")
+        session.run(
+            "UNWIND $imports AS imp "
+            "MATCH (f:File {path: imp.file}) "
+            "MATCH (i:Import {import_path: imp.import_path}) "
+            "MERGE (f)-[:IMPORTS]->(i)",
+            imports=all_imports,
+        )
+    
+    # Create ExternalDependency nodes for CVE analysis
+    if external_dependencies:
+        logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
+        dependency_nodes = [
+            {
+                "package": dep,
+                "language": "java",
+                "ecosystem": "maven"
+            }
+            for dep in external_dependencies
+        ]
+        
+        session.run(
+            "UNWIND $dependencies AS dep "
+            "MERGE (e:ExternalDependency {package: dep.package}) "
+            "SET e.language = dep.language, e.ecosystem = dep.ecosystem",
+            dependencies=dependency_nodes,
+        )
+        
+        # Create relationships from Import nodes to ExternalDependency nodes
+        session.run(
+            "MATCH (i:Import) "
+            "WHERE i.import_type = 'external' "
+            "WITH i, SPLIT(i.import_path, '.') AS parts "
+            "WHERE SIZE(parts) >= 3 "
+            "WITH i, parts[0] + '.' + parts[1] + '.' + parts[2] AS base_package "
+            "MATCH (e:ExternalDependency {package: base_package}) "
+            "MERGE (i)-[:DEPENDS_ON]->(e)"
+        )
+
+    # 10. Create method call relationships
     logger.info("Creating method call relationships...")
     method_call_rels = []
 
