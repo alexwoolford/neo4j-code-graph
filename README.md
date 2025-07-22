@@ -85,7 +85,10 @@ Our CVE analysis works with ANY programming language and dependency ecosystem:
 ### 🚀 Quick Start: Universal CVE Analysis
 
 ```bash
-# 1. Run the complete pipeline on ANY codebase
+# 1. Run the complete pipeline on ANY codebase (Python-based - recommended)
+python scripts/run_pipeline.py https://github.com/your-org/your-repo.git
+
+# Or use the legacy shell script
 ./scripts/run_pipeline.sh https://github.com/your-org/your-repo.git
 
 # 2. Get NVD API key (recommended for production use)
@@ -191,8 +194,54 @@ NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your_password
 NEO4J_DATABASE=neo4j
 
-# Run complete analysis pipeline
+# Run complete analysis pipeline (Python-based - recommended)
+python scripts/run_pipeline.py https://github.com/your-org/your-repo.git
+
+# Or use the legacy shell script
 ./scripts/run_pipeline.sh https://github.com/your-org/your-repo.git
+```
+
+## 🚀 Pipeline Management
+
+### Python Pipeline Manager (Recommended)
+
+The new Python-based pipeline manager provides robust orchestration with:
+
+- **🔄 Intelligent Retry Logic**: Automatic retry of failed steps
+- **⏱️ Timeout Management**: Prevents hanging on long operations  
+- **📊 Progress Tracking**: Real-time progress and duration reporting
+- **🎛️ Flexible Configuration**: Skip steps, continue on errors, dry-run mode
+- **📋 Detailed Logging**: Comprehensive execution summaries
+- **🔧 Error Handling**: Graceful handling of failures with detailed error messages
+
+```bash
+# Basic usage
+python scripts/run_pipeline.py https://github.com/user/repo.git
+
+# Advanced options
+python scripts/run_pipeline.py https://github.com/user/repo.git \
+  --skip-cleanup \
+  --continue-on-error \
+  --log-level DEBUG \
+  --dry-run
+
+# Use make commands for convenience
+make pipeline REPO_URL=https://github.com/user/repo.git
+```
+
+**Pipeline Manager Features:**
+- **Dry Run**: `--dry-run` to see what would be executed
+- **Skip Steps**: `--skip-cleanup`, `--skip-cve` for selective execution
+- **Error Tolerance**: `--continue-on-error` to complete non-critical steps
+- **Auto Mode**: `--auto-cleanup` for non-interactive execution
+- **Rich Logging**: Detailed step-by-step execution tracking
+
+### Legacy Shell Pipeline
+
+The original shell script is still available for compatibility:
+
+```bash
+./scripts/run_pipeline.sh https://github.com/user/repo.git
 ```
 
 ## 🚀 Analysis Tools
