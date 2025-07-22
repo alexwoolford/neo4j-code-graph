@@ -17,7 +17,7 @@ This repository contains scripts for loading Git repositories into a Neo4j datab
 ### Performance & Scalability  
 - **⚡ GPU Acceleration**: MPS (Apple Silicon) and CUDA support for embeddings
 - **📦 Bulk Operations**: Optimized Neo4j loading with batching and indexing
-- **🚀 Git History Optimization**: 15-30x faster file change processing
+- **🚀 Git History Optimization**: Efficient bulk loading with progress tracking
 - **💾 Memory Efficient**: Dynamic batch sizing and cleanup for large repositories
 
 ### Export & Integration
@@ -304,11 +304,11 @@ The scripts are highly optimized for large repositories and modern hardware:
 - **Apple Silicon**: Optimized batch sizes (256) with MPS high-performance mode
 - **CUDA**: Automatic detection with mixed-precision training support
 - **Memory management**: Efficient cache clearing and garbage collection
-- **4x performance improvement** over default settings
+- **High-performance**: Optimized settings for maximum GPU utilization
 
 ### **Git History Loading**
-- **Optimized bulk operations**: 3-step CREATE vs 5-step MERGE (15-30x faster)
-- **Large batch processing**: 25K records per batch vs 10K default  
+- **Optimized bulk operations**: Efficient 3-step bulk loading approach
+- **Large batch processing**: 25K records per batch for optimal throughput  
 - **Memory-efficient**: Handles large repositories without memory issues
 - **Progress reporting**: Real-time ETA and throughput monitoring
 

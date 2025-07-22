@@ -256,8 +256,7 @@ def bulk_load_to_neo4j(
     total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
 
     logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
-    logger.info(f"⚡ Using optimized 3-step bulk loading (was: 5-step MERGE operations)")
-    logger.info(f"🎯 Expected performance improvement: 3-5x faster than previous approach")
+    logger.info(f"⚡ Using optimized 3-step bulk loading approach")
 
     start_time = time.time()
     for i in range(0, len(file_changes_data), batch_size):

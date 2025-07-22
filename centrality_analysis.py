@@ -97,14 +97,14 @@ def create_call_graph_projection(gds, graph_name="method_call_graph"):
     return G
 
 
-def run_pagerank_analysis(gds, graph_name, top_n=20, write_back=False):
+def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
     """Run PageRank to find methods central in the call ecosystem."""
     logger.info("🔍 Running PageRank analysis...")
     start_time = perf_counter()
 
     if write_back:
         result = gds.pageRank.write(
-            graph_name, writeProperty="pagerank_score", maxIterations=20, dampingFactor=0.85
+            graph, writeProperty="pagerank_score", maxIterations=20, dampingFactor=0.85
         )
 
         # Get top results
@@ -121,7 +121,7 @@ def run_pagerank_analysis(gds, graph_name, top_n=20, write_back=False):
         top_results = gds.run_cypher(query, {"top_n": top_n})
 
     else:
-        result = gds.pageRank.stream(graph_name, maxIterations=20, dampingFactor=0.85).head(top_n)
+        result = gds.pageRank.stream(graph, maxIterations=20, dampingFactor=0.85).head(top_n)
 
         # Enrich with method details
         if not result.empty:
@@ -156,13 +156,13 @@ def run_pagerank_analysis(gds, graph_name, top_n=20, write_back=False):
     return top_results
 
 
-def run_betweenness_analysis(gds, graph_name, top_n=20, write_back=False):
+def run_betweenness_analysis(gds, graph, top_n=20, write_back=False):
     """Run Betweenness Centrality to find critical connectors and bottlenecks."""
     logger.info("🔍 Running Betweenness Centrality analysis...")
     start_time = perf_counter()
 
     if write_back:
-        result = gds.betweenness.write(graph_name, writeProperty="betweenness_score")
+        result = gds.betweenness.write(graph, writeProperty="betweenness_score")
 
         query = """
         MATCH (m:Method) 
@@ -177,7 +177,7 @@ def run_betweenness_analysis(gds, graph_name, top_n=20, write_back=False):
         top_results = gds.run_cypher(query, {"top_n": top_n})
 
     else:
-        result = gds.betweenness.stream(graph_name).head(top_n)
+        result = gds.betweenness.stream(graph).head(top_n)
 
         if not result.empty:
             method_ids = result["nodeId"].tolist()
@@ -208,7 +208,7 @@ def run_betweenness_analysis(gds, graph_name, top_n=20, write_back=False):
     return top_results
 
 
-def run_degree_analysis(gds, graph_name, top_n=20, write_back=False):
+def run_degree_analysis(gds, graph, top_n=20, write_back=False):
     """Run Degree Centrality to find hub methods and authority methods."""
     logger.info("🔍 Running Degree Centrality analysis...")
     start_time = perf_counter()
@@ -258,7 +258,7 @@ def run_degree_analysis(gds, graph_name, top_n=20, write_back=False):
     return result
 
 
-def run_hits_analysis(gds, graph_name, top_n=20, write_back=False):
+def run_hits_analysis(gds, graph, top_n=20, write_back=False):
     """Run HITS algorithm to distinguish hubs (orchestrators) vs authorities (utilities)."""
     logger.info("🔍 Running HITS analysis...")
     start_time = perf_counter()
@@ -266,7 +266,7 @@ def run_hits_analysis(gds, graph_name, top_n=20, write_back=False):
     # Note: Check if HITS is available in your GDS version
     try:
         if write_back:
-            result = gds.alpha.hits.write(graph_name, writeProperty="hits", hitsIterations=20)
+            result = gds.alpha.hits.write(graph, writeProperty="hits", hitsIterations=20)
 
             query = """
             MATCH (m:Method) 
@@ -289,7 +289,7 @@ def run_hits_analysis(gds, graph_name, top_n=20, write_back=False):
             hubs = gds.run_cypher(query, {"top_n": top_n})
 
         else:
-            result = gds.alpha.hits.stream(graph_name, hitsIterations=20)
+            result = gds.alpha.hits.stream(graph, hitsIterations=20)
 
             # Get top authorities
             authorities = result.nlargest(top_n, "auth")
@@ -410,19 +410,19 @@ def main():
         hits_hubs = None
 
         if "pagerank" in args.algorithms:
-            pagerank_results = run_pagerank_analysis(gds, graph.name(), args.top_n, args.write_back)
+            pagerank_results = run_pagerank_analysis(gds, graph, args.top_n, args.write_back)
 
         if "betweenness" in args.algorithms:
             betweenness_results = run_betweenness_analysis(
-                gds, graph.name(), args.top_n, args.write_back
+                gds, graph, args.top_n, args.write_back
             )
 
         if "degree" in args.algorithms:
-            degree_results = run_degree_analysis(gds, graph.name(), args.top_n, args.write_back)
+            degree_results = run_degree_analysis(gds, graph, args.top_n, args.write_back)
 
         if "hits" in args.algorithms:
             hits_authorities, hits_hubs = run_hits_analysis(
-                gds, graph.name(), args.top_n, args.write_back
+                gds, graph, args.top_n, args.write_back
             )
 
         # Provide summary

@@ -33,10 +33,6 @@ HEAVY_MODULES = {
 
 
 @pytest.mark.parametrize(
-    "module_name",
-    ["code_to_graph", "create_method_similarity"],
-)
-@pytest.mark.parametrize(
     "uri, expected",
     [
         ("bolt://localhost:7687", "bolt://localhost:7687"),
@@ -45,7 +41,7 @@ HEAVY_MODULES = {
         ("neo4j://user@host:9999", "neo4j://user@host:9999"),
     ],
 )
-def test_ensure_port(module_name, uri, expected):
+def test_ensure_port(uri, expected):
     with patch.dict(sys.modules, HEAVY_MODULES):
-        module = importlib.import_module(module_name)
-        assert module.ensure_port(uri) == expected
+        import utils
+        assert utils.ensure_port(uri) == expected
