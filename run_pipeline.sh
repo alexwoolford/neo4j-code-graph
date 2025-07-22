@@ -24,8 +24,13 @@ echo "=============================================="
 echo "📁 Repository: $REPO_URL"
 echo ""
 
-# Step 0: Clean up previous analysis (if any)
-echo "🧹 Step 0: Cleaning up previous analysis..."
+# Step 0: Setup database schema and cleanup
+echo "🏗️  Step 0: Setting up database schema..."
+python schema_management.py
+echo "✅ Schema setup completed"
+
+echo ""
+echo "🧹 Cleaning up previous analysis (if any)..."
 python cleanup_graph.py --dry-run
 read -p "Proceed with cleanup? (y/n): " -n 1 -r
 echo

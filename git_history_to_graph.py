@@ -178,22 +178,8 @@ def bulk_load_to_neo4j(
         return None
 
     if not file_changes_only:
-        # Create constraints and indexes first
-        with driver.session(database=database) as session:
-            logger.info("Creating constraints and indexes...")
-            session.run(
-                "CREATE CONSTRAINT commit_sha IF NOT EXISTS FOR (c:Commit) "
-                "REQUIRE c.sha IS UNIQUE"
-            )
-            session.run(
-                "CREATE CONSTRAINT developer_email IF NOT EXISTS FOR (d:Developer) "
-                "REQUIRE d.email IS UNIQUE"
-            )
-            session.run("CREATE INDEX file_path_index IF NOT EXISTS FOR (f:File) ON (f.path)")
-            # Add composite index for FileVer performance
-            session.run(
-                "CREATE INDEX file_ver_composite IF NOT EXISTS FOR (fv:FileVer) ON (fv.sha, fv.path)"
-            )
+        # Note: Schema constraints and indexes are now managed centrally by schema_management.py
+        # They should be created via run_pipeline.sh Step 0 or standalone schema setup
 
         # Load developers
         with driver.session(database=database) as session:
@@ -304,7 +290,7 @@ def bulk_load_to_neo4j(
                 UNWIND $changes AS change
                 MATCH (c:Commit {sha: change.sha})
                 MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
-                CREATE (c)-[:CHANGED]->(fv)
+                MERGE (c)-[:CHANGED]->(fv)
                 """,
                 {"changes": batch},
                 f"CHANGED relationships batch {batch_num}",
@@ -320,7 +306,7 @@ def bulk_load_to_neo4j(
                 UNWIND $changes AS change
                 MATCH (f:File {path: change.file_path})
                 MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
-                CREATE (fv)-[:OF_FILE]->(f)
+                MERGE (fv)-[:OF_FILE]->(f)
                 """,
                 {"changes": batch},
                 f"OF_FILE relationships batch {batch_num}",
