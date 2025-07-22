@@ -63,16 +63,16 @@ def analyze_change_coupling(session, args):
     if args.create_relationships:
         logger.info("Creating CO_CHANGED relationships...")
         relationships_created = 0
-        batch_size = 100
-        batch = []
-
+        
+        # Prepare all relationships for bulk processing
+        relationships_data = []
         for (file_a, file_b), support in frequent_pairs.items():
             count_a = file_counts[file_a]
             count_b = file_counts[file_b]
             confidence = max(support / count_a, support / count_b)
 
             if confidence >= args.min_confidence:
-                batch.append(
+                relationships_data.append(
                     {
                         "file_a": file_a,
                         "file_b": file_b,
@@ -81,23 +81,128 @@ def analyze_change_coupling(session, args):
                     }
                 )
 
-                if len(batch) >= batch_size:
-                    _create_coupling_batch(session, batch)
-                    relationships_created += len(batch)
-                    batch = []
-
-        if batch:
-            _create_coupling_batch(session, batch)
-            relationships_created += len(batch)
-
-        logger.info(f"Created {relationships_created} CO_CHANGED relationships")
+        if relationships_data:
+            relationships_created = _create_coupling_relationships_parallel(session, relationships_data)
+            logger.info(f"Created {relationships_created} CO_CHANGED relationships")
 
     # Print top results
     _print_coupling_results(frequent_pairs, file_counts, args.min_confidence)
 
 
+def _create_coupling_relationships_parallel(session, relationships_data):
+    """Create CO_CHANGED relationships using APOC parallel processing for maximum performance."""
+    if not relationships_data:
+        return 0
+    
+    total_relationships = len(relationships_data)
+    logger.info(f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships using APOC parallel processing...")
+    
+    # First, check if APOC is available
+    try:
+        result = session.run("RETURN apoc.version() AS version")
+        apoc_version = result.single()["version"]
+        logger.info(f"✅ Using APOC version: {apoc_version}")
+    except Exception:
+        logger.warning("⚠️  APOC not available, falling back to standard batch processing")
+        return _create_coupling_batch_fallback(session, relationships_data)
+    
+    import time
+    start_time = time.time()
+    
+    # Use APOC's parallel processing with optimized batch size
+    # Process 1000 relationships per batch with 4 parallel workers for optimal performance
+    query = """
+    CALL apoc.periodic.iterate(
+        'UNWIND $relationships AS rel RETURN rel',
+        '
+        MATCH (a:File {path: rel.file_a})
+        MATCH (b:File {path: rel.file_b})
+        MERGE (a)-[r1:CO_CHANGED]->(b)
+        SET r1.support = rel.support, r1.confidence = rel.confidence
+        MERGE (b)-[r2:CO_CHANGED]->(a) 
+        SET r2.support = rel.support, r2.confidence = rel.confidence
+        ',
+        {
+            batchSize: 1000,
+            parallel: true,
+            concurrency: 4,
+            retries: 3,
+            params: {relationships: $relationships}
+        }
+    ) YIELD batches, total, timeTaken, errorMessages
+    RETURN batches, total, timeTaken, errorMessages
+    """
+    
+    try:
+        result = session.run(query, relationships=relationships_data)
+        stats = result.single()
+        
+        elapsed_time = time.time() - start_time
+        throughput = total_relationships / elapsed_time if elapsed_time > 0 else 0
+        
+        logger.info(f"✅ APOC parallel processing completed:")
+        logger.info(f"   📊 Processed {stats['total']} operations in {stats['batches']} parallel batches")
+        logger.info(f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s")
+        logger.info(f"   🚀 Throughput: {throughput:.0f} relationships/second")
+        
+        if stats['errorMessages']:
+            logger.warning(f"⚠️  Some errors occurred: {stats['errorMessages']}")
+        
+        # Return bidirectional count (each input relationship creates 2 in Neo4j)
+        return total_relationships * 2
+        
+    except Exception as e:
+        logger.error(f"❌ APOC parallel processing failed: {e}")
+        logger.info("🔄 Falling back to standard batch processing...")
+        return _create_coupling_batch_fallback(session, relationships_data)
+
+
+def _create_coupling_batch_fallback(session, relationships_data):
+    """Fallback batch processing when APOC is not available."""
+    logger.info("📦 Using optimized standard batch processing...")
+    
+    # Use much larger batches than the original implementation
+    batch_size = 2000  # 20x larger than original
+    total_created = 0
+    
+    import time
+    start_time = time.time()
+    
+    for i in range(0, len(relationships_data), batch_size):
+        batch_start = time.time()
+        batch = relationships_data[i:i + batch_size]
+        
+        # Optimized query that reduces operations
+        query = """
+        UNWIND $relationships as rel
+        MATCH (a:File {path: rel.file_a})
+        MATCH (b:File {path: rel.file_b})
+        MERGE (a)-[r1:CO_CHANGED]->(b)
+        SET r1.support = rel.support, r1.confidence = rel.confidence
+        MERGE (b)-[r2:CO_CHANGED]->(a)
+        SET r2.support = rel.support, r2.confidence = rel.confidence
+        """
+        
+        session.run(query, relationships=batch)
+        total_created += len(batch) * 2  # Bidirectional
+        
+        batch_time = time.time() - batch_start
+        batch_num = (i // batch_size) + 1
+        total_batches = (len(relationships_data) + batch_size - 1) // batch_size
+        
+        logger.info(f"   📦 Batch {batch_num}/{total_batches}: {len(batch)} relationships in {batch_time:.1f}s")
+    
+    elapsed_time = time.time() - start_time
+    throughput = total_created / elapsed_time if elapsed_time > 0 else 0
+    
+    logger.info(f"✅ Standard batch processing completed in {elapsed_time:.1f}s")
+    logger.info(f"🚀 Throughput: {throughput:.0f} relationships/second")
+    
+    return total_created
+
+
 def _create_coupling_batch(session, batch):
-    """Create a batch of CO_CHANGED relationships."""
+    """Legacy function - kept for backward compatibility."""
     query = """
     UNWIND $relationships as rel
     MATCH (a:File {path: rel.file_a})
