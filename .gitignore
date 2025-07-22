@@ -2,3 +2,10 @@
 
 __pycache__/
 .pytest_cache/
+
+# CVE Analysis Cache
+cve_cache/
+
+# Other potential cache directories
+*.cache/
+.cache/
