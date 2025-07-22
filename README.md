@@ -4,12 +4,26 @@ This repository contains scripts for loading Git repositories into a Neo4j datab
 
 ## Features
 
-- **Code Structure Analysis**: Loads Java files and methods with embeddings
-- **Method Similarity Detection**: Uses Neo4j GDS KNN to find similar methods
-- **Community Detection**: Groups related methods using Louvain algorithm  
-- **Git History Integration**: Imports complete commit history and developer data
-- **Performance Optimized**: Uses bulk operations and optimized git extraction
-- **Flexible Export**: Can export to CSV or load directly to Neo4j
+### Core Analysis Capabilities
+- **📁 Enhanced Code Structure**: Loads Java files, methods, classes, and interfaces with rich metadata
+- **🔗 Method Call Graphs**: Extracts and maps method invocation relationships (`CALLS`)
+- **🏗️ Object-Oriented Analysis**: Class inheritance hierarchies (`EXTENDS`, `IMPLEMENTS`)
+- **🎯 Method Similarity Detection**: Uses GraphCodeBERT embeddings + Neo4j GDS KNN
+- **👥 Community Detection**: Groups related methods using Louvain algorithm  
+- **📈 Git History Integration**: Complete commit history with developer and file change data
+- **🔥 Advanced Hotspot Analysis**: Multi-factor complexity scoring (change frequency × complexity)
+- **📊 Centrality Analysis**: PageRank, Betweenness, Degree centrality for importance ranking
+
+### Performance & Scalability  
+- **⚡ GPU Acceleration**: MPS (Apple Silicon) and CUDA support for embeddings
+- **📦 Bulk Operations**: Optimized Neo4j loading with batching and indexing
+- **🚀 Git History Optimization**: 15-30x faster file change processing
+- **💾 Memory Efficient**: Dynamic batch sizing and cleanup for large repositories
+
+### Export & Integration
+- **📊 Flexible Export**: CSV export for external analysis tools
+- **🔍 Rich Querying**: Advanced Cypher queries for architectural insights
+- **🛠️ Developer Tools**: Comprehensive CLI tools with progress tracking
 
 ## Requirements
 
@@ -85,14 +99,15 @@ python create_method_similarity.py
 
 ## Scripts Overview
 
-### `code_to_graph.py`
-Loads Java source code into Neo4j:
-- Clones the repository
-- Parses Java files using `javalang`  
-- Generates embeddings using GraphCodeBERT
-- Creates `File`, `Method`, and `Directory` nodes
-- Links method calls with `CALLS` relationships
-- Preserves directory structure
+### `code_to_graph.py` - Enhanced Code Structure Analysis
+Loads comprehensive Java source code structure into Neo4j:
+- **Repository Processing**: Clones and parses Java files using `javalang`
+- **Node Creation**: Creates `File`, `Method`, `Class`, `Interface`, and `Directory` nodes
+- **Rich Metadata**: Method metrics (LOC, modifiers, visibility), class inheritance details
+- **Method Calls**: Extracts and creates `CALLS` relationships between methods
+- **OOP Relationships**: Maps class inheritance (`EXTENDS`) and interface implementation (`IMPLEMENTS`)
+- **Embeddings**: Generates GraphCodeBERT embeddings for semantic similarity
+- **GPU Optimization**: MPS and CUDA acceleration with optimized batch sizing
 
 ```bash
 python code_to_graph.py <repo_url> \
@@ -162,17 +177,44 @@ python analyze.py metrics \
   --dry-run  # Preview changes first
 ```
 
-**Hotspot Analysis:**
-- Implements Adam Tornhill's hotspot analysis
-- Combines change frequency with code complexity
-- Identifies problematic code areas requiring attention
+**Enhanced Hotspot Analysis:**
+- Multi-factor complexity scoring: change frequency × total complexity  
+- Combines file size, OOP structure, coupling, and change patterns
+- Risk categorization: HIGH_USAGE_LARGE, HIGH_COUPLING, PUBLIC_API
+- Actionable insights with specific refactoring recommendations
 
 ```bash
-# Find code hotspots from last 6 months
+# Find enhanced hotspots with multi-factor complexity scoring
 python analyze.py hotspots \
   --days 180 \
   --min-changes 5 \
   --top-n 25
+```
+
+### `centrality_analysis.py` - Architectural Importance Analysis
+Identifies structurally important code elements using graph algorithms:
+
+**Centrality Algorithms:**
+- **PageRank**: Methods central in the call ecosystem (widely used utilities)
+- **Betweenness**: Critical connectors and architectural bottlenecks
+- **Degree Centrality**: Hub methods (orchestrators) vs Authority methods (utilities)  
+- **HITS**: Distinguishes between hubs and authorities in the call graph
+
+**Use Cases:**
+- Focus optimization efforts on high-impact methods
+- Identify architectural bottlenecks and single points of failure
+- Guide testing priorities for critical code paths
+- Understand which methods are most central to system behavior
+
+```bash
+# Run all centrality algorithms
+python centrality_analysis.py --algorithms pagerank betweenness degree hits
+
+# Focus on specific algorithms with custom parameters
+python centrality_analysis.py \
+  --algorithms pagerank betweenness \
+  --top-n 15 \
+  --write-back  # Save scores to Method nodes
 ```
 
 ### Utility Scripts
@@ -202,25 +244,57 @@ python cleanup_graph.py --complete --confirm  # Skip confirmation
 
 ## Graph Schema
 
-The scripts create the following node types and relationships:
+The enhanced graph schema captures comprehensive code structure, object-oriented relationships, and temporal evolution:
 
-**Nodes:**
+### **Node Types**
+
+**📁 Code Structure Nodes:**
 - `Directory`: Repository directories (`path`)
-- `File`: Java source files (`path`, `total_lines`, `code_lines`, `method_count`)
-- `Method`: Java methods (`name`, `file`, `line`, `class`, `embedding`, `similarityCommunity`, `estimated_lines`)
+- `File`: Java files (`path`, `total_lines`, `code_lines`, `method_count`, `class_count`, `interface_count`)
+- `Method`: Java methods (`name`, `file`, `line`, `class`, `estimated_lines`, `is_static`, `is_public`, `is_private`, `return_type`, `modifiers`, `embedding`, `similarityCommunity`)
+- `Class`: Java classes (`name`, `file`, `line`, `estimated_lines`, `is_abstract`, `is_final`, `modifiers`)
+- `Interface`: Java interfaces (`name`, `file`, `line`, `method_count`, `modifiers`)
+
+**👥 Git History Nodes:**
 - `Developer`: Git authors (`name`, `email`)
 - `Commit`: Git commits (`sha`, `message`, `date`)
 - `FileVer`: File versions at specific commits (`path`, `sha`)
 
-**Relationships:**
-- `CONTAINS`: Directory contains files/subdirectories
-- `DECLARES`: File declares methods
-- `CALLS`: Method calls another method  
-- `SIMILAR`: Methods are similar (with `score` property)
-- `CO_CHANGED`: Files that frequently change together (with `support`, `confidence`)
-- `AUTHORED`: Developer authored commit
-- `CHANGED`: Commit changed file version
-- `OF_FILE`: File version belongs to file
+### **Relationship Types**
+
+**🏗️ Structural Relationships:**
+- `(:Directory)-[:CONTAINS]->(:Directory|File)`: Directory hierarchy
+- `(:File)-[:DECLARES]->(:Method)`: File contains methods
+- `(:File)-[:DEFINES]->(:Class|Interface)`: File defines classes/interfaces
+- `(:Class|Interface)-[:CONTAINS_METHOD]->(:Method)`: Class/interface contains methods
+
+**🔗 Object-Oriented Relationships:**
+- `(:Class)-[:EXTENDS]->(:Class)`: Class inheritance
+- `(:Interface)-[:EXTENDS]->(:Interface)`: Interface inheritance  
+- `(:Class)-[:IMPLEMENTS]->(:Interface)`: Interface implementation
+
+**📞 Behavioral Relationships:**
+- `(:Method)-[:CALLS {type}]->(:Method)`: Method invocations with call type (`same_class`, `static`, `instance`)
+- `(:Method)-[:SIMILAR {score}]->(:Method)`: Semantic similarity with confidence score
+
+**📈 Temporal & Analysis Relationships:**
+- `(:File)-[:CO_CHANGED {support, confidence}]->(:File)`: Files that change together
+- `(:Developer)-[:AUTHORED]->(:Commit)`: Commit authorship
+- `(:Commit)-[:CHANGED]->(:FileVer)`: Commit changes file version
+- `(:FileVer)-[:OF_FILE]->(:File)`: File version belongs to file
+
+### **Enhanced Properties**
+
+**Method Metrics:**
+- `estimated_lines`, `is_static`, `is_abstract`, `is_final`, `is_private`, `is_public`
+- `return_type`, `modifiers[]`, `containing_type`
+- Centrality scores: `pagerank_score`, `betweenness_score`, `out_degree`, `in_degree`
+
+**Class/Interface Metrics:**  
+- `estimated_lines`, `is_abstract`, `is_final`, `modifiers[]`, `method_count`
+
+**File Complexity Metrics:**
+- `total_lines`, `code_lines`, `method_count`, `class_count`, `interface_count`
 
 ## Performance
 
@@ -246,9 +320,106 @@ The scripts are highly optimized for large repositories and modern hardware:
 
 ## Example Queries
 
-### **Code Similarity & Architecture**
+### **🏗️ Object-Oriented Architecture Analysis**
 ```cypher
-// Find most similar methods with context
+// Find deep inheritance hierarchies (potential design complexity)
+MATCH path = (leaf:Class)-[:EXTENDS*]->(root:Class)
+WHERE NOT (root)-[:EXTENDS]->()
+WITH leaf, root, length(path) as depth
+WHERE depth > 3
+RETURN leaf.name, root.name, depth, leaf.file
+ORDER BY depth DESC LIMIT 10
+
+// Find interfaces with many implementations (key abstractions)
+MATCH (c:Class)-[:IMPLEMENTS]->(i:Interface)
+WITH i, count(c) as implementations, collect(c.name) as classes
+WHERE implementations > 3
+RETURN i.name, implementations, classes, i.file
+ORDER BY implementations DESC
+
+// Find classes that implement multiple interfaces (complexity indicators)
+MATCH (c:Class)-[:IMPLEMENTS]->(i:Interface)
+WITH c, count(i) as interface_count, collect(i.name) as interfaces
+WHERE interface_count > 2
+RETURN c.name, interface_count, interfaces, c.file
+ORDER BY interface_count DESC
+```
+
+### **📞 Method Call Graph Analysis**
+```cypher
+// Find methods with highest outgoing calls (potential god methods)
+MATCH (m:Method)-[:CALLS]->()
+WITH m, count(*) as outgoing_calls
+WHERE outgoing_calls > 10
+RETURN m.class + "." + m.name as method, 
+       outgoing_calls, m.estimated_lines, m.file
+ORDER BY outgoing_calls DESC LIMIT 15
+
+// Find most called methods (critical utilities)
+MATCH ()-[:CALLS]->(m:Method)
+WITH m, count(*) as incoming_calls
+WHERE incoming_calls > 5
+RETURN m.class + "." + m.name as method, 
+       incoming_calls, m.is_static, m.is_public, m.file
+ORDER BY incoming_calls DESC LIMIT 15
+
+// Analyze call patterns between classes
+MATCH (caller:Method)-[:CALLS]->(callee:Method)
+WHERE caller.class <> callee.class
+WITH caller.class as from_class, callee.class as to_class, count(*) as call_count
+WHERE call_count > 3
+RETURN from_class, to_class, call_count
+ORDER BY call_count DESC LIMIT 20
+```
+
+### **🎯 Centrality & Importance Analysis**
+```cypher
+// Find architecturally most important methods (if centrality scores exist)
+MATCH (m:Method)
+WHERE m.pagerank_score IS NOT NULL
+RETURN m.class + "." + m.name as method,
+       m.pagerank_score, m.betweenness_score, 
+       m.out_degree, m.in_degree, m.file
+ORDER BY m.pagerank_score DESC LIMIT 10
+
+// Find critical connector methods (high betweenness)
+MATCH (m:Method)
+WHERE m.betweenness_score IS NOT NULL AND m.betweenness_score > 0
+RETURN m.class + "." + m.name as method,
+       m.betweenness_score, m.estimated_lines, m.file
+ORDER BY m.betweenness_score DESC LIMIT 10
+```
+
+### **🔥 Enhanced Hotspot Analysis**
+```cypher
+// Find complex files with frequent changes (manual hotspot calculation)
+MATCH (f:File)
+OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
+WHERE c.date >= datetime() - duration('P180D')  // Last 6 months
+WITH f, count(DISTINCT c) as changes
+WHERE changes >= 3 AND f.total_lines >= 100
+WITH f, changes, 
+     // Multi-factor complexity scoring
+     (f.total_lines + (f.method_count * 10) + (f.class_count * 50)) as complexity,
+     (changes * (f.total_lines + (f.method_count * 10) + (f.class_count * 50))) as hotspot_score
+RETURN f.path, changes, f.total_lines, f.method_count, f.class_count,
+       complexity, hotspot_score
+ORDER BY hotspot_score DESC LIMIT 15
+
+// Find risky public methods (high usage + large size)
+MATCH (m:Method)
+WHERE m.is_public = true
+OPTIONAL MATCH ()-[calls:CALLS]->(m)
+WITH m, count(calls) as usage_count
+WHERE usage_count > 5 AND m.estimated_lines > 20
+RETURN m.class + "." + m.name as method,
+       usage_count, m.estimated_lines, m.file
+ORDER BY (usage_count * m.estimated_lines) DESC LIMIT 10
+```
+
+### **📊 Code Similarity & Duplication**
+```cypher
+// Find most similar methods (potential duplicates)
 MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
 WHERE s.score > 0.95
 RETURN m1.class + "." + m1.name as method1,
@@ -256,34 +427,29 @@ RETURN m1.class + "." + m1.name as method1,
        s.score, m1.file, m2.file
 ORDER BY s.score DESC LIMIT 10
 
-// Analyze similarity communities
+// Find large similarity communities (refactoring opportunities)
 MATCH (m:Method)
 WHERE m.similarityCommunity IS NOT NULL
 WITH m.similarityCommunity as community, collect(m) as methods
 WHERE size(methods) > 5
 RETURN community, size(methods) as method_count,
        [m IN methods[0..3] | m.class + "." + m.name] as sample_methods
-ORDER BY method_count DESC
-
-// Find cross-package similar methods (potential refactoring opportunities)
-MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
-WHERE s.score > 0.90 
-  AND split(m1.file, '/')[0] <> split(m2.file, '/')[0]
-RETURN m1.file, m2.file, m1.name, m2.name, s.score
-ORDER BY s.score DESC LIMIT 15
+ORDER BY method_count DESC LIMIT 10
 ```
 
-### Change Frequency Analysis  
+### **📈 Temporal & Change Analysis**
 ```cypher
-// Find files changed most frequently
-MATCH (f:File)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
-RETURN f.path, count(c) as changes
-ORDER BY changes DESC LIMIT 10
+// Find files that frequently change together (coupling)
+MATCH (f1:File)-[co:CO_CHANGED]->(f2:File)
+WHERE co.support > 5
+RETURN f1.path, f2.path, co.support, co.confidence
+ORDER BY co.support DESC LIMIT 15
 
-// Find prolific developers
+// Analyze developer activity patterns
 MATCH (d:Developer)-[:AUTHORED]->(c:Commit)
-RETURN d.name, d.email, count(c) as commits
-ORDER BY commits DESC LIMIT 10
+WHERE c.date >= datetime() - duration('P90D')  // Last 3 months
+RETURN d.name, count(c) as recent_commits
+ORDER BY recent_commits DESC LIMIT 10
 ```
 
 ### File Change Coupling

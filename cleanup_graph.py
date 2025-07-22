@@ -2,7 +2,7 @@
 """
 Cleanup script to remove analysis results or perform complete database reset.
 
-Default behavior: Remove SIMILAR relationships and community properties 
+Default behavior: Remove SIMILAR relationships and community properties
 before re-running similarity and community detection algorithms.
 
 Complete reset: Delete all nodes, relationships, indexes, and constraints
@@ -146,27 +146,29 @@ def complete_database_reset(session, dry_run=False):
     # Get initial counts
     result = session.run("MATCH (n) RETURN count(n) as node_count")
     initial_nodes = result.single()["node_count"]
-    
+
     result = session.run("MATCH ()-[r]->() RETURN count(r) as rel_count")
     initial_rels = result.single()["rel_count"]
-    
+
     logger.info("Database contains %d nodes and %d relationships", initial_nodes, initial_rels)
-    
+
     if initial_nodes == 0 and initial_rels == 0:
         logger.info("Database is already empty")
         return
-    
+
     if dry_run:
-        logger.info("[DRY RUN] Would delete ALL %d nodes and %d relationships", initial_nodes, initial_rels)
+        logger.info(
+            "[DRY RUN] Would delete ALL %d nodes and %d relationships", initial_nodes, initial_rels
+        )
         logger.info("[DRY RUN] Would drop all indexes and constraints")
         return
 
     logger.info("🗑️  Starting complete database reset...")
-    
+
     # Delete relationships in batches to avoid memory issues
     batch_size = 50000
     total_rel_deleted = 0
-    
+
     if initial_rels > 0:
         logger.info("⏳ Deleting relationships in batches of %d...", batch_size)
         while True:
@@ -179,12 +181,12 @@ def complete_database_reset(session, dry_run=False):
             total_rel_deleted += deleted
             logger.info("  Deleted %d relationships (total: %d)", deleted, total_rel_deleted)
             time.sleep(0.1)  # Brief pause to avoid overwhelming the server
-        
+
         logger.info("✅ Deleted %d relationships", total_rel_deleted)
-    
+
     # Delete nodes in batches
     total_nodes_deleted = 0
-    
+
     if initial_nodes > 0:
         logger.info("⏳ Deleting nodes in batches of %d...", batch_size)
         while True:
@@ -197,25 +199,25 @@ def complete_database_reset(session, dry_run=False):
             total_nodes_deleted += deleted
             logger.info("  Deleted %d nodes (total: %d)", deleted, total_nodes_deleted)
             time.sleep(0.1)
-        
+
         logger.info("✅ Deleted %d nodes", total_nodes_deleted)
-    
+
     # Drop indexes and constraints
     logger.info("⏳ Dropping indexes and constraints...")
     cleanup_queries = [
         "DROP CONSTRAINT commit_sha IF EXISTS",
         "DROP CONSTRAINT developer_email IF EXISTS",
-        "DROP INDEX file_path_index IF EXISTS", 
+        "DROP INDEX file_path_index IF EXISTS",
         "DROP INDEX file_ver_composite IF EXISTS",
     ]
-    
+
     for query in cleanup_queries:
         try:
             session.run(query)
             logger.info("  ✅ %s", query)
         except Exception as e:
             logger.warning("  ⚠️  %s: %s", query, e)
-    
+
     # Try to drop vector index (may not exist or may have different syntax)
     try:
         # Try newer syntax first
@@ -228,14 +230,14 @@ def complete_database_reset(session, dry_run=False):
             logger.info("  ✅ Dropped index method_embeddings")
         except Exception as e:
             logger.warning("  ⚠️  Could not drop vector index: %s", e)
-    
+
     # Final verification
     result = session.run("MATCH (n) RETURN count(n) as final_count")
     final_count = result.single()["final_count"]
-    
+
     result = session.run("MATCH ()-[r]->() RETURN count(r) as final_rels")
     final_rels = result.single()["final_rels"]
-    
+
     logger.info("🎉 COMPLETE RESET FINISHED!")
     logger.info("  Final state: %d nodes, %d relationships", final_count, final_rels)
 
@@ -263,14 +265,18 @@ def main():
             if args.complete:
                 # Complete database reset
                 if not args.confirm and not args.dry_run:
-                    response = input("⚠️  This will DELETE EVERYTHING in the database. Type 'RESET' to confirm: ")
+                    response = input(
+                        "⚠️  This will DELETE EVERYTHING in the database. Type 'RESET' to confirm: "
+                    )
                     if response != "RESET":
                         logger.info("Complete reset cancelled.")
                         return
-                
-                logger.info("Starting complete database reset%s...", " (DRY RUN)" if args.dry_run else "")
+
+                logger.info(
+                    "Starting complete database reset%s...", " (DRY RUN)" if args.dry_run else ""
+                )
                 complete_database_reset(session, args.dry_run)
-                
+
             else:
                 # Selective cleanup (default behavior)
                 logger.info("Starting cleanup%s...", " (DRY RUN)" if args.dry_run else "")

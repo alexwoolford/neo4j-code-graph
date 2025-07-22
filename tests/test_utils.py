@@ -15,9 +15,7 @@ def test_keeps_existing_port():
 
 
 def test_handles_auth():
-    assert ensure_port("bolt://user:pass@localhost") == (
-        "bolt://user:pass@localhost:7687"
-    )
+    assert ensure_port("bolt://user:pass@localhost") == ("bolt://user:pass@localhost:7687")
 
 
 def test_get_neo4j_config_reads_env(monkeypatch):

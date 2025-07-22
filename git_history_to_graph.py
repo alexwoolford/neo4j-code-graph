@@ -189,9 +189,7 @@ def bulk_load_to_neo4j(
                 "CREATE CONSTRAINT developer_email IF NOT EXISTS FOR (d:Developer) "
                 "REQUIRE d.email IS UNIQUE"
             )
-            session.run(
-                "CREATE INDEX file_path_index IF NOT EXISTS FOR (f:File) ON (f.path)"
-            )
+            session.run("CREATE INDEX file_path_index IF NOT EXISTS FOR (f:File) ON (f.path)")
             # Add composite index for FileVer performance
             session.run(
                 "CREATE INDEX file_ver_composite IF NOT EXISTS FOR (fv:FileVer) ON (fv.sha, fv.path)"
@@ -266,11 +264,11 @@ def bulk_load_to_neo4j(
     # OPTIMIZED: Load file changes with much better performance
     logger.info(f"🚀 Loading {len(file_changes_df)} file changes with optimized bulk operations...")
     file_changes_data = file_changes_df.to_dict("records")
-    
+
     # Use much larger batches - cloud Neo4j can handle this
     batch_size = 25000  # 2.5x larger for better throughput
     total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
-    
+
     logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
     logger.info(f"⚡ Using optimized 3-step bulk loading (was: 5-step MERGE operations)")
     logger.info(f"🎯 Expected performance improvement: 3-5x faster than previous approach")
@@ -333,14 +331,14 @@ def bulk_load_to_neo4j(
         batch_time = time.time() - batch_start
         elapsed_total = time.time() - start_time
         processed = min(i + batch_size, len(file_changes_data))
-        
+
         # Enhanced progress reporting
         if processed > 0:
             avg_time_per_batch = elapsed_total / batch_num
             remaining_batches = total_batches - batch_num
             eta_seconds = avg_time_per_batch * remaining_batches
             eta_minutes = eta_seconds / 60
-            
+
             throughput = processed / elapsed_total
             completion_pct = (processed / len(file_changes_data)) * 100
 
@@ -351,6 +349,7 @@ def bulk_load_to_neo4j(
 
         # Memory cleanup
         import gc
+
         gc.collect()
 
 
@@ -396,9 +395,7 @@ def load_history(
                 repo.git.checkout(branch)
                 logger.info(f"Checked out branch: {branch}")
             except Exception as e:
-                available_branches = [
-                    ref.name.split("/")[-1] for ref in repo.remotes.origin.refs
-                ]
+                available_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs]
                 logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
 
                 for fallback in ["main", "master", "dev", "develop", "HEAD"]:
