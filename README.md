@@ -2,6 +2,61 @@
 
 Advanced code analysis platform that creates comprehensive knowledge graphs from ANY codebase. Works with Java, Python, JavaScript, Go, Rust, C++, C#, and more - no hardcoded mappings required.
 
+## 📁 Project Structure
+
+The project is organized into logical directories following Python best practices:
+
+```
+neo4j-code-graph/
+├── src/                    # Core library code
+│   ├── analysis/          # Analysis modules
+│   │   ├── code_analysis.py      # Code structure extraction
+│   │   ├── git_analysis.py       # Git history analysis
+│   │   ├── centrality.py         # Graph centrality algorithms
+│   │   ├── similarity.py         # Method similarity analysis
+│   │   └── combined_analysis.py  # Multi-purpose analysis tool
+│   ├── security/          # Vulnerability analysis
+│   │   ├── cve_analysis.py       # Universal CVE analysis
+│   │   └── cve_cache_manager.py  # CVE data management
+│   ├── data/              # Data management
+│   │   └── schema_management.py  # Neo4j schema setup
+│   ├── utils/             # Common utilities
+│   │   ├── common.py             # Shared functions
+│   │   ├── neo4j_utils.py        # Neo4j connection utils
+│   │   └── cleanup.py            # Database cleanup
+│   └── pipeline/          # Pipeline orchestration (future)
+├── scripts_new/           # CLI tools
+│   ├── run_pipeline.sh           # Main pipeline orchestrator
+│   ├── code_to_graph.py          # CLI: Code analysis
+│   ├── git_history_to_graph.py   # CLI: Git history
+│   ├── analyze.py                # CLI: Combined analysis
+│   ├── centrality_analysis.py    # CLI: Centrality analysis
+│   ├── create_method_similarity.py # CLI: Similarity analysis
+│   ├── cve_analysis.py           # CLI: CVE analysis
+│   ├── schema_management.py      # CLI: Schema management
+│   └── cleanup_graph.py          # CLI: Database cleanup
+├── tests/                 # Test suite
+├── examples/              # Example scripts and queries
+├── docs/                  # Documentation
+├── config/                # Configuration files
+│   ├── requirements.txt
+│   ├── dev-requirements.txt
+│   └── setup.cfg
+├── data/                  # Runtime data
+│   └── cve_cache/        # CVE data cache
+├── README.md
+├── AGENTS.md
+├── LICENSE
+└── .gitignore
+```
+
+**Key Benefits:**
+- **🔍 Clear Separation**: Library code (`src/`) vs CLI tools (`scripts_new/`)
+- **📦 Modular Design**: Logical grouping by functionality
+- **🧪 Better Testing**: Easier to test individual modules
+- **🛠️ Maintainability**: Professional project organization
+- **📚 Extensibility**: Easy to add new analysis modules
+
 ## ✨ Features
 
 - **📁 Universal Code Structure**: Loads files, methods, classes, and interfaces with rich metadata across all programming languages
@@ -31,14 +86,14 @@ Our CVE analysis works with ANY programming language and dependency ecosystem:
 
 ```bash
 # 1. Run the complete pipeline on ANY codebase
-./run_pipeline.sh https://github.com/your-org/your-repo.git
+./scripts_new/run_pipeline.sh https://github.com/your-org/your-repo.git
 
 # 2. Get NVD API key (recommended for production use)
 # Visit: https://nvd.nist.gov/developers/request-an-api-key
 export NVD_API_KEY="your_api_key_here"
 
 # 3. Run universal vulnerability analysis
-python cve_analysis.py \
+python scripts_new/cve_analysis.py \
   --risk-threshold 7.0 \
   --max-hops 4
 
@@ -128,7 +183,7 @@ git clone <this-repo>
 cd neo4j-code-graph
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r config/requirements.txt
 
 # Set up Neo4j connection (create .env file)
 NEO4J_URI=your_neo4j_uri
@@ -137,15 +192,17 @@ NEO4J_PASSWORD=your_password
 NEO4J_DATABASE=neo4j
 
 # Run complete analysis pipeline
-./run_pipeline.sh https://github.com/your-org/your-repo.git
+./scripts_new/run_pipeline.sh https://github.com/your-org/your-repo.git
 ```
 
-### `code_to_graph.py` - Universal Code Structure Analysis
+## 🚀 Analysis Tools
+
+### Code Structure Analysis
 
 Extracts comprehensive code structure from any programming language:
 
 ```bash
-python code_to_graph.py <repository-url>
+python scripts_new/code_to_graph.py <repository-url>
 ```
 
 **Features:**
@@ -155,10 +212,10 @@ python code_to_graph.py <repository-url>
 - **Dependency Tracking**: Import/include statements across all languages
 - **Bulk Loading**: Efficient batch processing for large codebases
 
-### `git_history_to_graph.py` - Git History Analysis  
+### Git History Analysis
 
 ```bash
-python git_history_to_graph.py <repository-url>
+python scripts_new/git_history_to_graph.py <repository-url>
 ```
 
 **Features:**
@@ -167,13 +224,11 @@ python git_history_to_graph.py <repository-url>
 - Supports branch selection and commit filtering
 - Bulk operations for performance at scale
 
-## Analysis Scripts
-
-### 🔥 Hotspot Analysis
+### Hotspot Analysis
 
 ```bash
 # Find code hotspots with multi-factor complexity scoring
-python analyze.py hotspots --days 365 --min-changes 3 --top-n 15
+python scripts_new/analyze.py hotspots --days 365 --min-changes 3 --top-n 15
 ```
 
 **Hotspot Analysis:**
@@ -182,11 +237,11 @@ python analyze.py hotspots --days 365 --min-changes 3 --top-n 15
 - Focus optimization efforts on high-impact areas
 - Multi-dimensional scoring: size + OOP complexity + coupling
 
-### 🎯 Centrality Analysis
+### Centrality Analysis
 
 ```bash
 # Identify architecturally important methods
-python centrality_analysis.py --algorithms pagerank betweenness --top-n 20 --write-back
+python scripts_new/centrality_analysis.py --algorithms pagerank betweenness --top-n 20 --write-back
 ```
 
 **Centrality Metrics:**
@@ -194,54 +249,6 @@ python centrality_analysis.py --algorithms pagerank betweenness --top-n 20 --wri
 - **Betweenness**: Critical connectors and potential bottlenecks  
 - **Degree**: Most connected methods (high fan-in/fan-out)
 
-## Performance & Scalability
+### `git_history_to_graph.py` - Git History Analysis  
 
-The scripts are optimized for large repositories and modern hardware:
-
-### **Universal Optimization**
-- **Dynamic Analysis**: No hardcoded patterns or mappings required
-- **Intelligent Caching**: CVE data cached with TTL for efficiency
-- **Multi-Language Support**: Unified analysis across technology stacks
-
-### **Bulk Operations**
-- **Parallel Processing**: Concurrent analysis of multiple languages
-- **Batch Loading**: Efficient Neo4j operations for large datasets
-- **Progress Tracking**: Real-time feedback for long-running operations
-
-### **Performance Benchmarks**
-- **Large repositories**: 100K+ files analyzed efficiently
-- **Git extraction**: ~9,600 commits/sec using git log commands
-- **CVE Analysis**: Intelligent filtering reduces API calls by 90%+
-
-## Example Queries
-
-### **🛡️ Universal Vulnerability Analysis**
-
-```cypher
-// Find high-risk vulnerabilities affecting your codebase (any language)
-MATCH (cve:CVE)-[:AFFECTS]->(ed:ExternalDependency)
-WHERE cve.cvss_score >= 7.0
-OPTIONAL MATCH path = (f:File)-[:DEPENDS_ON*1..3]->(ed)
-WITH cve, ed, collect(DISTINCT f) AS affected_files,
-     count(DISTINCT f) AS file_count,
-     min(length(path)) AS shortest_path
-RETURN cve.cve_id, ed.import_path, file_count, shortest_path,
-       (cve.cvss_score * file_count / shortest_path) AS impact_score
-ORDER BY impact_score DESC
 ```
-
-### **🔥 Code Hotspot Analysis**
-
-```cypher
-// Find files with high change frequency and complexity
-MATCH (f:File)
-OPTIONAL MATCH (f)<-[:OF_FILE]-(fv)<-[:CHANGED]-(c:Commit)
-WHERE c.date >= datetime() - duration('P180D')
-WITH f, count(c) as changes
-WHERE changes >= 3 AND f.total_lines >= 100
-RETURN f.path, changes, f.total_lines, f.method_count,
-       (changes * f.total_lines) as hotspot_score
-ORDER BY hotspot_score DESC LIMIT 15
-```
-
-This demonstrates how Neo4j's multi-modal capabilities create a comprehensive analysis platform that works with any programming language and technology stack. 
