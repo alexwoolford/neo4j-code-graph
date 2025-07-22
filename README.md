@@ -25,7 +25,7 @@ neo4j-code-graph/
 │   │   ├── neo4j_utils.py        # Neo4j connection utils
 │   │   └── cleanup.py            # Database cleanup
 │   └── pipeline/          # Pipeline orchestration (future)
-├── scripts_new/           # CLI tools
+├── scripts/               # CLI tools
 │   ├── run_pipeline.sh           # Main pipeline orchestrator
 │   ├── code_to_graph.py          # CLI: Code analysis
 │   ├── git_history_to_graph.py   # CLI: Git history
@@ -51,7 +51,7 @@ neo4j-code-graph/
 ```
 
 **Key Benefits:**
-- **🔍 Clear Separation**: Library code (`src/`) vs CLI tools (`scripts_new/`)
+- **🔍 Clear Separation**: Library code (`src/`) vs CLI tools (`scripts/`)
 - **📦 Modular Design**: Logical grouping by functionality
 - **🧪 Better Testing**: Easier to test individual modules
 - **🛠️ Maintainability**: Professional project organization
@@ -86,14 +86,14 @@ Our CVE analysis works with ANY programming language and dependency ecosystem:
 
 ```bash
 # 1. Run the complete pipeline on ANY codebase
-./scripts_new/run_pipeline.sh https://github.com/your-org/your-repo.git
+./scripts/run_pipeline.sh https://github.com/your-org/your-repo.git
 
 # 2. Get NVD API key (recommended for production use)
 # Visit: https://nvd.nist.gov/developers/request-an-api-key
 export NVD_API_KEY="your_api_key_here"
 
 # 3. Run universal vulnerability analysis
-python scripts_new/cve_analysis.py \
+python scripts/cve_analysis.py \
   --risk-threshold 7.0 \
   --max-hops 4
 
@@ -192,7 +192,7 @@ NEO4J_PASSWORD=your_password
 NEO4J_DATABASE=neo4j
 
 # Run complete analysis pipeline
-./scripts_new/run_pipeline.sh https://github.com/your-org/your-repo.git
+./scripts/run_pipeline.sh https://github.com/your-org/your-repo.git
 ```
 
 ## 🚀 Analysis Tools
@@ -202,7 +202,7 @@ NEO4J_DATABASE=neo4j
 Extracts comprehensive code structure from any programming language:
 
 ```bash
-python scripts_new/code_to_graph.py <repository-url>
+python scripts/code_to_graph.py <repository-url>
 ```
 
 **Features:**
@@ -215,7 +215,7 @@ python scripts_new/code_to_graph.py <repository-url>
 ### Git History Analysis
 
 ```bash
-python scripts_new/git_history_to_graph.py <repository-url>
+python scripts/git_history_to_graph.py <repository-url>
 ```
 
 **Features:**
@@ -228,7 +228,7 @@ python scripts_new/git_history_to_graph.py <repository-url>
 
 ```bash
 # Find code hotspots with multi-factor complexity scoring
-python scripts_new/analyze.py hotspots --days 365 --min-changes 3 --top-n 15
+python scripts/analyze.py hotspots --days 365 --min-changes 3 --top-n 15
 ```
 
 **Hotspot Analysis:**
@@ -241,7 +241,7 @@ python scripts_new/analyze.py hotspots --days 365 --min-changes 3 --top-n 15
 
 ```bash
 # Identify architecturally important methods
-python scripts_new/centrality_analysis.py --algorithms pagerank betweenness --top-n 20 --write-back
+python scripts/centrality_analysis.py --algorithms pagerank betweenness --top-n 20 --write-back
 ```
 
 **Centrality Metrics:**
