@@ -12,7 +12,12 @@ from collections import defaultdict, Counter
 from itertools import combinations
 
 import javalang
-from common import setup_logging, create_neo4j_driver, add_common_args
+try:
+    # Try absolute import when called from CLI wrapper
+    from utils.common import setup_logging, create_neo4j_driver, add_common_args
+except ImportError:
+    # Fallback to relative import when used as module
+    from ..utils.common import setup_logging, create_neo4j_driver, add_common_args
 
 logger = logging.getLogger(__name__)
 

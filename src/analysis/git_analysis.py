@@ -15,7 +15,12 @@ import time
 
 from git import Repo
 from neo4j import GraphDatabase
-from utils import ensure_port, get_neo4j_config
+try:
+    # Try absolute import when called from CLI wrapper
+    from utils.neo4j_utils import ensure_port, get_neo4j_config
+except ImportError:
+    # Fallback to relative import when used as module
+    from ..utils.neo4j_utils import ensure_port, get_neo4j_config
 
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
