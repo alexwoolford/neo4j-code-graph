@@ -19,6 +19,14 @@ def test_handles_auth():
 
 
 def test_get_neo4j_config_reads_env(monkeypatch):
+    # Clear any existing env vars that might interfere
+    for var in ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD", "NEO4J_DATABASE"]:
+        monkeypatch.delenv(var, raising=False)
+
+    # Mock dotenv to not load from file
+    monkeypatch.setattr("dotenv.load_dotenv", lambda **kwargs: None)
+
+    # Set test values
     monkeypatch.setenv("NEO4J_URI", "bolt://example")
     monkeypatch.setenv("NEO4J_USERNAME", "u")
     monkeypatch.setenv("NEO4J_PASSWORD", "p")
