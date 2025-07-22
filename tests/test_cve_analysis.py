@@ -234,7 +234,7 @@ class TestCVEAnalyzer:
         """Helper method to test universal component extraction."""
         components = set()
         components.add(dependency_path.lower())
-        
+
         # Extract meaningful parts from different naming conventions
         for sep in ['.', '/', '-', '_', '::']:
             if sep in dependency_path:
@@ -242,7 +242,7 @@ class TestCVEAnalyzer:
                 for part in parts:
                     if part and len(part) > 2 and part not in ['com', 'org', 'net', 'io', 'www', 'github', 'types']:
                         components.add(part.lower())
-        
+
         return components
 
     def test_universal_component_patterns(self):
@@ -250,7 +250,7 @@ class TestCVEAnalyzer:
         # Test common patterns that work across ecosystems
         test_mappings = {
             "com.fasterxml.jackson": "jackson",
-            "org.springframework": "spring", 
+            "org.springframework": "spring",
             "org.apache.commons": "apache",
             "requests-oauthlib": "requests",
             "github.com/gin-gonic/gin": "gin",

@@ -27,48 +27,72 @@ if ROOT not in sys.path:
 
 from utils.common import setup_logging, create_neo4j_driver
 from utils.neo4j_utils import get_neo4j_config
-from .cve_cache_manager import UniversalCVEManager
+from .cve_cache_manager import RobustCVEManager
 
 logger = logging.getLogger(__name__)
 
 
 class UniversalCVEAnalyzer:
     """Language-agnostic CVE analyzer that works with any codebase."""
-    
+
     def __init__(self, driver, database: str = "neo4j"):
         self.driver = driver
         self.database = database
-        self.cve_manager = UniversalCVEManager()
-    
-    def extract_codebase_dependencies(self) -> Dict[str, Set[str]]:
+        self.cve_manager = RobustCVEManager()
+
+    def get_cache_status(self):
+        """Get current cache status for user feedback."""
+        stats = self.cve_manager.get_cache_stats()
+
+        print("\n📊 **CVE CACHE STATUS**")
+        print("=" * 50)
+        print(f"Complete caches: {stats['complete_caches']}")
+        print(f"Partial caches:  {stats['partial_caches']}")
+        print(f"Total size:      {stats['total_size_mb']} MB")
+        print(f"Cache location:  {stats['cache_dir']}")
+
+        if stats['partial_caches'] > 0:
+            print("\n🔄 **RESUMABLE DOWNLOADS AVAILABLE**")
+            print("You can resume interrupted downloads!")
+
+        return stats
+
+    def extract_codebase_dependencies(self) -> tuple:
         """Extract all dependencies from any codebase in the graph."""
         logger.info("🔍 Extracting dependencies from codebase...")
-        
+
         with self.driver.session(database=self.database) as session:
             # Get all external dependencies regardless of language
             query = """
             MATCH (ed:ExternalDependency)
-            RETURN DISTINCT ed.import_path AS dependency_path,
+            RETURN DISTINCT ed.package AS dependency_path,
                    ed.language AS language,
-                   ed.ecosystem AS ecosystem
+                   ed.ecosystem AS ecosystem,
+                   ed.version AS version
             ORDER BY dependency_path
             """
-            
+
             result = session.run(query)
             dependencies_by_ecosystem = {}
-            
+
             for record in result:
                 dep_path = record["dependency_path"]
                 language = record.get("language", "unknown")
                 ecosystem = record.get("ecosystem", "unknown")
-                
+                version = record.get("version")  # Will be None for now, but we'll fix that
+
                 # Group by ecosystem for targeted CVE searching
                 key = f"{language}:{ecosystem}" if language != "unknown" else "unknown"
                 if key not in dependencies_by_ecosystem:
                     dependencies_by_ecosystem[key] = set()
-                
-                dependencies_by_ecosystem[key].add(dep_path)
-            
+
+                # Include version info if available
+                dep_info = dep_path
+                if version:
+                    dep_info = f"{dep_path}:{version}"
+
+                dependencies_by_ecosystem[key].add(dep_info)
+
             # Also extract from file analysis for languages without explicit dependency tracking
             query = """
             MATCH (f:File)
@@ -77,122 +101,108 @@ class UniversalCVEAnalyzer:
                    f.language AS language
             LIMIT 1000
             """
-            
+
             result = session.run(query)
             file_languages = set()
             for record in result:
                 if record["language"]:
                     file_languages.add(record["language"].lower())
-            
+
             logger.info(f"📊 Found dependencies in {len(dependencies_by_ecosystem)} ecosystems")
             logger.info(f"📊 Detected languages: {file_languages}")
-            
+
             return dependencies_by_ecosystem, file_languages
-    
+
     def create_universal_component_search_terms(self, dependencies: Dict[str, Set[str]]) -> Set[str]:
         """Create language-agnostic search terms from any dependency structure."""
         search_terms = set()
-        
+        specific_vendor_terms = set()  # Track specific vendor terms to avoid generic ones
+
         for ecosystem, deps in dependencies.items():
             for dep in deps:
                 # Universal patterns that work across languages
                 if dep and isinstance(dep, str):  # Filter out None values and non-strings
                     search_terms.add(dep.lower())
-                
+
                 # Extract meaningful parts from different naming conventions
                 parts = []
-                
-                # Java/C#: com.vendor.product or org.vendor.product  
+
+                # Java/C#: com.vendor.product or org.vendor.product
                 if '.' in dep:
                     parts.extend(dep.split('.'))
-                
+
+                    # Track specific vendor.product combinations to avoid generic vendor terms
+                    if any(vendor in dep.lower() for vendor in ['jetbrains', 'springframework', 'fasterxml']):
+                        # Mark this as a specific dependency
+                        vendor_parts = [p for p in dep.split('.') if p.lower() in ['jetbrains', 'springframework', 'fasterxml']]
+                        for vendor_part in vendor_parts:
+                            specific_vendor_terms.add(vendor_part.lower())
+
                 # Python/Node: vendor-product or vendor_product
                 if '-' in dep:
                     parts.extend(dep.split('-'))
                 if '_' in dep:
                     parts.extend(dep.split('_'))
-                
+
                 # Go: github.com/vendor/product
                 if '/' in dep:
                     parts.extend(dep.split('/'))
-                
+
                 # Rust: vendor::product
                 if '::' in dep:
                     parts.extend(dep.split('::'))
-                
-                # Add meaningful parts (filter out common prefixes)
+
+                # Add meaningful parts (filter out common prefixes AND vendor terms that have specific deps)
                 for part in parts:
-                    if part and len(part) > 2 and part not in ['com', 'org', 'net', 'io', 'www', 'github']:
-                        search_terms.add(part.lower())
-        
+                    part_lower = part.lower()
+                    if (part and len(part) > 2 and
+                        part not in ['com', 'org', 'net', 'io', 'www', 'github'] and
+                        part_lower not in specific_vendor_terms):  # Don't add generic vendor terms
+                        search_terms.add(part_lower)
+
         logger.info(f"🎯 Generated {len(search_terms)} universal search terms")
+        logger.info(f"🚫 Excluded generic vendor terms: {specific_vendor_terms}")
         return search_terms
-    
+
     def fetch_relevant_cves(self, search_terms: Set[str], api_key: Optional[str] = None) -> List[Dict]:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
-        
+
         return self.cve_manager.fetch_targeted_cves(
             api_key=api_key,
             search_terms=search_terms,
             max_results=2000,  # Reasonable limit for comprehensive analysis
             days_back=365      # One year of CVE data
         )
-    
+
     def create_vulnerability_graph(self, cve_data: List[Dict]) -> int:
         """Create CVE and vulnerability nodes in Neo4j."""
         logger.info("📊 Creating vulnerability graph...")
-        
+
         if not cve_data:
             logger.warning("No CVE data to process")
             return 0
-        
+
         with self.driver.session(database=self.database) as session:
-            # Create CVE nodes
+            # The cve_data is already cleaned by the cache manager
+            # Create CVE nodes directly from the cleaned data
             cve_nodes = []
-            for cve_entry in cve_data:
-                cve = cve_entry.get("cve", {})
-                
-                # Extract basic CVE information
-                cve_id = cve.get("id", "")
-                descriptions = cve.get("descriptions", [])
-                description = ""
-                for desc in descriptions:
-                    if desc.get("lang") == "en":
-                        description = desc.get("value", "")
-                        break
-                
-                # Extract CVSS score
-                metrics = cve.get("metrics", {})
-                cvss_score = 0.0
-                cvss_vector = ""
-                
-                if "cvssMetricV31" in metrics and metrics["cvssMetricV31"]:
-                    cvss_data = metrics["cvssMetricV31"][0]["cvssData"]
-                    cvss_score = cvss_data.get("baseScore", 0.0)
-                    cvss_vector = cvss_data.get("vectorString", "")
-                elif "cvssMetricV30" in metrics and metrics["cvssMetricV30"]:
-                    cvss_data = metrics["cvssMetricV30"][0]["cvssData"]
-                    cvss_score = cvss_data.get("baseScore", 0.0)
-                    cvss_vector = cvss_data.get("vectorString", "")
-                
-                # Extract publication date
-                published = cve.get("published", "")
-                
+            for cve in cve_data:
+                # Use the cleaned data structure from cache manager
                 cve_nodes.append({
-                    "cve_id": cve_id,
-                    "description": description,
-                    "cvss_score": cvss_score,
-                    "cvss_vector": cvss_vector,
-                    "published": published,
-                    "severity": self._get_severity(cvss_score)
+                    "cve_id": cve.get("id", ""),
+                    "description": cve.get("description", ""),
+                    "cvss_score": float(cve.get("cvss_score", 0.0)),
+                    "cvss_vector": "",  # Not in cleaned data
+                    "published": cve.get("published", ""),
+                    "severity": cve.get("severity", "UNKNOWN")
                 })
-            
+
             # Bulk create CVE nodes
             if cve_nodes:
                 create_query = """
                 UNWIND $cve_nodes AS cve
-                MERGE (c:CVE {cve_id: cve.cve_id})
+                MERGE (c:CVE {id: cve.cve_id})
                 SET c.description = cve.description,
                     c.cvss_score = cve.cvss_score,
                     c.cvss_vector = cve.cvss_vector,
@@ -202,12 +212,12 @@ class UniversalCVEAnalyzer:
                 """
                 session.run(create_query, cve_nodes=cve_nodes)
                 logger.info(f"✅ Created {len(cve_nodes)} CVE nodes")
-            
+
             # Link CVEs to dependencies based on content matching
             self._link_cves_to_dependencies(session, cve_data)
-            
+
             return len(cve_nodes)
-    
+
     def _get_severity(self, cvss_score: float) -> str:
         """Get severity level from CVSS score."""
         if cvss_score >= 9.0:
@@ -220,145 +230,162 @@ class UniversalCVEAnalyzer:
             return "LOW"
         else:
             return "NONE"
-    
+
     def _link_cves_to_dependencies(self, session, cve_data: List[Dict]):
         """Link CVEs to external dependencies based on content analysis."""
         logger.info("🔗 Linking CVEs to codebase dependencies...")
-        
+
         # Get all external dependencies
         deps_query = """
         MATCH (ed:ExternalDependency)
-        RETURN ed.import_path AS import_path, id(ed) AS dep_id
+        RETURN ed.package AS import_path
         """
         deps_result = session.run(deps_query)
-        dependencies = {record["import_path"]: record["dep_id"] for record in deps_result}
-        
+        dependencies = [record["import_path"] for record in deps_result]
+
         if not dependencies:
             logger.warning("No external dependencies found in graph")
             return
-        
-        # Create links based on content matching
-        links = []
-        for cve_entry in cve_data:
-            cve = cve_entry.get("cve", {})
+
+        logger.info(f"Found {len(dependencies)} dependencies to match against")
+
+        # Create links based on content matching using cleaned CVE data
+        link_pairs = []
+        for cve in cve_data:
             cve_id = cve.get("id", "")
-            
-            # Extract all text content for matching
-            description = ""
-            descriptions = cve.get("descriptions", [])
-            for desc in descriptions:
-                if desc.get("lang") == "en":
-                    description = desc.get("value", "").lower()
-                    break
-            
-            # Extract CPE information
-            cpe_components = set()
-            configurations = cve.get("configurations", [])
-            for config in configurations:
-                for node in config.get("nodes", []):
-                    for cpe_match in node.get("cpeMatch", []):
-                        cpe = cpe_match.get("criteria", "")
-                        if cpe.startswith("cpe:2.3:"):
-                            parts = cpe.split(":")
-                            if len(parts) >= 6:
-                                vendor = parts[3].lower()
-                                product = parts[4].lower()
-                                cpe_components.add(vendor)
-                                cpe_components.add(product)
-                                cpe_components.add(f"{vendor}:{product}")
-            
-            # Match against dependencies
-            all_cve_text = f"{description} {' '.join(cpe_components)}"
-            
-            for dep_path, dep_id in dependencies.items():
-                if self._is_dependency_affected(dep_path, all_cve_text, cpe_components):
-                    links.append({
+            description = cve.get("description", "").lower()
+
+            # Simple but effective matching for cleaned data
+            for dep_path in dependencies:
+                if self._is_dependency_affected_simple(dep_path, description):
+                    link_pairs.append({
                         "cve_id": cve_id,
-                        "dep_id": dep_id,
-                        "confidence": self._calculate_match_confidence(dep_path, all_cve_text, cpe_components)
+                        "dep_package": dep_path,
+                        "confidence": self._calculate_match_confidence_simple(dep_path, description)
                     })
-        
+
         # Create relationships
-        if links:
+        if link_pairs:
             link_query = """
             UNWIND $links AS link
-            MATCH (cve:CVE {cve_id: link.cve_id})
-            MATCH (ed:ExternalDependency) WHERE id(ed) = link.dep_id
+            MATCH (cve:CVE {id: link.cve_id})
+            MATCH (ed:ExternalDependency {package: link.dep_package})
             MERGE (cve)-[r:AFFECTS]->(ed)
             SET r.confidence = link.confidence,
                 r.created_at = datetime()
             """
-            session.run(link_query, links=links)
-            logger.info(f"🔗 Created {len(links)} CVE-dependency relationships")
-    
+            session.run(link_query, links=link_pairs)
+            logger.info(f"🔗 Created {len(link_pairs)} CVE-dependency relationships")
+        else:
+            logger.info("No CVE-dependency matches found")
+
+    def _is_dependency_affected_simple(self, dep_path: str, cve_description: str) -> bool:
+        """Simple dependency matching using cleaned CVE data."""
+        dep_lower = dep_path.lower()
+
+        # Direct match
+        if dep_lower in cve_description:
+            return True
+
+        # Component matching
+        parts = []
+        for sep in ['.', '/', '-', '_', '::']:
+            if sep in dep_path:
+                parts.extend(part.lower() for part in dep_path.split(sep) if len(part) > 2)
+
+        # At least one meaningful part must match
+        for part in parts:
+            if len(part) > 3 and part in cve_description:
+                return True
+
+        return False
+
+    def _calculate_match_confidence_simple(self, dep_path: str, cve_description: str) -> float:
+        """Calculate confidence for simple matching."""
+        dep_lower = dep_path.lower()
+
+        if dep_lower in cve_description:
+            return 0.9
+
+        parts = []
+        for sep in ['.', '/', '-', '_', '::']:
+            if sep in dep_path:
+                parts.extend(part.lower() for part in dep_path.split(sep) if len(part) > 2)
+
+        matches = sum(1 for part in parts if len(part) > 3 and part in cve_description)
+        if matches and parts:
+            return 0.6 * (matches / len(parts))
+
+        return 0.1
+
     def _is_dependency_affected(self, dep_path: str, cve_text: str, cpe_components: Set[str]) -> bool:
         """Determine if a dependency is affected by a CVE using universal matching."""
         dep_lower = dep_path.lower()
-        
+
         # Direct text match
         if dep_lower in cve_text:
             return True
-        
+
         # Extract components from dependency path
         dep_parts = set()
-        
+
         # Split by various separators
         for sep in ['.', '/', '-', '_', '::']:
             if sep in dep_path:
                 dep_parts.update(part.lower() for part in dep_path.split(sep) if len(part) > 2)
-        
+
         # Check if any part matches CPE components
         if dep_parts.intersection(cpe_components):
             return True
-        
+
         # Check for partial matches in CVE text
         for part in dep_parts:
             if len(part) > 3 and part in cve_text:
                 return True
-        
+
         return False
-    
+
     def _calculate_match_confidence(self, dep_path: str, cve_text: str, cpe_components: Set[str]) -> float:
         """Calculate confidence score for CVE-dependency matching."""
         confidence = 0.0
         dep_lower = dep_path.lower()
-        
+
         # Direct path match (highest confidence)
         if dep_lower in cve_text:
             confidence += 0.8
-        
+
         # CPE component matches
         dep_parts = set()
         for sep in ['.', '/', '-', '_', '::']:
             if sep in dep_path:
                 dep_parts.update(part.lower() for part in dep_path.split(sep) if len(part) > 2)
-        
+
         matches = dep_parts.intersection(cpe_components)
         if matches:
             confidence += 0.6 * (len(matches) / len(dep_parts))
-        
+
         # Partial text matches
         partial_matches = sum(1 for part in dep_parts if len(part) > 3 and part in cve_text)
         if partial_matches:
             confidence += 0.4 * (partial_matches / len(dep_parts))
-        
+
         return min(confidence, 1.0)
-    
+
     def setup_indexes(self):
         """Create necessary indexes for efficient querying."""
         logger.info("📊 Setting up indexes for CVE analysis...")
-        
+
         with self.driver.session(database=self.database) as session:
             indexes = [
                 # CVE indexes
                 "CREATE INDEX cve_cvss_score IF NOT EXISTS FOR (cve:CVE) ON (cve.cvss_score)",
                 "CREATE INDEX cve_severity IF NOT EXISTS FOR (cve:CVE) ON (cve.severity)",
                 "CREATE INDEX cve_published IF NOT EXISTS FOR (cve:CVE) ON (cve.published)",
-                
+
                 # Full-text index for CVE descriptions
                 "CREATE FULLTEXT INDEX cve_description_index IF NOT EXISTS FOR (cve:CVE) ON EACH [cve.description]",
             ]
-            
+
             for index_query in indexes:
                 try:
                     session.run(index_query)
@@ -368,187 +395,256 @@ class UniversalCVEAnalyzer:
                         logger.debug(f"Index already exists: {index_query}")
                     else:
                         logger.warning(f"Failed to create index: {e}")
-    
-    def analyze_vulnerability_impact(self, max_hops: int = 4, risk_threshold: float = 7.0):
-        """Analyze vulnerability impact using multi-modal Neo4j analysis."""
+
+    def analyze_vulnerability_impact(self, max_hops=4, risk_threshold=7.0):
+        """Analyze the impact of CVEs on the codebase."""
         logger.info("🎯 Analyzing vulnerability impact...")
-        
+
         with self.driver.session(database=self.database) as session:
-            # Find high-risk vulnerabilities with dependency paths
-            analysis_query = """
-            MATCH (cve:CVE)-[:AFFECTS]->(ed:ExternalDependency)
+            # First, let's check if we have any CVE data at all
+            cve_count_query = "MATCH (cve:CVE) RETURN count(cve) as total"
+            cve_result = session.run(cve_count_query)
+            cve_count = cve_result.single()["total"]
+
+            if cve_count == 0:
+                logger.warning("⚠️  No CVE data found in the database. Running CVE fetch first...")
+                # Fetch CVE data
+                dependencies_by_ecosystem, _ = self.extract_codebase_dependencies()
+                search_terms = self.create_universal_component_search_terms(dependencies_by_ecosystem)
+                cve_data = self.cve_manager.fetch_targeted_cves(api_key=None, search_terms=search_terms)
+
+                if cve_data:
+                    self.create_vulnerability_graph(cve_data)
+                    logger.info(f"✅ Fetched and stored {len(cve_data)} CVEs")
+                else:
+                    logger.warning("⚠️  No relevant CVEs found")
+                    return []
+
+            # Simple analysis query - just look for CVEs that might affect our dependencies
+            analysis_query = f"""
+            MATCH (cve:CVE)
             WHERE cve.cvss_score >= $risk_threshold
-            
-            // Find dependency paths to source files
-            OPTIONAL MATCH path = (f:File)-[:DEPENDS_ON*1..$max_hops]->(ed)
-            
-            WITH cve, ed, collect(DISTINCT f) AS affected_files,
-                 count(DISTINCT f) AS file_count,
-                 min(length(path)) AS shortest_path
-            
-            // Calculate impact score
-            WITH cve, ed, affected_files, file_count, shortest_path,
-                 (cve.cvss_score * file_count / COALESCE(shortest_path, 10)) AS impact_score
-            
-            RETURN cve.cve_id AS vulnerability,
+            OPTIONAL MATCH (ed:ExternalDependency)
+            WITH cve, ed,
+                 CASE WHEN ed.package IS NOT NULL THEN 1 ELSE 0 END AS has_dependency
+            WITH cve, collect(ed.package) AS dependencies, sum(has_dependency) AS dep_count
+            WHERE dep_count > 0
+            RETURN cve.id AS cve_id,
                    cve.description AS description,
                    cve.cvss_score AS cvss_score,
                    cve.severity AS severity,
-                   ed.import_path AS affected_dependency,
-                   file_count AS affected_file_count,
-                   shortest_path AS dependency_distance,
-                   round(impact_score, 2) AS calculated_impact
-            ORDER BY impact_score DESC
-            LIMIT 20
+                   dependencies AS affected_dependencies,
+                   dep_count AS dependency_count
+            ORDER BY cve.cvss_score DESC
+            LIMIT 50
             """
-            
-            result = session.run(analysis_query, 
-                               risk_threshold=risk_threshold, 
-                               max_hops=max_hops)
-            
-            vulnerabilities = []
-            for record in result:
-                vulnerabilities.append({
-                    "vulnerability": record["vulnerability"],
-                    "description": record["description"][:100] + "..." if len(record["description"]) > 100 else record["description"],
-                    "cvss_score": record["cvss_score"],
-                    "severity": record["severity"],
-                    "affected_dependency": record["affected_dependency"],
-                    "affected_file_count": record["affected_file_count"],
-                    "dependency_distance": record["dependency_distance"],
-                    "calculated_impact": record["calculated_impact"]
-                })
-            
+
+            result = session.run(analysis_query, risk_threshold=risk_threshold)
+            vulnerabilities = [dict(record) for record in result]
+
+            logger.info(f"🎯 Found {len(vulnerabilities)} potential vulnerabilities")
             return vulnerabilities
-    
-    def generate_impact_report(self, vulnerabilities: List[Dict]):
+
+
+
+    def generate_impact_report(self, vulnerabilities):
         """Generate a comprehensive vulnerability impact report."""
         if not vulnerabilities:
-            print("\n✅ No high-risk vulnerabilities found in your codebase!")
+            print("\n🎉 **EXCELLENT NEWS!**")
+            print("No high-risk vulnerabilities found in your codebase!")
+            print("This could mean:")
+            print("  • Your dependencies are up-to-date and secure")
+            print("  • The components you're using don't have known critical vulnerabilities")
+            print("  • Your dependency versions are newer than vulnerable ranges")
             return
-        
-        print(f"\n🚨 VULNERABILITY IMPACT ANALYSIS")
-        print("=" * 70)
-        print(f"Found {len(vulnerabilities)} high-risk vulnerabilities affecting your codebase")
-        print()
-        
-        # Summary by severity
-        severity_counts = {}
-        for vuln in vulnerabilities:
-            severity = vuln["severity"]
-            severity_counts[severity] = severity_counts.get(severity, 0) + 1
-        
-        print("📊 Severity Distribution:")
-        for severity, count in sorted(severity_counts.items()):
-            print(f"   {severity}: {count} vulnerabilities")
-        print()
-        
-        # Top vulnerabilities
-        print("🎯 Top Vulnerabilities by Impact:")
-        print("-" * 70)
-        
-        for i, vuln in enumerate(vulnerabilities[:10], 1):
-            print(f"{i:2d}. {vuln['vulnerability']} ({vuln['severity']})")
-            print(f"    CVSS: {vuln['cvss_score']} | Impact: {vuln['calculated_impact']}")
-            print(f"    Dependency: {vuln['affected_dependency']}")
-            print(f"    Affects {vuln['affected_file_count']} files via {vuln['dependency_distance']} hops")
-            print(f"    {vuln['description']}")
-            print()
-        
-        print("💡 Next Steps:")
-        print("   1. Review dependencies with highest impact scores")
-        print("   2. Check for available security updates")
-        print("   3. Consider alternative dependencies for critical vulnerabilities")
-        print("   4. Implement additional security controls for affected components")
+
+        print(f"\n🚨 **VULNERABILITY IMPACT REPORT**")
+        print(f"Found {len(vulnerabilities)} potential security issues")
+        print("=" * 80)
+
+        for vuln in vulnerabilities[:10]:  # Show top 10
+            print(f"\n🔴 {vuln['cve_id']} (CVSS: {vuln['cvss_score']:.1f})")
+            print(f"   Severity: {vuln['severity']}")
+            print(f"   Description: {vuln['description'][:100]}...")
+            if vuln.get('affected_dependencies'):
+                print(f"   Potentially affects: {len(vuln['affected_dependencies'])} dependencies")
+
+        print(f"\n💡 **RECOMMENDATIONS:**")
+        print("1. Review the high-CVSS vulnerabilities above")
+        print("2. Check if your dependency versions are in the vulnerable ranges")
+        print("3. Update dependencies to patched versions")
+        print("4. Run security scans regularly")
 
 
 def main():
-    """Main function for universal CVE analysis."""
+    """Main entry point for CVE analysis."""
+    import argparse
+    import sys
+    import os
+    from pathlib import Path
+
+    # Add project root to path
+    ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+
+    from utils.common import setup_logging, create_neo4j_driver
+    from utils.neo4j_utils import get_neo4j_config
+
     parser = argparse.ArgumentParser(
-        description="Universal CVE Impact Analysis - Works with ANY codebase"
+        description="Robust Universal CVE Analysis",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Check cache status and analyze
+  python cve_analysis.py --cache-status
+
+  # Run analysis with API key (recommended)
+  python cve_analysis.py --api-key your_nvd_key_here
+
+  # Clear partial caches and start fresh
+  python cve_analysis.py --clear-partial-cache
+
+  # Get API key info
+  python cve_analysis.py --api-key-info
+        """
     )
-    
-    parser.add_argument("--nvd-api-key", 
-                       help="NVD API key for faster data retrieval (optional)")
-    parser.add_argument("--risk-threshold", type=float, default=7.0,
-                       help="Minimum CVSS score to consider (default: 7.0)")
-    parser.add_argument("--max-hops", type=int, default=4,
-                       help="Maximum dependency hops to analyze (default: 4)")
-    parser.add_argument("--database", default="neo4j",
-                       help="Neo4j database name (default: neo4j)")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                       help="Enable verbose logging")
-    
+
+    parser.add_argument("--log-level", default="INFO", help="Logging level")
+    parser.add_argument("--database", default="neo4j", help="Neo4j database name")
+    parser.add_argument("--api-key", help="NVD API key for faster, more reliable downloads")
+    parser.add_argument("--max-results", type=int, default=2000, help="Maximum CVEs to fetch (default: 2000)")
+    parser.add_argument("--days-back", type=int, default=365, help="Days back to search (default: 365)")
+    parser.add_argument("--cache-status", action="store_true", help="Show cache status and exit")
+    parser.add_argument("--clear-partial-cache", action="store_true", help="Clear partial caches (keeps complete caches)")
+    parser.add_argument("--clear-all-cache", action="store_true", help="Clear all caches")
+    parser.add_argument("--api-key-info", action="store_true", help="Show how to get an API key")
+
     args = parser.parse_args()
-    
-    # Setup logging
-    level = logging.DEBUG if args.verbose else logging.INFO
-    setup_logging(level)
-    
-    # Get NVD API key from environment if not provided
-    api_key = args.nvd_api_key or os.getenv("NVD_API_KEY")
-    if not api_key:
-        logger.warning("🔑 No NVD API key provided - analysis will be slower")
-        logger.info("💡 Get a free API key at: https://nvd.nist.gov/developers/request-an-api-key")
-        logger.info("💡 Set it with: export NVD_API_KEY=your_key_here")
-    else:
-        logger.info("🔑 Using NVD API key for analysis")
-    
+
+    setup_logging(args.log_level)
+
+    # Handle informational requests
+    if args.api_key_info:
+        print("\n🔑 **HOW TO GET AN NVD API KEY**")
+        print("=" * 50)
+        print("1. Go to: https://nvd.nist.gov/developers/request-an-api-key")
+        print("2. Fill out the form (takes 2 minutes)")
+        print("3. Check your email for the API key")
+        print("4. Use it with: --api-key YOUR_KEY_HERE")
+        print("\n💡 **BENEFITS:**")
+        print("• 50 requests/second vs 5 requests/second")
+        print("• Much faster downloads")
+        print("• More reliable connection")
+        print("• Better progress tracking")
+        return
+
     # Connect to Neo4j
     config = get_neo4j_config()
     driver = create_neo4j_driver(config[0], config[1], config[2])
-    
+
     try:
-        # Initialize analyzer
         analyzer = UniversalCVEAnalyzer(driver, args.database)
-        
-        # Setup indexes
-        analyzer.setup_indexes()
-        
-        # Extract dependencies from codebase
-        dependencies, languages = analyzer.extract_codebase_dependencies()
-        
-        if not dependencies:
-            logger.error("❌ No dependencies found in codebase")
-            logger.info("💡 Make sure you've run the code analysis first:")
-            logger.info("💡 ./run_pipeline.sh <your-repo-url>")
+
+        # Handle cache management
+        if args.cache_status:
+            analyzer.get_cache_status()
             return
-        
-        logger.info(f"📊 Detected {sum(len(deps) for deps in dependencies.values())} dependencies")
-        logger.info(f"📊 Languages: {', '.join(languages)}")
-        
-        # Generate universal search terms
-        search_terms = analyzer.create_universal_component_search_terms(dependencies)
-        
-        # Fetch relevant CVEs
-        cve_data = analyzer.fetch_relevant_cves(search_terms, api_key)
-        
-        if not cve_data:
-            logger.warning("⚠️  No relevant CVEs found")
+
+        if args.clear_partial_cache:
+            analyzer.cve_manager.clear_cache(keep_complete=True)
+            print("✅ Cleared partial caches (complete caches preserved)")
             return
-        
-        # Create vulnerability graph
-        cve_count = analyzer.create_vulnerability_graph(cve_data)
-        logger.info(f"📊 Processed {cve_count} CVEs")
-        
-        # Analyze impact
-        vulnerabilities = analyzer.analyze_vulnerability_impact(
-            max_hops=args.max_hops,
-            risk_threshold=args.risk_threshold
-        )
-        
-        # Generate report
-        analyzer.generate_impact_report(vulnerabilities)
-        
-        print(f"\n✅ Universal CVE analysis complete!")
-        print(f"📊 Analyzed {cve_count} CVEs across {len(languages)} languages")
-        print(f"🎯 Multi-modal Neo4j analysis available via Cypher queries")
-        
-    except Exception as e:
-        logger.error(f"❌ Analysis failed: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+
+        if args.clear_all_cache:
+            confirm = input("⚠️  This will delete ALL cached CVE data. Continue? (y/N): ")
+            if confirm.lower() == 'y':
+                analyzer.cve_manager.clear_cache(keep_complete=False)
+                print("✅ Cleared all caches")
+            else:
+                print("❌ Cancelled")
+            return
+
+        # Show current cache status first
+        print("🔍 **STARTING CVE ANALYSIS**")
+        analyzer.get_cache_status()
+
+        # Extract dependencies from the graph
+        dependencies_by_ecosystem, detected_languages = analyzer.extract_codebase_dependencies()
+        logger.info(f"📊 Detected {sum(len(deps) for deps in dependencies_by_ecosystem.values())} dependencies")
+        logger.info(f"📊 Languages: {', '.join(sorted(detected_languages))}")
+
+        if not dependencies_by_ecosystem:
+            logger.warning("⚠️  No dependencies found in graph. Make sure to run code_to_graph.py first.")
+            return
+
+        # Create universal search terms
+        search_terms = analyzer.create_universal_component_search_terms(dependencies_by_ecosystem)
+
+        print(f"\n🎯 **CVE FETCH PARAMETERS**")
+        print("=" * 50)
+        print(f"Target CVEs:     {args.max_results}")
+        print(f"Days back:       {args.days_back}")
+        print(f"Search terms:    {len(search_terms)}")
+        print(f"API key:         {'✅ Yes (fast)' if args.api_key else '❌ No (slow)'}")
+
+        if not args.api_key:
+            print("\n💡 **TIP**: Get an API key for 10x faster downloads!")
+            print("   Use --api-key-info for instructions")
+            print("   Without API key: ~2-5 CVEs/second")
+            print("   With API key:    ~20-50 CVEs/second")
+
+            proceed = input("\nProceed without API key? (y/N): ")
+            if proceed.lower() != 'y':
+                print("💡 Get an API key first with --api-key-info")
+                return
+
+        # Fetch CVE data with robust error handling
+        print(f"\n🌐 **FETCHING CVE DATA**")
+        print("=" * 50)
+        print("💾 Progress is saved incrementally - safe to interrupt!")
+
+        try:
+            cve_data = analyzer.cve_manager.fetch_targeted_cves(
+                api_key=args.api_key,
+                search_terms=search_terms,
+                max_results=args.max_results,
+                days_back=args.days_back
+            )
+
+            if not cve_data:
+                print("\n🎉 **EXCELLENT NEWS!**")
+                print("No high-risk CVEs found for your dependencies!")
+                print("This suggests your codebase is using secure, up-to-date components.")
+                return
+
+            # Create vulnerability graph
+            print(f"\n📊 **CREATING VULNERABILITY GRAPH**")
+            num_cves = analyzer.create_vulnerability_graph(cve_data)
+            print(f"✅ Created {num_cves} CVE nodes with dependency relationships")
+
+            # Analyze impact
+            impact_summary = analyzer.analyze_vulnerability_impact(
+                max_hops=4,
+                risk_threshold=7.0
+            )
+
+            # Generate report
+            analyzer.generate_impact_report(impact_summary)
+
+        except KeyboardInterrupt:
+            print("\n⚠️  **PROCESS INTERRUPTED**")
+            print("Don't worry! Your progress has been saved.")
+            print("Run the same command again to resume where you left off.")
+
+        except Exception as e:
+            logger.error(f"❌ Analysis failed: {e}")
+            print("\n🔄 **RECOVERY OPTIONS:**")
+            print("1. Check your internet connection")
+            print("2. Try again with --api-key for better reliability")
+            print("3. Use --cache-status to see saved progress")
+            print("4. Use --clear-partial-cache if data seems corrupted")
+
     finally:
         driver.close()
 

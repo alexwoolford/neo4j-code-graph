@@ -69,18 +69,18 @@ def analyze_change_coupling(session, args):
     if len(frequent_pairs) > max_relationships:
         logger.warning(f"⚠️  {len(frequent_pairs)} file pairs exceed safety limit of {max_relationships}")
         logger.warning(f"⚠️  Using only top {max_relationships} most frequently co-occurring pairs")
-        
+
         # Sort by support (co-occurrence count) and take top N
         sorted_pairs = sorted(frequent_pairs.items(), key=lambda x: x[1], reverse=True)
         frequent_pairs = dict(sorted_pairs[:max_relationships])
-        
+
         logger.info(f"📊 Reduced to {len(frequent_pairs)} most significant file pairs")
 
     # Create relationships if requested
     if args.create_relationships:
         logger.info("Creating CO_CHANGED relationships...")
         relationships_created = 0
-        
+
         # Prepare all relationships for bulk processing
         relationships_data = []
         for (file_a, file_b), support in frequent_pairs.items():
@@ -110,10 +110,10 @@ def _create_coupling_relationships_parallel(session, relationships_data):
     """Create CO_CHANGED relationships using APOC parallel processing for optimal sustainable performance."""
     if not relationships_data:
         return 0
-    
+
     total_relationships = len(relationships_data)
     logger.info(f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships using optimized processing...")
-    
+
     # First, check if APOC is available
     try:
         result = session.run("RETURN apoc.version() AS version")
@@ -122,10 +122,10 @@ def _create_coupling_relationships_parallel(session, relationships_data):
     except Exception:
         logger.warning("⚠️  APOC not available, falling back to standard batch processing")
         return _create_coupling_batch_fallback(session, relationships_data)
-    
+
     import time
     start_time = time.time()
-    
+
     # Use APOC with CONSERVATIVE settings to avoid overwhelming the database
     # Smaller batches and reduced concurrency for sustainability
     query = """
@@ -136,7 +136,7 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         MATCH (b:File {path: rel.file_b})
         MERGE (a)-[r1:CO_CHANGED]->(b)
         SET r1.support = rel.support, r1.confidence = rel.confidence
-        MERGE (b)-[r2:CO_CHANGED]->(a) 
+        MERGE (b)-[r2:CO_CHANGED]->(a)
         SET r2.support = rel.support, r2.confidence = rel.confidence
         ',
         {
@@ -149,25 +149,25 @@ def _create_coupling_relationships_parallel(session, relationships_data):
     ) YIELD batches, total, timeTaken, errorMessages
     RETURN batches, total, timeTaken, errorMessages
     """
-    
+
     try:
         result = session.run(query, relationships=relationships_data)
         stats = result.single()
-        
+
         elapsed_time = time.time() - start_time
         throughput = total_relationships / elapsed_time if elapsed_time > 0 else 0
-        
+
         logger.info(f"✅ APOC conservative processing completed:")
         logger.info(f"   📊 Processed {stats['total']} operations in {stats['batches']} batches")
         logger.info(f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s")
         logger.info(f"   🚀 Throughput: {throughput:.0f} relationships/second")
-        
+
         if stats['errorMessages']:
             logger.warning(f"⚠️  Some errors occurred: {stats['errorMessages']}")
-        
+
         # Return bidirectional count (each input relationship creates 2 in Neo4j)
         return total_relationships * 2
-        
+
     except Exception as e:
         logger.error(f"❌ APOC processing failed: {e}")
         logger.info("🔄 Falling back to standard batch processing...")
@@ -177,18 +177,18 @@ def _create_coupling_relationships_parallel(session, relationships_data):
 def _create_coupling_batch_fallback(session, relationships_data):
     """Fallback batch processing when APOC is not available - conservative approach."""
     logger.info("📦 Using conservative standard batch processing...")
-    
+
     # Use moderate batches that won't overwhelm the database
     batch_size = 1000  # Conservative but still much better than original 100
     total_created = 0
-    
+
     import time
     start_time = time.time()
-    
+
     for i in range(0, len(relationships_data), batch_size):
         batch_start = time.time()
         batch = relationships_data[i:i + batch_size]
-        
+
         # Conservative query with reasonable batch size
         query = """
         UNWIND $relationships as rel
@@ -199,26 +199,26 @@ def _create_coupling_batch_fallback(session, relationships_data):
         MERGE (b)-[r2:CO_CHANGED]->(a)
         SET r2.support = rel.support, r2.confidence = rel.confidence
         """
-        
+
         session.run(query, relationships=batch)
         total_created += len(batch) * 2  # Bidirectional
-        
+
         batch_time = time.time() - batch_start
         batch_num = (i // batch_size) + 1
         total_batches = (len(relationships_data) + batch_size - 1) // batch_size
-        
+
         logger.info(f"   📦 Batch {batch_num}/{total_batches}: {len(batch)} relationships in {batch_time:.1f}s")
-        
+
         # Small pause between batches to be gentle on the database
         if batch_num < total_batches:  # Don't pause after the last batch
             time.sleep(0.1)
-    
+
     elapsed_time = time.time() - start_time
     throughput = total_created / elapsed_time if elapsed_time > 0 else 0
-    
+
     logger.info(f"✅ Conservative batch processing completed in {elapsed_time:.1f}s")
     logger.info(f"🚀 Throughput: {throughput:.0f} relationships/second")
-    
+
     return total_created
 
 
@@ -394,7 +394,7 @@ def _print_metrics_summary(session):
     file_query = """
     MATCH (f:File)
     WHERE f.total_lines IS NOT NULL
-    RETURN 
+    RETURN
         count(f) as file_count,
         avg(f.total_lines) as avg_total_lines,
         max(f.total_lines) as max_total_lines,
@@ -438,20 +438,20 @@ def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
     OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
     WHERE c.date >= $cutoff_date
     WITH f, count(DISTINCT c) as change_count
-    WHERE f.total_lines >= $min_size 
+    WHERE f.total_lines >= $min_size
       AND change_count >= $min_changes
-    
+
     // Calculate complexity metrics
     OPTIONAL MATCH (f)-[:DEFINES]->(cl:Class)
     WITH f, change_count, count(cl) as class_count
-    
-    OPTIONAL MATCH (f)-[:DEFINES]->(i:Interface)  
+
+    OPTIONAL MATCH (f)-[:DEFINES]->(i:Interface)
     WITH f, change_count, class_count, count(i) as interface_count
-    
+
     // Calculate coupling via file relationships
     OPTIONAL MATCH (f)-[co:CO_CHANGED]->()
     WITH f, change_count, class_count, interface_count, count(co) as coupling_count, sum(co.support) as coupling_strength
-    
+
     // Calculate complexity score combining multiple factors
     WITH f, change_count, class_count, interface_count, coupling_count, coupling_strength,
          // Base complexity from lines and methods
@@ -460,12 +460,12 @@ def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
          ((class_count + interface_count) * 50) as oop_complexity,
          // Coupling complexity
          (coupling_count * 25) as coupling_complexity
-    
+
     WITH f, change_count, class_count, interface_count, coupling_count, coupling_strength,
          base_complexity, oop_complexity, coupling_complexity,
          (base_complexity + oop_complexity + coupling_complexity) as total_complexity
-    
-    RETURN 
+
+    RETURN
         f.path as file_path,
         f.total_lines as total_lines,
         f.code_lines as code_lines,
@@ -524,37 +524,37 @@ def _calculate_method_hotspots(session, cutoff_date, min_changes):
     WHERE c.date >= $cutoff_date
     WITH m, f, count(DISTINCT c) as file_change_count
     WHERE file_change_count >= $min_changes
-    
+
     // Calculate method complexity factors
     OPTIONAL MATCH (m)-[:CALLS]->()
     WITH m, f, file_change_count, count(*) as calls_out
-    
+
     OPTIONAL MATCH ()-[:CALLS]->(m)
     WITH m, f, file_change_count, calls_out, count(*) as calls_in
-    
-    // Calculate containing class/interface complexity  
+
+    // Calculate containing class/interface complexity
     OPTIONAL MATCH (m)<-[:CONTAINS_METHOD]-(cl:Class)
     WITH m, f, file_change_count, calls_out, calls_in, cl
-    
+
     OPTIONAL MATCH (cl)-[:EXTENDS|IMPLEMENTS]->()
     WITH m, f, file_change_count, calls_out, calls_in, cl, count(*) as class_inheritance_count
-    
+
     // Calculate method complexity score
     WITH m, f, file_change_count, calls_out, calls_in, class_inheritance_count,
          // Base complexity from method size and modifiers
-         (COALESCE(m.estimated_lines, 20) + 
+         (COALESCE(m.estimated_lines, 20) +
           CASE WHEN m.is_static THEN 5 ELSE 0 END +
           CASE WHEN m.is_abstract THEN 10 ELSE 0 END) as base_complexity,
          // Call complexity (higher for methods that are highly connected)
          ((calls_out * 2) + (calls_in * 3)) as call_complexity,
          // Inheritance complexity (higher for methods in complex hierarchies)
          (class_inheritance_count * 5) as inheritance_complexity
-    
+
     WITH m, f, file_change_count, calls_out, calls_in, class_inheritance_count,
          base_complexity, call_complexity, inheritance_complexity,
          (base_complexity + call_complexity + inheritance_complexity) as total_method_complexity
-    
-    RETURN 
+
+    RETURN
         m.name as method_name,
         m.file as file_path,
         m.line as line_number,
@@ -574,7 +574,7 @@ def _calculate_method_hotspots(session, cutoff_date, min_changes):
         // Enhanced method hotspot score: Change frequency × Method complexity
         (file_change_count * total_method_complexity) as method_hotspot_score,
         // Risk factors
-        CASE 
+        CASE
             WHEN calls_in > 10 AND m.estimated_lines > 50 THEN 'HIGH_USAGE_LARGE'
             WHEN calls_out > 20 THEN 'HIGH_COUPLING'
             WHEN m.is_public AND calls_in > 5 THEN 'PUBLIC_API'
@@ -628,7 +628,7 @@ def _find_coupling_hotspots(session, min_support=5):
     OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
     WITH f, coupling_count, total_coupling_strength, count(DISTINCT c) as change_count
     WHERE change_count >= 3
-    RETURN 
+    RETURN
         f.path as file_path,
         f.total_lines as total_lines,
         change_count,
@@ -808,10 +808,10 @@ def create_parser():
 Examples:
   # Analyze file change coupling
   python analyze.py coupling --min-support 3 --create-relationships
-  
-  # Add code metrics  
+
+  # Add code metrics
   python analyze.py metrics --repo-path /path/to/repo
-  
+
   # Find hotspots
   python analyze.py hotspots --days 180 --min-changes 5
         """,

@@ -114,13 +114,13 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
 
         # Get top results
         query = """
-        MATCH (m:Method) 
+        MATCH (m:Method)
         WHERE m.pagerank_score IS NOT NULL
-        RETURN m.name as method_name, 
+        RETURN m.name as method_name,
                m.class as class_name,
                m.file as file,
                m.pagerank_score as score
-        ORDER BY m.pagerank_score DESC 
+        ORDER BY m.pagerank_score DESC
         LIMIT $top_n
         """
         top_results = gds.run_cypher(query, {"top_n": top_n})
@@ -134,7 +134,7 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
             query = """
             UNWIND $nodeIds as nodeId
             MATCH (m:Method) WHERE id(m) = nodeId
-            RETURN id(m) as nodeId, m.name as method_name, 
+            RETURN id(m) as nodeId, m.name as method_name,
                    m.class as class_name, m.file as file
             """
             method_details = gds.run_cypher(query, {"nodeIds": method_ids})
@@ -170,13 +170,13 @@ def run_betweenness_analysis(gds, graph, top_n=20, write_back=False):
         result = gds.betweenness.write(graph, writeProperty="betweenness_score")
 
         query = """
-        MATCH (m:Method) 
+        MATCH (m:Method)
         WHERE m.betweenness_score IS NOT NULL
         RETURN m.name as method_name,
-               m.class as class_name, 
+               m.class as class_name,
                m.file as file,
                m.betweenness_score as score
-        ORDER BY m.betweenness_score DESC 
+        ORDER BY m.betweenness_score DESC
         LIMIT $top_n
         """
         top_results = gds.run_cypher(query, {"top_n": top_n})
@@ -224,7 +224,7 @@ def run_degree_analysis(gds, graph, top_n=20, write_back=False):
     OPTIONAL MATCH (m)-[out:CALLS]->()
     OPTIONAL MATCH ()-[in:CALLS]->(m)
     WITH m, count(DISTINCT out) as out_degree, count(DISTINCT in) as in_degree
-    RETURN id(m) as nodeId, m.name as method_name, m.class as class_name, 
+    RETURN id(m) as nodeId, m.name as method_name, m.class as class_name,
            m.file as file, out_degree, in_degree,
            (out_degree + in_degree) as total_degree
     ORDER BY total_degree DESC
@@ -240,7 +240,7 @@ def run_degree_analysis(gds, graph, top_n=20, write_back=False):
         OPTIONAL MATCH (m)-[out:CALLS]->()
         OPTIONAL MATCH ()-[in:CALLS]->(m)
         WITH m, count(DISTINCT out) as out_degree, count(DISTINCT in) as in_degree
-        SET m.out_degree = out_degree, m.in_degree = in_degree, 
+        SET m.out_degree = out_degree, m.in_degree = in_degree,
             m.total_degree = out_degree + in_degree
         """
         gds.run_cypher(write_query)
@@ -274,21 +274,21 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
             result = gds.alpha.hits.write(graph, writeProperty="hits", hitsIterations=20)
 
             query = """
-            MATCH (m:Method) 
+            MATCH (m:Method)
             WHERE m.hits_auth IS NOT NULL
             RETURN m.name as method_name, m.class as class_name, m.file as file,
                    m.hits_auth as authority_score, m.hits_hub as hub_score
-            ORDER BY m.hits_auth DESC 
+            ORDER BY m.hits_auth DESC
             LIMIT $top_n
             """
             authorities = gds.run_cypher(query, {"top_n": top_n})
 
             query = """
-            MATCH (m:Method) 
+            MATCH (m:Method)
             WHERE m.hits_hub IS NOT NULL
             RETURN m.name as method_name, m.class as class_name, m.file as file,
                    m.hits_auth as authority_score, m.hits_hub as hub_score
-            ORDER BY m.hits_hub DESC 
+            ORDER BY m.hits_hub DESC
             LIMIT $top_n
             """
             hubs = gds.run_cypher(query, {"top_n": top_n})

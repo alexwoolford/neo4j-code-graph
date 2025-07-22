@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 CLI wrapper for graph cleanup functionality.
 """
@@ -13,4 +13,4 @@ sys.path.insert(0, str(root_dir / "src"))
 # Import and run the main function from the module
 if __name__ == "__main__":
     from utils.cleanup import main
-    main() 
+    main()

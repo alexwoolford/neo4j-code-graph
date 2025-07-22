@@ -37,21 +37,21 @@ def test_code_to_graph_imports():
     """Test that code_to_graph module can be imported and has expected functions."""
     try:
         import code_to_graph
-        
+
         # Check for key functions
         expected_functions = [
             "extract_file_data",
-            "bulk_create_nodes_and_relationships", 
+            "bulk_create_nodes_and_relationships",
             "compute_embeddings_bulk",
             "main"
         ]
-        
+
         for func_name in expected_functions:
             assert hasattr(code_to_graph, func_name), f"Missing function {func_name} in code_to_graph"
-        
+
         print("✅ code_to_graph module imports successfully")
         return True
-        
+
     except ImportError as e:
         print(f"❌ Failed to import code_to_graph: {e}")
         return False

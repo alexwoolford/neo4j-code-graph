@@ -341,7 +341,7 @@ def bulk_load_to_neo4j(
         import gc
 
         gc.collect()
-        
+
         # Small pause between batches to be gentle on the database
         if batch_num < total_batches:  # Don't pause after the last batch
             time.sleep(0.1)

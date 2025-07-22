@@ -7,6 +7,8 @@ from pathlib import Path
 from time import perf_counter
 import gc
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
+import xml.etree.ElementTree as ET
 
 import torch
 import javalang
@@ -24,6 +26,139 @@ logger = logging.getLogger(__name__)
 
 MODEL_NAME = "microsoft/graphcodebert-base"
 EMBEDDING_TYPE = "graphcodebert"
+
+
+def extract_dependency_versions_from_files(repo_root):
+    """Extract dependency versions from pom.xml, build.gradle, and other dependency files."""
+    logger.info("🔍 Scanning for dependency management files...")
+    dependency_versions = {}
+
+    # Find Maven pom.xml files
+    for pom_file in repo_root.rglob("pom.xml"):
+        try:
+            logger.debug(f"Processing Maven file: {pom_file}")
+            versions = _extract_maven_dependencies(pom_file)
+            dependency_versions.update(versions)
+        except Exception as e:
+            logger.debug(f"Error processing {pom_file}: {e}")
+
+    # Find Gradle build files
+    for gradle_file in repo_root.rglob("build.gradle*"):
+        try:
+            logger.debug(f"Processing Gradle file: {gradle_file}")
+            versions = _extract_gradle_dependencies(gradle_file)
+            dependency_versions.update(versions)
+        except Exception as e:
+            logger.debug(f"Error processing {gradle_file}: {e}")
+
+    logger.info(f"📊 Found version information for {len(dependency_versions)} dependencies")
+    return dependency_versions
+
+
+def _extract_maven_dependencies(pom_file):
+    """Extract dependency versions from Maven pom.xml file."""
+    dependency_versions = {}
+
+    try:
+        tree = ET.parse(pom_file)
+        root = tree.getroot()
+
+        # Handle namespaces
+        namespace = {"maven": "http://maven.apache.org/POM/4.0.0"}
+        if root.tag.startswith("{"):
+            ns = root.tag.split("}")[0][1:]
+            namespace = {"maven": ns}
+
+        # Extract dependencies
+        for dependency in root.findall(".//maven:dependency", namespace):
+            group_id_elem = dependency.find("maven:groupId", namespace)
+            artifact_id_elem = dependency.find("maven:artifactId", namespace)
+            version_elem = dependency.find("maven:version", namespace)
+
+            if group_id_elem is not None and artifact_id_elem is not None and version_elem is not None:
+                group_id = group_id_elem.text
+                artifact_id = artifact_id_elem.text
+                version = version_elem.text
+
+                # Create package name matching our import logic
+                package_name = f"{group_id}.{artifact_id}"
+
+                # Handle version properties (like ${spring.version})
+                if version and version.startswith("${") and version.endswith("}"):
+                    # Try to resolve from properties
+                    prop_name = version[2:-1]
+                    prop_elem = root.find(f".//maven:properties/maven:{prop_name}", namespace)
+                    if prop_elem is not None:
+                        version = prop_elem.text
+
+                if version and not version.startswith("${"):
+                    dependency_versions[package_name] = version
+                    logger.debug(f"Found Maven dependency: {package_name} -> {version}")
+
+        # Also check for common groupIds in dependencies
+        for dependency in root.findall(".//maven:dependency", namespace):
+            group_id_elem = dependency.find("maven:groupId", namespace)
+            if group_id_elem is not None:
+                group_id = group_id_elem.text
+                # Add just the group as well for broader matching
+                if group_id not in dependency_versions:
+                    version_elem = dependency.find("maven:version", namespace)
+                    if version_elem is not None:
+                        version = version_elem.text
+                        if version and not version.startswith("${"):
+                            dependency_versions[group_id] = version
+
+    except ET.ParseError as e:
+        logger.debug(f"XML parsing error in {pom_file}: {e}")
+    except Exception as e:
+        logger.debug(f"Error processing Maven file {pom_file}: {e}")
+
+    return dependency_versions
+
+
+def _extract_gradle_dependencies(gradle_file):
+    """Extract dependency versions from Gradle build files."""
+    dependency_versions = {}
+
+    try:
+        with open(gradle_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Pattern for Gradle dependencies like: implementation 'group:artifact:version'
+        patterns = [
+            r"['\"]([a-zA-Z][a-zA-Z0-9_.\\-]+):([a-zA-Z][a-zA-Z0-9_.\\-]+):([^'\"\\s]+)['\"]",
+            r"group\s*:\s*['\"]([^'\"]+)['\"].*?name\s*:\s*['\"]([^'\"]+)['\"].*?version\s*:\s*['\"]([^'\"]+)['\"]",
+            r"group\s*=\s*['\"]([^'\"]+)['\"].*?name\s*=\s*['\"]([^'\"]+)['\"].*?version\s*=\s*['\"]([^'\"]+)['\"]"
+        ]
+
+        for pattern in patterns:
+            matches = re.finditer(pattern, content, re.MULTILINE | re.DOTALL)
+            for match in matches:
+                group_id, artifact_id, version = match.groups()
+                package_name = f"{group_id}.{artifact_id}"
+
+                # Skip version variables for now
+                if not version.startswith("$"):
+                    dependency_versions[package_name] = version
+                    dependency_versions[group_id] = version  # Also add group for broader matching
+                    logger.debug(f"Found Gradle dependency: {package_name} -> {version}")
+
+        # Also look for version catalogs and properties
+        version_props = re.finditer(r"(\w+Version)\s*=\s*['\"]([^'\"]+)['\"]", content)
+        prop_to_version = {}
+        for match in version_props:
+            prop_name, version = match.groups()
+            prop_to_version[prop_name] = version
+
+        # Try to resolve version references
+        for package, version in list(dependency_versions.items()):
+            if version in prop_to_version:
+                dependency_versions[package] = prop_to_version[version]
+
+    except Exception as e:
+        logger.debug(f"Error processing Gradle file {gradle_file}: {e}")
+
+    return dependency_versions
 
 
 def parse_args():
@@ -141,7 +276,7 @@ def extract_file_data(file_path, repo_root):
 
     try:
         tree = javalang.parse.parse(code)
-        
+
         # Extract import declarations
         if hasattr(tree, 'imports') and tree.imports:
             for import_stmt in tree.imports:
@@ -149,14 +284,14 @@ def extract_file_data(file_path, repo_root):
                     import_path = import_stmt.path
                     is_static = import_stmt.static if hasattr(import_stmt, 'static') else False
                     is_wildcard = import_stmt.wildcard if hasattr(import_stmt, 'wildcard') else False
-                    
+
                     # Classify import type
                     import_type = "external"
                     if import_path.startswith("java.") or import_path.startswith("javax."):
                         import_type = "standard"
                     elif import_path.startswith("org.neo4j"):
                         import_type = "internal"
-                    
+
                     import_info = {
                         "import_path": import_path,
                         "is_static": is_static,
@@ -165,7 +300,7 @@ def extract_file_data(file_path, repo_root):
                         "file": rel_path
                     }
                     imports.append(import_info)
-                    
+
                 except Exception as e:
                     logger.debug("Error processing import in %s: %s", rel_path, e)
                     continue
@@ -423,7 +558,7 @@ def _extract_method_calls(method_code, containing_class):
     return method_calls
 
 
-def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, method_embeddings):
+def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, method_embeddings, dependency_versions=None):
     """Create all nodes and relationships using bulk operations."""
     logger.info("Creating directory structure...")
 
@@ -812,15 +947,15 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
     # 8. Create method call relationships (CALLS)
     # 9. Create Import nodes and IMPORTS relationships
     logger.info("Creating import nodes and relationships...")
-    
+
     # Collect all imports and create external dependencies
     all_imports = []
     external_dependencies = set()
-    
+
     for file_data in files_data:
         for import_info in file_data.get("imports", []):
             all_imports.append(import_info)
-            
+
             # Create external dependency entries for external imports
             if import_info["import_type"] == "external":
                 # Extract base package for dependency grouping
@@ -831,7 +966,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
                     if len(parts) >= 3:
                         base_package = ".".join(parts[:3])  # e.g., com.fasterxml.jackson
                         external_dependencies.add(base_package)
-    
+
     # Bulk create Import nodes
     if all_imports:
         logger.info(f"Creating {len(all_imports)} import nodes...")
@@ -842,7 +977,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
             "i.import_type = imp.import_type",
             imports=all_imports,
         )
-        
+
         # Create IMPORTS relationships
         logger.info(f"Creating {len(all_imports)} IMPORTS relationships...")
         session.run(
@@ -852,26 +987,58 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
             "MERGE (f)-[:IMPORTS]->(i)",
             imports=all_imports,
         )
-    
+
     # Create ExternalDependency nodes for CVE analysis
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
-        dependency_nodes = [
-            {
+        dependency_nodes = []
+
+        for dep in external_dependencies:
+            # Try to find version information
+            version = None
+            if dependency_versions:
+                # Try exact match first
+                if dep in dependency_versions:
+                    version = dependency_versions[dep]
+                else:
+                    # Try partial matches (e.g., for com.fasterxml.jackson.core match com.fasterxml.jackson)
+                    for dep_key, dep_version in dependency_versions.items():
+                        if dep.startswith(dep_key) or dep_key.startswith(dep):
+                            version = dep_version
+                            break
+
+            dependency_node = {
                 "package": dep,
                 "language": "java",
                 "ecosystem": "maven"
             }
-            for dep in external_dependencies
-        ]
-        
-        session.run(
-            "UNWIND $dependencies AS dep "
-            "MERGE (e:ExternalDependency {package: dep.package}) "
-            "SET e.language = dep.language, e.ecosystem = dep.ecosystem",
-            dependencies=dependency_nodes,
-        )
-        
+
+            # Add version if found
+            if version:
+                dependency_node["version"] = version
+                logger.debug(f"📦 {dep} -> version {version}")
+            else:
+                logger.debug(f"📦 {dep} -> no version found")
+
+            dependency_nodes.append(dependency_node)
+
+        # Create nodes with version information
+        if dependency_versions:
+            session.run(
+                "UNWIND $dependencies AS dep "
+                "MERGE (e:ExternalDependency {package: dep.package}) "
+                "SET e.language = dep.language, e.ecosystem = dep.ecosystem, "
+                "e.version = CASE WHEN dep.version IS NOT NULL THEN dep.version ELSE e.version END",
+                dependencies=dependency_nodes,
+            )
+        else:
+            session.run(
+                "UNWIND $dependencies AS dep "
+                "MERGE (e:ExternalDependency {package: dep.package}) "
+                "SET e.language = dep.language, e.ecosystem = dep.ecosystem",
+                dependencies=dependency_nodes,
+            )
+
         # Create relationships from Import nodes to ExternalDependency nodes
         session.run(
             "MATCH (i:Import) "
@@ -978,6 +1145,9 @@ def main():
                 java_files = list(repo_root.rglob("*.java"))
                 logger.info("Found %d Java files to process", len(java_files))
 
+                # Extract dependency versions from build files
+                dependency_versions = extract_dependency_versions_from_files(repo_root)
+
                 # Phase 1: Extract all file data in parallel
                 logger.info("Phase 1: Extracting file data...")
                 start_phase1 = perf_counter()
@@ -1052,7 +1222,7 @@ def main():
                 start_phase3 = perf_counter()
 
                 bulk_create_nodes_and_relationships(
-                    session, files_data, file_embeddings, method_embeddings
+                    session, files_data, file_embeddings, method_embeddings, dependency_versions
                 )
 
                 phase3_time = perf_counter() - start_phase3
