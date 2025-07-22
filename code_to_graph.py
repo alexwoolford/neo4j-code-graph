@@ -65,7 +65,8 @@ def get_optimal_batch_size(device):
         else:  # 8GB or less
             return 128
     elif device.type == "mps":
-        return 64
+        # Apple Silicon unified memory can handle large batches
+        return 256
     else:
         return 32
 
@@ -117,6 +118,8 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
             gc.collect()
             if device.type == "cuda":
                 torch.cuda.empty_cache()
+            elif device.type == "mps":
+                torch.mps.empty_cache()
     
     logger.info(f"Computed {len(all_embeddings)} embeddings")
     return all_embeddings
@@ -286,8 +289,16 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
     
     # Split method creation into batches to avoid huge queries
     batch_size = 1000
+    total_batches = (len(method_nodes) + batch_size - 1) // batch_size
+    logger.info(f"Creating {len(method_nodes)} method nodes in {total_batches} batches...")
+    
     for i in range(0, len(method_nodes), batch_size):
+        batch_num = i // batch_size + 1
         batch = method_nodes[i:i + batch_size]
+        
+        logger.info(f"Creating method batch {batch_num}/{total_batches} ({len(batch)} methods)...")
+        start_time = perf_counter()
+        
         session.run(
             "UNWIND $methods AS method "
             "MERGE (m:Method {name: method.name, file: method.file, line: method.line}) "
@@ -295,6 +306,9 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
             + ("SET m.class = method.class " if any("class" in m for m in batch) else ""),
             methods=batch
         )
+        
+        batch_time = perf_counter() - start_time
+        logger.info(f"Batch {batch_num} completed in {batch_time:.1f}s")
     
     # 6. Create method-to-file relationships
     method_file_rels = []
@@ -307,8 +321,16 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
             })
     
     # Batch the relationships too
+    total_rel_batches = (len(method_file_rels) + batch_size - 1) // batch_size
+    logger.info(f"Creating {len(method_file_rels)} method-file relationships in {total_rel_batches} batches...")
+    
     for i in range(0, len(method_file_rels), batch_size):
+        batch_num = i // batch_size + 1
         batch = method_file_rels[i:i + batch_size]
+        
+        logger.info(f"Creating relationship batch {batch_num}/{total_rel_batches} ({len(batch)} relationships)...")
+        start_time = perf_counter()
+        
         session.run(
             "UNWIND $rels AS rel "
             "MATCH (f:File {path: rel.file_path}) "
@@ -316,6 +338,9 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
             "MERGE (f)-[:DECLARES]->(m)",
             rels=batch
         )
+        
+        batch_time = perf_counter() - start_time
+        logger.info(f"Relationship batch {batch_num} completed in {batch_time:.1f}s")
     
     logger.info("Bulk creation completed!")
 
@@ -367,6 +392,14 @@ def main():
                 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
                 model = AutoModel.from_pretrained(MODEL_NAME)
                 device = get_device()
+                
+                # Optimize for MPS performance
+                if device.type == "mps":
+                    # Enable high memory usage mode for better performance
+                    import os
+                    os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
+                    logger.info("Enabled MPS high performance mode")
+                
                 model = model.to(device)
                 
                 batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
