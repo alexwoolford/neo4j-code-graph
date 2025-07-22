@@ -247,16 +247,16 @@ def bulk_load_to_neo4j(
         logger.info("⏭️  Skipping file changes loading as requested")
         return
 
-    # OPTIMIZED: Load file changes with much better performance
+    # OPTIMIZED: Load file changes with sustainable bulk operations
     logger.info(f"🚀 Loading {len(file_changes_df)} file changes with optimized bulk operations...")
     file_changes_data = file_changes_df.to_dict("records")
 
-    # Use much larger batches - cloud Neo4j can handle this
-    batch_size = 25000  # 2.5x larger for better throughput
+    # Use conservative batches to avoid overwhelming the database
+    batch_size = 10000  # Conservative size that won't crash the database
     total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
 
     logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
-    logger.info(f"⚡ Using optimized 3-step bulk loading approach")
+    logger.info(f"⚡ Using sustainable 3-step bulk loading approach")
 
     start_time = time.time()
     for i in range(0, len(file_changes_data), batch_size):
@@ -336,6 +336,10 @@ def bulk_load_to_neo4j(
         import gc
 
         gc.collect()
+        
+        # Small pause between batches to be gentle on the database
+        if batch_num < total_batches:  # Don't pause after the last batch
+            time.sleep(0.1)
 
 
 def export_to_csv(commits_df, developers_df, files_df, file_changes_df, output_dir):

@@ -90,12 +90,12 @@ def analyze_change_coupling(session, args):
 
 
 def _create_coupling_relationships_parallel(session, relationships_data):
-    """Create CO_CHANGED relationships using APOC parallel processing for maximum performance."""
+    """Create CO_CHANGED relationships using APOC parallel processing for optimal sustainable performance."""
     if not relationships_data:
         return 0
     
     total_relationships = len(relationships_data)
-    logger.info(f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships using APOC parallel processing...")
+    logger.info(f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships using optimized processing...")
     
     # First, check if APOC is available
     try:
@@ -109,8 +109,8 @@ def _create_coupling_relationships_parallel(session, relationships_data):
     import time
     start_time = time.time()
     
-    # Use APOC's parallel processing with optimized batch size
-    # Process 1000 relationships per batch with 4 parallel workers for optimal performance
+    # Use APOC with CONSERVATIVE settings to avoid overwhelming the database
+    # Smaller batches and reduced concurrency for sustainability
     query = """
     CALL apoc.periodic.iterate(
         'UNWIND $relationships AS rel RETURN rel',
@@ -123,9 +123,9 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         SET r2.support = rel.support, r2.confidence = rel.confidence
         ',
         {
-            batchSize: 1000,
+            batchSize: 500,
             parallel: true,
-            concurrency: 4,
+            concurrency: 2,
             retries: 3,
             params: {relationships: $relationships}
         }
@@ -140,8 +140,8 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         elapsed_time = time.time() - start_time
         throughput = total_relationships / elapsed_time if elapsed_time > 0 else 0
         
-        logger.info(f"✅ APOC parallel processing completed:")
-        logger.info(f"   📊 Processed {stats['total']} operations in {stats['batches']} parallel batches")
+        logger.info(f"✅ APOC conservative processing completed:")
+        logger.info(f"   📊 Processed {stats['total']} operations in {stats['batches']} batches")
         logger.info(f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s")
         logger.info(f"   🚀 Throughput: {throughput:.0f} relationships/second")
         
@@ -152,17 +152,17 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         return total_relationships * 2
         
     except Exception as e:
-        logger.error(f"❌ APOC parallel processing failed: {e}")
+        logger.error(f"❌ APOC processing failed: {e}")
         logger.info("🔄 Falling back to standard batch processing...")
         return _create_coupling_batch_fallback(session, relationships_data)
 
 
 def _create_coupling_batch_fallback(session, relationships_data):
-    """Fallback batch processing when APOC is not available."""
-    logger.info("📦 Using optimized standard batch processing...")
+    """Fallback batch processing when APOC is not available - conservative approach."""
+    logger.info("📦 Using conservative standard batch processing...")
     
-    # Use much larger batches than the original implementation
-    batch_size = 2000  # 20x larger than original
+    # Use moderate batches that won't overwhelm the database
+    batch_size = 1000  # Conservative but still much better than original 100
     total_created = 0
     
     import time
@@ -172,7 +172,7 @@ def _create_coupling_batch_fallback(session, relationships_data):
         batch_start = time.time()
         batch = relationships_data[i:i + batch_size]
         
-        # Optimized query that reduces operations
+        # Conservative query with reasonable batch size
         query = """
         UNWIND $relationships as rel
         MATCH (a:File {path: rel.file_a})
@@ -191,11 +191,15 @@ def _create_coupling_batch_fallback(session, relationships_data):
         total_batches = (len(relationships_data) + batch_size - 1) // batch_size
         
         logger.info(f"   📦 Batch {batch_num}/{total_batches}: {len(batch)} relationships in {batch_time:.1f}s")
+        
+        # Small pause between batches to be gentle on the database
+        if batch_num < total_batches:  # Don't pause after the last batch
+            time.sleep(0.1)
     
     elapsed_time = time.time() - start_time
     throughput = total_created / elapsed_time if elapsed_time > 0 else 0
     
-    logger.info(f"✅ Standard batch processing completed in {elapsed_time:.1f}s")
+    logger.info(f"✅ Conservative batch processing completed in {elapsed_time:.1f}s")
     logger.info(f"🚀 Throughput: {throughput:.0f} relationships/second")
     
     return total_created
