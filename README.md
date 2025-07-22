@@ -162,7 +162,7 @@ RETURN cve.cve_id, comp.name, risk ORDER BY risk DESC
 
 ## 📊 Universal Graph Schema
 
-The enhanced graph schema works with any programming language:
+The universal graph schema works with any programming language:
 
 ```
 (:File)-[:DEPENDS_ON]->(:ExternalDependency)-[:RESOLVED_TO]->(:Component)

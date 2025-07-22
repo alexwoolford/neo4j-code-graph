@@ -230,12 +230,12 @@ def setup_complete_schema(session):
     }
 
 
-if __name__ == "__main__":
+def main():
     """
-    Standalone script to setup schema on an existing database.
+    Main entry point for schema management CLI.
     """
     import argparse
-    from common import setup_logging, create_neo4j_driver, add_common_args
+    from ..utils.common import setup_logging, create_neo4j_driver, add_common_args
 
     parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)
@@ -256,3 +256,7 @@ if __name__ == "__main__":
                 setup_complete_schema(session)
     finally:
         driver.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -73,9 +73,9 @@ echo "🎯 Step 5: Running centrality analysis to identify important methods..."
 python "$SCRIPT_DIR/centrality_analysis.py" --algorithms pagerank betweenness degree --top-n 15 --write-back
 echo "✅ Centrality analysis completed"
 
-# Step 6: Enhanced Analysis
+# Step 6: Advanced Analysis
 echo ""
-echo "🔥 Step 6: Running enhanced analysis..."
+echo "🔥 Step 6: Running advanced analysis..."
 
 echo "  📊 Analyzing file change coupling..."
 python "$SCRIPT_DIR/analyze.py" coupling --min-support 5 --create-relationships
@@ -100,11 +100,11 @@ else
 fi
 
 echo ""
-echo "🎉 Enhanced Pipeline completed successfully!"
+echo "🎉 Pipeline completed successfully!"
 echo "Your Neo4j graph now contains:"
 echo ""
 echo "📁 Core Structure:"
-echo "  - Enhanced code structure (Files, Methods, Classes, Interfaces, Directories)"
+echo "  - Comprehensive code structure (Files, Methods, Classes, Interfaces, Directories)"
 echo "  - Object-oriented relationships (EXTENDS, IMPLEMENTS, CONTAINS_METHOD)"
 echo "  - Method call graph (CALLS relationships with call types)"
 echo "  - Rich metadata (LOC, modifiers, complexity metrics)"
@@ -112,7 +112,7 @@ echo ""
 echo "📈 Temporal Analysis:"
 echo "  - Complete Git history (Commits, Developers, File versions)"
 echo "  - Change coupling analysis (CO_CHANGED relationships)"
-echo "  - Enhanced hotspot scoring (frequency × complexity)"
+echo "  - Multi-factor hotspot scoring (frequency × complexity)"
 echo ""
 echo "🧠 Semantic Analysis:"
 echo "  - GraphCodeBERT embeddings (768-dimensional method similarity)"
