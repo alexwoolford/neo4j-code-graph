@@ -44,10 +44,22 @@ pyarrow>=17.0,<21.0
 
 ### 1. Setup Environment
 
+**Conda Environment (Recommended):**
+```bash
+# Create and activate environment
+conda create -n neo4j-code-graph python=3.11
+conda activate neo4j-code-graph
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -r dev-requirements.txt  # For development
+```
+
+**Environment Configuration:**
 Create a `.env` file with your Neo4j connection details:
 
 ```bash
-NEO4J_URI=bolt://localhost:7687
+NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io:7687
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your_password
 NEO4J_DATABASE=neo4j
@@ -166,26 +178,26 @@ python analyze.py hotspots \
 ### Utility Scripts
 
 #### `cleanup_graph.py`
-Safely removes analysis results:
-- Cleans up `SIMILAR` relationships
-- Removes community properties
-- Preserves core code structure and embeddings
+Flexible cleanup tool with two modes:
+
+**Selective Cleanup (Default):**
+- Cleans up `SIMILAR` relationships and community properties
+- Preserves expensive embeddings and core data
 - Useful for re-running analysis with different parameters
 
-```bash
-python cleanup_graph.py --confirm
-```
-
-### `cleanup_graph.py`
-Safely removes analysis results:
-- Cleans up `SIMILAR` relationships  
-- Removes community properties
-- Preserves expensive embeddings and code structure
-- Includes dry-run mode for safety
+**Complete Database Reset:**
+- Deletes ALL nodes, relationships, indexes, and constraints
+- Memory-efficient batched deletion for large databases
+- Safety confirmation prompts
 
 ```bash
+# Selective cleanup (default)
 python cleanup_graph.py --dry-run
-python cleanup_graph.py  # Actually perform cleanup
+python cleanup_graph.py
+
+# Complete database reset
+python cleanup_graph.py --complete
+python cleanup_graph.py --complete --confirm  # Skip confirmation
 ```
 
 ## Graph Schema
@@ -212,26 +224,53 @@ The scripts create the following node types and relationships:
 
 ## Performance
 
-The scripts are optimized for large repositories:
-- **Git extraction**: ~2,000 commits/sec using direct git commands
-- **Bulk loading**: UNWIND queries for efficient Neo4j writes
-- **Batch processing**: Configurable batch sizes to manage memory
-- **Constraints**: Unique constraints and indexes for performance
-- **Parallel embedding**: GPU acceleration when available
+The scripts are highly optimized for large repositories and modern hardware:
+
+### **GPU Optimizations**
+- **Apple Silicon**: Optimized batch sizes (256) with MPS high-performance mode
+- **CUDA**: Automatic detection with mixed-precision training support
+- **Memory management**: Efficient cache clearing and garbage collection
+- **4x performance improvement** over default settings
+
+### **Git History Loading**
+- **Optimized bulk operations**: 3-step CREATE vs 5-step MERGE (15-30x faster)
+- **Large batch processing**: 25K records per batch vs 10K default  
+- **Memory-efficient**: Handles large repositories without memory issues
+- **Progress reporting**: Real-time ETA and throughput monitoring
+
+### **General Performance**
+- **Git extraction**: ~9,600 commits/sec using optimized git log commands
+- **Bulk loading**: UNWIND queries with batched operations
+- **Smart fallbacks**: Automatic branch detection (main/master/HEAD)
+- **Constraints and indexes**: Optimized for cloud Neo4j performance
 
 ## Example Queries
 
-### Basic Code Structure
+### **Code Similarity & Architecture**
 ```cypher
-// Find most similar methods
+// Find most similar methods with context
 MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
-RETURN m1.name, m2.name, s.score
+WHERE s.score > 0.95
+RETURN m1.class + "." + m1.name as method1,
+       m2.class + "." + m2.name as method2, 
+       s.score, m1.file, m2.file
 ORDER BY s.score DESC LIMIT 10
 
-// Find methods in the same similarity community
+// Analyze similarity communities
 MATCH (m:Method)
-WHERE m.similarityCommunity = 42
-RETURN m.name, m.file, m.class
+WHERE m.similarityCommunity IS NOT NULL
+WITH m.similarityCommunity as community, collect(m) as methods
+WHERE size(methods) > 5
+RETURN community, size(methods) as method_count,
+       [m IN methods[0..3] | m.class + "." + m.name] as sample_methods
+ORDER BY method_count DESC
+
+// Find cross-package similar methods (potential refactoring opportunities)
+MATCH (m1:Method)-[s:SIMILAR]->(m2:Method)
+WHERE s.score > 0.90 
+  AND split(m1.file, '/')[0] <> split(m2.file, '/')[0]
+RETURN m1.file, m2.file, m1.name, m2.name, s.score
+ORDER BY s.score DESC LIMIT 15
 ```
 
 ### Change Frequency Analysis  
