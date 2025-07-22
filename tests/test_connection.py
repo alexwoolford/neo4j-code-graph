@@ -67,7 +67,7 @@ def test_neo4j_connection():
 
         driver.close()
 
-    except Exception as e:
+    except Exception:
         print(f"❌ Connection failed: {e}")
         print()
         print("💡 Troubleshooting:")

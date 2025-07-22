@@ -336,7 +336,7 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
 
         return authorities, hubs
 
-    except Exception as e:
+    except Exception:
         logger.warning(f"HITS algorithm not available or failed: {e}")
         logger.warning("This may require a newer version of Neo4j GDS")
         return None, None
@@ -439,7 +439,7 @@ def main():
         gds.graph.drop(graph.name())
         logger.info("Analysis completed successfully")
 
-    except Exception as e:
+    except Exception:
         logger.error(f"Analysis failed: {e}")
         raise
     finally:

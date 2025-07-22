@@ -13,6 +13,7 @@ sys.modules.setdefault(
 )
 
 class _NoGrad:
+
     def __enter__(self):
         pass
 
@@ -52,10 +53,10 @@ def test_code_to_graph_imports():
         print("✅ code_to_graph module imports successfully")
         return True
 
-    except ImportError as e:
+    except ImportError:
         print(f"❌ Failed to import code_to_graph: {e}")
         return False
-    except Exception as e:
+    except Exception:
         print(f"❌ Error testing code_to_graph: {e}")
         return False
 

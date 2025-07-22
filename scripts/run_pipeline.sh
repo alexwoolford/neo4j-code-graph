@@ -42,40 +42,59 @@ else
     echo "⚠️  Skipping cleanup - you may have duplicate data"
 fi
 
-# Step 1: Load Code Structure (Java files and methods with embeddings)
+# Step 1: Clone Repository (once for efficiency)
 echo ""
-echo "📝 Step 1: Loading Java code structure with embeddings..."
+echo "📥 Step 1: Cloning repository for analysis..."
+TEMP_REPO_DIR=$(mktemp -d)
+git clone "$REPO_URL" "$TEMP_REPO_DIR"
+echo "✅ Repository cloned to: $TEMP_REPO_DIR"
+
+# Cleanup function for proper temp directory removal
+cleanup_repo() {
+    if [ -n "$TEMP_REPO_DIR" ] && [ -d "$TEMP_REPO_DIR" ]; then
+        echo "🧹 Cleaning up temporary repository..."
+        rm -rf "$TEMP_REPO_DIR"
+        echo "✅ Cleanup completed"
+    fi
+}
+
+# Ensure cleanup on exit
+trap cleanup_repo EXIT
+
+# Step 2: Load Code Structure (Java files and methods with embeddings)
+echo ""
+echo "📝 Step 2: Loading Java code structure with embeddings..."
 echo "⏰ This step may take a while for large repositories..."
-python "$SCRIPT_DIR/code_to_graph.py" "$REPO_URL"
+python "$SCRIPT_DIR/code_to_graph.py" "$TEMP_REPO_DIR"
 echo "✅ Code structure loaded"
 
-# Step 2: Load Git History (commits and developer data)
+# Step 3: Load Git History (commits and developer data)
 echo ""
-echo "📚 Step 2: Loading Git commit history..."
-python "$SCRIPT_DIR/git_history_to_graph.py" "$REPO_URL"
+echo "📚 Step 3: Loading Git commit history..."
+python "$SCRIPT_DIR/git_history_to_graph.py" "$TEMP_REPO_DIR"
 echo "✅ Git history loaded"
 
-# Step 3: Create Method Similarities  
+# Step 4: Create Method Similarities  
 echo ""
-echo "🔗 Step 3: Creating method similarities using KNN..."
+echo "🔗 Step 4: Creating method similarities using KNN..."
 python "$SCRIPT_DIR/create_method_similarity.py" --top-k 5 --cutoff 0.8
 echo "✅ Method similarities created"
 
-# Step 4: Detect Communities
+# Step 5: Detect Communities
 echo ""
-echo "🏘️  Step 4: Detecting communities using Louvain..."
+echo "🏘️  Step 5: Detecting communities using Louvain..."
 python "$SCRIPT_DIR/create_method_similarity.py" --no-knn --community-threshold 0.8
 echo "✅ Communities detected"
 
-# Step 5: Run Centrality Analysis
+# Step 6: Run Centrality Analysis
 echo ""
-echo "🎯 Step 5: Running centrality analysis to identify important methods..."
+echo "🎯 Step 6: Running centrality analysis to identify important methods..."
 python "$SCRIPT_DIR/centrality_analysis.py" --algorithms pagerank betweenness degree --top-n 15 --write-back
 echo "✅ Centrality analysis completed"
 
-# Step 6: Advanced Analysis
+# Step 7: Advanced Analysis
 echo ""
-echo "🔥 Step 6: Running advanced analysis..."
+echo "🔥 Step 7: Running advanced analysis..."
 
 echo "  📊 Analyzing file change coupling..."
 python "$SCRIPT_DIR/analyze.py" coupling --min-support 5 --create-relationships
@@ -85,9 +104,9 @@ echo "  🔥 Analyzing code hotspots..."
 python "$SCRIPT_DIR/analyze.py" hotspots --days 365 --min-changes 3 --top-n 15
 echo "  ✅ Hotspot analysis completed"
 
-# Step 7: Universal CVE Vulnerability Analysis
+# Step 8: Universal CVE Vulnerability Analysis
 echo ""
-echo "🛡️  Step 7: Universal vulnerability analysis..."
+echo "🛡️  Step 8: Universal vulnerability analysis..."
 if [ -n "${NVD_API_KEY}" ] || [ -f ".env" ]; then
     echo "  🔍 Analyzing vulnerability impact using dynamic dependency extraction..."
     python "$SCRIPT_DIR/cve_analysis.py" --risk-threshold 7.0 --max-hops 4

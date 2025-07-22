@@ -21,7 +21,7 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from utils.common import setup_logging
-from utils.neo4j_utils import get_neo4j_config
+# from utils.neo4j_utils import get_neo4j_config  # Commented out as unused
 
 
 class StepStatus(Enum):
@@ -118,7 +118,7 @@ class PipelineManager:
                 name="method_similarity",
                 description="Creating method similarities using KNN",
                 command="python",
-                args=[str(script_dir / "create_method_similarity.py"), "--top-k", "5", "--cutoff", "0.8"]
+                args=[str(script_dir / "create_method_similarity.py"), "--top-k", "5", "--cutof", "0.8"]
             ),
             PipelineStep(
                 name="community_detection",
@@ -208,7 +208,7 @@ class PipelineManager:
             self.logger.error(f"❌ {step.description} timed out")
             return False
 
-        except Exception as e:
+        except Exception:
             step.status = StepStatus.FAILED
             step.error_message = str(e)
             step.end_time = datetime.now()
@@ -279,7 +279,7 @@ class PipelineManager:
 
     def run(self) -> bool:
         """Execute the complete pipeline."""
-        self.logger.info(f"🚀 Starting Neo4j Code Graph Analysis Pipeline")
+        self.logger.info("🚀 Starting Neo4j Code Graph Analysis Pipeline")
         self.logger.info(f"📁 Repository: {self.repo_url}")
 
         self.start_time = datetime.now()
@@ -441,7 +441,7 @@ Examples:
     except KeyboardInterrupt:
         logging.getLogger(__name__).error("❌ Pipeline interrupted by user")
         exit_code = 130
-    except Exception as e:
+    except Exception:
         logging.getLogger(__name__).error(f"❌ Pipeline failed with unexpected error: {e}")
         exit_code = 1
 

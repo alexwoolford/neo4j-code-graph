@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Load git history into Neo4j")
-    parser.add_argument("repo_url", help="URL of the Git repository")
+    parser.add_argument("repo_url", help="URL or local path of the Git repository")
     parser.add_argument("--branch", default="master", help="Branch to process")
     parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
     parser.add_argument("--username", default=NEO4J_USERNAME, help="Neo4j username")
@@ -173,7 +173,7 @@ def bulk_load_to_neo4j(
             try:
                 result = session.run(query, params)
                 return result
-            except Exception as e:
+            except Exception:
                 logger.warning(f"Attempt {attempt + 1} failed for {description}: {e}")
                 if attempt == max_retries - 1:
                     raise
@@ -261,7 +261,7 @@ def bulk_load_to_neo4j(
     total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
 
     logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
-    logger.info(f"⚡ Using sustainable 3-step bulk loading approach")
+    logger.info("⚡ Using sustainable 3-step bulk loading approach")
 
     start_time = time.time()
     for i in range(0, len(file_changes_data), batch_size):
@@ -373,22 +373,38 @@ def load_history(
     file_changes_only=False,
 ):
     """Load git history using optimized approach."""
-    tmpdir = tempfile.mkdtemp()
+    # Check if repo_url is a local path or a URL
+    repo_path = Path(repo_url)
+    if repo_path.exists() and repo_path.is_dir():
+        # Local path - use directly
+        logger.info(f"📁 Using local repository: {repo_url}")
+        repo = Repo(repo_url)
+        tmpdir = None
+        repo_dir = repo_url
+    else:
+        # URL - clone to temporary directory
+        tmpdir = tempfile.mkdtemp()
+
+        try:
+            # Clone repository
+            logger.info(f"📥 Cloning {repo_url}...")
+            start_time = time.time()
+            repo = Repo.clone_from(repo_url, tmpdir)
+            clone_time = time.time() - start_time
+            logger.info(f"Repository cloned in {clone_time:.2f}s")
+            repo_dir = tmpdir
+        except Exception:
+            if tmpdir:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+            raise
 
     try:
-        # Clone repository
-        logger.info(f"📥 Cloning {repo_url}...")
-        start_time = time.time()
-        repo = Repo.clone_from(repo_url, tmpdir)
-        clone_time = time.time() - start_time
-        logger.info(f"Repository cloned in {clone_time:.2f}s")
-
         # Handle branch checkout with fallback
         if branch:
             try:
                 repo.git.checkout(branch)
                 logger.info(f"Checked out branch: {branch}")
-            except Exception as e:
+            except Exception:
                 available_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs]
                 logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
 
@@ -402,8 +418,8 @@ def load_history(
                     logger.error(f"No suitable branch found. Error: {e}")
                     raise
 
-        # Extract git history
-        commits, file_changes = extract_git_history(tmpdir, branch, max_commits)
+        # Extract git history from the repository directory
+        commits, file_changes = extract_git_history(repo_dir, branch, max_commits)
 
         # Create DataFrames
         commits_df, developers_df, files_df, file_changes_df = create_dataframes(
@@ -427,11 +443,12 @@ def load_history(
 
         logger.info("✅ Git history processing completed successfully")
 
-    except Exception as e:
+    except Exception:
         logger.error(f"Error processing repository: {e}")
         raise
     finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        if tmpdir:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def main():
@@ -456,7 +473,7 @@ def main():
             )
             driver.verify_connectivity()
             logger.info(f"Connected to Neo4j at {ensure_port(args.uri)}")
-        except Exception as e:
+        except Exception:
             logger.error(f"Failed to connect to Neo4j: {e}")
             sys.exit(1)
 

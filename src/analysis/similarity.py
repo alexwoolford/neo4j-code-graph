@@ -50,7 +50,7 @@ def parse_args():
         help="Neo4j database to use",
     )
     parser.add_argument("--top-k", type=int, default=5, help="Number of nearest neighbours")
-    parser.add_argument("--cutoff", type=float, default=0.8, help="Similarity cutoff")
+    parser.add_argument("--cutof", type=float, default=0.8, help="Similarity cutof")
     parser.add_argument(
         "--no-knn",
         action="store_true",
@@ -105,7 +105,7 @@ def run_knn(gds, top_k=5, cutoff=0.8):
     base_config = {
         "nodeProperties": "embedding",
         "topK": top_k,
-        "similarityCutoff": cutoff,
+        "similarityCutof": cutoff,
         "writeRelationshipType": "SIMILAR",
         "writeProperty": "score",
     }

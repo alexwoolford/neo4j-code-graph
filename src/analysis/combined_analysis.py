@@ -157,7 +157,7 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         elapsed_time = time.time() - start_time
         throughput = total_relationships / elapsed_time if elapsed_time > 0 else 0
 
-        logger.info(f"✅ APOC conservative processing completed:")
+        logger.info("✅ APOC conservative processing completed:")
         logger.info(f"   📊 Processed {stats['total']} operations in {stats['batches']} batches")
         logger.info(f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s")
         logger.info(f"   🚀 Throughput: {throughput:.0f} relationships/second")
@@ -168,7 +168,7 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         # Return bidirectional count (each input relationship creates 2 in Neo4j)
         return total_relationships * 2
 
-    except Exception as e:
+    except Exception:
         logger.error(f"❌ APOC processing failed: {e}")
         logger.info("🔄 Falling back to standard batch processing...")
         return _create_coupling_batch_fallback(session, relationships_data)
@@ -363,7 +363,7 @@ def _calculate_file_metrics(file_path):
             "method_count": methods,
             "file_size_bytes": len(content.encode("utf-8")),
         }
-    except Exception as e:
+    except Exception:
         logger.warning(f"Could not calculate metrics for {file_path}: {e}")
         return None
 
@@ -693,7 +693,7 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
 
     # Enhanced method hotspots
     if method_hotspots:
-        print(f"\n🔧 TOP 15 METHOD HOTSPOTS")
+        print("\n🔧 TOP 15 METHOD HOTSPOTS")
         print("(Enhanced scoring: Change frequency × Method complexity)")
         print("-" * 120)
         print(
@@ -736,7 +736,7 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
 
     # High-coupling hotspots
     if coupling_hotspots:
-        print(f"\n🔗 TOP 10 HIGH-COUPLING HOTSPOTS")
+        print("\n🔗 TOP 10 HIGH-COUPLING HOTSPOTS")
         print("(Files that are both complex AND highly coupled)")
         print("-" * 120)
         print(f"{'File':<50} {'Changes':<8} {'Coupled':<8} {'CplStr':<7} {'Score':<10}")
@@ -757,7 +757,7 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
             )
 
     # Summary insights
-    print(f"\n💡 KEY INSIGHTS:")
+    print("\n💡 KEY INSIGHTS:")
     if file_hotspots:
         top_file = file_hotspots[0]
         print(
@@ -786,16 +786,16 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
             risk = method["risk_category"]
             risk_counts[risk] = risk_counts.get(risk, 0) + 1
 
-        print(f"   ⚠️  Method risk distribution:")
+        print("   ⚠️  Method risk distribution:")
         for risk, count in sorted(risk_counts.items()):
             print(f"      • {risk}: {count} methods")
 
-    print(f"\n🚀 RECOMMENDATIONS:")
-    print(f"   1. Prioritize the top 3-5 file hotspots for refactoring")
-    print(f"   2. Review high-coupling hotspots for architectural improvements")
-    print(f"   3. Focus testing efforts on HIGH_USAGE_LARGE and PUBLIC_API methods")
-    print(f"   4. Consider breaking down methods with >20 outgoing calls")
-    print(f"   5. Monitor change patterns in top hotspots for early intervention")
+    print("\n🚀 RECOMMENDATIONS:")
+    print("   1. Prioritize the top 3-5 file hotspots for refactoring")
+    print("   2. Review high-coupling hotspots for architectural improvements")
+    print("   3. Focus testing efforts on HIGH_USAGE_LARGE and PUBLIC_API methods")
+    print("   4. Consider breaking down methods with >20 outgoing calls")
+    print("   5. Monitor change patterns in top hotspots for early intervention")
 
 
 # === MAIN CLI ===

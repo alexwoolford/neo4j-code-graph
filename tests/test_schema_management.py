@@ -1,5 +1,5 @@
 from unittest.mock import Mock
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 """
 Tests for schema_management.py - Schema setup and validation
 """

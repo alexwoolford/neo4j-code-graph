@@ -39,7 +39,7 @@ def extract_dependency_versions_from_files(repo_root):
             logger.debug(f"Processing Maven file: {pom_file}")
             versions = _extract_maven_dependencies(pom_file)
             dependency_versions.update(versions)
-        except Exception as e:
+        except Exception:
             logger.debug(f"Error processing {pom_file}: {e}")
 
     # Find Gradle build files
@@ -48,7 +48,7 @@ def extract_dependency_versions_from_files(repo_root):
             logger.debug(f"Processing Gradle file: {gradle_file}")
             versions = _extract_gradle_dependencies(gradle_file)
             dependency_versions.update(versions)
-        except Exception as e:
+        except Exception:
             logger.debug(f"Error processing {gradle_file}: {e}")
 
     logger.info(f"📊 Found version information for {len(dependency_versions)} dependencies")
@@ -110,7 +110,7 @@ def _extract_maven_dependencies(pom_file):
 
     except ET.ParseError as e:
         logger.debug(f"XML parsing error in {pom_file}: {e}")
-    except Exception as e:
+    except Exception:
         logger.debug(f"Error processing Maven file {pom_file}: {e}")
 
     return dependency_versions
@@ -155,7 +155,7 @@ def _extract_gradle_dependencies(gradle_file):
             if version in prop_to_version:
                 dependency_versions[package] = prop_to_version[version]
 
-    except Exception as e:
+    except Exception:
         logger.debug(f"Error processing Gradle file {gradle_file}: {e}")
 
     return dependency_versions
@@ -167,7 +167,7 @@ def parse_args():
         description="Ultra-optimized Java code structure and embeddings loader"
     )
     add_common_args(parser)
-    parser.add_argument("repo_url", help="Git repository URL to analyze")
+    parser.add_argument("repo_url", help="Git repository URL or local path to analyze")
     parser.add_argument("--batch-size", type=int, help="Override automatic batch size selection")
     parser.add_argument(
         "--parallel-files", type=int, default=4, help="Number of files to process in parallel"
@@ -264,7 +264,7 @@ def extract_file_data(file_path, repo_root):
         # Read file
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
-    except Exception as e:
+    except Exception:
         logger.error("Error reading file %s: %s", file_path, e)
         return None
 
@@ -301,7 +301,7 @@ def extract_file_data(file_path, repo_root):
                     }
                     imports.append(import_info)
 
-                except Exception as e:
+                except Exception:
                     logger.debug("Error processing import in %s: %s", rel_path, e)
                     continue
 
@@ -343,7 +343,7 @@ def extract_file_data(file_path, repo_root):
 
                 classes.append(class_info)
 
-            except Exception as e:
+            except Exception:
                 logger.debug("Error processing class %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -363,7 +363,7 @@ def extract_file_data(file_path, repo_root):
                 }
                 interfaces.append(interface_info)
 
-            except Exception as e:
+            except Exception:
                 logger.debug("Error processing interface %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -432,7 +432,7 @@ def extract_file_data(file_path, repo_root):
                 }
                 methods.append(method_info)
 
-            except Exception as e:
+            except Exception:
                 logger.debug("Error processing method %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -440,7 +440,7 @@ def extract_file_data(file_path, repo_root):
         for interface in interfaces:
             interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
 
-    except Exception as e:
+    except Exception:
         logger.warning("Failed to parse Java file %s: %s", rel_path, e)
 
     # Calculate file-level metrics
@@ -498,7 +498,7 @@ def _extract_method_calls(method_code, containing_class):
 
             # Skip common Java keywords and operators that match the pattern
             skip_keywords = {
-                "if",
+                "i",
                 "while",
                 "for",
                 "switch",
@@ -551,7 +551,7 @@ def _extract_method_calls(method_code, containing_class):
                 }
             )
 
-    except Exception as e:
+    except Exception:
         # Log but don't fail on parsing errors
         logger.debug(f"Error parsing method calls in {containing_class}: {e}")
 
@@ -1134,8 +1134,19 @@ def main():
 
     try:
         with driver.session(database=args.database) as session:
-            # Clone repository
-            with tempfile.TemporaryDirectory() as tmpdir:
+            # Check if repo_url is a local path or a URL
+            repo_path = Path(args.repo_url)
+            if repo_path.exists() and repo_path.is_dir():
+                # Local path - use directly
+                logger.info("Using local repository: %s", args.repo_url)
+                repo_root = repo_path
+                tmpdir = None
+
+                java_files = list(repo_root.rglob("*.java"))
+                logger.info("Found %d Java files to process", len(java_files))
+            else:
+                # URL - clone to temporary directory
+                tmpdir = tempfile.mkdtemp()
                 logger.info("Cloning %s...", args.repo_url)
                 import git
 
@@ -1145,102 +1156,109 @@ def main():
                 java_files = list(repo_root.rglob("*.java"))
                 logger.info("Found %d Java files to process", len(java_files))
 
-                # Extract dependency versions from build files
-                dependency_versions = extract_dependency_versions_from_files(repo_root)
+            # Extract dependency versions from build files
+            dependency_versions = extract_dependency_versions_from_files(repo_root)
 
-                # Phase 1: Extract all file data in parallel
-                logger.info("Phase 1: Extracting file data...")
-                start_phase1 = perf_counter()
+            # Phase 1: Extract all file data in parallel
+            logger.info("Phase 1: Extracting file data...")
+            start_phase1 = perf_counter()
 
-                files_data = []
-                with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
-                    future_to_file = {
-                        executor.submit(extract_file_data, file_path, repo_root): file_path
-                        for file_path in java_files
-                    }
+            files_data = []
+            with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
+                future_to_file = {
+                    executor.submit(extract_file_data, file_path, repo_root): file_path
+                    for file_path in java_files
+                }
 
-                    for future in tqdm(
-                        as_completed(future_to_file), total=len(java_files), desc="Extracting files"
-                    ):
-                        result = future.result()
-                        if result:
-                            files_data.append(result)
+                for future in tqdm(
+                    as_completed(future_to_file), total=len(java_files), desc="Extracting files"
+                ):
+                    result = future.result()
+                    if result:
+                        files_data.append(result)
 
-                phase1_time = perf_counter() - start_phase1
-                logger.info("Phase 1 completed in %.2fs", phase1_time)
+            phase1_time = perf_counter() - start_phase1
+            logger.info("Phase 1 completed in %.2fs", phase1_time)
 
-                # Phase 2: Compute all embeddings in bulk
-                logger.info("Phase 2: Computing embeddings...")
-                start_phase2 = perf_counter()
+            # Phase 2: Compute all embeddings in bulk
+            logger.info("Phase 2: Computing embeddings...")
+            start_phase2 = perf_counter()
 
-                # Initialize model
-                logger.info("Loading GraphCodeBERT model...")
-                tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-                model = AutoModel.from_pretrained(MODEL_NAME)
-                device = get_device()
+            # Initialize model
+            logger.info("Loading GraphCodeBERT model...")
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+            model = AutoModel.from_pretrained(MODEL_NAME)
+            device = get_device()
 
-                # Optimize for MPS performance
-                if device.type == "mps":
-                    # Enable high memory usage mode for better performance
-                    import os
+            # Optimize for MPS performance
+            if device.type == "mps":
+                # Enable high memory usage mode for better performance
+                import os
 
-                    os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-                    logger.info("Enabled MPS high performance mode")
+                os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+                logger.info("Enabled MPS high performance mode")
 
-                model = model.to(device)
+            model = model.to(device)
+            logger.info(f"Model loaded on {device}")
 
-                batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
-                logger.info("Using device: %s", device)
-                logger.info("Using batch size: %d", batch_size)
+            # Compute embeddings with optimized batching
+            batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
+            logger.info(f"Using batch size: {batch_size}")
 
-                # Collect all code snippets
-                file_snippets = [file_data["code"] for file_data in files_data]
-                method_snippets = []
-                for file_data in files_data:
-                    for method in file_data["methods"]:
-                        method_snippets.append(method["code"])
+            # Collect all code snippets
+            file_snippets = [file_data["code"] for file_data in files_data]
+            method_snippets = []
+            for file_data in files_data:
+                for method in file_data["methods"]:
+                    method_snippets.append(method["code"])
 
-                logger.info(
-                    "Computing embeddings for %d files and %d methods",
-                    len(file_snippets),
-                    len(method_snippets),
-                )
+            logger.info(
+                "Computing embeddings for %d files and %d methods",
+                len(file_snippets),
+                len(method_snippets),
+            )
 
-                # Compute embeddings
-                file_embeddings = compute_embeddings_bulk(
-                    file_snippets, tokenizer, model, device, batch_size
-                )
-                method_embeddings = compute_embeddings_bulk(
-                    method_snippets, tokenizer, model, device, batch_size
-                )
+            # Compute embeddings
+            file_embeddings = compute_embeddings_bulk(
+                file_snippets, tokenizer, model, device, batch_size
+            )
+            method_embeddings = compute_embeddings_bulk(
+                method_snippets, tokenizer, model, device, batch_size
+            )
 
-                phase2_time = perf_counter() - start_phase2
-                logger.info("Phase 2 completed in %.2fs", phase2_time)
+            phase2_time = perf_counter() - start_phase2
+            logger.info("Phase 2 completed in %.2fs", phase2_time)
 
-                # Phase 3: Bulk insert into Neo4j
-                logger.info("Phase 3: Bulk database operations...")
-                start_phase3 = perf_counter()
+            # Phase 3: Bulk create everything in Neo4j
+            logger.info("Phase 3: Creating graph in Neo4j...")
+            start_phase3 = perf_counter()
 
-                bulk_create_nodes_and_relationships(
-                    session, files_data, file_embeddings, method_embeddings, dependency_versions
-                )
+            bulk_create_nodes_and_relationships(
+                session, files_data, file_embeddings, method_embeddings, dependency_versions
+            )
 
-                phase3_time = perf_counter() - start_phase3
-                logger.info("Phase 3 completed in %.2fs", phase3_time)
+            phase3_time = perf_counter() - start_phase3
+            logger.info("Phase 3 completed in %.2fs", phase3_time)
 
-                total_time = phase1_time + phase2_time + phase3_time
-                logger.info(
-                    "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
-                    len(files_data),
-                    total_time,
-                    len(files_data) / total_time,
-                )
-                logger.info(
-                    "Phase breakdown: Extract=%.1fs, Embeddings=%.1fs, Database=%.1fs",
-                    phase1_time,
-                    phase2_time,
-                    phase3_time,
-                )
+            total_time = phase1_time + phase2_time + phase3_time
+            logger.info(
+                "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
+                len(files_data),
+                total_time,
+                len(files_data) / total_time,
+            )
+            logger.info(
+                "Phase breakdown: Extract=%.1fs, Embeddings=%.1fs, Database=%.1fs",
+                phase1_time,
+                phase2_time,
+                phase3_time,
+            )
+
+            # Clean up temporary directory if we created one
+            if tmpdir:
+                import shutil
+                shutil.rmtree(tmpdir, ignore_errors=True)
+                logger.info("Cleaned up temporary repository clone")
 
     finally:
         driver.close()

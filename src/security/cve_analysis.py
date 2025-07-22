@@ -390,7 +390,7 @@ class UniversalCVEAnalyzer:
                 try:
                     session.run(index_query)
                     logger.debug(f"✅ Created index: {index_query}")
-                except Exception as e:
+                except Exception:
                     if "already exists" in str(e).lower():
                         logger.debug(f"Index already exists: {index_query}")
                     else:
@@ -421,7 +421,7 @@ class UniversalCVEAnalyzer:
                     return []
 
             # Simple analysis query - just look for CVEs that might affect our dependencies
-            analysis_query = f"""
+            analysis_query = """
             MATCH (cve:CVE)
             WHERE cve.cvss_score >= $risk_threshold
             OPTIONAL MATCH (ed:ExternalDependency)
@@ -458,7 +458,7 @@ class UniversalCVEAnalyzer:
             print("  • Your dependency versions are newer than vulnerable ranges")
             return
 
-        print(f"\n🚨 **VULNERABILITY IMPACT REPORT**")
+        print("\n🚨 **VULNERABILITY IMPACT REPORT**")
         print(f"Found {len(vulnerabilities)} potential security issues")
         print("=" * 80)
 
@@ -469,7 +469,7 @@ class UniversalCVEAnalyzer:
             if vuln.get('affected_dependencies'):
                 print(f"   Potentially affects: {len(vuln['affected_dependencies'])} dependencies")
 
-        print(f"\n💡 **RECOMMENDATIONS:**")
+        print("\n💡 **RECOMMENDATIONS:**")
         print("1. Review the high-CVSS vulnerabilities above")
         print("2. Check if your dependency versions are in the vulnerable ranges")
         print("3. Update dependencies to patched versions")
@@ -478,18 +478,13 @@ class UniversalCVEAnalyzer:
 
 def main():
     """Main entry point for CVE analysis."""
-    import argparse
     import sys
     import os
-    from pathlib import Path
 
     # Add project root to path
     ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
-
-    from utils.common import setup_logging, create_neo4j_driver
-    from utils.neo4j_utils import get_neo4j_config
 
     parser = argparse.ArgumentParser(
         description="Robust Universal CVE Analysis",
@@ -581,7 +576,7 @@ Examples:
         # Create universal search terms
         search_terms = analyzer.create_universal_component_search_terms(dependencies_by_ecosystem)
 
-        print(f"\n🎯 **CVE FETCH PARAMETERS**")
+        print("\n🎯 **CVE FETCH PARAMETERS**")
         print("=" * 50)
         print(f"Target CVEs:     {args.max_results}")
         print(f"Days back:       {args.days_back}")
@@ -600,7 +595,7 @@ Examples:
                 return
 
         # Fetch CVE data with robust error handling
-        print(f"\n🌐 **FETCHING CVE DATA**")
+        print("\n🌐 **FETCHING CVE DATA**")
         print("=" * 50)
         print("💾 Progress is saved incrementally - safe to interrupt!")
 
@@ -619,7 +614,7 @@ Examples:
                 return
 
             # Create vulnerability graph
-            print(f"\n📊 **CREATING VULNERABILITY GRAPH**")
+            print("\n📊 **CREATING VULNERABILITY GRAPH**")
             num_cves = analyzer.create_vulnerability_graph(cve_data)
             print(f"✅ Created {num_cves} CVE nodes with dependency relationships")
 
@@ -637,7 +632,7 @@ Examples:
             print("Don't worry! Your progress has been saved.")
             print("Run the same command again to resume where you left off.")
 
-        except Exception as e:
+        except Exception:
             logger.error(f"❌ Analysis failed: {e}")
             print("\n🔄 **RECOVERY OPTIONS:**")
             print("1. Check your internet connection")

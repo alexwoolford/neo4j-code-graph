@@ -35,7 +35,7 @@ class TestPipelineIntegration:
             driver = create_neo4j_driver(config[0], config[1], config[2])
             yield driver
             driver.close()
-        except Exception as e:
+        except Exception:
             pytest.skip(f"Neo4j not available: {e}")
 
     @pytest.fixture(scope="class")
@@ -275,7 +275,7 @@ class TestRealWorldScenarios:
 
             # Add many methods
             for i in range(100):
-                content += f"""
+                content += """
     public void method{i}() {{
         System.out.println("Method {i}");
         int x = {i};
