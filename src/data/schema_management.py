@@ -235,7 +235,19 @@ def main():
     Main entry point for schema management CLI.
     """
     import argparse
-    from ..utils.common import setup_logging, create_neo4j_driver, add_common_args
+    import sys
+    from pathlib import Path
+    
+    # Add src to path for imports when called from CLI wrapper
+    root_dir = Path(__file__).parent.parent.parent
+    if str(root_dir / "src") not in sys.path:
+        sys.path.insert(0, str(root_dir / "src"))
+    
+    try:
+        from utils.common import setup_logging, create_neo4j_driver, add_common_args
+    except ImportError:
+        # Fallback for relative imports when used as module
+        from ..utils.common import setup_logging, create_neo4j_driver, add_common_args
 
     parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)
