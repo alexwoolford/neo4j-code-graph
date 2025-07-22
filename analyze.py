@@ -59,6 +59,18 @@ def analyze_change_coupling(session, args):
 
     logger.info(f"Found {len(frequent_pairs)} file pairs with co-occurrence >= {args.min_support}")
 
+    # Safety check: prevent database overload
+    max_relationships = 50000  # Conservative limit
+    if len(frequent_pairs) > max_relationships:
+        logger.warning(f"⚠️  {len(frequent_pairs)} file pairs exceed safety limit of {max_relationships}")
+        logger.warning(f"⚠️  Using only top {max_relationships} most frequently co-occurring pairs")
+        
+        # Sort by support (co-occurrence count) and take top N
+        sorted_pairs = sorted(frequent_pairs.items(), key=lambda x: x[1], reverse=True)
+        frequent_pairs = dict(sorted_pairs[:max_relationships])
+        
+        logger.info(f"📊 Reduced to {len(frequent_pairs)} most significant file pairs")
+
     # Create relationships if requested
     if args.create_relationships:
         logger.info("Creating CO_CHANGED relationships...")

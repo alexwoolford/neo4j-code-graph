@@ -77,12 +77,26 @@ echo ""
 echo "🔥 Step 6: Running enhanced analysis..."
 
 echo "  📊 Analyzing file change coupling..."
-python analyze.py coupling --min-support 3 --create-relationships
+python analyze.py coupling --min-support 5 --create-relationships
 echo "  ✅ Change coupling analysis completed"
 
 echo "  🔥 Analyzing code hotspots..."
 python analyze.py hotspots --days 365 --min-changes 3 --top-n 15
 echo "  ✅ Hotspot analysis completed"
+
+# Step 7: Universal CVE Vulnerability Analysis
+echo ""
+echo "🛡️  Step 7: Universal vulnerability analysis..."
+if [ -n "${NVD_API_KEY}" ] || [ -f ".env" ]; then
+    echo "  🔍 Analyzing vulnerability impact using dynamic dependency extraction..."
+    python cve_analysis.py --risk-threshold 7.0 --max-hops 4
+    echo "  ✅ CVE analysis completed"
+else
+    echo "  ⚠️  NVD_API_KEY not found - skipping CVE analysis"
+    echo "  💡 To enable CVE analysis:"
+    echo "     1. Get API key: https://nvd.nist.gov/developers/request-an-api-key"
+    echo "     2. Add to .env: NVD_API_KEY=your_key_here"
+fi
 
 echo ""
 echo "🎉 Enhanced Pipeline completed successfully!"
@@ -103,6 +117,13 @@ echo "🧠 Semantic Analysis:"
 echo "  - Method similarities (SIMILAR relationships with scores)"
 echo "  - Community detection (similarityCommunity properties)"
 echo "  - Centrality scores (PageRank, Betweenness, Degree on methods)"
+echo ""
+echo "🛡️  Universal Vulnerability Analysis:"
+echo "  - Language-agnostic dependency extraction"
+echo "  - Dynamic CVE vulnerability tracking (if NVD API key provided)"
+echo "  - Multi-modal risk assessment (Vector + Graph + Lucene + Algorithms)"
+echo "  - Vulnerability impact chains through dependency graphs"
+echo "  - Works with ANY programming language and dependency ecosystem"
 echo ""
 echo "💡 You can now perform advanced code analysis queries!"
 echo ""
