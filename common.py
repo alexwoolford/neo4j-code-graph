@@ -18,8 +18,14 @@ def setup_logging(log_level="INFO", log_file=None):
     if log_file:
         handlers.append(logging.FileHandler(log_file))
 
+    # Handle both string levels ("INFO") and integer levels (logging.INFO)
+    if isinstance(log_level, int):
+        level = log_level
+    else:
+        level = getattr(logging, log_level.upper(), logging.INFO)
+
     logging.basicConfig(
-        level=getattr(logging, log_level.upper(), "INFO"),
+        level=level,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=handlers,
     )
