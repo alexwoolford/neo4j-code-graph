@@ -59,7 +59,7 @@ LIMIT 20
 **"Who are the experts for this module?"**
 ```cypher
 MATCH (dev:Developer)-[:AUTHORED]->(commit:Commit)-[:CHANGED]->(fv:FileVer)-[:OF_FILE]->(f:File)
-WHERE f.path CONTAINS "authentication" // Change to your module
+WHERE f.path CONTAINS "pregel" // Change to your module
 WITH dev, f, count(DISTINCT commit) as commits_to_file
 WHERE commits_to_file >= 3
 RETURN dev.name, dev.email,
@@ -80,7 +80,7 @@ LIMIT 25
 
 ### 📊 Executive Reporting
 
-**"Monthly technical health summary"**
+**"Technical health summary"**
 ```cypher
 MATCH (f:File)
 OPTIONAL MATCH (f)-[:DECLARES]->(m:Method)
@@ -103,7 +103,7 @@ MATCH (f:File)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
 WHERE c.date > datetime() - duration('P7D')
 WITH f, count(c) as recent_changes
 WHERE recent_changes > 0
-OPTIONAL MATCH (f)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
+OPTIONAL MATCH (f)-[:IMPORTS]->(i:Import)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
 WHERE cve.cvss_score >= 7.0
 OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
 RETURN f.path, recent_changes,
