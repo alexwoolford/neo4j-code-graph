@@ -113,10 +113,10 @@ def cleanup_graph_projections(session, dry_run=False):
                 try:
                     session.run("CALL gds.graph.drop($graphName)", graphName=graph_name)
                     logger.info("Dropped graph projection: %s", graph_name)
-                except Exception:
+                except Exception as e:
                     logger.warning("Failed to drop graph %s: %s", graph_name, e)
 
-    except Exception:
+    except Exception as e:
         logger.warning("Could not check GDS graph projections: %s", e)
 
 
@@ -137,7 +137,7 @@ def cleanup_vector_index(session, dry_run=False):
         else:
             logger.info("No vector indexes found")
 
-    except Exception:
+    except Exception as e:
         logger.warning("Could not check vector indexes: %s", e)
 
 
@@ -215,7 +215,7 @@ def complete_database_reset(session, dry_run=False):
         try:
             session.run(query)
             logger.info("  ✅ %s", query)
-        except Exception:
+        except Exception as e:
             logger.warning("  ⚠️  %s: %s", query, e)
 
     # Try to drop vector index (may not exist or may have different syntax)
@@ -223,12 +223,12 @@ def complete_database_reset(session, dry_run=False):
         # Try newer syntax first
         session.run("DROP VECTOR INDEX method_embeddings IF EXISTS")
         logger.info("  ✅ Dropped vector index method_embeddings")
-    except Exception:
+    except Exception as e:
         try:
             # Try alternative syntax
             session.run("DROP INDEX method_embeddings IF EXISTS")
             logger.info("  ✅ Dropped index method_embeddings")
-        except Exception:
+        except Exception as e:
             logger.warning("  ⚠️  Could not drop vector index: %s", e)
 
     # Final verification
@@ -256,7 +256,7 @@ def main():
         driver = GraphDatabase.driver(ensure_port(args.uri), auth=(args.username, args.password))
         driver.verify_connectivity()
         logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
-    except Exception:
+    except Exception as e:
         logger.error("Failed to connect to Neo4j: %s", e)
         sys.exit(1)
 

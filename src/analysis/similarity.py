@@ -128,7 +128,7 @@ def run_knn(gds, top_k=5, cutoff=0.8):
             exists = bool(exists_result.get("exists", False))
         else:
             exists = bool(exists_result)
-    except Exception:
+    except Exception as e:
         exists = bool(exists_result)
 
     if exists:
@@ -167,7 +167,7 @@ def run_louvain(gds, threshold=0.8, community_property="similarityCommunity"):
             exists = bool(exists_result.get("exists", False))
         else:
             exists = bool(exists_result)
-    except Exception:
+    except Exception as e:
         exists = bool(exists_result)
 
     if exists:

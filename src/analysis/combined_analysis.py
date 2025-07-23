@@ -12,6 +12,7 @@ from collections import defaultdict, Counter
 from itertools import combinations
 
 import javalang
+
 try:
     # Try absolute import when called from CLI wrapper
     from utils.common import setup_logging, create_neo4j_driver, add_common_args
@@ -67,7 +68,9 @@ def analyze_change_coupling(session, args):
     # Safety check: prevent database overload
     max_relationships = 50000  # Conservative limit
     if len(frequent_pairs) > max_relationships:
-        logger.warning(f"⚠️  {len(frequent_pairs)} file pairs exceed safety limit of {max_relationships}")
+        logger.warning(
+            f"⚠️  {len(frequent_pairs)} file pairs exceed safety limit of {max_relationships}"
+        )
         logger.warning(f"⚠️  Using only top {max_relationships} most frequently co-occurring pairs")
 
         # Sort by support (co-occurrence count) and take top N
@@ -99,7 +102,9 @@ def analyze_change_coupling(session, args):
                 )
 
         if relationships_data:
-            relationships_created = _create_coupling_relationships_parallel(session, relationships_data)
+            relationships_created = _create_coupling_relationships_parallel(
+                session, relationships_data
+            )
             logger.info(f"Created {relationships_created} CO_CHANGED relationships")
 
     # Print top results
@@ -112,18 +117,21 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         return 0
 
     total_relationships = len(relationships_data)
-    logger.info(f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships using optimized processing...")
+    logger.info(
+        f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships using optimized processing..."
+    )
 
     # First, check if APOC is available
     try:
         result = session.run("RETURN apoc.version() AS version")
         apoc_version = result.single()["version"]
         logger.info(f"✅ Using APOC version: {apoc_version}")
-    except Exception:
+    except Exception as e:
         logger.warning("⚠️  APOC not available, falling back to standard batch processing")
         return _create_coupling_batch_fallback(session, relationships_data)
 
     import time
+
     start_time = time.time()
 
     # Use APOC with CONSERVATIVE settings to avoid overwhelming the database
@@ -162,13 +170,13 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         logger.info(f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s")
         logger.info(f"   🚀 Throughput: {throughput:.0f} relationships/second")
 
-        if stats['errorMessages']:
+        if stats["errorMessages"]:
             logger.warning(f"⚠️  Some errors occurred: {stats['errorMessages']}")
 
         # Return bidirectional count (each input relationship creates 2 in Neo4j)
         return total_relationships * 2
 
-    except Exception:
+    except Exception as e:
         logger.error(f"❌ APOC processing failed: {e}")
         logger.info("🔄 Falling back to standard batch processing...")
         return _create_coupling_batch_fallback(session, relationships_data)
@@ -183,11 +191,12 @@ def _create_coupling_batch_fallback(session, relationships_data):
     total_created = 0
 
     import time
+
     start_time = time.time()
 
     for i in range(0, len(relationships_data), batch_size):
         batch_start = time.time()
-        batch = relationships_data[i:i + batch_size]
+        batch = relationships_data[i : i + batch_size]
 
         # Conservative query with reasonable batch size
         query = """
@@ -207,7 +216,9 @@ def _create_coupling_batch_fallback(session, relationships_data):
         batch_num = (i // batch_size) + 1
         total_batches = (len(relationships_data) + batch_size - 1) // batch_size
 
-        logger.info(f"   📦 Batch {batch_num}/{total_batches}: {len(batch)} relationships in {batch_time:.1f}s")
+        logger.info(
+            f"   📦 Batch {batch_num}/{total_batches}: {len(batch)} relationships in {batch_time:.1f}s"
+        )
 
         # Small pause between batches to be gentle on the database
         if batch_num < total_batches:  # Don't pause after the last batch
@@ -351,7 +362,7 @@ def _calculate_file_metrics(file_path):
             classes = len(list(tree.filter(javalang.tree.ClassDeclaration)))
             interfaces = len(list(tree.filter(javalang.tree.InterfaceDeclaration)))
             methods = len(list(tree.filter(javalang.tree.MethodDeclaration)))
-        except Exception:
+        except Exception as e:
             classes = interfaces = methods = 0
 
         return {
@@ -363,7 +374,7 @@ def _calculate_file_metrics(file_path):
             "method_count": methods,
             "file_size_bytes": len(content.encode("utf-8")),
         }
-    except Exception:
+    except Exception as e:
         logger.warning(f"Could not calculate metrics for {file_path}: {e}")
         return None
 

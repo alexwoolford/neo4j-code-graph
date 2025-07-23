@@ -16,6 +16,7 @@ import logging
 from time import perf_counter
 
 from graphdatascience import GraphDataScience
+
 try:
     # Try absolute import when called from CLI wrapper
     from utils.common import setup_logging, create_neo4j_driver, add_common_args
@@ -82,7 +83,7 @@ def create_call_graph_projection(gds, graph_name="method_call_graph"):
     try:
         gds.graph.drop(graph_name)
         logger.info(f"Dropped existing graph projection: {graph_name}")
-    except Exception:
+    except Exception as e:
         pass  # Graph doesn't exist, which is fine
 
     # Create new projection
@@ -336,7 +337,7 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
 
         return authorities, hubs
 
-    except Exception:
+    except Exception as e:
         logger.warning(f"HITS algorithm not available or failed: {e}")
         logger.warning("This may require a newer version of Neo4j GDS")
         return None, None
@@ -418,17 +419,13 @@ def main():
             pagerank_results = run_pagerank_analysis(gds, graph, args.top_n, args.write_back)
 
         if "betweenness" in args.algorithms:
-            betweenness_results = run_betweenness_analysis(
-                gds, graph, args.top_n, args.write_back
-            )
+            betweenness_results = run_betweenness_analysis(gds, graph, args.top_n, args.write_back)
 
         if "degree" in args.algorithms:
             degree_results = run_degree_analysis(gds, graph, args.top_n, args.write_back)
 
         if "hits" in args.algorithms:
-            hits_authorities, hits_hubs = run_hits_analysis(
-                gds, graph, args.top_n, args.write_back
-            )
+            hits_authorities, hits_hubs = run_hits_analysis(gds, graph, args.top_n, args.write_back)
 
         # Provide summary
         summarize_analysis(
@@ -439,7 +436,7 @@ def main():
         gds.graph.drop(graph.name())
         logger.info("Analysis completed successfully")
 
-    except Exception:
+    except Exception as e:
         logger.error(f"Analysis failed: {e}")
         raise
     finally:

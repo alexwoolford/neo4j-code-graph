@@ -15,6 +15,7 @@ import time
 
 from git import Repo
 from neo4j import GraphDatabase
+
 try:
     # Try absolute import when called from CLI wrapper
     from utils.neo4j_utils import ensure_port, get_neo4j_config
@@ -173,7 +174,7 @@ def bulk_load_to_neo4j(
             try:
                 result = session.run(query, params)
                 return result
-            except Exception:
+            except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed for {description}: {e}")
                 if attempt == max_retries - 1:
                     raise
@@ -393,7 +394,7 @@ def load_history(
             clone_time = time.time() - start_time
             logger.info(f"Repository cloned in {clone_time:.2f}s")
             repo_dir = tmpdir
-        except Exception:
+        except Exception as e:
             if tmpdir:
                 shutil.rmtree(tmpdir, ignore_errors=True)
             raise
@@ -404,7 +405,7 @@ def load_history(
             try:
                 repo.git.checkout(branch)
                 logger.info(f"Checked out branch: {branch}")
-            except Exception:
+            except Exception as e:
                 available_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs]
                 logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
 
@@ -443,7 +444,7 @@ def load_history(
 
         logger.info("✅ Git history processing completed successfully")
 
-    except Exception:
+    except Exception as e:
         logger.error(f"Error processing repository: {e}")
         raise
     finally:
@@ -473,7 +474,7 @@ def main():
             )
             driver.verify_connectivity()
             logger.info(f"Connected to Neo4j at {ensure_port(args.uri)}")
-        except Exception:
+        except Exception as e:
             logger.error(f"Failed to connect to Neo4j: {e}")
             sys.exit(1)
 

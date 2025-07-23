@@ -39,7 +39,7 @@ def extract_dependency_versions_from_files(repo_root):
             logger.debug(f"Processing Maven file: {pom_file}")
             versions = _extract_maven_dependencies(pom_file)
             dependency_versions.update(versions)
-        except Exception:
+        except Exception as e:
             logger.debug(f"Error processing {pom_file}: {e}")
 
     # Find Gradle build files
@@ -48,7 +48,7 @@ def extract_dependency_versions_from_files(repo_root):
             logger.debug(f"Processing Gradle file: {gradle_file}")
             versions = _extract_gradle_dependencies(gradle_file)
             dependency_versions.update(versions)
-        except Exception:
+        except Exception as e:
             logger.debug(f"Error processing {gradle_file}: {e}")
 
     logger.info(f"📊 Found version information for {len(dependency_versions)} dependencies")
@@ -75,7 +75,11 @@ def _extract_maven_dependencies(pom_file):
             artifact_id_elem = dependency.find("maven:artifactId", namespace)
             version_elem = dependency.find("maven:version", namespace)
 
-            if group_id_elem is not None and artifact_id_elem is not None and version_elem is not None:
+            if (
+                group_id_elem is not None
+                and artifact_id_elem is not None
+                and version_elem is not None
+            ):
                 group_id = group_id_elem.text
                 artifact_id = artifact_id_elem.text
                 version = version_elem.text
@@ -110,7 +114,7 @@ def _extract_maven_dependencies(pom_file):
 
     except ET.ParseError as e:
         logger.debug(f"XML parsing error in {pom_file}: {e}")
-    except Exception:
+    except Exception as e:
         logger.debug(f"Error processing Maven file {pom_file}: {e}")
 
     return dependency_versions
@@ -121,14 +125,14 @@ def _extract_gradle_dependencies(gradle_file):
     dependency_versions = {}
 
     try:
-        with open(gradle_file, 'r', encoding='utf-8') as f:
+        with open(gradle_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Pattern for Gradle dependencies like: implementation 'group:artifact:version'
         patterns = [
             r"['\"]([a-zA-Z][a-zA-Z0-9_.\\-]+):([a-zA-Z][a-zA-Z0-9_.\\-]+):([^'\"\\s]+)['\"]",
             r"group\s*:\s*['\"]([^'\"]+)['\"].*?name\s*:\s*['\"]([^'\"]+)['\"].*?version\s*:\s*['\"]([^'\"]+)['\"]",
-            r"group\s*=\s*['\"]([^'\"]+)['\"].*?name\s*=\s*['\"]([^'\"]+)['\"].*?version\s*=\s*['\"]([^'\"]+)['\"]"
+            r"group\s*=\s*['\"]([^'\"]+)['\"].*?name\s*=\s*['\"]([^'\"]+)['\"].*?version\s*=\s*['\"]([^'\"]+)['\"]",
         ]
 
         for pattern in patterns:
@@ -155,7 +159,7 @@ def _extract_gradle_dependencies(gradle_file):
             if version in prop_to_version:
                 dependency_versions[package] = prop_to_version[version]
 
-    except Exception:
+    except Exception as e:
         logger.debug(f"Error processing Gradle file {gradle_file}: {e}")
 
     return dependency_versions
@@ -264,7 +268,7 @@ def extract_file_data(file_path, repo_root):
         # Read file
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
-    except Exception:
+    except Exception as e:
         logger.error("Error reading file %s: %s", file_path, e)
         return None
 
@@ -278,12 +282,14 @@ def extract_file_data(file_path, repo_root):
         tree = javalang.parse.parse(code)
 
         # Extract import declarations
-        if hasattr(tree, 'imports') and tree.imports:
+        if hasattr(tree, "imports") and tree.imports:
             for import_stmt in tree.imports:
                 try:
                     import_path = import_stmt.path
-                    is_static = import_stmt.static if hasattr(import_stmt, 'static') else False
-                    is_wildcard = import_stmt.wildcard if hasattr(import_stmt, 'wildcard') else False
+                    is_static = import_stmt.static if hasattr(import_stmt, "static") else False
+                    is_wildcard = (
+                        import_stmt.wildcard if hasattr(import_stmt, "wildcard") else False
+                    )
 
                     # Classify import type
                     import_type = "external"
@@ -297,11 +303,11 @@ def extract_file_data(file_path, repo_root):
                         "is_static": is_static,
                         "is_wildcard": is_wildcard,
                         "import_type": import_type,
-                        "file": rel_path
+                        "file": rel_path,
                     }
                     imports.append(import_info)
 
-                except Exception:
+                except Exception as e:
                     logger.debug("Error processing import in %s: %s", rel_path, e)
                     continue
 
@@ -343,7 +349,7 @@ def extract_file_data(file_path, repo_root):
 
                 classes.append(class_info)
 
-            except Exception:
+            except Exception as e:
                 logger.debug("Error processing class %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -363,7 +369,7 @@ def extract_file_data(file_path, repo_root):
                 }
                 interfaces.append(interface_info)
 
-            except Exception:
+            except Exception as e:
                 logger.debug("Error processing interface %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -432,7 +438,7 @@ def extract_file_data(file_path, repo_root):
                 }
                 methods.append(method_info)
 
-            except Exception:
+            except Exception as e:
                 logger.debug("Error processing method %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -440,7 +446,7 @@ def extract_file_data(file_path, repo_root):
         for interface in interfaces:
             interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
 
-    except Exception:
+    except Exception as e:
         logger.warning("Failed to parse Java file %s: %s", rel_path, e)
 
     # Calculate file-level metrics
@@ -551,14 +557,16 @@ def _extract_method_calls(method_code, containing_class):
                 }
             )
 
-    except Exception:
+    except Exception as e:
         # Log but don't fail on parsing errors
         logger.debug(f"Error parsing method calls in {containing_class}: {e}")
 
     return method_calls
 
 
-def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, method_embeddings, dependency_versions=None):
+def bulk_create_nodes_and_relationships(
+    session, files_data, file_embeddings, method_embeddings, dependency_versions=None
+):
     """Create all nodes and relationships using bulk operations."""
     logger.info("Creating directory structure...")
 
@@ -1007,11 +1015,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
                             version = dep_version
                             break
 
-            dependency_node = {
-                "package": dep,
-                "language": "java",
-                "ecosystem": "maven"
-            }
+            dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
 
             # Add version if found
             if version:
@@ -1257,6 +1261,7 @@ def main():
             # Clean up temporary directory if we created one
             if tmpdir:
                 import shutil
+
                 shutil.rmtree(tmpdir, ignore_errors=True)
                 logger.info("Cleaned up temporary repository clone")
 
