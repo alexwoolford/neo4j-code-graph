@@ -47,12 +47,13 @@ def test_code_to_graph_imports():
             "extract_file_data",
             "bulk_create_nodes_and_relationships",
             "compute_embeddings_bulk",
-            "main"
+            "main",
         ]
 
         for func_name in expected_functions:
-            assert hasattr(code_to_graph, func_name), \
-                f"Missing function {func_name} in code_to_graph"
+            assert hasattr(
+                code_to_graph, func_name
+            ), f"Missing function {func_name} in code_to_graph"
 
         print("✅ code_to_graph module imports successfully")
         return True

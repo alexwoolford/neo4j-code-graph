@@ -41,8 +41,7 @@ def create_schema_constraints_and_indexes(session):
             "file_path",
             "File",
             "path",
-            "CREATE CONSTRAINT file_path IF NOT EXISTS "
-            "FOR (f:File) REQUIRE f.path IS UNIQUE",
+            "CREATE CONSTRAINT file_path IF NOT EXISTS " "FOR (f:File) REQUIRE f.path IS UNIQUE",
         ),
         # Class: unique by (name, file) - same class name can exist in different files
         (
@@ -74,8 +73,7 @@ def create_schema_constraints_and_indexes(session):
             "commit_sha",
             "Commit",
             "sha",
-            "CREATE CONSTRAINT commit_sha IF NOT EXISTS "
-            "FOR (c:Commit) REQUIRE c.sha IS UNIQUE",
+            "CREATE CONSTRAINT commit_sha IF NOT EXISTS " "FOR (c:Commit) REQUIRE c.sha IS UNIQUE",
         ),
         # Developer: unique by email
         (
@@ -106,25 +104,19 @@ def create_schema_constraints_and_indexes(session):
             "cve_id",
             "CVE",
             "cve_id",
-            "CREATE CONSTRAINT cve_id IF NOT EXISTS "
-            "FOR (cve:CVE) REQUIRE cve.cve_id IS UNIQUE",
+            "CREATE CONSTRAINT cve_id IF NOT EXISTS " "FOR (cve:CVE) REQUIRE cve.cve_id IS UNIQUE",
         ),
-
     ]
 
     for constraint_name, node_type, key_desc, cypher in constraints:
         try:
             session.run(cypher)
-            logger.info(
-                f"✅ Created constraint {constraint_name}: {node_type}({key_desc})"
-            )
+            logger.info(f"✅ Created constraint {constraint_name}: {node_type}({key_desc})")
         except Exception as e:
             if "already exists" in str(e).lower() or "equivalent" in str(e).lower():
                 logger.debug(f"  ⚠️  Constraint {constraint_name} already exists")
             else:
-                logger.warning(
-                    f"  ❌ Failed to create constraint {constraint_name}: {e}"
-                )
+                logger.warning(f"  ❌ Failed to create constraint {constraint_name}: {e}")
 
     # =============================================================================
     # PERFORMANCE INDEXES (for commonly queried properties)
@@ -176,8 +168,7 @@ def create_schema_constraints_and_indexes(session):
         (
             "method_pagerank",
             "Method",
-            "CREATE INDEX method_pagerank IF NOT EXISTS "
-            "FOR (m:Method) ON (m.pagerank_score)",
+            "CREATE INDEX method_pagerank IF NOT EXISTS " "FOR (m:Method) ON (m.pagerank_score)",
         ),
         (
             "method_betweenness",
@@ -231,17 +222,9 @@ def verify_schema_constraints(session):
 
     logger.info(f"Found {len(existing_constraints)} existing constraints:")
     for constraint in existing_constraints:
-        labels = (
-            ",".join(constraint["labelsOrTypes"])
-            if constraint["labelsOrTypes"]
-            else "N/A"
-        )
-        props = (
-            ",".join(constraint["properties"]) if constraint["properties"] else "N/A"
-        )
-        logger.info(
-            f"  • {constraint['name']}: {constraint['type']} on {labels}({props})"
-        )
+        labels = ",".join(constraint["labelsOrTypes"]) if constraint["labelsOrTypes"] else "N/A"
+        props = ",".join(constraint["properties"]) if constraint["properties"] else "N/A"
+        logger.info(f"  • {constraint['name']}: {constraint['type']} on {labels}({props})")
 
     return existing_constraints
 
@@ -273,9 +256,7 @@ def verify_schema_indexes(session):
     for index in existing_indexes:
         labels = ",".join(index["labelsOrTypes"]) if index["labelsOrTypes"] else "N/A"
         props = ",".join(index["properties"]) if index["properties"] else "N/A"
-        logger.info(
-            f"  • {index['name']}: {index['type']} on {labels}({props}) - {index['state']}"
-        )
+        logger.info(f"  • {index['name']}: {index['type']} on {labels}({props}) - {index['state']}")
 
     return existing_indexes
 
@@ -295,9 +276,7 @@ def setup_complete_schema(session):
     constraints = verify_schema_constraints(session)
     indexes = verify_schema_indexes(session)
 
-    logger.info(
-        f"✅ Schema setup complete: {len(constraints)} constraints, {len(indexes)} indexes"
-    )
+    logger.info(f"✅ Schema setup complete: {len(constraints)} constraints, {len(indexes)} indexes")
 
     return {"constraints": constraints, "indexes": indexes}
 
@@ -321,9 +300,7 @@ def main():
         # Fallback for relative imports when used as module
         from ..utils.common import setup_logging, create_neo4j_driver, add_common_args
 
-    parser = argparse.ArgumentParser(
-        description="Setup database schema constraints and indexes"
-    )
+    parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)
     parser.add_argument(
         "--verify-only",

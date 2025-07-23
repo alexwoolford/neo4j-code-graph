@@ -130,9 +130,7 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
         top_results = gds.run_cypher(query, {"top_n": top_n})
 
     else:
-        result = gds.pageRank.stream(graph, maxIterations=20, dampingFactor=0.85).head(
-            top_n
-        )
+        result = gds.pageRank.stream(graph, maxIterations=20, dampingFactor=0.85).head(top_n)
 
         # Enrich with method details
         if not result.empty:
@@ -158,15 +156,11 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
     if "score" in top_results.columns:
         for _, row in top_results.iterrows():
             class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(
-                f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})"
-            )
+            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
     else:
         for _, row in top_results.iterrows():
             class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(
-                f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})"
-            )
+            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
 
     return top_results
 
@@ -214,15 +208,11 @@ def run_betweenness_analysis(gds, graph, top_n=20, write_back=False):
     if "score" in top_results.columns:
         for _, row in top_results.iterrows():
             class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(
-                f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})"
-            )
+            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
     else:
         for _, row in top_results.iterrows():
             class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(
-                f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})"
-            )
+            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
 
     return top_results
 
@@ -285,9 +275,7 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
     # Note: Check if HITS is available in your GDS version
     try:
         if write_back:
-            result = gds.alpha.hits.write(
-                graph, writeProperty="hits", hitsIterations=20
-            )
+            result = gds.alpha.hits.write(graph, writeProperty="hits", hitsIterations=20)
 
             query = """
             MATCH (m:Method)
@@ -338,23 +326,17 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
 
         print("\n🎯 TOP AUTHORITY METHODS (Called by Many - Utilities):")
         print("-" * 80)
-        auth_col = (
-            "authority_score" if "authority_score" in authorities.columns else "auth"
-        )
+        auth_col = "authority_score" if "authority_score" in authorities.columns else "auth"
         for _, row in authorities.iterrows():
             class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(
-                f"  {row[auth_col]:.6f} | {class_name}.{row['method_name']} ({row['file']})"
-            )
+            print(f"  {row[auth_col]:.6f} | {class_name}.{row['method_name']} ({row['file']})")
 
         print("\n🎯 TOP HUB METHODS (Call Many Others - Orchestrators):")
         print("-" * 80)
         hub_col = "hub_score" if "hub_score" in hubs.columns else "hub"
         for _, row in hubs.iterrows():
             class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(
-                f"  {row[hub_col]:.6f} | {class_name}.{row['method_name']} ({row['file']})"
-            )
+            print(f"  {row[hub_col]:.6f} | {class_name}.{row['method_name']} ({row['file']})")
 
         return authorities, hubs
 
@@ -378,20 +360,12 @@ def summarize_analysis(
 
     if pagerank_results is not None and not pagerank_results.empty:
         top_pagerank = pagerank_results.iloc[0]
-        class_name = (
-            top_pagerank["class_name"] if top_pagerank["class_name"] else "Unknown"
-        )
-        print(
-            f"🏆 Most Central Method (PageRank): {class_name}.{top_pagerank['method_name']}"
-        )
+        class_name = top_pagerank["class_name"] if top_pagerank["class_name"] else "Unknown"
+        print(f"🏆 Most Central Method (PageRank): {class_name}.{top_pagerank['method_name']}")
 
     if betweenness_results is not None and not betweenness_results.empty:
         top_betweenness = betweenness_results.iloc[0]
-        class_name = (
-            top_betweenness["class_name"]
-            if top_betweenness["class_name"]
-            else "Unknown"
-        )
+        class_name = top_betweenness["class_name"] if top_betweenness["class_name"] else "Unknown"
         print(f"🌉 Critical Connector: {class_name}.{top_betweenness['method_name']}")
 
     if degree_results is not None and not degree_results.empty:
@@ -424,9 +398,7 @@ def main():
 
         # Check if we have enough data
         call_count, method_count = check_call_graph_exists(gds)
-        logger.info(
-            f"Found {method_count:,} methods with {call_count:,} call relationships"
-        )
+        logger.info(f"Found {method_count:,} methods with {call_count:,} call relationships")
 
         if method_count < args.min_methods:
             logger.error(
@@ -451,24 +423,16 @@ def main():
         hits_hubs = None
 
         if "pagerank" in args.algorithms:
-            pagerank_results = run_pagerank_analysis(
-                gds, graph, args.top_n, args.write_back
-            )
+            pagerank_results = run_pagerank_analysis(gds, graph, args.top_n, args.write_back)
 
         if "betweenness" in args.algorithms:
-            betweenness_results = run_betweenness_analysis(
-                gds, graph, args.top_n, args.write_back
-            )
+            betweenness_results = run_betweenness_analysis(gds, graph, args.top_n, args.write_back)
 
         if "degree" in args.algorithms:
-            degree_results = run_degree_analysis(
-                gds, graph, args.top_n, args.write_back
-            )
+            degree_results = run_degree_analysis(gds, graph, args.top_n, args.write_back)
 
         if "hits" in args.algorithms:
-            hits_authorities, hits_hubs = run_hits_analysis(
-                gds, graph, args.top_n, args.write_back
-            )
+            hits_authorities, hits_hubs = run_hits_analysis(gds, graph, args.top_n, args.write_back)
 
         # Provide summary
         summarize_analysis(

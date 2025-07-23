@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock
+
 # !/usr/bin/env python3
 """
 Tests for schema_management.py - Schema setup and validation
@@ -17,10 +18,10 @@ def test_schema_management_imports():
     import schema_management
 
     # Check key functions exist
-    assert hasattr(schema_management, 'create_schema_constraints_and_indexes')
-    assert hasattr(schema_management, 'verify_schema_constraints')
-    assert hasattr(schema_management, 'verify_schema_indexes')
-    assert hasattr(schema_management, 'setup_complete_schema')
+    assert hasattr(schema_management, "create_schema_constraints_and_indexes")
+    assert hasattr(schema_management, "verify_schema_constraints")
+    assert hasattr(schema_management, "verify_schema_indexes")
+    assert hasattr(schema_management, "setup_complete_schema")
 
 
 def test_constraint_creation():
@@ -39,13 +40,13 @@ def test_constraint_creation():
 
     # Check that some expected constraint names are in the calls
     call_args = [call[0][0] for call in mock_session.run.call_args_list]
-    constraint_calls = [call for call in call_args if 'CONSTRAINT' in call]
+    constraint_calls = [call for call in call_args if "CONSTRAINT" in call]
 
     # Should have constraints for all major node types
-    assert any('directory_path' in call for call in constraint_calls)
-    assert any('file_path' in call for call in constraint_calls)
-    assert any('method_name_file_line' in call for call in constraint_calls)
-    assert any('commit_sha' in call for call in constraint_calls)
+    assert any("directory_path" in call for call in constraint_calls)
+    assert any("file_path" in call for call in constraint_calls)
+    assert any("method_name_file_line" in call for call in constraint_calls)
+    assert any("commit_sha" in call for call in constraint_calls)
 
 
 def test_constraint_syntax():
@@ -59,11 +60,11 @@ def test_constraint_syntax():
 
     # Check that all constraint calls use REQUIRE syntax
     call_args = [call[0][0] for call in mock_session.run.call_args_list]
-    constraint_calls = [call for call in call_args if 'CONSTRAINT' in call and 'CREATE' in call]
+    constraint_calls = [call for call in call_args if "CONSTRAINT" in call and "CREATE" in call]
 
     for call in constraint_calls:
-        assert 'REQUIRE' in call, f"Constraint should use REQUIRE syntax: {call}"
-        assert 'IS UNIQUE' in call, f"Constraint should use IS UNIQUE syntax: {call}"
+        assert "REQUIRE" in call, f"Constraint should use REQUIRE syntax: {call}"
+        assert "IS UNIQUE" in call, f"Constraint should use IS UNIQUE syntax: {call}"
 
 
 def test_verify_schema_functions():
@@ -73,37 +74,45 @@ def test_verify_schema_functions():
     # Mock session for constraints verification
     mock_session = Mock()
     mock_result = Mock()
-    mock_result.__iter__ = Mock(return_value=iter([
-        {
-            'name': 'test_constraint',
-            'type': 'UNIQUENESS',
-            'entityType': 'NODE',
-            'labelsOrTypes': ['File'],
-            'properties': ['path']
-        }
-    ]))
+    mock_result.__iter__ = Mock(
+        return_value=iter(
+            [
+                {
+                    "name": "test_constraint",
+                    "type": "UNIQUENESS",
+                    "entityType": "NODE",
+                    "labelsOrTypes": ["File"],
+                    "properties": ["path"],
+                }
+            ]
+        )
+    )
     mock_session.run = Mock(return_value=mock_result)
 
     # Test constraint verification
     constraints = schema_management.verify_schema_constraints(mock_session)
     assert len(constraints) == 1
-    assert constraints[0]['name'] == 'test_constraint'
+    assert constraints[0]["name"] == "test_constraint"
 
     # Test index verification
-    mock_result.__iter__ = Mock(return_value=iter([
-        {
-            'name': 'test_index',
-            'type': 'BTREE',
-            'entityType': 'NODE',
-            'labelsOrTypes': ['Method'],
-            'properties': ['name'],
-            'state': 'ONLINE'
-        }
-    ]))
+    mock_result.__iter__ = Mock(
+        return_value=iter(
+            [
+                {
+                    "name": "test_index",
+                    "type": "BTREE",
+                    "entityType": "NODE",
+                    "labelsOrTypes": ["Method"],
+                    "properties": ["name"],
+                    "state": "ONLINE",
+                }
+            ]
+        )
+    )
 
     indexes = schema_management.verify_schema_indexes(mock_session)
     assert len(indexes) == 1
-    assert indexes[0]['name'] == 'test_index'
+    assert indexes[0]["name"] == "test_index"
 
 
 def test_natural_key_coverage():
@@ -116,26 +125,28 @@ def test_natural_key_coverage():
     schema_management.create_schema_constraints_and_indexes(mock_session)
 
     call_args = [call[0][0] for call in mock_session.run.call_args_list]
-    constraint_calls = [call for call in call_args if 'CONSTRAINT' in call and 'CREATE' in call]
+    constraint_calls = [call for call in call_args if "CONSTRAINT" in call and "CREATE" in call]
 
     # Expected node types and their natural keys
     expected_constraints = [
-        ('Directory', 'path'),
-        ('File', 'path'),
-        ('Class', 'name, file'),
-        ('Interface', 'name, file'),
-        ('Method', 'name, file, line'),
-        ('Commit', 'sha'),
-        ('Developer', 'email'),
-        ('FileVer', 'sha, path')
+        ("Directory", "path"),
+        ("File", "path"),
+        ("Class", "name, file"),
+        ("Interface", "name, file"),
+        ("Method", "name, file, line"),
+        ("Commit", "sha"),
+        ("Developer", "email"),
+        ("FileVer", "sha, path"),
     ]
 
     for node_type, key_props in expected_constraints:
         # Check that there's a constraint for this node type
         # Pattern should match (variable:NodeType) format
-        pattern = f':{node_type}'
+        pattern = f":{node_type}"
         matching_constraints = [call for call in constraint_calls if pattern in call]
-        assert len(matching_constraints) > 0, f"Missing constraint for {
+        assert (
+            len(matching_constraints) > 0
+        ), f"Missing constraint for {
             node_type} natural key: {key_props}. Found constraints: {constraint_calls}"
 
 

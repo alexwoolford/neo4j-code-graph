@@ -27,16 +27,10 @@ def parse_args():
         description="Clean up analysis results or perform complete database reset"
     )
     parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
-    parser.add_argument(
-        "--username", default=NEO4J_USERNAME, help="Neo4j authentication username"
-    )
-    parser.add_argument(
-        "--password", default=NEO4J_PASSWORD, help="Neo4j authentication password"
-    )
+    parser.add_argument("--username", default=NEO4J_USERNAME, help="Neo4j authentication username")
+    parser.add_argument("--password", default=NEO4J_PASSWORD, help="Neo4j authentication password")
     parser.add_argument("--database", default=NEO4J_DATABASE, help="Neo4j database")
-    parser.add_argument(
-        "--log-level", default="INFO", help="Logging level (DEBUG, INFO, WARNING)"
-    )
+    parser.add_argument("--log-level", default="INFO", help="Logging level (DEBUG, INFO, WARNING)")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -74,9 +68,7 @@ def cleanup_similarities(session, dry_run=False):
         logger.info("Deleted %d SIMILAR relationships", count)
 
 
-def cleanup_communities(
-    session, community_property="similarityCommunity", dry_run=False
-):
+def cleanup_communities(session, community_property="similarityCommunity", dry_run=False):
     """Remove community properties from Method nodes."""
     # Count nodes with community property
     result = session.run(
@@ -101,9 +93,7 @@ def cleanup_communities(
             f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL "
             f"REMOVE m.{community_property}"
         )
-        logger.info(
-            "Removed %s property from %d Method nodes", community_property, count
-        )
+        logger.info("Removed %s property from %d Method nodes", community_property, count)
 
 
 def cleanup_graph_projections(session, dry_run=False):
@@ -167,9 +157,7 @@ def complete_database_reset(session, dry_run=False):
     result = session.run("MATCH ()-[r]->() RETURN count(r) as rel_count")
     initial_rels = result.single()["rel_count"]
 
-    logger.info(
-        "Database contains %d nodes and %d relationships", initial_nodes, initial_rels
-    )
+    logger.info("Database contains %d nodes and %d relationships", initial_nodes, initial_rels)
 
     if initial_nodes == 0 and initial_rels == 0:
         logger.info("Database is already empty")
@@ -200,9 +188,7 @@ def complete_database_reset(session, dry_run=False):
             if deleted == 0:
                 break
             total_rel_deleted += deleted
-            logger.info(
-                "  Deleted %d relationships (total: %d)", deleted, total_rel_deleted
-            )
+            logger.info("  Deleted %d relationships (total: %d)", deleted, total_rel_deleted)
             time.sleep(0.1)  # Brief pause to avoid overwhelming the server
 
         logger.info("✅ Deleted %d relationships", total_rel_deleted)
@@ -276,9 +262,7 @@ def main():
     )
 
     try:
-        driver = GraphDatabase.driver(
-            ensure_port(args.uri), auth=(args.username, args.password)
-        )
+        driver = GraphDatabase.driver(ensure_port(args.uri), auth=(args.username, args.password))
         driver.verify_connectivity()
         logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
     except Exception as e:
@@ -305,9 +289,7 @@ def main():
 
             else:
                 # Selective cleanup (default behavior)
-                logger.info(
-                    "Starting cleanup%s...", " (DRY RUN)" if args.dry_run else ""
-                )
+                logger.info("Starting cleanup%s...", " (DRY RUN)" if args.dry_run else "")
 
                 # Clean up similarities
                 cleanup_similarities(session, args.dry_run)

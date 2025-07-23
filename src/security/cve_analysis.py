@@ -76,9 +76,7 @@ class UniversalCVEAnalyzer:
                 dep_path = record["dependency_path"]
                 language = record.get("language", "unknown")
                 ecosystem = record.get("ecosystem", "unknown")
-                version = record.get(
-                    "version"
-                )  # Will be None for now, but we'll fix that
+                version = record.get("version")  # Will be None for now, but we'll fix that
 
                 # Group by ecosystem for targeted CVE searching
                 key = f"{language}:{ecosystem}" if language != "unknown" else "unknown"
@@ -107,9 +105,7 @@ class UniversalCVEAnalyzer:
                 if record["language"]:
                     file_languages.add(record["language"].lower())
 
-            logger.info(
-                f"📊 Found dependencies in {len(dependencies_by_ecosystem)} ecosystems"
-            )
+            logger.info(f"📊 Found dependencies in {len(dependencies_by_ecosystem)} ecosystems")
             logger.info(f"📊 Detected languages: {file_languages}")
 
             return dependencies_by_ecosystem, file_languages
@@ -119,16 +115,12 @@ class UniversalCVEAnalyzer:
     ) -> Set[str]:
         """Create language-agnostic search terms from any dependency structure."""
         search_terms = set()
-        specific_vendor_terms = (
-            set()
-        )  # Track specific vendor terms to avoid generic ones
+        specific_vendor_terms = set()  # Track specific vendor terms to avoid generic ones
 
         for ecosystem, deps in dependencies.items():
             for dep in deps:
                 # Universal patterns that work across languages
-                if dep and isinstance(
-                    dep, str
-                ):  # Filter out None values and non-strings
+                if dep and isinstance(dep, str):  # Filter out None values and non-strings
                     search_terms.add(dep.lower())
 
                 # Extract meaningful parts from different naming conventions
@@ -147,8 +139,7 @@ class UniversalCVEAnalyzer:
                         vendor_parts = [
                             p
                             for p in dep.split(".")
-                            if p.lower()
-                            in ["jetbrains", "springframework", "fasterxml"]
+                            if p.lower() in ["jetbrains", "springframework", "fasterxml"]
                         ]
                         for vendor_part in vendor_parts:
                             specific_vendor_terms.add(vendor_part.lower())
@@ -306,9 +297,7 @@ class UniversalCVEAnalyzer:
         else:
             logger.info("No CVE-dependency matches found")
 
-    def _is_dependency_affected_simple(
-        self, dep_path: str, cve_description: str
-    ) -> bool:
+    def _is_dependency_affected_simple(self, dep_path: str, cve_description: str) -> bool:
         """Simple dependency matching using cleaned CVE data."""
         dep_lower = dep_path.lower()
 
@@ -320,9 +309,7 @@ class UniversalCVEAnalyzer:
         parts = []
         for sep in [".", "/", "-", "_", "::"]:
             if sep in dep_path:
-                parts.extend(
-                    part.lower() for part in dep_path.split(sep) if len(part) > 2
-                )
+                parts.extend(part.lower() for part in dep_path.split(sep) if len(part) > 2)
 
         # At least one meaningful part must match
         for part in parts:
@@ -331,9 +318,7 @@ class UniversalCVEAnalyzer:
 
         return False
 
-    def _calculate_match_confidence_simple(
-        self, dep_path: str, cve_description: str
-    ) -> float:
+    def _calculate_match_confidence_simple(self, dep_path: str, cve_description: str) -> float:
         """Calculate confidence for simple matching."""
         dep_lower = dep_path.lower()
 
@@ -343,9 +328,7 @@ class UniversalCVEAnalyzer:
         parts = []
         for sep in [".", "/", "-", "_", "::"]:
             if sep in dep_path:
-                parts.extend(
-                    part.lower() for part in dep_path.split(sep) if len(part) > 2
-                )
+                parts.extend(part.lower() for part in dep_path.split(sep) if len(part) > 2)
 
         matches = sum(1 for part in parts if len(part) > 3 and part in cve_description)
         if matches and parts:
@@ -369,9 +352,7 @@ class UniversalCVEAnalyzer:
         # Split by various separators
         for sep in [".", "/", "-", "_", "::"]:
             if sep in dep_path:
-                dep_parts.update(
-                    part.lower() for part in dep_path.split(sep) if len(part) > 2
-                )
+                dep_parts.update(part.lower() for part in dep_path.split(sep) if len(part) > 2)
 
         # Check if any part matches CPE components
         if dep_parts.intersection(cpe_components):
@@ -399,18 +380,14 @@ class UniversalCVEAnalyzer:
         dep_parts = set()
         for sep in [".", "/", "-", "_", "::"]:
             if sep in dep_path:
-                dep_parts.update(
-                    part.lower() for part in dep_path.split(sep) if len(part) > 2
-                )
+                dep_parts.update(part.lower() for part in dep_path.split(sep) if len(part) > 2)
 
         matches = dep_parts.intersection(cpe_components)
         if matches:
             confidence += 0.6 * (len(matches) / len(dep_parts))
 
         # Partial text matches
-        partial_matches = sum(
-            1 for part in dep_parts if len(part) > 3 and part in cve_text
-        )
+        partial_matches = sum(1 for part in dep_parts if len(part) > 3 and part in cve_text)
         if partial_matches:
             confidence += 0.4 * (partial_matches / len(dep_parts))
 
@@ -452,9 +429,7 @@ class UniversalCVEAnalyzer:
             cve_count = cve_result.single()["total"]
 
             if cve_count == 0:
-                logger.warning(
-                    "⚠️  No CVE data found in the database. Running CVE fetch first..."
-                )
+                logger.warning("⚠️  No CVE data found in the database. Running CVE fetch first...")
                 # Fetch CVE data
                 dependencies_by_ecosystem, _ = self.extract_codebase_dependencies()
                 search_terms = self.create_universal_component_search_terms(
@@ -503,9 +478,7 @@ class UniversalCVEAnalyzer:
             print("No high-risk vulnerabilities found in your codebase!")
             print("This could mean:")
             print("  • Your dependencies are up-to-date and secure")
-            print(
-                "  • The components you're using don't have known critical vulnerabilities"
-            )
+            print("  • The components you're using don't have known critical vulnerabilities")
             print("  • Your dependency versions are newer than vulnerable ranges")
             return
 
@@ -518,9 +491,7 @@ class UniversalCVEAnalyzer:
             print(f"   Severity: {vuln['severity']}")
             print(f"   Description: {vuln['description'][:100]}...")
             if vuln.get("affected_dependencies"):
-                print(
-                    f"   Potentially affects: {len(vuln['affected_dependencies'])} dependencies"
-                )
+                print(f"   Potentially affects: {len(vuln['affected_dependencies'])} dependencies")
 
         print("\n💡 **RECOMMENDATIONS:**")
         print("1. Review the high-CVSS vulnerabilities above")
@@ -560,9 +531,7 @@ Examples:
 
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     parser.add_argument("--database", default="neo4j", help="Neo4j database name")
-    parser.add_argument(
-        "--api-key", help="NVD API key for faster, more reliable downloads"
-    )
+    parser.add_argument("--api-key", help="NVD API key for faster, more reliable downloads")
     parser.add_argument(
         "--max-results",
         type=int,
@@ -572,20 +541,14 @@ Examples:
     parser.add_argument(
         "--days-back", type=int, default=365, help="Days back to search (default: 365)"
     )
-    parser.add_argument(
-        "--cache-status", action="store_true", help="Show cache status and exit"
-    )
+    parser.add_argument("--cache-status", action="store_true", help="Show cache status and exit")
     parser.add_argument(
         "--clear-partial-cache",
         action="store_true",
         help="Clear partial caches (keeps complete caches)",
     )
-    parser.add_argument(
-        "--clear-all-cache", action="store_true", help="Clear all caches"
-    )
-    parser.add_argument(
-        "--api-key-info", action="store_true", help="Show how to get an API key"
-    )
+    parser.add_argument("--clear-all-cache", action="store_true", help="Clear all caches")
+    parser.add_argument("--api-key-info", action="store_true", help="Show how to get an API key")
     parser.add_argument(
         "--risk-threshold",
         type=float,
@@ -636,9 +599,7 @@ Examples:
             return
 
         if args.clear_all_cache:
-            confirm = input(
-                "⚠️  This will delete ALL cached CVE data. Continue? (y/N): "
-            )
+            confirm = input("⚠️  This will delete ALL cached CVE data. Continue? (y/N): ")
             if confirm.lower() == "y":
                 analyzer.cve_manager.clear_cache(keep_complete=False)
                 print("✅ Cleared all caches")
@@ -651,9 +612,7 @@ Examples:
         analyzer.get_cache_status()
 
         # Extract dependencies from the graph
-        dependencies_by_ecosystem, detected_languages = (
-            analyzer.extract_codebase_dependencies()
-        )
+        dependencies_by_ecosystem, detected_languages = analyzer.extract_codebase_dependencies()
         logger.info(
             f"📊 Detected {sum(len(deps) for deps in dependencies_by_ecosystem.values())} dependencies"
         )
@@ -666,9 +625,7 @@ Examples:
             return
 
         # Create universal search terms
-        search_terms = analyzer.create_universal_component_search_terms(
-            dependencies_by_ecosystem
-        )
+        search_terms = analyzer.create_universal_component_search_terms(dependencies_by_ecosystem)
 
         print("\n🎯 **CVE FETCH PARAMETERS**")
         print("=" * 50)
@@ -704,9 +661,7 @@ Examples:
             if not cve_data:
                 print("\n🎉 **EXCELLENT NEWS!**")
                 print("No high-risk CVEs found for your dependencies!")
-                print(
-                    "This suggests your codebase is using secure, up-to-date components."
-                )
+                print("This suggests your codebase is using secure, up-to-date components.")
                 return
 
             # Create vulnerability graph

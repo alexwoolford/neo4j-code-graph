@@ -213,9 +213,7 @@ class PipelineManager:
                 return self._handle_cleanup_step(step)
 
             # Special handling for CVE step
-            if step.name == "cve_analysis" and (
-                self.skip_cve or not self._has_nvd_api_key()
-            ):
+            if step.name == "cve_analysis" and (self.skip_cve or not self._has_nvd_api_key()):
                 step.status = StepStatus.SKIPPED
                 step.end_time = datetime.now()
                 self.logger.info("⚠️  Skipping CVE analysis (no API key or disabled)")
@@ -235,9 +233,7 @@ class PipelineManager:
 
             if result.returncode == 0:
                 step.status = StepStatus.COMPLETED
-                self.logger.info(
-                    f"✅ {step.description} completed in {step.duration:.2f}s"
-                )
+                self.logger.info(f"✅ {step.description} completed in {step.duration:.2f}s")
                 return True
             else:
                 step.status = StepStatus.FAILED
@@ -264,9 +260,7 @@ class PipelineManager:
         import subprocess
 
         # Run dry-run first
-        result = subprocess.run(
-            [step.command] + step.args, capture_output=True, text=True
-        )
+        result = subprocess.run([step.command] + step.args, capture_output=True, text=True)
 
         if result.returncode == 0 and result.stdout:
             print(result.stdout)
@@ -281,9 +275,7 @@ class PipelineManager:
 
             # Run actual cleanup
             cleanup_args = [arg for arg in step.args if arg != "--dry-run"]
-            result = subprocess.run(
-                [step.command] + cleanup_args, capture_output=True, text=True
-            )
+            result = subprocess.run([step.command] + cleanup_args, capture_output=True, text=True)
 
             if result.returncode == 0:
                 step.status = StepStatus.COMPLETED
@@ -352,9 +344,7 @@ class PipelineManager:
                 failed_steps += 1
 
                 if step.required and not self.continue_on_error:
-                    self.logger.error(
-                        f"💥 Pipeline failed at required step: {step.description}"
-                    )
+                    self.logger.error(f"💥 Pipeline failed at required step: {step.description}")
                     break
                 elif not step.required:
                     self.logger.warning(f"⚠️  Optional step failed: {step.description}")
@@ -375,9 +365,7 @@ class PipelineManager:
         print(f"⏱️  Total Duration: {duration:.2f} seconds")
         print(f"✅ Completed Steps: {completed}")
         print(f"❌ Failed Steps: {failed}")
-        print(
-            f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}"
-        )
+        print(f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}")
 
         print("\n📋 Step Details:")
         for step in self.steps:
@@ -459,12 +447,8 @@ Examples:
         action="store_true",
         help="Show what would be executed without running",
     )
-    parser.add_argument(
-        "--skip-cleanup", action="store_true", help="Skip database cleanup step"
-    )
-    parser.add_argument(
-        "--skip-cve", action="store_true", help="Skip CVE analysis step"
-    )
+    parser.add_argument("--skip-cleanup", action="store_true", help="Skip database cleanup step")
+    parser.add_argument("--skip-cve", action="store_true", help="Skip CVE analysis step")
     parser.add_argument(
         "--continue-on-error",
         action="store_true",
@@ -506,9 +490,7 @@ Examples:
         logging.getLogger(__name__).error("❌ Pipeline interrupted by user")
         exit_code = 130
     except Exception as e:
-        logging.getLogger(__name__).error(
-            f"❌ Pipeline failed with unexpected error: {e}"
-        )
+        logging.getLogger(__name__).error(f"❌ Pipeline failed with unexpected error: {e}")
         exit_code = 1
 
     sys.exit(exit_code)

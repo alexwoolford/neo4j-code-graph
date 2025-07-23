@@ -52,9 +52,7 @@ def extract_dependency_versions_from_files(repo_root):
         except Exception as e:
             logger.debug(f"Error processing {gradle_file}: {e}")
 
-    logger.info(
-        f"📊 Found version information for {len(dependency_versions)} dependencies"
-    )
+    logger.info(f"📊 Found version information for {len(dependency_versions)} dependencies")
     return dependency_versions
 
 
@@ -94,9 +92,7 @@ def _extract_maven_dependencies(pom_file):
                 if version and version.startswith("${") and version.endswith("}"):
                     # Try to resolve from properties
                     prop_name = version[2:-1]
-                    prop_elem = root.find(
-                        f".//maven:properties/maven:{prop_name}", namespace
-                    )
+                    prop_elem = root.find(f".//maven:properties/maven:{prop_name}", namespace)
                     if prop_elem is not None:
                         version = prop_elem.text
 
@@ -151,12 +147,8 @@ def _extract_gradle_dependencies(gradle_file):
                 # Skip version variables for now
                 if not version.startswith("$"):
                     dependency_versions[package_name] = version
-                    dependency_versions[group_id] = (
-                        version  # Also add group for broader matching
-                    )
-                    logger.debug(
-                        f"Found Gradle dependency: {package_name} -> {version}"
-                    )
+                    dependency_versions[group_id] = version  # Also add group for broader matching
+                    logger.debug(f"Found Gradle dependency: {package_name} -> {version}")
 
         # Also look for version catalogs and properties
         version_props = re.finditer(r"(\w+Version)\s*=\s*['\"]([^'\"]+)['\"]", content)
@@ -183,9 +175,7 @@ def parse_args():
     )
     add_common_args(parser)
     parser.add_argument("repo_url", help="Git repository URL or local path to analyze")
-    parser.add_argument(
-        "--batch-size", type=int, help="Override automatic batch size selection"
-    )
+    parser.add_argument("--batch-size", type=int, help="Override automatic batch size selection")
     parser.add_argument(
         "--parallel-files",
         type=int,
@@ -302,20 +292,14 @@ def extract_file_data(file_path, repo_root):
             for import_stmt in tree.imports:
                 try:
                     import_path = import_stmt.path
-                    is_static = (
-                        import_stmt.static if hasattr(import_stmt, "static") else False
-                    )
+                    is_static = import_stmt.static if hasattr(import_stmt, "static") else False
                     is_wildcard = (
-                        import_stmt.wildcard
-                        if hasattr(import_stmt, "wildcard")
-                        else False
+                        import_stmt.wildcard if hasattr(import_stmt, "wildcard") else False
                     )
 
                     # Classify import type
                     import_type = "external"
-                    if import_path.startswith("java.") or import_path.startswith(
-                        "javax."
-                    ):
+                    if import_path.startswith("java.") or import_path.startswith("javax."):
                         import_type = "standard"
                     elif import_path.startswith("org.neo4j"):
                         import_type = "internal"
@@ -372,9 +356,7 @@ def extract_file_data(file_path, repo_root):
                 classes.append(class_info)
 
             except Exception as e:
-                logger.debug(
-                    "Error processing class %s in %s: %s", node.name, rel_path, e
-                )
+                logger.debug("Error processing class %s in %s: %s", node.name, rel_path, e)
                 continue
 
         # Extract interface declarations
@@ -394,9 +376,7 @@ def extract_file_data(file_path, repo_root):
                 interfaces.append(interface_info)
 
             except Exception as e:
-                logger.debug(
-                    "Error processing interface %s in %s: %s", node.name, rel_path, e
-                )
+                logger.debug("Error processing interface %s in %s: %s", node.name, rel_path, e)
                 continue
 
         # Extract method declarations
@@ -427,9 +407,7 @@ def extract_file_data(file_path, repo_root):
                     brace_count = 0
 
                     # Find method end by counting braces
-                    for i, line in enumerate(
-                        code_lines[start_line - 1 :], start_line - 1
-                    ):
+                    for i, line in enumerate(code_lines[start_line - 1 :], start_line - 1):
                         if "{" in line:
                             brace_count += line.count("{")
                         if "}" in line:
@@ -461,24 +439,18 @@ def extract_file_data(file_path, repo_root):
                     "is_final": "final" in (node.modifiers or []),
                     "is_private": "private" in (node.modifiers or []),
                     "is_public": "public" in (node.modifiers or []),
-                    "return_type": (
-                        str(node.return_type) if node.return_type else "void"
-                    ),
+                    "return_type": (str(node.return_type) if node.return_type else "void"),
                     "calls": method_calls,  # List of method calls made by this method
                 }
                 methods.append(method_info)
 
             except Exception as e:
-                logger.debug(
-                    "Error processing method %s in %s: %s", node.name, rel_path, e
-                )
+                logger.debug("Error processing method %s in %s: %s", node.name, rel_path, e)
                 continue
 
         # Update interface method counts
         for interface in interfaces:
-            interface["method_count"] = sum(
-                1 for m in methods if m["class"] == interface["name"]
-            )
+            interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
 
     except Exception as e:
         logger.warning("Failed to parse Java file %s: %s", rel_path, e)
@@ -486,11 +458,7 @@ def extract_file_data(file_path, repo_root):
     # Calculate file-level metrics
     file_lines = len(code.splitlines())
     code_lines = len(
-        [
-            line
-            for line in code.splitlines()
-            if line.strip() and not line.strip().startswith("//")
-        ]
+        [line for line in code.splitlines() if line.strip() and not line.strip().startswith("//")]
     )
 
     return {
@@ -624,11 +592,7 @@ def bulk_create_nodes_and_relationships(
     dir_relationships = []
     for directory in directories:
         if directory:  # Not root
-            parent = (
-                str(Path(directory).parent)
-                if Path(directory).parent != Path(".")
-                else ""
-            )
+            parent = str(Path(directory).parent) if Path(directory).parent != Path(".") else ""
             dir_relationships.append({"parent": parent, "child": directory})
 
     if dir_relationships:
@@ -778,9 +742,7 @@ def bulk_create_nodes_and_relationships(
 
     # Create class inheritance relationships (EXTENDS)
     if class_inheritance:
-        logger.info(
-            f"Creating {len(class_inheritance)} class inheritance relationships..."
-        )
+        logger.info(f"Creating {len(class_inheritance)} class inheritance relationships...")
         session.run(
             "UNWIND $inheritance AS rel "
             "MATCH (child:Class {name: rel.child, file: rel.child_file}) "
@@ -791,9 +753,7 @@ def bulk_create_nodes_and_relationships(
 
     # Create interface inheritance relationships (EXTENDS)
     if interface_inheritance:
-        logger.info(
-            f"Creating {len(interface_inheritance)} interface inheritance relationships..."
-        )
+        logger.info(f"Creating {len(interface_inheritance)} interface inheritance relationships...")
         session.run(
             "UNWIND $inheritance AS rel "
             "MATCH (child:Interface {name: rel.child, file: rel.child_file}) "
@@ -804,9 +764,7 @@ def bulk_create_nodes_and_relationships(
 
     # Create class-interface implementation relationships (IMPLEMENTS)
     if class_implementations:
-        logger.info(
-            f"Creating {len(class_implementations)} implementation relationships..."
-        )
+        logger.info(f"Creating {len(class_implementations)} implementation relationships...")
         session.run(
             "UNWIND $implementations AS rel "
             "MATCH (c:Class {name: rel.class, file: rel.class_file}) "
@@ -819,9 +777,7 @@ def bulk_create_nodes_and_relationships(
     file_class_rels = []
     for file_data in files_data:
         for class_info in file_data.get("classes", []):
-            file_class_rels.append(
-                {"file": file_data["path"], "class": class_info["name"]}
-            )
+            file_class_rels.append({"file": file_data["path"], "class": class_info["name"]})
 
     if file_class_rels:
         session.run(
@@ -882,17 +838,13 @@ def bulk_create_nodes_and_relationships(
     # Split method creation into batches to avoid huge queries
     batch_size = 1000
     total_batches = (len(method_nodes) + batch_size - 1) // batch_size
-    logger.info(
-        f"Creating {len(method_nodes)} method nodes in {total_batches} batches..."
-    )
+    logger.info(f"Creating {len(method_nodes)} method nodes in {total_batches} batches...")
 
     for i in range(0, len(method_nodes), batch_size):
         batch_num = i // batch_size + 1
         batch = method_nodes[i : i + batch_size]
 
-        logger.info(
-            f"Creating method batch {batch_num}/{total_batches} ({len(batch)} methods)..."
-        )
+        logger.info(f"Creating method batch {batch_num}/{total_batches} ({len(batch)} methods)...")
         start_time = perf_counter()
 
         session.run(
@@ -980,9 +932,7 @@ def bulk_create_nodes_and_relationships(
 
     # Create method-to-class relationships
     if method_class_rels:
-        logger.info(
-            f"Creating {len(method_class_rels)} method-to-class relationships..."
-        )
+        logger.info(f"Creating {len(method_class_rels)} method-to-class relationships...")
         for i in range(0, len(method_class_rels), batch_size):
             batch = method_class_rels[i : i + batch_size]
             session.run(
@@ -995,9 +945,7 @@ def bulk_create_nodes_and_relationships(
 
     # Create method-to-interface relationships
     if method_interface_rels:
-        logger.info(
-            f"Creating {len(method_interface_rels)} method-to-interface relationships..."
-        )
+        logger.info(f"Creating {len(method_interface_rels)} method-to-interface relationships...")
         for i in range(0, len(method_interface_rels), batch_size):
             batch = method_interface_rels[i : i + batch_size]
             session.run(
@@ -1028,27 +976,27 @@ def bulk_create_nodes_and_relationships(
                     # Group by organization (e.g., com.fasterxml.jackson.* -> com.fasterxml.jackson)
                     parts = import_path.split(".")
                     if len(parts) >= 3:
-                        base_package = ".".join(
-                            parts[:3]
-                        )  # e.g., com.fasterxml.jackson
+                        base_package = ".".join(parts[:3])  # e.g., com.fasterxml.jackson
                         external_dependencies.add(base_package)
 
     # Bulk create Import nodes
     if all_imports:
         logger.info(f"Creating {len(all_imports)} import nodes...")
-        
+
         # Use the same batching approach as methods for consistency and performance
         batch_size = 1000
         total_batches = (len(all_imports) + batch_size - 1) // batch_size
         logger.info(f"Creating {len(all_imports)} import nodes in {total_batches} batches...")
-        
+
         for i in range(0, len(all_imports), batch_size):
             batch_num = i // batch_size + 1
             batch = all_imports[i : i + batch_size]
-            
-            logger.info(f"Creating import batch {batch_num}/{total_batches} ({len(batch)} imports)...")
+
+            logger.info(
+                f"Creating import batch {batch_num}/{total_batches} ({len(batch)} imports)..."
+            )
             start_time = perf_counter()
-            
+
             session.run(
                 "UNWIND $imports AS imp "
                 "MERGE (i:Import {import_path: imp.import_path}) "
@@ -1056,20 +1004,24 @@ def bulk_create_nodes_and_relationships(
                 "i.import_type = imp.import_type",
                 imports=batch,
             )
-            
+
             batch_time = perf_counter() - start_time
             logger.info(f"Import batch {batch_num} completed in {batch_time:.1f}s")
 
         # Create IMPORTS relationships using batching
-        logger.info(f"Creating {len(all_imports)} IMPORTS relationships in {total_batches} batches...")
-        
+        logger.info(
+            f"Creating {len(all_imports)} IMPORTS relationships in {total_batches} batches..."
+        )
+
         for i in range(0, len(all_imports), batch_size):
             batch_num = i // batch_size + 1
             batch = all_imports[i : i + batch_size]
-            
-            logger.info(f"Creating IMPORTS relationship batch {batch_num}/{total_batches} ({len(batch)} relationships)...")
+
+            logger.info(
+                f"Creating IMPORTS relationship batch {batch_num}/{total_batches} ({len(batch)} relationships)..."
+            )
             start_time = perf_counter()
-            
+
             session.run(
                 "UNWIND $imports AS imp "
                 "MATCH (f:File {path: imp.file}) "
@@ -1077,15 +1029,13 @@ def bulk_create_nodes_and_relationships(
                 "MERGE (f)-[:IMPORTS]->(i)",
                 imports=batch,
             )
-            
+
             batch_time = perf_counter() - start_time
             logger.info(f"IMPORTS relationship batch {batch_num} completed in {batch_time:.1f}s")
 
     # Create ExternalDependency nodes for CVE analysis
     if external_dependencies:
-        logger.info(
-            f"Creating {len(external_dependencies)} external dependency nodes..."
-        )
+        logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
         dependency_nodes = []
 
         for dep in external_dependencies:
@@ -1167,14 +1117,10 @@ def bulk_create_nodes_and_relationships(
         logger.info(f"Processing {len(method_call_rels)} method call relationships...")
 
         # Group by call type for different handling
-        same_class_calls = [
-            r for r in method_call_rels if r["call_type"] in ["same_class", "this"]
-        ]
+        same_class_calls = [r for r in method_call_rels if r["call_type"] in ["same_class", "this"]]
         static_calls = [r for r in method_call_rels if r["call_type"] == "static"]
         other_calls = [
-            r
-            for r in method_call_rels
-            if r["call_type"] not in ["same_class", "this", "static"]
+            r for r in method_call_rels if r["call_type"] not in ["same_class", "this", "static"]
         ]
 
         # Handle same-class calls (most reliable)
@@ -1210,27 +1156,29 @@ def bulk_create_nodes_and_relationships(
 
         # Handle other calls (best effort - by method name only)
         if other_calls:
-            logger.info(
-                f"Creating {len(other_calls)} other method calls (best effort)..."
-            )
-            
+            logger.info(f"Creating {len(other_calls)} other method calls (best effort)...")
+
             # Use much smaller batches for this problematic section
             small_batch_size = 100  # Much smaller than normal batch_size
             total_small_batches = (len(other_calls) + small_batch_size - 1) // small_batch_size
-            
-            logger.warning(f"⚠️ Using small batches ({small_batch_size}) for complex method matching")
-            
+
+            logger.warning(
+                f"⚠️ Using small batches ({small_batch_size}) for complex method matching"
+            )
+
             successful_calls = 0
             failed_batches = 0
-            
+
             for i in range(0, len(other_calls), small_batch_size):
                 batch_num = i // small_batch_size + 1
                 batch = other_calls[i : i + small_batch_size]
-                
+
                 try:
-                    logger.info(f"Processing small batch {batch_num}/{total_small_batches} ({len(batch)} calls)...")
+                    logger.info(
+                        f"Processing small batch {batch_num}/{total_small_batches} ({len(batch)} calls)..."
+                    )
                     start_time = perf_counter()
-                    
+
                     # Use a more conservative query with timeouts
                     result = session.run(
                         "UNWIND $calls AS call "
@@ -1244,27 +1192,33 @@ def bulk_create_nodes_and_relationships(
                         "RETURN count(*) as created",
                         calls=batch,
                     )
-                    
+
                     created = result.single()["created"]
                     successful_calls += created
-                    
+
                     batch_time = perf_counter() - start_time
-                    logger.info(f"Small batch {batch_num} completed: {created} relationships in {batch_time:.1f}s")
-                    
+                    logger.info(
+                        f"Small batch {batch_num} completed: {created} relationships in {batch_time:.1f}s"
+                    )
+
                     # Add a longer pause between batches to let database recover
                     if batch_num < total_small_batches:
                         time.sleep(0.5)
-                        
+
                 except Exception as e:
                     failed_batches += 1
                     logger.warning(f"Batch {batch_num} failed (continuing): {e}")
-                    
+
                     # If too many failures, stop to avoid further database issues
                     if failed_batches > 10:
-                        logger.error("Too many failed batches, stopping other method calls processing")
+                        logger.error(
+                            "Too many failed batches, stopping other method calls processing"
+                        )
                         break
-                        
-            logger.info(f"Other method calls completed: {successful_calls} relationships created, {failed_batches} batches failed")
+
+            logger.info(
+                f"Other method calls completed: {successful_calls} relationships created, {failed_batches} batches failed"
+            )
 
     logger.info("Bulk creation completed!")
 
@@ -1348,9 +1302,7 @@ def main():
             logger.info(f"Model loaded on {device}")
 
             # Compute embeddings with optimized batching
-            batch_size = (
-                args.batch_size if args.batch_size else get_optimal_batch_size(device)
-            )
+            batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
             logger.info(f"Using batch size: {batch_size}")
 
             # Collect all code snippets

@@ -15,6 +15,7 @@ from pathlib import Path
 
 # Add src to path for testing
 import sys
+
 ROOT = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(ROOT))
 
@@ -69,7 +70,7 @@ class TestPipelineIntegration:
             java_file = repo_path / "src" / "main" / "java" / "com" / "example" / "Calculator.java"
             java_file.parent.mkdir(parents=True, exist_ok=True)
 
-            java_content = '''
+            java_content = """
 package com.example;
 
 import java.util.List;
@@ -117,12 +118,14 @@ public class Calculator {
         history.clear();
     }
 }
-'''
+"""
             java_file.write_text(java_content)
 
             # Create another Java file with interface
-            interface_file = repo_path / "src" / "main" / "java" / "com" / "example" / "Processor.java"
-            interface_content = '''
+            interface_file = (
+                repo_path / "src" / "main" / "java" / "com" / "example" / "Processor.java"
+            )
+            interface_content = """
 package com.example;
 
 import java.util.List;
@@ -141,7 +144,7 @@ public interface Processor<T> {
      */
     String getName();
 }
-'''
+"""
             interface_file.write_text(interface_content)
 
             yield repo_path
@@ -156,17 +159,17 @@ public interface Processor<T> {
         file_data = extract_file_data(calculator_file, sample_java_repo)
 
         assert file_data is not None
-        assert file_data['path'] == 'src/main/java/com/example/Calculator.java'
-        assert len(file_data['classes']) == 1
-        assert file_data['classes'][0]['name'] == 'Calculator'
-        assert len(file_data['methods']) >= 4  # Constructor + 4 methods
+        assert file_data["path"] == "src/main/java/com/example/Calculator.java"
+        assert len(file_data["classes"]) == 1
+        assert file_data["classes"][0]["name"] == "Calculator"
+        assert len(file_data["methods"]) >= 4  # Constructor + 4 methods
 
         # Check that methods were extracted
-        method_names = [m['name'] for m in file_data['methods']]
-        assert 'add' in method_names
-        assert 'multiply' in method_names
-        assert 'getHistory' in method_names
-        assert 'clearHistory' in method_names
+        method_names = [m["name"] for m in file_data["methods"]]
+        assert "add" in method_names
+        assert "multiply" in method_names
+        assert "getHistory" in method_names
+        assert "clearHistory" in method_names
 
     def test_interface_parsing(self, sample_java_repo):
         """Test that Java interfaces are parsed correctly."""
@@ -174,9 +177,9 @@ public interface Processor<T> {
         file_data = extract_file_data(processor_file, sample_java_repo)
 
         assert file_data is not None
-        assert len(file_data['interfaces']) == 1
-        assert file_data['interfaces'][0]['name'] == 'Processor'
-        assert len(file_data['methods']) == 2  # Two interface methods
+        assert len(file_data["interfaces"]) == 1
+        assert file_data["interfaces"][0]["name"] == "Processor"
+        assert len(file_data["methods"]) == 2  # Two interface methods
 
     @pytest.mark.skip(reason="Requires Neo4j connection and full pipeline setup")
     def test_end_to_end_pipeline(self, neo4j_driver, test_database, sample_java_repo):
@@ -202,13 +205,13 @@ public interface Processor<T> {
         file_data = extract_file_data(calculator_file, sample_java_repo)
 
         assert file_data is not None
-        assert 'imports' in file_data
+        assert "imports" in file_data
 
         # Check that imports were extracted
-        imports = file_data['imports']
-        import_paths = [imp['import_path'] for imp in imports]
-        assert 'java.util.List' in import_paths
-        assert 'java.util.ArrayList' in import_paths
+        imports = file_data["imports"]
+        import_paths = [imp["import_path"] for imp in imports]
+        assert "java.util.List" in import_paths
+        assert "java.util.ArrayList" in import_paths
 
     def test_method_signature_extraction(self, sample_java_repo):
         """Test that method signatures are extracted with proper details."""
@@ -216,15 +219,15 @@ public interface Processor<T> {
         file_data = extract_file_data(calculator_file, sample_java_repo)
 
         assert file_data is not None
-        methods = file_data['methods']
+        methods = file_data["methods"]
 
         # Find the add method
-        add_method = next((m for m in methods if m['name'] == 'add'), None)
+        add_method = next((m for m in methods if m["name"] == "add"), None)
         assert add_method is not None
-        assert add_method['return_type'] == 'double'
-        assert len(add_method['parameters']) == 2
-        assert add_method['parameters'][0]['type'] == 'double'
-        assert add_method['parameters'][1]['type'] == 'double'
+        assert add_method["return_type"] == "double"
+        assert len(add_method["parameters"]) == 2
+        assert add_method["parameters"][0]["type"] == "double"
+        assert add_method["parameters"][1]["type"] == "double"
 
     def test_complexity_metrics(self, sample_java_repo):
         """Test that complexity metrics are calculated."""
@@ -232,14 +235,14 @@ public interface Processor<T> {
         file_data = extract_file_data(calculator_file, sample_java_repo)
 
         assert file_data is not None
-        assert 'total_lines' in file_data
-        assert 'code_lines' in file_data
-        assert 'method_count' in file_data
-        assert 'class_count' in file_data
+        assert "total_lines" in file_data
+        assert "code_lines" in file_data
+        assert "method_count" in file_data
+        assert "class_count" in file_data
 
-        assert file_data['total_lines'] > 0
-        assert file_data['method_count'] >= 4
-        assert file_data['class_count'] == 1
+        assert file_data["total_lines"] > 0
+        assert file_data["method_count"] >= 4
+        assert file_data["class_count"] == 1
 
 
 @pytest.mark.integration
@@ -287,7 +290,7 @@ class TestRealWorldScenarios:
             # Should handle large files without issues
             result = extract_file_data(large_file, repo_path)
             assert result is not None
-            assert len(result['methods']) == 100
+            assert len(result["methods"]) == 100
 
     def test_nested_package_structure(self):
         """Test handling of deeply nested package structures."""
@@ -295,11 +298,20 @@ class TestRealWorldScenarios:
             repo_path = Path(tmpdir)
 
             # Create deeply nested structure
-            nested_file = repo_path / "src" / "main" / "java" / "com" / \
-                "company" / "product" / "module" / "NestedClass.java"
+            nested_file = (
+                repo_path
+                / "src"
+                / "main"
+                / "java"
+                / "com"
+                / "company"
+                / "product"
+                / "module"
+                / "NestedClass.java"
+            )
             nested_file.parent.mkdir(parents=True, exist_ok=True)
 
-            content = '''
+            content = """
 package com.company.product.module;
 
 import java.util.Map;
@@ -310,13 +322,13 @@ public class NestedClass {
         return new HashMap<>();
     }
 }
-'''
+"""
             nested_file.write_text(content)
 
             result = extract_file_data(nested_file, repo_path)
             assert result is not None
-            assert result['path'] == 'src/main/java/com/company/product/module/NestedClass.java'
-            assert result['classes'][0]['package'] == 'com.company.product.module'
+            assert result["path"] == "src/main/java/com/company/product/module/NestedClass.java"
+            assert result["classes"][0]["package"] == "com.company.product.module"
 
 
 if __name__ == "__main__":

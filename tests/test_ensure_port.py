@@ -43,4 +43,5 @@ HEAVY_MODULES = {
 def test_ensure_port(uri, expected):
     with patch.dict(sys.modules, HEAVY_MODULES):
         import utils
+
         assert utils.ensure_port(uri) == expected

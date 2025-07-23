@@ -46,18 +46,11 @@ def sample_cve_data():
                 "descriptions": [
                     {
                         "lang": "en",
-                        "value": "A vulnerability in Spring Boot allows remote code execution"
+                        "value": "A vulnerability in Spring Boot allows remote code execution",
                     }
                 ],
                 "metrics": {
-                    "cvssMetricV31": [
-                        {
-                            "cvssData": {
-                                "baseScore": 9.8,
-                                "baseSeverity": "CRITICAL"
-                            }
-                        }
-                    ]
+                    "cvssMetricV31": [{"cvssData": {"baseScore": 9.8, "baseSeverity": "CRITICAL"}}]
                 },
                 "configurations": [
                     {
@@ -66,7 +59,7 @@ def sample_cve_data():
                                 "cpeMatch": [
                                     {
                                         "criteria": "cpe:2.3:a:pivotal:spring_boot:*:*:*:*:*:*:*:*",
-                                        "versionEndExcluding": "2.7.0"
+                                        "versionEndExcluding": "2.7.0",
                                     }
                                 ]
                             }
@@ -74,7 +67,7 @@ def sample_cve_data():
                     }
                 ],
                 "published": "2024-01-01T00:00:00.000",
-                "lastModified": "2024-01-02T00:00:00.000"
+                "lastModified": "2024-01-02T00:00:00.000",
             }
         }
     ]
@@ -91,9 +84,7 @@ class TestCVECacheManager:
             cache_manager = CVECacheManager()
 
             cve = {
-                "descriptions": [
-                    {"lang": "en", "value": "Spring Boot vulnerability allows RCE"}
-                ],
+                "descriptions": [{"lang": "en", "value": "Spring Boot vulnerability allows RCE"}],
                 "configurations": [
                     {
                         "nodes": [
@@ -104,7 +95,7 @@ class TestCVECacheManager:
                             }
                         ]
                     }
-                ]
+                ],
             }
 
             components = {"spring", "spring-boot", "pivotal"}
@@ -119,9 +110,7 @@ class TestCVECacheManager:
             cache_manager = CVECacheManager()
 
             cve = {
-                "descriptions": [
-                    {"lang": "en", "value": "Django vulnerability"}
-                ],
+                "descriptions": [{"lang": "en", "value": "Django vulnerability"}],
                 "configurations": [
                     {
                         "nodes": [
@@ -132,7 +121,7 @@ class TestCVECacheManager:
                             }
                         ]
                     }
-                ]
+                ],
             }
 
             components = {"spring", "spring-boot", "apache"}
@@ -233,7 +222,9 @@ class TestCVEAnalyzer:
             # Test universal component extraction
             extracted = self._extract_universal_components(dependency)
             for component in expected_components:
-                assert component in extracted, f"Expected {
+                assert (
+                    component in extracted
+                ), f"Expected {
                     component} in {extracted} for {dependency}"
 
     def _extract_universal_components(self, dependency_path: str):
@@ -242,12 +233,15 @@ class TestCVEAnalyzer:
         components.add(dependency_path.lower())
 
         # Extract meaningful parts from different naming conventions
-        for sep in ['.', '/', '-', '_', '::']:
+        for sep in [".", "/", "-", "_", "::"]:
             if sep in dependency_path:
                 parts = dependency_path.split(sep)
                 for part in parts:
-                    if part and len(part) > 2 and part not in [
-                            'com', 'org', 'net', 'io', 'www', 'github', 'types']:
+                    if (
+                        part
+                        and len(part) > 2
+                        and part not in ["com", "org", "net", "io", "www", "github", "types"]
+                    ):
                         components.add(part.lower())
 
         return components
@@ -261,7 +255,7 @@ class TestCVEAnalyzer:
             "org.apache.commons": "apache",
             "requests-oauthlib": "requests",
             "github.com/gin-gonic/gin": "gin",
-            "serde::json": "serde"
+            "serde::json": "serde",
         }
 
         for import_path, expected_component in test_mappings.items():
@@ -275,7 +269,7 @@ class TestCVEAnalyzer:
         test_mappings = {
             "com.fasterxml.jackson": "jackson",
             "org.springframework": "spring",
-            "org.apache.commons": "apache-commons"
+            "org.apache.commons": "apache-commons",
         }
 
         for import_path, expected_component in test_mappings.items():
@@ -290,7 +284,7 @@ class TestCVEAnalyzer:
             (7.5, "HIGH"),
             (5.0, "MEDIUM"),
             (3.2, "LOW"),
-            (0.0, "NONE")
+            (0.0, "NONE"),
         ]
 
         for score, expected_severity in test_cases:
@@ -349,7 +343,7 @@ def test_cve_schema_constraints():
     # Read schema_management.py to ensure CVE constraints exist
     schema_file = os.path.join(os.path.dirname(__file__), "..", "schema_management.py")
 
-    with open(schema_file, 'r') as f:
+    with open(schema_file, "r") as f:
         content = f.read()
 
         # Check for CVE constraint

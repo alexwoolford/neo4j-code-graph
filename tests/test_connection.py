@@ -45,18 +45,20 @@ def test_neo4j_connection():
             """
             result = session.run(count_query)
             record = result.single()
-            if record and record['total_nodes'] > 0:
+            if record and record["total_nodes"] > 0:
                 print(f"📊 Database has {record['total_nodes']} nodes")
 
                 # Check for specific node types
-                node_types = session.run("""
+                node_types = session.run(
+                    """
                     CALL db.labels() YIELD label
                     RETURN collect(label) AS labels
-                """).single()['labels']
+                """
+                ).single()["labels"]
 
                 print(f"📝 Node types: {node_types}")
 
-                if 'File' in node_types:
+                if "File" in node_types:
                     print("✅ Code analysis data found - ready for CVE analysis!")
                 else:
                     print("⚠️  No code analysis data found")

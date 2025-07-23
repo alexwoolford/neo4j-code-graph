@@ -61,9 +61,7 @@ class RobustCVEManager:
 
         logger.info("🎯 **TARGETED CVE SEARCH** (not downloading entire database!)")
         logger.info(f"📊 Searching for {len(search_terms)} specific dependencies")
-        logger.info(
-            f"⚡ Rate limit: {max_requests_per_window} requests per {self.request_window}s"
-        )
+        logger.info(f"⚡ Rate limit: {max_requests_per_window} requests per {self.request_window}s")
 
         # Create cache key
         terms_hash = hashlib.md5(str(sorted(search_terms)).encode()).hexdigest()[:8]
@@ -126,9 +124,7 @@ class RobustCVEManager:
 
                     pbar.set_description(f"Searching: {query_term[:30]}...")
 
-                    response = requests.get(
-                        base_url, headers=headers, params=params, timeout=30
-                    )
+                    response = requests.get(base_url, headers=headers, params=params, timeout=30)
 
                     if response.status_code == 429:
                         self._handle_rate_limit(response)
@@ -143,9 +139,7 @@ class RobustCVEManager:
                     query_cves = []
                     for vuln in vulnerabilities:
                         clean_cve = self._extract_clean_cve_data(vuln)
-                        if clean_cve and self._is_relevant_to_terms(
-                            clean_cve, original_terms
-                        ):
+                        if clean_cve and self._is_relevant_to_terms(clean_cve, original_terms):
                             query_cves.append(clean_cve)
 
                     all_cves.extend(query_cves)
@@ -163,9 +157,7 @@ class RobustCVEManager:
 
                     # Incremental save every 5 queries
                     if (i + 1) % 5 == 0:
-                        self._save_partial_targeted_cache(
-                            cache_key, all_cves, completed_terms_set
-                        )
+                        self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
                         logger.debug(
                             f"💾 Checkpoint: {len(all_cves)} CVEs, "
                             f"{len(completed_terms_set)} terms completed"
@@ -178,9 +170,7 @@ class RobustCVEManager:
 
                 except KeyboardInterrupt:
                     logger.warning("⚠️  Search interrupted - saving progress...")
-                    self._save_partial_targeted_cache(
-                        cache_key, all_cves, completed_terms_set
-                    )
+                    self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
                     logger.info(
                         f"💾 Saved {len(all_cves)} CVEs, "
                         f"{len(completed_terms_set)} terms completed"
@@ -209,9 +199,7 @@ class RobustCVEManager:
 
         return unique_cves
 
-    def _prepare_search_queries(
-        self, search_terms: Set[str]
-    ) -> List[Tuple[str, Set[str]]]:
+    def _prepare_search_queries(self, search_terms: Set[str]) -> List[Tuple[str, Set[str]]]:
         """Convert dependency names into effective NVD search queries."""
         queries = []
 
@@ -243,14 +231,10 @@ class RobustCVEManager:
                     else:
                         # Use the most specific non-generic part
                         meaningful_parts = [
-                            p
-                            for p in parts
-                            if len(p) > 3 and p not in ["com", "org", "net", "io"]
+                            p for p in parts if len(p) > 3 and p not in ["com", "org", "net", "io"]
                         ]
                         if meaningful_parts:
-                            search_key = meaningful_parts[
-                                -1
-                            ]  # Usually the most specific
+                            search_key = meaningful_parts[-1]  # Usually the most specific
                         else:
                             search_key = term
                 else:
@@ -272,8 +256,7 @@ class RobustCVEManager:
         java_terms = [
             t
             for t in search_terms
-            if "." in t
-            and any(t.startswith(prefix) for prefix in ["com.", "org.", "io.", "net."])
+            if "." in t and any(t.startswith(prefix) for prefix in ["com.", "org.", "io.", "net."])
         ]
         if java_terms:
             compound_searches = self._create_compound_searches(java_terms)
@@ -281,9 +264,7 @@ class RobustCVEManager:
 
         return queries[:50]  # Limit to reasonable number of searches
 
-    def _create_compound_searches(
-        self, java_terms: List[str]
-    ) -> List[Tuple[str, Set[str]]]:
+    def _create_compound_searches(self, java_terms: List[str]) -> List[Tuple[str, Set[str]]]:
         """Create compound search terms for better Java library detection."""
         compounds = []
 
@@ -383,9 +364,7 @@ class RobustCVEManager:
         now = time.time()
 
         # Remove requests older than the window
-        self.request_times = [
-            t for t in self.request_times if now - t < self.request_window
-        ]
+        self.request_times = [t for t in self.request_times if now - t < self.request_window]
 
         # Check if we need to wait
         if len(self.request_times) >= max_requests:
@@ -416,16 +395,12 @@ class RobustCVEManager:
             with gzip.open(partial_file, "wt", encoding="utf-8") as f:
                 json.dump(cache_data, f, indent=2)
 
-            logger.debug(
-                f"💾 Saved {len(cves)} CVEs, {len(completed_terms)} completed terms"
-            )
+            logger.debug(f"💾 Saved {len(cves)} CVEs, {len(completed_terms)} completed terms")
 
         except Exception as e:
             logger.warning(f"Failed to save partial cache: {e}")
 
-    def load_partial_targeted_cache(
-        self, cache_key: str
-    ) -> Tuple[List[Dict], Set[str]]:
+    def load_partial_targeted_cache(self, cache_key: str) -> Tuple[List[Dict], Set[str]]:
         """Load partial cache for targeted searches."""
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
 
@@ -471,9 +446,7 @@ class RobustCVEManager:
         if retry_after:
             try:
                 wait_time = int(retry_after)
-                logger.warning(
-                    f"⏰ API rate limited - waiting {wait_time}s (from server)"
-                )
+                logger.warning(f"⏰ API rate limited - waiting {wait_time}s (from server)")
                 time.sleep(wait_time)
                 return
             except ValueError:

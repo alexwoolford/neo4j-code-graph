@@ -66,9 +66,7 @@ def analyze_change_coupling(session, args):
         pair: count for pair, count in pair_counts.items() if count >= args.min_support
     }
 
-    logger.info(
-        f"Found {len(frequent_pairs)} file pairs with co-occurrence >= {args.min_support}"
-    )
+    logger.info(f"Found {len(frequent_pairs)} file pairs with co-occurrence >= {args.min_support}")
 
     # Safety check: prevent database overload
     max_relationships = 50000  # Conservative limit
@@ -76,9 +74,7 @@ def analyze_change_coupling(session, args):
         logger.warning(
             f"⚠️  {len(frequent_pairs)} file pairs exceed safety limit of {max_relationships}"
         )
-        logger.warning(
-            f"⚠️  Using only top {max_relationships} most frequently co-occurring pairs"
-        )
+        logger.warning(f"⚠️  Using only top {max_relationships} most frequently co-occurring pairs")
 
         # Sort by support (co-occurrence count) and take top N
         sorted_pairs = sorted(frequent_pairs.items(), key=lambda x: x[1], reverse=True)
@@ -184,12 +180,8 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         elapsed_time = time.time() - start_time
         throughput = total_created / elapsed_time if elapsed_time > 0 else 0
 
-        logger.info(
-            f"   📊 Processed {stats['total']} operations in {stats['batches']} batches"
-        )
-        logger.info(
-            f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s"
-        )
+        logger.info(f"   📊 Processed {stats['total']} operations in {stats['batches']} batches")
+        logger.info(f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s")
         logger.info(f"✅ APOC bulk processing completed in {elapsed_time:.1f}s")
         logger.info(f"🚀 Throughput: {throughput:.0f} operations/second")
 
@@ -209,9 +201,7 @@ def _create_coupling_batch_fallback(session, relationships_data):
     total_batches = (len(relationships_data) + batch_size - 1) // batch_size
     total_created = 0
 
-    logger.info(
-        f"📦 Processing {len(relationships_data)} relationships in {total_batches} batches"
-    )
+    logger.info(f"📦 Processing {len(relationships_data)} relationships in {total_batches} batches")
 
     for i in range(0, len(relationships_data), batch_size):
         batch = relationships_data[i : i + batch_size]
@@ -335,9 +325,7 @@ def add_code_metrics(session, args):
             _update_file_batch(session, batch)
         updated += len(batch)
 
-    logger.info(
-        f"{'Would update' if args.dry_run else 'Updated'} metrics for {updated} files"
-    )
+    logger.info(f"{'Would update' if args.dry_run else 'Updated'} metrics for {updated} files")
 
     if not args.dry_run:
         _print_metrics_summary(session)
@@ -364,11 +352,7 @@ def _calculate_file_metrics(file_path):
         lines = content.split("\n")
         total_lines = len(lines)
         code_lines = len(
-            [
-                line
-                for line in lines
-                if line.strip() and not line.strip().startswith("//")
-            ]
+            [line for line in lines if line.strip() and not line.strip().startswith("//")]
         )
         comment_lines = len([line for line in lines if line.strip().startswith("//")])
 
@@ -447,22 +431,16 @@ def analyze_hotspots(session, args):
     # Calculate cutoff date - handle both string and datetime
     cutoff_date = datetime.now() - timedelta(days=args.days)
 
-    file_hotspots = _calculate_file_hotspots(
-        session, cutoff_date, args.min_changes, args.min_size
-    )
+    file_hotspots = _calculate_file_hotspots(session, cutoff_date, args.min_changes, args.min_size)
 
     if not file_hotspots:
-        logger.warning(
-            "No file hotspots found. Ensure git history and code metrics are loaded."
-        )
+        logger.warning("No file hotspots found. Ensure git history and code metrics are loaded.")
         return
 
     method_hotspots = _calculate_method_hotspots(session, cutoff_date, args.min_changes)
     coupling_hotspots = _find_coupling_hotspots(session)
 
-    _print_hotspot_summary(
-        file_hotspots, method_hotspots, coupling_hotspots, args.top_n
-    )
+    _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, args.top_n)
 
 
 def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
@@ -521,9 +499,7 @@ def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
     ORDER BY hotspot_score DESC
     """
 
-    result = session.run(
-        query, cutoff_date=cutoff_date, min_size=min_size, min_changes=min_changes
-    )
+    result = session.run(query, cutoff_date=cutoff_date, min_size=min_size, min_changes=min_changes)
 
     hotspots = []
     for record in result:
@@ -550,9 +526,7 @@ def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
             }
         )
 
-    logger.info(
-        f"Found {len(hotspots)} file hotspots using enhanced complexity scoring"
-    )
+    logger.info(f"Found {len(hotspots)} file hotspots using enhanced complexity scoring")
     return hotspots
 
 
@@ -653,9 +627,7 @@ def _calculate_method_hotspots(session, cutoff_date, min_changes):
             }
         )
 
-    logger.info(
-        f"Found {len(method_hotspots)} method hotspots using enhanced complexity scoring"
-    )
+    logger.info(f"Found {len(method_hotspots)} method hotspots using enhanced complexity scoring")
     return method_hotspots
 
 
@@ -705,9 +677,7 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
     print("\n" + "=" * 120)
     print("🔥 ENHANCED CODE HOTSPOT ANALYSIS")
     print("=" * 120)
-    print(
-        "Combines change frequency with multiple complexity factors for better insight"
-    )
+    print("Combines change frequency with multiple complexity factors for better insight")
 
     # File hotspots with enhanced metrics
     print(f"\n📁 TOP {min(top_n, len(file_hotspots))} FILE HOTSPOTS")
@@ -752,9 +722,7 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
             method_display = hotspot["method_name"][:24]
             class_display = hotspot["class_name"][:19]
             containing_type = (
-                hotspot["containing_type"][:7]
-                if hotspot["containing_type"]
-                else "class"
+                hotspot["containing_type"][:7] if hotspot["containing_type"] else "class"
             )
 
             # Add modifiers to method name
@@ -817,22 +785,16 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
         # Identify different types of hotspots
         large_files = [f for f in file_hotspots[:10] if f["total_lines"] > 1000]
         coupled_files = [f for f in file_hotspots[:10] if f["coupling_count"] > 5]
-        oop_heavy = [
-            f for f in file_hotspots[:10] if f["class_count"] + f["interface_count"] > 3
-        ]
+        oop_heavy = [f for f in file_hotspots[:10] if f["class_count"] + f["interface_count"] > 3]
 
         if large_files:
             print(
                 f"   📏 Large hotspots ({len(large_files)}): Focus on breaking down these large files"
             )
         if coupled_files:
-            print(
-                f"   🔗 Highly coupled ({len(coupled_files)}): Review architecture dependencies"
-            )
+            print(f"   🔗 Highly coupled ({len(coupled_files)}): Review architecture dependencies")
         if oop_heavy:
-            print(
-                f"   🏗️  OOP-heavy ({len(oop_heavy)}): Consider design pattern improvements"
-            )
+            print(f"   🏗️  OOP-heavy ({len(oop_heavy)}): Consider design pattern improvements")
 
     if method_hotspots:
         # Risk category analysis
@@ -877,9 +839,7 @@ Examples:
     subparsers = parser.add_subparsers(dest="command", help="Analysis commands")
 
     # Coupling analysis
-    coupling_parser = subparsers.add_parser(
-        "coupling", help="Analyze file change coupling"
-    )
+    coupling_parser = subparsers.add_parser("coupling", help="Analyze file change coupling")
     add_common_args(coupling_parser)
     coupling_parser.add_argument(
         "--min-support",
@@ -902,9 +862,7 @@ Examples:
     # Code metrics
     metrics_parser = subparsers.add_parser("metrics", help="Add code metrics to graph")
     add_common_args(metrics_parser)
-    metrics_parser.add_argument(
-        "--repo-path", required=True, help="Path to local repository"
-    )
+    metrics_parser.add_argument("--repo-path", required=True, help="Path to local repository")
     metrics_parser.add_argument(
         "--dry-run", action="store_true", help="Preview changes without updating"
     )
