@@ -109,14 +109,7 @@ def create_schema_constraints_and_indexes(session):
             "CREATE CONSTRAINT cve_id IF NOT EXISTS "
             "FOR (cve:CVE) REQUIRE cve.cve_id IS UNIQUE",
         ),
-        # Component: unique by (name, version)
-        (
-            "component_name_version",
-            "Component",
-            "(name, version)",
-            "CREATE CONSTRAINT component_name_version IF NOT EXISTS "
-            "FOR (comp:Component) REQUIRE (comp.name, comp.version) IS UNIQUE",
-        ),
+
     ]
 
     for constraint_name, node_type, key_desc, cypher in constraints:
