@@ -25,7 +25,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
@@ -33,7 +33,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev]
-        pip install -r config/requirements.txt
+        pip install -r requirements.txt
 
     - name: Run pre-commit hooks
       run: |
