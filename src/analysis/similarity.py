@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument(
         "--top-k", type=int, default=5, help="Number of nearest neighbours"
     )
-    parser.add_argument("--cutof", type=float, default=0.8, help="Similarity cutof")
+    parser.add_argument("--cutoff", type=float, default=0.8, help="Similarity cutoff")
     parser.add_argument(
         "--no-knn",
         action="store_true",
