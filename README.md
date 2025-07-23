@@ -8,7 +8,7 @@ Turn your codebase into a queryable knowledge graph. Find security vulnerabiliti
 
 **"Which customer-facing APIs use vulnerable dependencies?"**
 ```cypher
-MATCH (f:File)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
+MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
 MATCH (f)-[:DECLARES]->(m:Method)
 WHERE m.is_public = true AND cve.cvss_score >= 7.0
 RETURN f.path, m.class, m.name, cve.id, cve.cvss_score
@@ -19,7 +19,7 @@ ORDER BY cve.cvss_score DESC
 ```cypher
 MATCH (dep:ExternalDependency)
 OPTIONAL MATCH (dep)<-[:AFFECTS]-(cve:CVE)
-OPTIONAL MATCH (dep)<-[:DEPENDS_ON]-(f:File)
+OPTIONAL MATCH (dep)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
 RETURN dep.package, dep.version, 
        count(DISTINCT cve) as vulnerabilities,
        count(DISTINCT f) as files_using_it,
@@ -33,7 +33,7 @@ ORDER BY vulnerabilities DESC, files_using_it DESC
 ```cypher
 MATCH (f:File)
 WHERE f.total_lines > 500 AND f.method_count > 20
-OPTIONAL MATCH (f)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
+OPTIONAL MATCH (f)-[:IMPORTS]->(i:Import)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
 WHERE cve.cvss_score >= 7.0
 RETURN f.path, f.total_lines, f.method_count, f.class_count,
        count(DISTINCT cve) as security_issues,
