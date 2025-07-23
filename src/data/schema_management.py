@@ -99,6 +99,14 @@ def create_schema_constraints_and_indexes(session):
             "CREATE CONSTRAINT external_dependency_path IF NOT EXISTS "
             "FOR (ed:ExternalDependency) REQUIRE ed.import_path IS UNIQUE",
         ),
+        # Import: unique by import_path
+        (
+            "import_path",
+            "Import",
+            "import_path",
+            "CREATE CONSTRAINT import_path IF NOT EXISTS "
+            "FOR (i:Import) REQUIRE i.import_path IS UNIQUE",
+        ),
         # CVE: unique by CVE ID
         (
             "cve_id",
