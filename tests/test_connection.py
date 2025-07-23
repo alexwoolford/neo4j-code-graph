@@ -3,6 +3,7 @@
 Simple Neo4j connection test to help debug authentication issues.
 """
 
+from utils import get_neo4j_config
 import os
 import sys
 from neo4j import GraphDatabase
@@ -12,10 +13,8 @@ ROOT = os.path.abspath(os.path.dirname(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from utils import get_neo4j_config
 
 def test_neo4j_connection():
-
     """Test Neo4j connection with current settings."""
 
     # Use the proper config function that includes ensure_port fix
@@ -67,7 +66,7 @@ def test_neo4j_connection():
 
         driver.close()
 
-    except Exception:
+    except Exception as e:
         print(f"❌ Connection failed: {e}")
         print()
         print("💡 Troubleshooting:")
@@ -75,6 +74,7 @@ def test_neo4j_connection():
         print("2. Verify your Neo4j instance is running")
         print("3. Check network connectivity to Neo4j Aura")
         print("4. Verify the URI format is correct")
+
 
 if __name__ == "__main__":
     test_neo4j_connection()

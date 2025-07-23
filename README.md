@@ -33,7 +33,8 @@ ORDER BY vulnerabilities DESC, files_using_it DESC
 ```cypher
 MATCH (f:File)
 WHERE f.total_lines > 500 AND f.method_count > 20
-OPTIONAL MATCH (f)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE {cvss_score >= 7.0})
+OPTIONAL MATCH (f)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
+WHERE cve.cvss_score >= 7.0
 RETURN f.path, f.total_lines, f.method_count, f.class_count,
        count(DISTINCT cve) as security_issues,
        (f.total_lines * f.method_count + count(cve)*100) as priority_score
@@ -101,7 +102,9 @@ RETURN total_files, total_lines_of_code, total_methods, complex_methods,
 MATCH (f:File)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
 WHERE c.date > datetime() - duration('P7D')
 WITH f, count(c) as recent_changes
-OPTIONAL MATCH (f)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE {cvss_score >= 7.0})
+WHERE recent_changes > 0
+OPTIONAL MATCH (f)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
+WHERE cve.cvss_score >= 7.0
 OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
 RETURN f.path, recent_changes,
        count(DISTINCT cve) as security_risks,

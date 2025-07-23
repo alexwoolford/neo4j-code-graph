@@ -17,11 +17,13 @@ if ROOT not in sys.path:
 
 # Mock heavy dependencies
 
+
 def _stub_module(name, attrs=None):
     mod = ModuleType(name)
     for attr in attrs or []:
         setattr(mod, attr, MagicMock())
     return mod
+
 
 HEAVY_MODULES = {
     "neo4j": _stub_module("neo4j", ["GraphDatabase", "Driver"]),
@@ -32,6 +34,7 @@ HEAVY_MODULES = {
     "tqdm": _stub_module("tqdm", ["tqdm"]),
     "dotenv": _stub_module("dotenv", ["load_dotenv"]),
 }
+
 
 @pytest.fixture
 def sample_cve_data():
@@ -75,6 +78,7 @@ def sample_cve_data():
             }
         }
     ]
+
 
 class TestCVECacheManager:
     """Test cases for CVE cache manager."""
@@ -148,6 +152,7 @@ class TestCVECacheManager:
             assert cache_file.parent.name == "test_cache"
             assert cache_file.name.startswith("cve_cache_")
             assert cache_file.name.endswith(".json")
+
 
 class TestCVEAnalyzer:
     """Test cases for CVE analyzer."""
@@ -228,7 +233,8 @@ class TestCVEAnalyzer:
             # Test universal component extraction
             extracted = self._extract_universal_components(dependency)
             for component in expected_components:
-                assert component in extracted, f"Expected {component} in {extracted} for {dependency}"
+                assert component in extracted, f"Expected {
+                    component} in {extracted} for {dependency}"
 
     def _extract_universal_components(self, dependency_path: str):
         """Helper method to test universal component extraction."""
@@ -240,7 +246,8 @@ class TestCVEAnalyzer:
             if sep in dependency_path:
                 parts = dependency_path.split(sep)
                 for part in parts:
-                    if part and len(part) > 2 and part not in ['com', 'org', 'net', 'io', 'www', 'github', 'types']:
+                    if part and len(part) > 2 and part not in [
+                            'com', 'org', 'net', 'io', 'www', 'github', 'types']:
                         components.add(part.lower())
 
         return components

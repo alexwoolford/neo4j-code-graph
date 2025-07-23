@@ -6,22 +6,21 @@ A robust Python-based pipeline orchestrator that replaces the shell script
 with proper error handling, logging, and progress tracking.
 """
 
+from utils.common import setup_logging
 import argparse
 import logging
 import sys
-import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 # Add src to path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.common import setup_logging
-# from utils.neo4j_utils import get_neo4j_config  # Commented out as unused
+
 
 
 class StepStatus(Enum):
@@ -118,37 +117,43 @@ class PipelineManager:
                 name="method_similarity",
                 description="Creating method similarities using KNN",
                 command="python",
-                args=[str(script_dir / "create_method_similarity.py"), "--top-k", "5", "--cutof", "0.8"]
+                args=[str(script_dir / "create_method_similarity.py"),
+                      "--top-k", "5", "--cutof", "0.8"]
             ),
             PipelineStep(
                 name="community_detection",
                 description="Detecting communities using Louvain",
                 command="python",
-                args=[str(script_dir / "create_method_similarity.py"), "--no-knn", "--community-threshold", "0.8"]
+                args=[str(script_dir / "create_method_similarity.py"),
+                      "--no-knn", "--community-threshold", "0.8"]
             ),
             PipelineStep(
                 name="centrality_analysis",
                 description="Running centrality analysis",
                 command="python",
-                args=[str(script_dir / "centrality_analysis.py"), "--algorithms", "pagerank", "betweenness", "degree", "--top-n", "15", "--write-back"]
+                args=[str(script_dir / "centrality_analysis.py"), "--algorithms",
+                      "pagerank", "betweenness", "degree", "--top-n", "15", "--write-back"]
             ),
             PipelineStep(
                 name="coupling_analysis",
                 description="Analyzing file change coupling",
                 command="python",
-                args=[str(script_dir / "analyze.py"), "coupling", "--min-support", "5", "--create-relationships"]
+                args=[str(script_dir / "analyze.py"), "coupling",
+                      "--min-support", "5", "--create-relationships"]
             ),
             PipelineStep(
                 name="hotspot_analysis",
                 description="Analyzing code hotspots",
                 command="python",
-                args=[str(script_dir / "analyze.py"), "hotspots", "--days", "365", "--min-changes", "3", "--top-n", "15"]
+                args=[str(script_dir / "analyze.py"), "hotspots", "--days",
+                      "365", "--min-changes", "3", "--top-n", "15"]
             ),
             PipelineStep(
                 name="cve_analysis",
                 description="Universal vulnerability analysis",
                 command="python",
-                args=[str(script_dir / "cve_analysis.py"), "--risk-threshold", "7.0", "--max-hops", "4"],
+                args=[str(script_dir / "cve_analysis.py"),
+                      "--risk-threshold", "7.0", "--max-hops", "4"],
                 required=False  # Optional if no NVD API key
             )
         ]
@@ -208,7 +213,7 @@ class PipelineManager:
             self.logger.error(f"❌ {step.description} timed out")
             return False
 
-        except Exception:
+        except Exception as e:
             step.status = StepStatus.FAILED
             step.error_message = str(e)
             step.end_time = datetime.now()
@@ -283,7 +288,6 @@ class PipelineManager:
         self.logger.info(f"📁 Repository: {self.repo_url}")
 
         self.start_time = datetime.now()
-        total_steps = len([s for s in self.steps if s.required or not self.skip_cve])
         completed_steps = 0
         failed_steps = 0
 
@@ -324,9 +328,9 @@ class PipelineManager:
         """Print pipeline execution summary."""
         duration = (self.end_time - self.start_time).total_seconds()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🎉 Pipeline Execution Summary")
-        print("="*60)
+        print("=" * 60)
         print(f"📁 Repository: {self.repo_url}")
         print(f"⏱️  Total Duration: {duration:.2f} seconds")
         print(f"✅ Completed Steps: {completed}")
@@ -364,7 +368,8 @@ class PipelineManager:
             "repo_url": self.repo_url,
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "end_time": self.end_time.isoformat() if self.end_time else None,
-            "duration": (self.end_time - self.start_time).total_seconds() if self.start_time and self.end_time else None,
+            "duration": ((self.end_time - self.start_time).total_seconds()
+                         if self.start_time and self.end_time else None),
             "steps": [
                 {
                     "name": step.name,
@@ -405,18 +410,18 @@ Examples:
 
     parser.add_argument("repo_url", help="Git repository URL to analyze")
     parser.add_argument("--dry-run", action="store_true",
-                       help="Show what would be executed without running")
+                        help="Show what would be executed without running")
     parser.add_argument("--skip-cleanup", action="store_true",
-                       help="Skip database cleanup step")
+                        help="Skip database cleanup step")
     parser.add_argument("--skip-cve", action="store_true",
-                       help="Skip CVE analysis step")
+                        help="Skip CVE analysis step")
     parser.add_argument("--continue-on-error", action="store_true",
-                       help="Continue pipeline even if non-critical steps fail")
+                        help="Continue pipeline even if non-critical steps fail")
     parser.add_argument("--auto-cleanup", action="store_true",
-                       help="Automatically proceed with database cleanup")
+                        help="Automatically proceed with database cleanup")
     parser.add_argument("--log-level", default="INFO",
-                       choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-                       help="Logging level")
+                        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                        help="Logging level")
     parser.add_argument("--log-file", help="Optional log file")
 
     args = parser.parse_args()
@@ -441,7 +446,7 @@ Examples:
     except KeyboardInterrupt:
         logging.getLogger(__name__).error("❌ Pipeline interrupted by user")
         exit_code = 130
-    except Exception:
+    except Exception as e:
         logging.getLogger(__name__).error(f"❌ Pipeline failed with unexpected error: {e}")
         exit_code = 1
 

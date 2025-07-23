@@ -1,9 +1,8 @@
+from utils import ensure_port, get_neo4j_config
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from utils import ensure_port, get_neo4j_config
 
 
 def test_adds_default_port():

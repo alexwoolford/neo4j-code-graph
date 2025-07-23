@@ -1,3 +1,4 @@
+from create_method_similarity import run_knn
 import sys
 import types
 from unittest.mock import MagicMock
@@ -10,8 +11,6 @@ sys.modules.setdefault("graphdatascience", types.ModuleType("graphdatascience"))
 sys.modules["graphdatascience"].GraphDataScience = object
 sys.modules.setdefault("dotenv", types.ModuleType("dotenv"))
 sys.modules["dotenv"].load_dotenv = lambda override=True: None
-
-from create_method_similarity import run_knn
 
 
 def test_run_knn_creates_projection_and_runs():

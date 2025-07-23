@@ -46,7 +46,7 @@ class RobustCVEManager:
         self.has_api_key = False
 
     def fetch_targeted_cves(self, api_key: Optional[str], search_terms: Set[str],
-                          max_results: int = 1000, days_back: int = 365) -> List[Dict]:
+                            max_results: int = 1000, days_back: int = 365) -> List[Dict]:
         """Fetch CVEs using targeted searches for specific dependencies."""
 
         self.has_api_key = bool(api_key)
@@ -71,7 +71,10 @@ class RobustCVEManager:
         remaining_terms = search_terms - completed_terms
 
         if partial_data:
-            logger.info(f"🔄 Resuming: {len(partial_data)} CVEs cached, {len(remaining_terms)} terms remaining")
+            logger.info(
+                f"🔄 Resuming: {len(partial_data)} CVEs cached, "
+                f"{len(remaining_terms)} terms remaining"
+            )
         else:
             logger.info("🌐 Starting fresh targeted search")
             partial_data = []
@@ -84,10 +87,6 @@ class RobustCVEManager:
         if api_key:
             headers["apiKey"] = api_key
             logger.info("🔑 Using NVD API key for faster searches")
-
-        # Calculate date range
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days_back)
 
         all_cves = partial_data.copy()
         completed_terms_set = completed_terms.copy()
@@ -148,7 +147,10 @@ class RobustCVEManager:
                     # Incremental save every 5 queries
                     if (i + 1) % 5 == 0:
                         self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
-                        logger.debug(f"💾 Checkpoint: {len(all_cves)} CVEs, {len(completed_terms_set)} terms completed")
+                        logger.debug(
+                            f"💾 Checkpoint: {len(all_cves)} CVEs, "
+                            f"{len(completed_terms_set)} terms completed"
+                        )
 
                     # Stop if we have enough results
                     if len(all_cves) >= max_results:
@@ -158,10 +160,13 @@ class RobustCVEManager:
                 except KeyboardInterrupt:
                     logger.warning("⚠️  Search interrupted - saving progress...")
                     self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
-                    logger.info(f"💾 Saved {len(all_cves)} CVEs, {len(completed_terms_set)} terms completed")
+                    logger.info(
+                        f"💾 Saved {len(all_cves)} CVEs, "
+                        f"{len(completed_terms_set)} terms completed"
+                    )
                     raise
 
-                except Exception:
+                except Exception as e:
                     logger.error(f"❌ Error searching '{query_term}': {e}")
                     # Continue with next term
                     continue
@@ -170,8 +175,12 @@ class RobustCVEManager:
         unique_cves = self._deduplicate_cves(all_cves)
 
         logger.info("📊 **SEARCH COMPLETE**")
-        logger.info(f"📊 Found {len(unique_cves)} unique CVEs from {len(completed_terms_set)} dependencies")
-        logger.info(f"📊 Relevance rate: {len(unique_cves)}/{len(all_cves)} = {len(unique_cves)/max(len(all_cves), 1)*100:.1f}%")
+        logger.info(
+            f"📊 Found {len(unique_cves)} unique CVEs from {len(completed_terms_set)} dependencies"
+        )
+        logger.info(
+            f"📊 Relevance rate: {len(unique_cves)}/{len(all_cves)} = {len(unique_cves) / max(len(all_cves), 1) * 100:.1f}%"
+        )
 
         # Save final results
         self._save_complete_cache(cache_key, unique_cves)
@@ -210,7 +219,8 @@ class RobustCVEManager:
                         search_key = "testcontainers"
                     else:
                         # Use the most specific non-generic part
-                        meaningful_parts = [p for p in parts if len(p) > 3 and p not in ['com', 'org', 'net', 'io']]
+                        meaningful_parts = [p for p in parts if len(p) > 3 and
+                                            p not in ['com', 'org', 'net', 'io']]
                         if meaningful_parts:
                             search_key = meaningful_parts[-1]  # Usually the most specific
                         else:
@@ -231,7 +241,11 @@ class RobustCVEManager:
                 queries.append((search_key, related_terms))
 
         # Add some compound searches for common patterns, but be specific
-        java_terms = [t for t in search_terms if '.' in t and any(t.startswith(prefix) for prefix in ['com.', 'org.', 'io.', 'net.'])]
+        java_terms = [t for t in search_terms if '.' in t and any(
+            t.startswith(prefix) for prefix in ['com.',
+                                                'org.',
+                                                'io.',
+                                                'net.'])]
         if java_terms:
             compound_searches = self._create_compound_searches(java_terms)
             queries.extend(compound_searches)
@@ -336,7 +350,8 @@ class RobustCVEManager:
         # Record this request
         self.request_times.append(now)
 
-    def _save_partial_targeted_cache(self, cache_key: str, cves: List[Dict], completed_terms: Set[str]):
+    def _save_partial_targeted_cache(
+            self, cache_key: str, cves: List[Dict], completed_terms: Set[str]):
         """Save partial progress for targeted searches."""
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
         try:
@@ -353,7 +368,7 @@ class RobustCVEManager:
 
             logger.debug(f"💾 Saved {len(cves)} CVEs, {len(completed_terms)} completed terms")
 
-        except Exception:
+        except Exception as e:
             logger.warning(f"Failed to save partial cache: {e}")
 
     def load_partial_targeted_cache(self, cache_key: str) -> Tuple[List[Dict], Set[str]]:
@@ -376,10 +391,12 @@ class RobustCVEManager:
             cves = cache_data.get("cves", [])
             completed_terms = set(cache_data.get("completed_terms", []))
 
-            logger.info(f"📦 Partial cache: {len(cves)} CVEs, {len(completed_terms)} terms completed")
+            logger.info(
+                f"📦 Partial cache: {len(cves)} CVEs, {len(completed_terms)} terms completed"
+            )
             return cves, completed_terms
 
-        except Exception:
+        except Exception as e:
             logger.warning(f"Failed to load partial cache: {e}")
             return [], set()
 
@@ -390,7 +407,7 @@ class RobustCVEManager:
             try:
                 partial_file.unlink()
                 logger.debug("🗑️  Cleaned up partial cache file")
-            except Exception:
+            except Exception as e:
                 logger.debug(f"Failed to cleanup partial cache: {e}")
 
     def _handle_rate_limit(self, response):
@@ -407,7 +424,8 @@ class RobustCVEManager:
                 pass
 
         # Default wait - respect the rate limit window
-        wait_time = self.request_window / self.requests_per_30s_with_key if self.has_api_key else self.request_window / self.requests_per_30s_no_key
+        wait_time = self.request_window / \
+            self.requests_per_30s_with_key if self.has_api_key else self.request_window / self.requests_per_30s_no_key
         logger.warning(f"⏰ Rate limited - waiting {wait_time:.1f}s")
         time.sleep(wait_time)
 
@@ -456,7 +474,7 @@ class RobustCVEManager:
                 "modified": cve.get("lastModified", "")
             }
 
-        except Exception:
+        except Exception as e:
             logger.debug(f"Error extracting CVE data: {e}")
             return None
 
@@ -474,9 +492,11 @@ class RobustCVEManager:
             with gzip.open(cache_file, 'wt', encoding='utf-8') as f:
                 json.dump(cache_data, f, indent=2)
 
-            logger.info(f"💾 Saved complete cache: {len(data)} CVEs ({cache_file.stat().st_size / 1024:.1f} KB)")
+            logger.info(
+                f"💾 Saved complete cache: {len(data)} CVEs ({cache_file.stat().st_size / 1024:.1f} KB)"
+            )
 
-        except Exception:
+        except Exception as e:
             logger.error(f"Failed to save complete cache: {e}")
 
     def load_complete_cache(self, cache_key: str) -> Optional[List[Dict]]:
@@ -500,7 +520,7 @@ class RobustCVEManager:
             logger.info(f"📦 Loaded complete cache: {len(data)} CVEs")
             return data
 
-        except Exception:
+        except Exception as e:
             logger.warning(f"Failed to load complete cache: {e}")
             return None
 
@@ -541,7 +561,7 @@ class RobustCVEManager:
             for cache_file in partial_files:
                 try:
                     cache_file.unlink()
-                except Exception:
+                except Exception as e:
                     logger.warning(f"Failed to delete {cache_file}: {e}")
             logger.info(f"🗑️  Cleared {len(partial_files)} partial cache files")
         else:
@@ -550,7 +570,7 @@ class RobustCVEManager:
             for cache_file in cache_files:
                 try:
                     cache_file.unlink()
-                except Exception:
+                except Exception as e:
                     logger.warning(f"Failed to delete {cache_file}: {e}")
             logger.info(f"🗑️  Cleared {len(cache_files)} cache files")
 

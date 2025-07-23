@@ -39,7 +39,7 @@ def extract_dependency_versions_from_files(repo_root):
             logger.debug(f"Processing Maven file: {pom_file}")
             versions = _extract_maven_dependencies(pom_file)
             dependency_versions.update(versions)
-        except Exception:
+        except Exception as e:
             logger.debug(f"Error processing {pom_file}: {e}")
 
     # Find Gradle build files
@@ -48,7 +48,7 @@ def extract_dependency_versions_from_files(repo_root):
             logger.debug(f"Processing Gradle file: {gradle_file}")
             versions = _extract_gradle_dependencies(gradle_file)
             dependency_versions.update(versions)
-        except Exception:
+        except Exception as e:
             logger.debug(f"Error processing {gradle_file}: {e}")
 
     logger.info(f"📊 Found version information for {len(dependency_versions)} dependencies")
@@ -110,7 +110,7 @@ def _extract_maven_dependencies(pom_file):
 
     except ET.ParseError as e:
         logger.debug(f"XML parsing error in {pom_file}: {e}")
-    except Exception:
+    except Exception as e:
         logger.debug(f"Error processing Maven file {pom_file}: {e}")
 
     return dependency_versions
@@ -127,8 +127,10 @@ def _extract_gradle_dependencies(gradle_file):
         # Pattern for Gradle dependencies like: implementation 'group:artifact:version'
         patterns = [
             r"['\"]([a-zA-Z][a-zA-Z0-9_.\\-]+):([a-zA-Z][a-zA-Z0-9_.\\-]+):([^'\"\\s]+)['\"]",
-            r"group\s*:\s*['\"]([^'\"]+)['\"].*?name\s*:\s*['\"]([^'\"]+)['\"].*?version\s*:\s*['\"]([^'\"]+)['\"]",
-            r"group\s*=\s*['\"]([^'\"]+)['\"].*?name\s*=\s*['\"]([^'\"]+)['\"].*?version\s*=\s*['\"]([^'\"]+)['\"]"
+            r"group\s*:\s*['\"]([^'\"]+)['\"].*?name\s*:\s*['\"]([^'\"]+)['\"]"
+            r".*?version\s*:\s*['\"]([^'\"]+)['\"]",
+            r"group\s*=\s*['\"]([^'\"]+)['\"].*?name\s*=\s*['\"]([^'\"]+)['\"]"
+            r".*?version\s*=\s*['\"]([^'\"]+)['\"]"
         ]
 
         for pattern in patterns:
@@ -155,7 +157,7 @@ def _extract_gradle_dependencies(gradle_file):
             if version in prop_to_version:
                 dependency_versions[package] = prop_to_version[version]
 
-    except Exception:
+    except Exception as e:
         logger.debug(f"Error processing Gradle file {gradle_file}: {e}")
 
     return dependency_versions
@@ -214,7 +216,7 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
 
     # Process in batches
     for i in tqdm(range(0, len(snippets), batch_size), desc="Computing embeddings"):
-        batch_snippets = snippets[i : i + batch_size]
+        batch_snippets = snippets[i: i + batch_size]
 
         # Tokenize batch
         tokens = tokenizer(
@@ -264,7 +266,7 @@ def extract_file_data(file_path, repo_root):
         # Read file
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
-    except Exception:
+    except Exception as e:
         logger.error("Error reading file %s: %s", file_path, e)
         return None
 
@@ -283,7 +285,8 @@ def extract_file_data(file_path, repo_root):
                 try:
                     import_path = import_stmt.path
                     is_static = import_stmt.static if hasattr(import_stmt, 'static') else False
-                    is_wildcard = import_stmt.wildcard if hasattr(import_stmt, 'wildcard') else False
+                    is_wildcard = import_stmt.wildcard if hasattr(
+                        import_stmt, 'wildcard') else False
 
                     # Classify import type
                     import_type = "external"
@@ -301,7 +304,7 @@ def extract_file_data(file_path, repo_root):
                     }
                     imports.append(import_info)
 
-                except Exception:
+                except Exception as e:
                     logger.debug("Error processing import in %s: %s", rel_path, e)
                     continue
 
@@ -343,7 +346,7 @@ def extract_file_data(file_path, repo_root):
 
                 classes.append(class_info)
 
-            except Exception:
+            except Exception as e:
                 logger.debug("Error processing class %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -363,7 +366,7 @@ def extract_file_data(file_path, repo_root):
                 }
                 interfaces.append(interface_info)
 
-            except Exception:
+            except Exception as e:
                 logger.debug("Error processing interface %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -395,7 +398,7 @@ def extract_file_data(file_path, repo_root):
                     brace_count = 0
 
                     # Find method end by counting braces
-                    for i, line in enumerate(code_lines[start_line - 1 :], start_line - 1):
+                    for i, line in enumerate(code_lines[start_line - 1:], start_line - 1):
                         if "{" in line:
                             brace_count += line.count("{")
                         if "}" in line:
@@ -407,7 +410,7 @@ def extract_file_data(file_path, repo_root):
                             end_line = i + 1
                             break
 
-                    method_code = "\n".join(code_lines[start_line - 1 : end_line])
+                    method_code = "\n".join(code_lines[start_line - 1: end_line])
                     estimated_lines = end_line - start_line + 1
 
                 # Extract method calls within this method
@@ -432,7 +435,7 @@ def extract_file_data(file_path, repo_root):
                 }
                 methods.append(method_info)
 
-            except Exception:
+            except Exception as e:
                 logger.debug("Error processing method %s in %s: %s", node.name, rel_path, e)
                 continue
 
@@ -440,7 +443,7 @@ def extract_file_data(file_path, repo_root):
         for interface in interfaces:
             interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
 
-    except Exception:
+    except Exception as e:
         logger.warning("Failed to parse Java file %s: %s", rel_path, e)
 
     # Calculate file-level metrics
@@ -477,8 +480,6 @@ def _extract_method_calls(method_code, containing_class):
     - ClassName.staticMethod()
     - method() (same class)
     """
-    import re
-
     if not method_code:
         return []
 
@@ -551,14 +552,16 @@ def _extract_method_calls(method_code, containing_class):
                 }
             )
 
-    except Exception:
+    except Exception as e:
         # Log but don't fail on parsing errors
         logger.debug(f"Error parsing method calls in {containing_class}: {e}")
 
     return method_calls
 
 
-def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, method_embeddings, dependency_versions=None):
+def bulk_create_nodes_and_relationships(
+    session, files_data, file_embeddings, method_embeddings, dependency_versions=None
+):
     """Create all nodes and relationships using bulk operations."""
     logger.info("Creating directory structure...")
 
@@ -830,7 +833,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
 
     for i in range(0, len(method_nodes), batch_size):
         batch_num = i // batch_size + 1
-        batch = method_nodes[i : i + batch_size]
+        batch = method_nodes[i: i + batch_size]
 
         logger.info(f"Creating method batch {batch_num}/{total_batches} ({len(batch)} methods)...")
         start_time = perf_counter()
@@ -874,7 +877,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
 
     for i in range(0, len(method_file_rels), batch_size):
         batch_num = i // batch_size + 1
-        batch = method_file_rels[i : i + batch_size]
+        batch = method_file_rels[i: i + batch_size]
 
         logger.info(
             f"Creating relationship batch {batch_num}/{total_rel_batches} ({len(batch)} relationships)..."
@@ -922,7 +925,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
     if method_class_rels:
         logger.info(f"Creating {len(method_class_rels)} method-to-class relationships...")
         for i in range(0, len(method_class_rels), batch_size):
-            batch = method_class_rels[i : i + batch_size]
+            batch = method_class_rels[i: i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
                 "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
@@ -935,7 +938,7 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
     if method_interface_rels:
         logger.info(f"Creating {len(method_interface_rels)} method-to-interface relationships...")
         for i in range(0, len(method_interface_rels), batch_size):
-            batch = method_interface_rels[i : i + batch_size]
+            batch = method_interface_rels[i: i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
                 "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
@@ -1001,7 +1004,8 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
                 if dep in dependency_versions:
                     version = dependency_versions[dep]
                 else:
-                    # Try partial matches (e.g., for com.fasterxml.jackson.core match com.fasterxml.jackson)
+                    # Try partial matches (e.g., for com.fasterxml.jackson.core match
+                    # com.fasterxml.jackson)
                     for dep_key, dep_version in dependency_versions.items():
                         if dep.startswith(dep_key) or dep_key.startswith(dep):
                             version = dep_version
@@ -1085,10 +1089,11 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
         if same_class_calls:
             logger.info(f"Creating {len(same_class_calls)} same-class method calls...")
             for i in range(0, len(same_class_calls), batch_size):
-                batch = same_class_calls[i : i + batch_size]
+                batch = same_class_calls[i: i + batch_size]
                 session.run(
                     "UNWIND $calls AS call "
-                    "MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line}) "
+                    "MATCH (caller:Method {name: call.caller_name, "
+                    "file: call.caller_file, line: call.caller_line}) "
                     "MATCH (callee:Method {name: call.callee_name, class: call.callee_class}) "
                     "WHERE caller.file = callee.file "  # Same file for same-class calls
                     "MERGE (caller)-[:CALLS {type: call.call_type}]->(callee)",
@@ -1099,13 +1104,15 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
         if static_calls:
             logger.info(f"Creating {len(static_calls)} static method calls...")
             for i in range(0, len(static_calls), batch_size):
-                batch = static_calls[i : i + batch_size]
+                batch = static_calls[i: i + batch_size]
                 session.run(
                     "UNWIND $calls AS call "
-                    "MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line}) "
+                    "MATCH (caller:Method {name: call.caller_name, "
+                    "file: call.caller_file, line: call.caller_line}) "
                     "MATCH (callee:Method {name: call.callee_name, class: call.callee_class}) "
                     "WHERE callee.is_static = true "
-                    "MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)",
+                    "MERGE (caller)-[:CALLS {type: call.call_type, "
+                    "qualifier: call.qualifier}]->(callee)",
                     calls=batch,
                 )
 
@@ -1113,12 +1120,14 @@ def bulk_create_nodes_and_relationships(session, files_data, file_embeddings, me
         if other_calls:
             logger.info(f"Creating {len(other_calls)} other method calls (best effort)...")
             for i in range(0, len(other_calls), batch_size):
-                batch = other_calls[i : i + batch_size]
+                batch = other_calls[i: i + batch_size]
                 session.run(
                     "UNWIND $calls AS call "
-                    "MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line}) "
+                    "MATCH (caller:Method {name: call.caller_name, "
+                    "file: call.caller_file, line: call.caller_line}) "
                     "MATCH (callee:Method {name: call.callee_name}) "
-                    "MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)",
+                    "MERGE (caller)-[:CALLS {type: call.call_type, "
+                    "qualifier: call.qualifier}]->(callee)",
                     calls=batch,
                 )
 

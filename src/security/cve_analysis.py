@@ -11,23 +11,20 @@ This tool analyzes CVE impact for ANY codebase by:
 NO HARDCODED MAPPINGS - Works with any language, any dependencies, any codebase.
 """
 
+from .cve_cache_manager import RobustCVEManager
+from utils.neo4j_utils import get_neo4j_config
+from utils.common import setup_logging, create_neo4j_driver
 import argparse
-import json
 import logging
 import os
 import sys
-from pathlib import Path
-from typing import Dict, List, Set, Any, Optional
-from datetime import datetime
+from typing import Dict, List, Set, Optional
 
 # Add project root to path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from utils.common import setup_logging, create_neo4j_driver
-from utils.neo4j_utils import get_neo4j_config
-from .cve_cache_manager import RobustCVEManager
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +110,8 @@ class UniversalCVEAnalyzer:
 
             return dependencies_by_ecosystem, file_languages
 
-    def create_universal_component_search_terms(self, dependencies: Dict[str, Set[str]]) -> Set[str]:
+    def create_universal_component_search_terms(
+            self, dependencies: Dict[str, Set[str]]) -> Set[str]:
         """Create language-agnostic search terms from any dependency structure."""
         search_terms = set()
         specific_vendor_terms = set()  # Track specific vendor terms to avoid generic ones
@@ -132,9 +130,13 @@ class UniversalCVEAnalyzer:
                     parts.extend(dep.split('.'))
 
                     # Track specific vendor.product combinations to avoid generic vendor terms
-                    if any(vendor in dep.lower() for vendor in ['jetbrains', 'springframework', 'fasterxml']):
+                    if any(
+                        vendor in dep.lower() for vendor in ['jetbrains',
+                                                             'springframework',
+                                                             'fasterxml']):
                         # Mark this as a specific dependency
-                        vendor_parts = [p for p in dep.split('.') if p.lower() in ['jetbrains', 'springframework', 'fasterxml']]
+                        vendor_parts = [p for p in dep.split('.') if p.lower(
+                        ) in ['jetbrains', 'springframework', 'fasterxml']]
                         for vendor_part in vendor_parts:
                             specific_vendor_terms.add(vendor_part.lower())
 
@@ -152,19 +154,21 @@ class UniversalCVEAnalyzer:
                 if '::' in dep:
                     parts.extend(dep.split('::'))
 
-                # Add meaningful parts (filter out common prefixes AND vendor terms that have specific deps)
+                # Add meaningful parts (filter out common prefixes AND vendor terms that
+                # have specific deps)
                 for part in parts:
                     part_lower = part.lower()
                     if (part and len(part) > 2 and
                         part not in ['com', 'org', 'net', 'io', 'www', 'github'] and
-                        part_lower not in specific_vendor_terms):  # Don't add generic vendor terms
+                            part_lower not in specific_vendor_terms):  # Don't add generic vendor terms
                         search_terms.add(part_lower)
 
         logger.info(f"🎯 Generated {len(search_terms)} universal search terms")
         logger.info(f"🚫 Excluded generic vendor terms: {specific_vendor_terms}")
         return search_terms
 
-    def fetch_relevant_cves(self, search_terms: Set[str], api_key: Optional[str] = None) -> List[Dict]:
+    def fetch_relevant_cves(self, search_terms: Set[str],
+                            api_key: Optional[str] = None) -> List[Dict]:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
 
@@ -318,7 +322,8 @@ class UniversalCVEAnalyzer:
 
         return 0.1
 
-    def _is_dependency_affected(self, dep_path: str, cve_text: str, cpe_components: Set[str]) -> bool:
+    def _is_dependency_affected(self, dep_path: str, cve_text: str,
+                                cpe_components: Set[str]) -> bool:
         """Determine if a dependency is affected by a CVE using universal matching."""
         dep_lower = dep_path.lower()
 
@@ -345,7 +350,11 @@ class UniversalCVEAnalyzer:
 
         return False
 
-    def _calculate_match_confidence(self, dep_path: str, cve_text: str, cpe_components: Set[str]) -> float:
+    def _calculate_match_confidence(
+            self,
+            dep_path: str,
+            cve_text: str,
+            cpe_components: Set[str]) -> float:
         """Calculate confidence score for CVE-dependency matching."""
         confidence = 0.0
         dep_lower = dep_path.lower()
@@ -383,14 +392,15 @@ class UniversalCVEAnalyzer:
                 "CREATE INDEX cve_published IF NOT EXISTS FOR (cve:CVE) ON (cve.published)",
 
                 # Full-text index for CVE descriptions
-                "CREATE FULLTEXT INDEX cve_description_index IF NOT EXISTS FOR (cve:CVE) ON EACH [cve.description]",
+                "CREATE FULLTEXT INDEX cve_description_index IF NOT EXISTS "
+                "FOR (cve:CVE) ON EACH [cve.description]",
             ]
 
             for index_query in indexes:
                 try:
                     session.run(index_query)
                     logger.debug(f"✅ Created index: {index_query}")
-                except Exception:
+                except Exception as e:
                     if "already exists" in str(e).lower():
                         logger.debug(f"Index already exists: {index_query}")
                     else:
@@ -410,8 +420,10 @@ class UniversalCVEAnalyzer:
                 logger.warning("⚠️  No CVE data found in the database. Running CVE fetch first...")
                 # Fetch CVE data
                 dependencies_by_ecosystem, _ = self.extract_codebase_dependencies()
-                search_terms = self.create_universal_component_search_terms(dependencies_by_ecosystem)
-                cve_data = self.cve_manager.fetch_targeted_cves(api_key=None, search_terms=search_terms)
+                search_terms = self.create_universal_component_search_terms(
+                    dependencies_by_ecosystem)
+                cve_data = self.cve_manager.fetch_targeted_cves(
+                    api_key=None, search_terms=search_terms)
 
                 if cve_data:
                     self.create_vulnerability_graph(cve_data)
@@ -444,8 +456,6 @@ class UniversalCVEAnalyzer:
 
             logger.info(f"🎯 Found {len(vulnerabilities)} potential vulnerabilities")
             return vulnerabilities
-
-
 
     def generate_impact_report(self, vulnerabilities):
         """Generate a comprehensive vulnerability impact report."""
@@ -508,10 +518,18 @@ Examples:
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     parser.add_argument("--database", default="neo4j", help="Neo4j database name")
     parser.add_argument("--api-key", help="NVD API key for faster, more reliable downloads")
-    parser.add_argument("--max-results", type=int, default=2000, help="Maximum CVEs to fetch (default: 2000)")
-    parser.add_argument("--days-back", type=int, default=365, help="Days back to search (default: 365)")
+    parser.add_argument(
+        "--max-results",
+        type=int,
+        default=2000,
+        help="Maximum CVEs to fetch (default: 2000)")
+    parser.add_argument("--days-back", type=int, default=365,
+                        help="Days back to search (default: 365)")
     parser.add_argument("--cache-status", action="store_true", help="Show cache status and exit")
-    parser.add_argument("--clear-partial-cache", action="store_true", help="Clear partial caches (keeps complete caches)")
+    parser.add_argument(
+        "--clear-partial-cache",
+        action="store_true",
+        help="Clear partial caches (keeps complete caches)")
     parser.add_argument("--clear-all-cache", action="store_true", help="Clear all caches")
     parser.add_argument("--api-key-info", action="store_true", help="Show how to get an API key")
 
@@ -570,7 +588,8 @@ Examples:
         logger.info(f"📊 Languages: {', '.join(sorted(detected_languages))}")
 
         if not dependencies_by_ecosystem:
-            logger.warning("⚠️  No dependencies found in graph. Make sure to run code_to_graph.py first.")
+            logger.warning(
+                "⚠️  No dependencies found in graph. Make sure to run code_to_graph.py first.")
             return
 
         # Create universal search terms
@@ -632,7 +651,7 @@ Examples:
             print("Don't worry! Your progress has been saved.")
             print("Run the same command again to resume where you left off.")
 
-        except Exception:
+        except Exception as e:
             logger.error(f"❌ Analysis failed: {e}")
             print("\n🔄 **RECOVERY OPTIONS:**")
             print("1. Check your internet connection")

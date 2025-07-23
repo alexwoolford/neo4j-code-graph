@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import Mock
 # !/usr/bin/env python3
 """
@@ -9,8 +10,6 @@ from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import pytest
 
 
 def test_schema_management_imports():
@@ -136,7 +135,8 @@ def test_natural_key_coverage():
         # Pattern should match (variable:NodeType) format
         pattern = f':{node_type}'
         matching_constraints = [call for call in constraint_calls if pattern in call]
-        assert len(matching_constraints) > 0, f"Missing constraint for {node_type} natural key: {key_props}. Found constraints: {constraint_calls}"
+        assert len(matching_constraints) > 0, f"Missing constraint for {
+            node_type} natural key: {key_props}. Found constraints: {constraint_calls}"
 
 
 if __name__ == "__main__":

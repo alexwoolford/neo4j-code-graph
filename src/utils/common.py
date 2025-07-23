@@ -5,7 +5,6 @@ Common utilities shared across neo4j-code-graph scripts.
 
 import sys
 import logging
-import argparse
 from neo4j import GraphDatabase
 from .neo4j_utils import ensure_port, get_neo4j_config
 

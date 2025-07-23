@@ -6,21 +6,18 @@ These tests use real components but against test data to ensure
 the entire pipeline works together correctly.
 """
 
-import os
+from data.schema_management import create_schema
+from analysis.code_analysis import extract_file_data
+from utils.neo4j_utils import get_neo4j_config
+from utils.common import create_neo4j_driver
 import tempfile
 import pytest
 from pathlib import Path
-from unittest.mock import patch
 
 # Add src to path for testing
 import sys
 ROOT = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(ROOT))
-
-from utils.common import create_neo4j_driver
-from utils.neo4j_utils import get_neo4j_config
-from analysis.code_analysis import extract_file_data
-from data.schema_management import create_schema
 
 
 @pytest.mark.integration
@@ -35,7 +32,7 @@ class TestPipelineIntegration:
             driver = create_neo4j_driver(config[0], config[1], config[2])
             yield driver
             driver.close()
-        except Exception:
+        except Exception as e:
             pytest.skip(f"Neo4j not available: {e}")
 
     @pytest.fixture(scope="class")
@@ -299,7 +296,8 @@ class TestRealWorldScenarios:
             repo_path = Path(tmpdir)
 
             # Create deeply nested structure
-            nested_file = repo_path / "src" / "main" / "java" / "com" / "company" / "product" / "module" / "NestedClass.java"
+            nested_file = repo_path / "src" / "main" / "java" / "com" / \
+                "company" / "product" / "module" / "NestedClass.java"
             nested_file.parent.mkdir(parents=True, exist_ok=True)
 
             content = '''

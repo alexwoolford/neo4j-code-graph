@@ -40,7 +40,6 @@ HEAVY_MODULES = {
         ("neo4j://user@host:9999", "neo4j://user@host:9999"),
     ],
 )
-
 def test_ensure_port(uri, expected):
     with patch.dict(sys.modules, HEAVY_MODULES):
         import utils

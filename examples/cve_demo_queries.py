@@ -12,6 +12,7 @@ This script demonstrates various Neo4j access patterns for CVE analysis:
 Run after: python cve_analysis.py
 """
 
+from utils import get_neo4j_config
 import os
 import sys
 from neo4j import GraphDatabase
@@ -22,7 +23,6 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from utils import get_neo4j_config
 
 # Get connection settings using proper configuration
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
@@ -108,8 +108,8 @@ def demo_vector_search(session):
         """
 
         result = session.run(query,
-                           embedding=vuln_component["embedding"],
-                           comp_name=vuln_component["name"])
+                             embedding=vuln_component["embedding"],
+                             comp_name=vuln_component["name"])
 
         print(f"Components similar to vulnerable: {vuln_component['name']}")
         print()
@@ -313,7 +313,8 @@ def main():
 
     # Connect to Neo4j
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
-    gds = GraphDataScience(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD), database=NEO4J_DATABASE)
+    gds = GraphDataScience(NEO4J_URI, auth=(
+        NEO4J_USERNAME, NEO4J_PASSWORD), database=NEO4J_DATABASE)
 
     try:
         with driver.session(database=NEO4J_DATABASE) as session:

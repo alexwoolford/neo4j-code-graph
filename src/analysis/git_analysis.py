@@ -173,7 +173,7 @@ def bulk_load_to_neo4j(
             try:
                 result = session.run(query, params)
                 return result
-            except Exception:
+            except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed for {description}: {e}")
                 if attempt == max_retries - 1:
                     raise
@@ -212,7 +212,7 @@ def bulk_load_to_neo4j(
         commit_batch_size = 5000  # Smaller batches for better reliability
         for i in range(0, len(commits_data), commit_batch_size):
             with driver.session(database=database) as session:
-                batch = commits_data[i : i + commit_batch_size]
+                batch = commits_data[i: i + commit_batch_size]
                 execute_with_retry(
                     session,
                     """
@@ -225,7 +225,7 @@ def bulk_load_to_neo4j(
                     MERGE (d)-[:AUTHORED]->(c)
                 """,
                     {"commits": batch},
-                    f"commits batch {i//commit_batch_size + 1}",
+                    f"commits batch {i // commit_batch_size + 1}",
                 )
                 logger.info(
                     "Loaded %d/%d commits",
@@ -267,7 +267,7 @@ def bulk_load_to_neo4j(
     for i in range(0, len(file_changes_data), batch_size):
         batch_start = time.time()
         batch_num = i // batch_size + 1
-        batch = file_changes_data[i : i + batch_size]
+        batch = file_changes_data[i: i + batch_size]
 
         logger.info(f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)...")
 
@@ -404,7 +404,7 @@ def load_history(
             try:
                 repo.git.checkout(branch)
                 logger.info(f"Checked out branch: {branch}")
-            except Exception:
+            except Exception as e:
                 available_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs]
                 logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
 
@@ -443,7 +443,7 @@ def load_history(
 
         logger.info("✅ Git history processing completed successfully")
 
-    except Exception:
+    except Exception as e:
         logger.error(f"Error processing repository: {e}")
         raise
     finally:
@@ -473,7 +473,7 @@ def main():
             )
             driver.verify_connectivity()
             logger.info(f"Connected to Neo4j at {ensure_port(args.uri)}")
-        except Exception:
+        except Exception as e:
             logger.error(f"Failed to connect to Neo4j: {e}")
             sys.exit(1)
 

@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 # === CHANGE COUPLING ANALYSIS ===
+
+
 def analyze_change_coupling(session, args):
     """Analyze file change co-occurrence and create relationships."""
     logger.info("Analyzing file change co-occurrence...")
@@ -99,7 +101,8 @@ def analyze_change_coupling(session, args):
                 )
 
         if relationships_data:
-            relationships_created = _create_coupling_relationships_parallel(session, relationships_data)
+            relationships_created = _create_coupling_relationships_parallel(
+                session, relationships_data)
             logger.info(f"Created {relationships_created} CO_CHANGED relationships")
 
     # Print top results
@@ -120,88 +123,83 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         apoc_version = result.single()["version"]
         logger.info(f"✅ Using APOC version: {apoc_version}")
     except Exception:
-        logger.warning("⚠️  APOC not available, falling back to standard batch processing")
+        logger.warning("❌ APOC not available, using standard batch processing")
         return _create_coupling_batch_fallback(session, relationships_data)
 
-    import time
+    # Use APOC for bulk operations
     start_time = time.time()
-
-    # Use APOC with CONSERVATIVE settings to avoid overwhelming the database
-    # Smaller batches and reduced concurrency for sustainability
-    query = """
-    CALL apoc.periodic.iterate(
-        'UNWIND $relationships AS rel RETURN rel',
-        '
-        MATCH (a:File {path: rel.file_a})
-        MATCH (b:File {path: rel.file_b})
-        MERGE (a)-[r1:CO_CHANGED]->(b)
-        SET r1.support = rel.support, r1.confidence = rel.confidence
-        MERGE (b)-[r2:CO_CHANGED]->(a)
-        SET r2.support = rel.support, r2.confidence = rel.confidence
-        ',
-        {
-            batchSize: 500,
-            parallel: true,
-            concurrency: 2,
-            retries: 3,
-            params: {relationships: $relationships}
-        }
-    ) YIELD batches, total, timeTaken, errorMessages
-    RETURN batches, total, timeTaken, errorMessages
-    """
-
     try:
-        result = session.run(query, relationships=relationships_data)
-        stats = result.single()
+        # Process in large batches with APOC
+        batch_size = 10000  # APOC can handle larger batches efficiently
+        total_batches = (len(relationships_data) + batch_size - 1) // batch_size
+
+        logger.info(f"📦 Using APOC bulk operations: {total_batches} batches of {batch_size:,} records each")
+
+        total_created = 0
+        for i in range(0, len(relationships_data), batch_size):
+            batch = relationships_data[i:i + batch_size]
+            batch_start = time.time()
+
+            # Use APOC's iterate to process the batch efficiently
+            apoc_query = """
+            CALL apoc.periodic.iterate(
+                'UNWIND $batch AS rel RETURN rel',
+                'MATCH (a:File {path: rel.file_a}), (b:File {path: rel.file_b})
+                 MERGE (a)-[r:CO_CHANGED]-(b)
+                 SET r.support = rel.support,
+                     r.confidence = rel.confidence,
+                     r.jaccard_index = rel.jaccard_index',
+                {batchSize: 1000, parallel: false, params: {batch: $batch}}
+            ) YIELD batches, total, timeTaken, committedOperations, failedOperations, failedBatches
+            RETURN batches, total, timeTaken, committedOperations, failedOperations, failedBatches
+            """
+
+            result = session.run(apoc_query, batch=batch)
+            stats = result.single()
+            total_created += stats["committedOperations"]
+
+            batch_time = time.time() - batch_start
+            batch_num = (i // batch_size) + 1
+            logger.info(f"   📦 Batch {batch_num}/{total_batches}: {stats['committedOperations']} ops in {batch_time:.1f}s")
+
+            # Small pause to be gentle on the database
+            if batch_num < total_batches:
+                time.sleep(0.1)
 
         elapsed_time = time.time() - start_time
-        throughput = total_relationships / elapsed_time if elapsed_time > 0 else 0
+        throughput = total_created / elapsed_time if elapsed_time > 0 else 0
 
-        logger.info("✅ APOC conservative processing completed:")
         logger.info(f"   📊 Processed {stats['total']} operations in {stats['batches']} batches")
         logger.info(f"   ⏱️  APOC time: {stats['timeTaken']}ms, Total time: {elapsed_time:.1f}s")
-        logger.info(f"   🚀 Throughput: {throughput:.0f} relationships/second")
+        logger.info(f"✅ APOC bulk processing completed in {elapsed_time:.1f}s")
+        logger.info(f"🚀 Throughput: {throughput:.0f} operations/second")
 
-        if stats['errorMessages']:
-            logger.warning(f"⚠️  Some errors occurred: {stats['errorMessages']}")
+        return total_created
 
-        # Return bidirectional count (each input relationship creates 2 in Neo4j)
-        return total_relationships * 2
-
-    except Exception:
+    except Exception as e:
         logger.error(f"❌ APOC processing failed: {e}")
         logger.info("🔄 Falling back to standard batch processing...")
         return _create_coupling_batch_fallback(session, relationships_data)
 
 
 def _create_coupling_batch_fallback(session, relationships_data):
-    """Fallback batch processing when APOC is not available - conservative approach."""
-    logger.info("📦 Using conservative standard batch processing...")
+    """Fallback batch processing when APOC is not available."""
+    logger.info("🔄 Using standard batch processing (APOC not available)")
 
-    # Use moderate batches that won't overwhelm the database
-    batch_size = 1000  # Conservative but still much better than original 100
+    start_time = time.time()
+    batch_size = 1000  # Smaller batches for standard processing
+    total_batches = (len(relationships_data) + batch_size - 1) // batch_size
     total_created = 0
 
-    import time
-    start_time = time.time()
+    logger.info(f"📦 Processing {len(relationships_data)} relationships in {total_batches} batches")
 
     for i in range(0, len(relationships_data), batch_size):
-        batch_start = time.time()
         batch = relationships_data[i:i + batch_size]
+        batch_start = time.time()
 
-        # Conservative query with reasonable batch size
-        query = """
-        UNWIND $relationships as rel
-        MATCH (a:File {path: rel.file_a})
-        MATCH (b:File {path: rel.file_b})
-        MERGE (a)-[r1:CO_CHANGED]->(b)
-        SET r1.support = rel.support, r1.confidence = rel.confidence
-        MERGE (b)-[r2:CO_CHANGED]->(a)
-        SET r2.support = rel.support, r2.confidence = rel.confidence
-        """
-
-        session.run(query, relationships=batch)
-        total_created += len(batch) * 2  # Bidirectional
+        # Standard batch processing
+        result = _create_coupling_batch(session, batch)
+        total_created += result
 
         batch_time = time.time() - batch_start
         batch_num = (i // batch_size) + 1
@@ -212,14 +210,6 @@ def _create_coupling_batch_fallback(session, relationships_data):
         # Small pause between batches to be gentle on the database
         if batch_num < total_batches:  # Don't pause after the last batch
             time.sleep(0.1)
-
-    elapsed_time = time.time() - start_time
-    throughput = total_created / elapsed_time if elapsed_time > 0 else 0
-
-    logger.info(f"✅ Conservative batch processing completed in {elapsed_time:.1f}s")
-    logger.info(f"🚀 Throughput: {throughput:.0f} relationships/second")
-
-    return total_created
 
 
 def _create_coupling_batch(session, batch):
@@ -257,7 +247,9 @@ def _print_coupling_results(frequent_pairs, file_counts, min_confidence, top_n=2
     print(f"{'File A':<40} {'File B':<40} {'Support':<8} {'Confidence':<10}")
     print("-" * 100)
 
-    for co_occ in co_occurrences[:top_n]:
+    for i, co_occ in enumerate(co_occurrences):
+        if i >= top_n:
+            break
         print(
             f"{co_occ['file_a'][:39]:<40} {co_occ['file_b'][:39]:<40} "
             f"{co_occ['support']:<8} {co_occ['confidence']:<10.3f}"
@@ -265,6 +257,8 @@ def _print_coupling_results(frequent_pairs, file_counts, min_confidence, top_n=2
 
 
 # === CODE METRICS ===
+
+
 def add_code_metrics(session, args):
     """Add code metrics to File and Method nodes."""
     if not Path(args.repo_path).exists():
@@ -363,7 +357,7 @@ def _calculate_file_metrics(file_path):
             "method_count": methods,
             "file_size_bytes": len(content.encode("utf-8")),
         }
-    except Exception:
+    except Exception as e:
         logger.warning(f"Could not calculate metrics for {file_path}: {e}")
         return None
 
@@ -411,6 +405,8 @@ def _print_metrics_summary(session):
 
 
 # === HOTSPOT ANALYSIS ===
+
+
 def analyze_hotspots(session, args):
     """Analyze code hotspots combining change frequency with complexity."""
     logger.info(f"Analyzing hotspots for last {args.days} days...")
@@ -450,7 +446,9 @@ def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
 
     // Calculate coupling via file relationships
     OPTIONAL MATCH (f)-[co:CO_CHANGED]->()
-    WITH f, change_count, class_count, interface_count, count(co) as coupling_count, sum(co.support) as coupling_strength
+    WITH f, change_count, class_count, interface_count, count(
+        co) as coupling_count,
+        sum(co.support) as coupling_strength
 
     // Calculate complexity score combining multiple factors
     WITH f, change_count, class_count, interface_count, coupling_count, coupling_strength,
@@ -669,7 +667,8 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
     print("(Enhanced scoring: Change frequency × Total complexity)")
     print("-" * 120)
     print(
-        f"{'File':<45} {'Lines':<6} {'Chg':<4} {'Cls':<3} {'Ifc':<3} {'Cpl':<3} {'Score':<10} {'Cmplx':<8} {'ChgDen':<6}"
+        f"{'File':<45} {'Lines':<6} {'Chg':<4} {'Cls':<3} {'Ifc':<3} "
+        f"{'Cpl':<3} {'Score':<10} {'Cmplx':<8} {'ChgDen':<6}"
     )
     print("-" * 120)
 
@@ -688,7 +687,7 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
             f"{hotspot['coupling_count']:<3} "
             f"{hotspot['hotspot_score']:<10.0f} "
             f"{hotspot['total_complexity']:<8.0f} "
-            f"{hotspot['change_density']:<6.1f}"
+            f"{hotspot['change_density']:<6.2f}"
         )
 
     # Enhanced method hotspots
@@ -697,7 +696,8 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
         print("(Enhanced scoring: Change frequency × Method complexity)")
         print("-" * 120)
         print(
-            f"{'Method':<25} {'Class':<20} {'Type':<8} {'Lines':<5} {'In':<3} {'Out':<3} {'Risk':<15} {'Score':<8}"
+            f"{'Method':<25} {'Class':<20} {'Type':<8} {'Lines':<5} "
+            f"{'In':<3} {'Out':<3} {'Risk':<15} {'Score':<8}"
         )
         print("-" * 120)
 
@@ -753,7 +753,7 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
                 f"{hotspot['change_count']:<8} "
                 f"{hotspot['coupling_count']:<8} "
                 f"{hotspot['total_coupling_strength']:<7.0f} "
-                f"{hotspot['complexity_hotspot_score']:<10.0f}"
+                f"{hotspot['coupling_hotspot_score']:<10.0f}"
             )
 
     # Summary insights
@@ -799,6 +799,8 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
 
 
 # === MAIN CLI ===
+
+
 def create_parser():
     """Create the main argument parser with subcommands."""
     parser = argparse.ArgumentParser(

@@ -12,6 +12,7 @@ sys.modules.setdefault(
     types.SimpleNamespace(AutoTokenizer=MagicMock(), AutoModel=MagicMock()),
 )
 
+
 class _NoGrad:
 
     def __enter__(self):
@@ -19,6 +20,7 @@ class _NoGrad:
 
     def __exit__(self, *exc):
         pass
+
 
 sys.modules.setdefault(
     "torch",
@@ -34,6 +36,7 @@ sys.modules.setdefault("git", types.SimpleNamespace(Repo=MagicMock()))
 sys.modules.setdefault("neo4j", types.SimpleNamespace(GraphDatabase=MagicMock()))
 sys.modules.setdefault("dotenv", types.SimpleNamespace(load_dotenv=lambda **k: None))
 
+
 def test_code_to_graph_imports():
     """Test that code_to_graph module can be imported and has expected functions."""
     try:
@@ -48,24 +51,20 @@ def test_code_to_graph_imports():
         ]
 
         for func_name in expected_functions:
-            assert hasattr(code_to_graph, func_name), f"Missing function {func_name} in code_to_graph"
+            assert hasattr(code_to_graph, func_name), \
+                f"Missing function {func_name} in code_to_graph"
 
         print("✅ code_to_graph module imports successfully")
         return True
 
-    except ImportError:
+    except ImportError as e:
         print(f"❌ Failed to import code_to_graph: {e}")
         return False
-    except Exception:
+    except Exception as e:
         print(f"❌ Error testing code_to_graph: {e}")
         return False
+
 
 if __name__ == "__main__":
     success = test_code_to_graph_imports()
     sys.exit(0 if success else 1)
-
-
-
-
-
-

@@ -185,7 +185,7 @@ def main():
     except KeyboardInterrupt:
         print("\n❌ Setup interrupted by user")
         sys.exit(1)
-    except Exception:
+    except Exception as e:
         print(f"\n❌ Setup failed: {e}")
         sys.exit(1)
 

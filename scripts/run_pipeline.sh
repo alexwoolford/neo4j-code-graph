@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+# Fix OpenMP library conflict on macOS
+export KMP_DUPLICATE_LIB_OK=TRUE
+
 # Check if repository URL is provided
 if [ $# -eq 0 ]; then
     echo "❌ Error: Repository URL required"

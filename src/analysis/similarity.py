@@ -29,26 +29,12 @@ def parse_args():
             "Louvain community detection"
         )
     )
-    parser.add_argument(
-        "--uri",
-        default=NEO4J_URI,
-        help="Neo4j connection URI",
-    )
-    parser.add_argument(
-        "--username",
-        default=NEO4J_USERNAME,
-        help="Neo4j authentication username",
-    )
-    parser.add_argument(
-        "--password",
-        default=NEO4J_PASSWORD,
-        help="Neo4j authentication password",
-    )
-    parser.add_argument(
-        "--database",
-        default=NEO4J_DATABASE,
-        help="Neo4j database to use",
-    )
+    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
+    parser.add_argument("--username", default=NEO4J_USERNAME, help="Neo4j username")
+    parser.add_argument("--password", default=NEO4J_PASSWORD, help="Neo4j password")
+    parser.add_argument("--database", default=NEO4J_DATABASE, help="Neo4j database")
+    parser.add_argument("--log-level", default="INFO", help="Logging level")
+    parser.add_argument("--log-file", help="Optional log file")
     parser.add_argument("--top-k", type=int, default=5, help="Number of nearest neighbours")
     parser.add_argument("--cutof", type=float, default=0.8, help="Similarity cutof")
     parser.add_argument(
@@ -72,15 +58,7 @@ def parse_args():
         default="similarityCommunity",
         help="Property name for Louvain community label",
     )
-    parser.add_argument(
-        "--log-level",
-        default="INFO",
-        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
-    )
-    parser.add_argument(
-        "--log-file",
-        help="Write logs to this file as well as the console",
-    )
+
     return parser.parse_args()
 
 
@@ -105,7 +83,7 @@ def run_knn(gds, top_k=5, cutoff=0.8):
     base_config = {
         "nodeProperties": "embedding",
         "topK": top_k,
-        "similarityCutof": cutoff,
+        "similarityCutoff": cutoff,
         "writeRelationshipType": "SIMILAR",
         "writeProperty": "score",
     }

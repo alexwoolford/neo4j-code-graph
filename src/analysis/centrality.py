@@ -144,7 +144,12 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
 
     logger.info(f"PageRank completed in {analysis_time:.2f}s")
     logger.info(
-        f"Centrality range: {result.get('centralityDistribution', {}).get('min', 'N/A')} - {result.get('centralityDistribution', {}).get('max', 'N/A')}"
+        f"Centrality range: {result.get(
+            'centralityDistribution',
+            {}).get('min',
+                    'N/A')} - {result.get('centralityDistribution',
+                                          {}).get('max',
+                                                  'N/A')}"
     )
 
     print("\n🏆 TOP PAGE RANK METHODS (Most Central in Call Ecosystem):")
@@ -257,7 +262,8 @@ def run_degree_analysis(gds, graph, top_n=20, write_back=False):
     for _, row in result.iterrows():
         class_name = row["class_name"] if row["class_name"] else "Unknown"
         print(
-            f"  {row['total_degree']:5d} | {row['in_degree']:3d} | {row['out_degree']:3d} | {class_name}.{row['method_name']} ({row['file']})"
+            f"  {row['total_degree']:5d} | {row['in_degree']:3d} | "
+            f"{row['out_degree']:3d} | {class_name}.{row['method_name']} ({row['file']})"
         )
 
     return result
@@ -336,7 +342,7 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
 
         return authorities, hubs
 
-    except Exception:
+    except Exception as e:
         logger.warning(f"HITS algorithm not available or failed: {e}")
         logger.warning("This may require a newer version of Neo4j GDS")
         return None, None
@@ -439,7 +445,7 @@ def main():
         gds.graph.drop(graph.name())
         logger.info("Analysis completed successfully")
 
-    except Exception:
+    except Exception as e:
         logger.error(f"Analysis failed: {e}")
         raise
     finally:
