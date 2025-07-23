@@ -63,7 +63,7 @@ def setup_virtual_environment():
         print("✅ Virtual environment already exists")
 
     # Provide activation instructions
-    if os.name == 'nt':  # Windows
+    if os.name == "nt":  # Windows
         activate_cmd = ".venv\\Scripts\\activate"
     else:  # Unix/Linux/MacOS
         activate_cmd = "source .venv/bin/activate"
@@ -185,7 +185,7 @@ def main():
     except KeyboardInterrupt:
         print("\n❌ Setup interrupted by user")
         sys.exit(1)
-    except Exception:
+    except Exception as e:
         print(f"\n❌ Setup failed: {e}")
         sys.exit(1)
 
