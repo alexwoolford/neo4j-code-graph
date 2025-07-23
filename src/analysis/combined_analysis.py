@@ -6,6 +6,7 @@ Consolidates all analysis functions into a single CLI with subcommands.
 
 import argparse
 import logging
+import time
 from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
@@ -186,7 +187,6 @@ def _create_coupling_batch_fallback(session, relationships_data):
     """Fallback batch processing when APOC is not available."""
     logger.info("🔄 Using standard batch processing (APOC not available)")
 
-    start_time = time.time()
     batch_size = 1000  # Smaller batches for standard processing
     total_batches = (len(relationships_data) + batch_size - 1) // batch_size
     total_created = 0
