@@ -121,7 +121,7 @@ class PipelineManager:
                     str(script_dir / "create_method_similarity.py"),
                     "--top-k",
                     "5",
-                    "--cutof",
+                    "--cutoff",
                     "0.8",
                 ],
             ),
