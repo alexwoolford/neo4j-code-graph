@@ -1,4 +1,4 @@
-from utils import ensure_port, get_neo4j_config
+from src.utils.common import ensure_port, get_neo4j_config
 import os
 import sys
 

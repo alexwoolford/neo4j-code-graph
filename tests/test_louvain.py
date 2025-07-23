@@ -1,4 +1,4 @@
-from create_method_similarity import run_louvain
+from src.analysis.similarity import run_louvain
 import sys
 import types
 from unittest.mock import MagicMock, ANY

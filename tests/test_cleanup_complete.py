@@ -3,7 +3,7 @@
 Tests for complete database reset functionality in cleanup_graph.py
 """
 
-import cleanup_graph
+from src.utils import cleanup
 import sys
 import types
 from unittest.mock import MagicMock
@@ -28,7 +28,7 @@ def test_complete_reset_dry_run_shows_counts():
     session_mock.run.side_effect = [node_result, rel_result]
 
     # Test dry run
-    cleanup_graph.complete_database_reset(session_mock, dry_run=True)
+    cleanup.complete_database_reset(session_mock, dry_run=True)
 
     # Verify it queried for counts
     assert session_mock.run.call_count == 2
@@ -50,7 +50,7 @@ def test_complete_reset_handles_empty_database():
     session_mock.run.side_effect = [empty_result, empty_rel_result]
 
     # Test with empty database
-    cleanup_graph.complete_database_reset(session_mock, dry_run=False)
+    cleanup.complete_database_reset(session_mock, dry_run=False)
 
     # Should only check counts, not attempt deletion
     assert session_mock.run.call_count == 2
@@ -59,15 +59,13 @@ def test_complete_reset_handles_empty_database():
 def test_parse_args_includes_complete_options():
     """Test that argument parser includes complete reset options."""
     # Simple test to verify the parse_args function exists and can be called
-    assert hasattr(cleanup_graph, "parse_args")
+    assert hasattr(cleanup, "parse_args")
 
     # Test that we can call parse_args with our expected arguments
     try:
-        import sys
-
         original_argv = sys.argv
         sys.argv = ["cleanup_graph.py", "--complete", "--confirm", "--dry-run"]
-        args = cleanup_graph.parse_args()
+        args = cleanup.parse_args()
         assert hasattr(args, "complete")
         assert hasattr(args, "confirm")
         sys.argv = original_argv

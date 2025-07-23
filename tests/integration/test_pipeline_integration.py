@@ -6,10 +6,9 @@ These tests use real components but against test data to ensure
 the entire pipeline works together correctly.
 """
 
-from data.schema_management import create_schema
-from analysis.code_analysis import extract_file_data
-from utils.neo4j_utils import get_neo4j_config
-from utils.common import create_neo4j_driver
+from src.data.schema_management import setup_complete_schema
+from src.analysis.code_analysis import extract_file_data
+from src.utils.common import get_neo4j_config, create_neo4j_driver
 import tempfile
 import pytest
 from pathlib import Path
@@ -49,7 +48,7 @@ class TestPipelineIntegration:
 
         # Setup schema in test database
         with neo4j_driver.session(database=test_db) as session:
-            create_schema(session)
+            setup_complete_schema(session)
 
         yield test_db
 
