@@ -586,6 +586,18 @@ Examples:
     parser.add_argument(
         "--api-key-info", action="store_true", help="Show how to get an API key"
     )
+    parser.add_argument(
+        "--risk-threshold",
+        type=float,
+        default=7.0,
+        help="CVSS score threshold for vulnerability analysis (default: 7.0)",
+    )
+    parser.add_argument(
+        "--max-hops",
+        type=int,
+        default=4,
+        help="Maximum hops for vulnerability impact analysis (default: 4)",
+    )
 
     args = parser.parse_args()
 
@@ -704,7 +716,7 @@ Examples:
 
             # Analyze impact
             impact_summary = analyzer.analyze_vulnerability_impact(
-                max_hops=4, risk_threshold=7.0
+                max_hops=args.max_hops, risk_threshold=args.risk_threshold
             )
 
             # Generate report
