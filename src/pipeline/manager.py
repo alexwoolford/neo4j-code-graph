@@ -21,10 +21,9 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 
-
-
 class StepStatus(Enum):
     """Pipeline step status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -35,6 +34,7 @@ class StepStatus(Enum):
 @dataclass
 class PipelineStep:
     """Represents a single pipeline step."""
+
     name: str
     description: str
     command: str
@@ -74,10 +74,10 @@ class PipelineManager:
         self.end_time: Optional[datetime] = None
 
         # Pipeline configuration
-        self.dry_run = self.config.get('dry_run', False)
-        self.skip_cleanup = self.config.get('skip_cleanup', False)
-        self.skip_cve = self.config.get('skip_cve', False)
-        self.continue_on_error = self.config.get('continue_on_error', False)
+        self.dry_run = self.config.get("dry_run", False)
+        self.skip_cleanup = self.config.get("skip_cleanup", False)
+        self.skip_cve = self.config.get("skip_cve", False)
+        self.continue_on_error = self.config.get("continue_on_error", False)
 
         self._setup_pipeline_steps()
 
@@ -90,72 +90,107 @@ class PipelineManager:
                 name="schema_setup",
                 description="Setting up database schema",
                 command="python",
-                args=[str(script_dir / "schema_management.py")]
+                args=[str(script_dir / "schema_management.py")],
             ),
             PipelineStep(
                 name="cleanup_prompt",
                 description="Database cleanup (interactive)",
                 command="python",
                 args=[str(script_dir / "cleanup_graph.py"), "--dry-run"],
-                required=False
+                required=False,
             ),
             PipelineStep(
                 name="code_analysis",
                 description="Loading code structure with embeddings",
                 command="python",
                 args=[str(script_dir / "code_to_graph.py"), self.repo_url],
-                timeout=3600  # 1 hour timeout
+                timeout=3600,  # 1 hour timeout
             ),
             PipelineStep(
                 name="git_history",
                 description="Loading Git commit history",
                 command="python",
                 args=[str(script_dir / "git_history_to_graph.py"), self.repo_url],
-                timeout=1800  # 30 minutes timeout
+                timeout=1800,  # 30 minutes timeout
             ),
             PipelineStep(
                 name="method_similarity",
                 description="Creating method similarities using KNN",
                 command="python",
-                args=[str(script_dir / "create_method_similarity.py"),
-                      "--top-k", "5", "--cutof", "0.8"]
+                args=[
+                    str(script_dir / "create_method_similarity.py"),
+                    "--top-k",
+                    "5",
+                    "--cutof",
+                    "0.8",
+                ],
             ),
             PipelineStep(
                 name="community_detection",
                 description="Detecting communities using Louvain",
                 command="python",
-                args=[str(script_dir / "create_method_similarity.py"),
-                      "--no-knn", "--community-threshold", "0.8"]
+                args=[
+                    str(script_dir / "create_method_similarity.py"),
+                    "--no-knn",
+                    "--community-threshold",
+                    "0.8",
+                ],
             ),
             PipelineStep(
                 name="centrality_analysis",
                 description="Running centrality analysis",
                 command="python",
-                args=[str(script_dir / "centrality_analysis.py"), "--algorithms",
-                      "pagerank", "betweenness", "degree", "--top-n", "15", "--write-back"]
+                args=[
+                    str(script_dir / "centrality_analysis.py"),
+                    "--algorithms",
+                    "pagerank",
+                    "betweenness",
+                    "degree",
+                    "--top-n",
+                    "15",
+                    "--write-back",
+                ],
             ),
             PipelineStep(
                 name="coupling_analysis",
                 description="Analyzing file change coupling",
                 command="python",
-                args=[str(script_dir / "analyze.py"), "coupling",
-                      "--min-support", "5", "--create-relationships"]
+                args=[
+                    str(script_dir / "analyze.py"),
+                    "coupling",
+                    "--min-support",
+                    "5",
+                    "--create-relationships",
+                ],
             ),
             PipelineStep(
                 name="hotspot_analysis",
                 description="Analyzing code hotspots",
                 command="python",
-                args=[str(script_dir / "analyze.py"), "hotspots", "--days",
-                      "365", "--min-changes", "3", "--top-n", "15"]
+                args=[
+                    str(script_dir / "analyze.py"),
+                    "hotspots",
+                    "--days",
+                    "365",
+                    "--min-changes",
+                    "3",
+                    "--top-n",
+                    "15",
+                ],
             ),
             PipelineStep(
                 name="cve_analysis",
                 description="Universal vulnerability analysis",
                 command="python",
-                args=[str(script_dir / "cve_analysis.py"),
-                      "--risk-threshold", "7.0", "--max-hops", "4"],
-                required=False  # Optional if no NVD API key
-            )
+                args=[
+                    str(script_dir / "cve_analysis.py"),
+                    "--risk-threshold",
+                    "7.0",
+                    "--max-hops",
+                    "4",
+                ],
+                required=False,  # Optional if no NVD API key
+            ),
         ]
 
     def _execute_step(self, step: PipelineStep) -> bool:
@@ -178,7 +213,9 @@ class PipelineManager:
                 return self._handle_cleanup_step(step)
 
             # Special handling for CVE step
-            if step.name == "cve_analysis" and (self.skip_cve or not self._has_nvd_api_key()):
+            if step.name == "cve_analysis" and (
+                self.skip_cve or not self._has_nvd_api_key()
+            ):
                 step.status = StepStatus.SKIPPED
                 step.end_time = datetime.now()
                 self.logger.info("⚠️  Skipping CVE analysis (no API key or disabled)")
@@ -190,7 +227,7 @@ class PipelineManager:
                 capture_output=True,
                 text=True,
                 timeout=step.timeout,
-                check=False
+                check=False,
             )
 
             step.output = result.stdout
@@ -198,7 +235,9 @@ class PipelineManager:
 
             if result.returncode == 0:
                 step.status = StepStatus.COMPLETED
-                self.logger.info(f"✅ {step.description} completed in {step.duration:.2f}s")
+                self.logger.info(
+                    f"✅ {step.description} completed in {step.duration:.2f}s"
+                )
                 return True
             else:
                 step.status = StepStatus.FAILED
@@ -226,17 +265,15 @@ class PipelineManager:
 
         # Run dry-run first
         result = subprocess.run(
-            [step.command] + step.args,
-            capture_output=True,
-            text=True
+            [step.command] + step.args, capture_output=True, text=True
         )
 
         if result.returncode == 0 and result.stdout:
             print(result.stdout)
 
-            if not self.config.get('auto_cleanup', False):
+            if not self.config.get("auto_cleanup", False):
                 response = input("Proceed with cleanup? (y/n): ").strip().lower()
-                if response != 'y':
+                if response != "y":
                     step.status = StepStatus.SKIPPED
                     step.end_time = datetime.now()
                     self.logger.info("⚠️  Database cleanup skipped by user")
@@ -245,9 +282,7 @@ class PipelineManager:
             # Run actual cleanup
             cleanup_args = [arg for arg in step.args if arg != "--dry-run"]
             result = subprocess.run(
-                [step.command] + cleanup_args,
-                capture_output=True,
-                text=True
+                [step.command] + cleanup_args, capture_output=True, text=True
             )
 
             if result.returncode == 0:
@@ -264,6 +299,7 @@ class PipelineManager:
     def _has_nvd_api_key(self) -> bool:
         """Check if NVD API key is available."""
         import os
+
         return bool(os.getenv("NVD_API_KEY") or Path(".env").exists())
 
     def _retry_step(self, step: PipelineStep) -> bool:
@@ -272,7 +308,9 @@ class PipelineManager:
             return False
 
         step.retry_count += 1
-        self.logger.info(f"🔄 Retrying {step.description} (attempt {step.retry_count + 1}/{step.max_retries + 1})")
+        self.logger.info(
+            f"🔄 Retrying {step.description} (attempt {step.retry_count + 1}/{step.max_retries + 1})"
+        )
 
         # Reset step state
         step.status = StepStatus.PENDING
@@ -294,8 +332,8 @@ class PipelineManager:
         for i, step in enumerate(self.steps, 1):
             # Skip optional steps if configured
             if not step.required and (
-                (step.name == "cve_analysis" and self.skip_cve) or
-                (step.name == "cleanup_prompt" and self.skip_cleanup)
+                (step.name == "cve_analysis" and self.skip_cve)
+                or (step.name == "cleanup_prompt" and self.skip_cleanup)
             ):
                 step.status = StepStatus.SKIPPED
                 continue
@@ -314,7 +352,9 @@ class PipelineManager:
                 failed_steps += 1
 
                 if step.required and not self.continue_on_error:
-                    self.logger.error(f"💥 Pipeline failed at required step: {step.description}")
+                    self.logger.error(
+                        f"💥 Pipeline failed at required step: {step.description}"
+                    )
                     break
                 elif not step.required:
                     self.logger.warning(f"⚠️  Optional step failed: {step.description}")
@@ -335,7 +375,9 @@ class PipelineManager:
         print(f"⏱️  Total Duration: {duration:.2f} seconds")
         print(f"✅ Completed Steps: {completed}")
         print(f"❌ Failed Steps: {failed}")
-        print(f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}")
+        print(
+            f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}"
+        )
 
         print("\n📋 Step Details:")
         for step in self.steps:
@@ -343,7 +385,7 @@ class PipelineManager:
                 StepStatus.COMPLETED: "✅",
                 StepStatus.FAILED: "❌",
                 StepStatus.SKIPPED: "⏭️",
-                StepStatus.PENDING: "⏸️"
+                StepStatus.PENDING: "⏸️",
             }[step.status]
 
             duration_str = f"({step.duration:.2f}s)" if step.duration else ""
@@ -368,8 +410,11 @@ class PipelineManager:
             "repo_url": self.repo_url,
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "end_time": self.end_time.isoformat() if self.end_time else None,
-            "duration": ((self.end_time - self.start_time).total_seconds()
-                         if self.start_time and self.end_time else None),
+            "duration": (
+                (self.end_time - self.start_time).total_seconds()
+                if self.start_time and self.end_time
+                else None
+            ),
             "steps": [
                 {
                     "name": step.name,
@@ -377,10 +422,10 @@ class PipelineManager:
                     "status": step.status.value,
                     "duration": step.duration,
                     "retry_count": step.retry_count,
-                    "error_message": step.error_message
+                    "error_message": step.error_message,
                 }
                 for step in self.steps
-            ]
+            ],
         }
 
 
@@ -405,23 +450,37 @@ Examples:
 
   # Dry run (show what would be executed)
   python -m src.pipeline.manager https://github.com/user/repo.git --dry-run
-        """
+        """,
     )
 
     parser.add_argument("repo_url", help="Git repository URL to analyze")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Show what would be executed without running")
-    parser.add_argument("--skip-cleanup", action="store_true",
-                        help="Skip database cleanup step")
-    parser.add_argument("--skip-cve", action="store_true",
-                        help="Skip CVE analysis step")
-    parser.add_argument("--continue-on-error", action="store_true",
-                        help="Continue pipeline even if non-critical steps fail")
-    parser.add_argument("--auto-cleanup", action="store_true",
-                        help="Automatically proceed with database cleanup")
-    parser.add_argument("--log-level", default="INFO",
-                        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-                        help="Logging level")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be executed without running",
+    )
+    parser.add_argument(
+        "--skip-cleanup", action="store_true", help="Skip database cleanup step"
+    )
+    parser.add_argument(
+        "--skip-cve", action="store_true", help="Skip CVE analysis step"
+    )
+    parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="Continue pipeline even if non-critical steps fail",
+    )
+    parser.add_argument(
+        "--auto-cleanup",
+        action="store_true",
+        help="Automatically proceed with database cleanup",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Logging level",
+    )
     parser.add_argument("--log-file", help="Optional log file")
 
     args = parser.parse_args()
@@ -431,11 +490,11 @@ Examples:
 
     # Create and run pipeline
     config = {
-        'dry_run': args.dry_run,
-        'skip_cleanup': args.skip_cleanup,
-        'skip_cve': args.skip_cve,
-        'continue_on_error': args.continue_on_error,
-        'auto_cleanup': args.auto_cleanup,
+        "dry_run": args.dry_run,
+        "skip_cleanup": args.skip_cleanup,
+        "skip_cve": args.skip_cve,
+        "continue_on_error": args.continue_on_error,
+        "auto_cleanup": args.auto_cleanup,
     }
 
     pipeline = PipelineManager(args.repo_url, config)
@@ -447,7 +506,9 @@ Examples:
         logging.getLogger(__name__).error("❌ Pipeline interrupted by user")
         exit_code = 130
     except Exception as e:
-        logging.getLogger(__name__).error(f"❌ Pipeline failed with unexpected error: {e}")
+        logging.getLogger(__name__).error(
+            f"❌ Pipeline failed with unexpected error: {e}"
+        )
         exit_code = 1
 
     sys.exit(exit_code)

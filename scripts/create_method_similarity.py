@@ -13,4 +13,5 @@ sys.path.insert(0, str(root_dir / "src"))
 # Import and run the main function from the module
 if __name__ == "__main__":
     from analysis.similarity import main
+
     main()

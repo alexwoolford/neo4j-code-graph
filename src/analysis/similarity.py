@@ -35,7 +35,9 @@ def parse_args():
     parser.add_argument("--database", default=NEO4J_DATABASE, help="Neo4j database")
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     parser.add_argument("--log-file", help="Optional log file")
-    parser.add_argument("--top-k", type=int, default=5, help="Number of nearest neighbours")
+    parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of nearest neighbours"
+    )
     parser.add_argument("--cutof", type=float, default=0.8, help="Similarity cutof")
     parser.add_argument(
         "--no-knn",

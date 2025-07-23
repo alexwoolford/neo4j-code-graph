@@ -63,7 +63,7 @@ def setup_virtual_environment():
         print("✅ Virtual environment already exists")
 
     # Provide activation instructions
-    if os.name == 'nt':  # Windows
+    if os.name == "nt":  # Windows
         activate_cmd = ".venv\\Scripts\\activate"
     else:  # Unix/Linux/MacOS
         activate_cmd = "source .venv/bin/activate"
@@ -82,7 +82,9 @@ def install_dependencies():
 
     # Install requirements
     if Path("config/requirements.txt").exists():
-        run_command([sys.executable, "-m", "pip", "install", "-r", "config/requirements.txt"])
+        run_command(
+            [sys.executable, "-m", "pip", "install", "-r", "config/requirements.txt"]
+        )
 
     print("✅ Dependencies installed")
 
@@ -135,7 +137,9 @@ def run_basic_tests():
     print("🧪 Running basic tests...")
 
     try:
-        result = run_command([sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short", "-x"])
+        result = run_command(
+            [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short", "-x"]
+        )
         if "passed" in result.stdout:
             print("✅ Basic tests passed")
         else:

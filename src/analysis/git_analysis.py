@@ -15,6 +15,7 @@ import time
 
 from git import Repo
 from neo4j import GraphDatabase
+
 try:
     # Try absolute import when called from CLI wrapper
     from utils.neo4j_utils import ensure_port, get_neo4j_config
@@ -39,7 +40,9 @@ def parse_args():
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     parser.add_argument("--log-file", help="Optional log file")
     parser.add_argument("--csv-export", help="Export to CSV files instead of Neo4j")
-    parser.add_argument("--max-commits", type=int, help="Limit number of commits (for testing)")
+    parser.add_argument(
+        "--max-commits", type=int, help="Limit number of commits (for testing)"
+    )
     parser.add_argument(
         "--skip-file-changes",
         action="store_true",
@@ -58,7 +61,14 @@ def extract_git_history(repo_path, branch, max_commits=None):
     logger.info("🚀 Extracting git history...")
 
     # Build git log command
-    cmd = ["git", "log", "--name-only", "--pretty=format:%H|%an|%ae|%ad|%s", "--date=iso", branch]
+    cmd = [
+        "git",
+        "log",
+        "--name-only",
+        "--pretty=format:%H|%an|%ae|%ad|%s",
+        "--date=iso",
+        branch,
+    ]
 
     if max_commits:
         cmd.append(f"-{max_commits}")
@@ -104,7 +114,9 @@ def extract_git_history(repo_path, branch, max_commits=None):
 
         elif line.strip() and current_commit:
             # File change line
-            file_changes.append({"sha": current_commit["sha"], "file_path": line.strip()})
+            file_changes.append(
+                {"sha": current_commit["sha"], "file_path": line.strip()}
+            )
 
     # Don't forget the last commit
     if current_commit:
@@ -121,7 +133,9 @@ def extract_git_history(repo_path, branch, max_commits=None):
         parse_time,
     )
     logger.info(
-        "Total extraction: %.2fs (%.1f commits/sec)", total_time, commits_processed / total_time
+        "Total extraction: %.2fs (%.1f commits/sec)",
+        total_time,
+        commits_processed / total_time,
     )
 
     return commits, file_changes
@@ -140,7 +154,9 @@ def create_dataframes(commits, file_changes):
 
     # Create developers DataFrame (unique developers)
     developers_df = commits_df[["author_name", "author_email"]].drop_duplicates()
-    developers_df = developers_df.rename(columns={"author_name": "name", "author_email": "email"})
+    developers_df = developers_df.rename(
+        columns={"author_name": "name", "author_email": "email"}
+    )
 
     # Create files DataFrame (unique files)
     files_df = file_changes_df[["file_path"]].drop_duplicates()
@@ -212,7 +228,7 @@ def bulk_load_to_neo4j(
         commit_batch_size = 5000  # Smaller batches for better reliability
         for i in range(0, len(commits_data), commit_batch_size):
             with driver.session(database=database) as session:
-                batch = commits_data[i: i + commit_batch_size]
+                batch = commits_data[i : i + commit_batch_size]
                 execute_with_retry(
                     session,
                     """
@@ -253,23 +269,29 @@ def bulk_load_to_neo4j(
         return
 
     # OPTIMIZED: Load file changes with sustainable bulk operations
-    logger.info(f"🚀 Loading {len(file_changes_df)} file changes with optimized bulk operations...")
+    logger.info(
+        f"🚀 Loading {len(file_changes_df)} file changes with optimized bulk operations..."
+    )
     file_changes_data = file_changes_df.to_dict("records")
 
     # Use conservative batches to avoid overwhelming the database
     batch_size = 10000  # Conservative size that won't crash the database
     total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
 
-    logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
+    logger.info(
+        f"📦 Processing in {total_batches} batches of {batch_size:,} records each"
+    )
     logger.info("⚡ Using sustainable 3-step bulk loading approach")
 
     start_time = time.time()
     for i in range(0, len(file_changes_data), batch_size):
         batch_start = time.time()
         batch_num = i // batch_size + 1
-        batch = file_changes_data[i: i + batch_size]
+        batch = file_changes_data[i : i + batch_size]
 
-        logger.info(f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)...")
+        logger.info(
+            f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)..."
+        )
 
         with driver.session(database=database) as session:
             # STEP 1: Bulk create FileVer nodes (fastest approach)
@@ -284,7 +306,9 @@ def bulk_load_to_neo4j(
                 f"FileVer creation batch {batch_num}",
             )
             step1_time = time.time() - step1_start
-            logger.info(f"  ✅ Created {len(batch):,} FileVer nodes in {step1_time:.1f}s")
+            logger.info(
+                f"  ✅ Created {len(batch):,} FileVer nodes in {step1_time:.1f}s"
+            )
 
             # STEP 2: Bulk create CHANGED relationships (using existing commits)
             step2_start = time.time()
@@ -300,7 +324,9 @@ def bulk_load_to_neo4j(
                 f"CHANGED relationships batch {batch_num}",
             )
             step2_time = time.time() - step2_start
-            logger.info(f"  ✅ Created {len(batch):,} CHANGED relationships in {step2_time:.1f}s")
+            logger.info(
+                f"  ✅ Created {len(batch):,} CHANGED relationships in {step2_time:.1f}s"
+            )
 
             # STEP 3: Bulk create OF_FILE relationships (using existing files)
             step3_start = time.time()
@@ -316,7 +342,9 @@ def bulk_load_to_neo4j(
                 f"OF_FILE relationships batch {batch_num}",
             )
             step3_time = time.time() - step3_start
-            logger.info(f"  ✅ Created {len(batch):,} OF_FILE relationships in {step3_time:.1f}s")
+            logger.info(
+                f"  ✅ Created {len(batch):,} OF_FILE relationships in {step3_time:.1f}s"
+            )
 
         batch_time = time.time() - batch_start
         elapsed_total = time.time() - start_time
@@ -405,8 +433,12 @@ def load_history(
                 repo.git.checkout(branch)
                 logger.info(f"Checked out branch: {branch}")
             except Exception as e:
-                available_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs]
-                logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
+                available_branches = [
+                    ref.name.split("/")[-1] for ref in repo.remotes.origin.refs
+                ]
+                logger.warning(
+                    f"Branch '{branch}' not found. Available: {available_branches}"
+                )
 
                 for fallback in ["main", "master", "dev", "develop", "HEAD"]:
                     if fallback in available_branches:
@@ -428,7 +460,9 @@ def load_history(
 
         # Export or load
         if csv_export:
-            export_to_csv(commits_df, developers_df, files_df, file_changes_df, csv_export)
+            export_to_csv(
+                commits_df, developers_df, files_df, file_changes_df, csv_export
+            )
         else:
             bulk_load_to_neo4j(
                 commits_df,
