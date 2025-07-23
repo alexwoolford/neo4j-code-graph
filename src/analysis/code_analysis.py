@@ -1217,7 +1217,8 @@ def bulk_create_nodes_and_relationships(
                         break
 
             logger.info(
-                f"Other method calls completed: {successful_calls} relationships created, {failed_batches} batches failed"
+                f"Other method calls completed: {successful_calls} relationships created, "
+                f"{failed_batches} batches failed"
             )
 
     logger.info("Bulk creation completed!")

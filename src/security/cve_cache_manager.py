@@ -190,7 +190,8 @@ class RobustCVEManager:
             f"📊 Found {len(unique_cves)} unique CVEs from {len(completed_terms_set)} dependencies"
         )
         logger.info(
-            f"📊 Relevance rate: {len(unique_cves)}/{len(all_cves)} = {len(unique_cves) / max(len(all_cves), 1) * 100:.1f}%"
+            f"📊 Relevance rate: {len(unique_cves)}/{len(all_cves)} = "
+            f"{len(unique_cves) / max(len(all_cves), 1) * 100:.1f}%"
         )
 
         # Save final results
