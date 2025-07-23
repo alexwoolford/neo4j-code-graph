@@ -4,6 +4,7 @@ import argparse
 import logging
 import tempfile
 from pathlib import Path
+import time
 from time import perf_counter
 import gc
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -1212,17 +1213,58 @@ def bulk_create_nodes_and_relationships(
             logger.info(
                 f"Creating {len(other_calls)} other method calls (best effort)..."
             )
-            for i in range(0, len(other_calls), batch_size):
-                batch = other_calls[i : i + batch_size]
-                session.run(
-                    "UNWIND $calls AS call "
-                    "MATCH (caller:Method {name: call.caller_name, "
-                    "file: call.caller_file, line: call.caller_line}) "
-                    "MATCH (callee:Method {name: call.callee_name}) "
-                    "MERGE (caller)-[:CALLS {type: call.call_type, "
-                    "qualifier: call.qualifier}]->(callee)",
-                    calls=batch,
-                )
+            
+            # Use much smaller batches for this problematic section
+            small_batch_size = 100  # Much smaller than normal batch_size
+            total_small_batches = (len(other_calls) + small_batch_size - 1) // small_batch_size
+            
+            logger.warning(f"⚠️ Using small batches ({small_batch_size}) for complex method matching")
+            
+            successful_calls = 0
+            failed_batches = 0
+            
+            for i in range(0, len(other_calls), small_batch_size):
+                batch_num = i // small_batch_size + 1
+                batch = other_calls[i : i + small_batch_size]
+                
+                try:
+                    logger.info(f"Processing small batch {batch_num}/{total_small_batches} ({len(batch)} calls)...")
+                    start_time = perf_counter()
+                    
+                    # Use a more conservative query with timeouts
+                    result = session.run(
+                        "UNWIND $calls AS call "
+                        "MATCH (caller:Method {name: call.caller_name, "
+                        "file: call.caller_file, line: call.caller_line}) "
+                        "OPTIONAL MATCH (callee:Method {name: call.callee_name}) "
+                        "WHERE callee IS NOT NULL "
+                        "WITH caller, callee, call LIMIT 500 "  # Limit matches per batch
+                        "MERGE (caller)-[:CALLS {type: call.call_type, "
+                        "qualifier: call.qualifier}]->(callee) "
+                        "RETURN count(*) as created",
+                        calls=batch,
+                    )
+                    
+                    created = result.single()["created"]
+                    successful_calls += created
+                    
+                    batch_time = perf_counter() - start_time
+                    logger.info(f"Small batch {batch_num} completed: {created} relationships in {batch_time:.1f}s")
+                    
+                    # Add a longer pause between batches to let database recover
+                    if batch_num < total_small_batches:
+                        time.sleep(0.5)
+                        
+                except Exception as e:
+                    failed_batches += 1
+                    logger.warning(f"Batch {batch_num} failed (continuing): {e}")
+                    
+                    # If too many failures, stop to avoid further database issues
+                    if failed_batches > 10:
+                        logger.error("Too many failed batches, stopping other method calls processing")
+                        break
+                        
+            logger.info(f"Other method calls completed: {successful_calls} relationships created, {failed_batches} batches failed")
 
     logger.info("Bulk creation completed!")
 
