@@ -1035,23 +1035,50 @@ def bulk_create_nodes_and_relationships(
     # Bulk create Import nodes
     if all_imports:
         logger.info(f"Creating {len(all_imports)} import nodes...")
-        session.run(
-            "UNWIND $imports AS imp "
-            "MERGE (i:Import {import_path: imp.import_path}) "
-            "SET i.is_static = imp.is_static, i.is_wildcard = imp.is_wildcard, "
-            "i.import_type = imp.import_type",
-            imports=all_imports,
-        )
+        
+        # Use the same batching approach as methods for consistency and performance
+        batch_size = 1000
+        total_batches = (len(all_imports) + batch_size - 1) // batch_size
+        logger.info(f"Creating {len(all_imports)} import nodes in {total_batches} batches...")
+        
+        for i in range(0, len(all_imports), batch_size):
+            batch_num = i // batch_size + 1
+            batch = all_imports[i : i + batch_size]
+            
+            logger.info(f"Creating import batch {batch_num}/{total_batches} ({len(batch)} imports)...")
+            start_time = perf_counter()
+            
+            session.run(
+                "UNWIND $imports AS imp "
+                "MERGE (i:Import {import_path: imp.import_path}) "
+                "SET i.is_static = imp.is_static, i.is_wildcard = imp.is_wildcard, "
+                "i.import_type = imp.import_type",
+                imports=batch,
+            )
+            
+            batch_time = perf_counter() - start_time
+            logger.info(f"Import batch {batch_num} completed in {batch_time:.1f}s")
 
-        # Create IMPORTS relationships
-        logger.info(f"Creating {len(all_imports)} IMPORTS relationships...")
-        session.run(
-            "UNWIND $imports AS imp "
-            "MATCH (f:File {path: imp.file}) "
-            "MATCH (i:Import {import_path: imp.import_path}) "
-            "MERGE (f)-[:IMPORTS]->(i)",
-            imports=all_imports,
-        )
+        # Create IMPORTS relationships using batching
+        logger.info(f"Creating {len(all_imports)} IMPORTS relationships in {total_batches} batches...")
+        
+        for i in range(0, len(all_imports), batch_size):
+            batch_num = i // batch_size + 1
+            batch = all_imports[i : i + batch_size]
+            
+            logger.info(f"Creating IMPORTS relationship batch {batch_num}/{total_batches} ({len(batch)} relationships)...")
+            start_time = perf_counter()
+            
+            session.run(
+                "UNWIND $imports AS imp "
+                "MATCH (f:File {path: imp.file}) "
+                "MATCH (i:Import {import_path: imp.import_path}) "
+                "MERGE (f)-[:IMPORTS]->(i)",
+                imports=batch,
+            )
+            
+            batch_time = perf_counter() - start_time
+            logger.info(f"IMPORTS relationship batch {batch_num} completed in {batch_time:.1f}s")
 
     # Create ExternalDependency nodes for CVE analysis
     if external_dependencies:
