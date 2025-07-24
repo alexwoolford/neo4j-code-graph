@@ -120,9 +120,7 @@ def _create_coupling_relationships_parallel(session, relationships_data):
         return 0
 
     total_relationships = len(relationships_data)
-    logger.info(
-        f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships using optimized processing..."
-    )
+    logger.info(f"🚀 Creating {total_relationships} bidirectional CO_CHANGED relationships...")
 
     # First, check if APOC is available
     try:
@@ -444,8 +442,8 @@ def analyze_hotspots(session, args):
 
 
 def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
-    """Calculate enhanced hotspot scores for files with multiple complexity factors."""
-    # Enhanced hotspot query with multiple complexity metrics
+    """Calculate hotspot scores for files with multiple complexity factors."""
+    # Hotspot query with multiple complexity metrics
     query = """
     MATCH (f:File)
     OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
@@ -491,7 +489,7 @@ def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
         coupling_strength,
         change_count,
         total_complexity,
-        // Enhanced hotspot score: Change frequency × Total complexity
+        // Hotspot score: Change frequency × Total complexity
         (change_count * total_complexity) as hotspot_score,
         // Additional metrics for analysis
         (change_count * 100.0 / f.total_lines) as change_density,
@@ -526,12 +524,12 @@ def _calculate_file_hotspots(session, cutoff_date, min_changes, min_size):
             }
         )
 
-    logger.info(f"Found {len(hotspots)} file hotspots using enhanced complexity scoring")
+    logger.info(f"Found {len(hotspots)} file hotspots using complexity scoring")
     return hotspots
 
 
 def _calculate_method_hotspots(session, cutoff_date, min_changes):
-    """Calculate enhanced method hotspots with complexity and centrality factors."""
+    """Calculate method hotspots with complexity and centrality factors."""
     query = """
     MATCH (m:Method)
     OPTIONAL MATCH (m)<-[:DECLARES]-(f:File)
@@ -586,7 +584,7 @@ def _calculate_method_hotspots(session, cutoff_date, min_changes):
         class_inheritance_count,
         file_change_count,
         total_method_complexity,
-        // Enhanced method hotspot score: Change frequency × Method complexity
+        // Method hotspot score: Change frequency × Method complexity
         (file_change_count * total_method_complexity) as method_hotspot_score,
         // Risk factors
         CASE
@@ -627,7 +625,7 @@ def _calculate_method_hotspots(session, cutoff_date, min_changes):
             }
         )
 
-    logger.info(f"Found {len(method_hotspots)} method hotspots using enhanced complexity scoring")
+    logger.info(f"Found {len(method_hotspots)} method hotspots using complexity scoring")
     return method_hotspots
 
 
@@ -673,15 +671,15 @@ def _find_coupling_hotspots(session, min_support=5):
 
 
 def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, top_n=20):
-    """Print comprehensive enhanced hotspot analysis."""
+    """Print comprehensive hotspot analysis."""
     print("\n" + "=" * 120)
-    print("🔥 ENHANCED CODE HOTSPOT ANALYSIS")
+    print("🔥 CODE HOTSPOT ANALYSIS")
     print("=" * 120)
-    print("Combines change frequency with multiple complexity factors for better insight")
+    print("Combines change frequency with multiple complexity factors")
 
-    # File hotspots with enhanced metrics
+    # File hotspots with metrics
     print(f"\n📁 TOP {min(top_n, len(file_hotspots))} FILE HOTSPOTS")
-    print("(Enhanced scoring: Change frequency × Total complexity)")
+    print("(Scoring: Change frequency × Total complexity)")
     print("-" * 120)
     print(
         f"{'File':<45} {'Lines':<6} {'Chg':<4} {'Cls':<3} {'Ifc':<3} "
@@ -707,10 +705,10 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
             f"{hotspot['change_density']:<6.2f}"
         )
 
-    # Enhanced method hotspots
+    # Method hotspots
     if method_hotspots:
         print("\n🔧 TOP 15 METHOD HOTSPOTS")
-        print("(Enhanced scoring: Change frequency × Method complexity)")
+        print("(Scoring: Change frequency × Method complexity)")
         print("-" * 120)
         print(
             f"{'Method':<25} {'Class':<20} {'Type':<8} {'Lines':<5} "

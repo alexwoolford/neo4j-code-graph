@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Robust Universal CVE Cache Manager
+CVE Cache Manager
 
 Features:
 - Incremental caching (saves as it goes - no data loss!)
-- Intelligent rate limiting with API-aware backoff
+- Rate limiting with API-aware backoff
 - Progress tracking with ETAs
 - Resume capability from interruptions
 - Bulk data source options
@@ -26,8 +26,8 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
-class RobustCVEManager:
-    """Robust CVE manager with incremental caching and smart rate limiting."""
+class CVECacheManager:
+    """CVE manager with incremental caching and rate limiting."""
 
     def __init__(self, cache_dir: str = "./data/cve_cache", cache_ttl_hours: int = 24):
         self.cache_dir = Path(cache_dir)
@@ -286,7 +286,23 @@ class RobustCVEManager:
 
     def _is_relevant_to_terms(self, cve: Dict, terms: Set[str]) -> bool:
         """Check if a CVE is relevant to the given search terms with precise matching."""
-        cve_text = f"{cve.get('description', '')} {cve.get('id', '')}".lower()
+        # Extract text from multiple possible locations
+        description_text = ""
+        if "descriptions" in cve:
+            for desc in cve["descriptions"]:
+                if desc.get("lang") == "en":
+                    description_text += desc.get("value", "")
+        description_text += cve.get("description", "")
+
+        # Also check configurations for CPE matches
+        config_text = ""
+        if "configurations" in cve:
+            for config in cve["configurations"]:
+                for node in config.get("nodes", []):
+                    for cpe_match in node.get("cpeMatch", []):
+                        config_text += cpe_match.get("criteria", "")
+
+        cve_text = f"{description_text} {cve.get('id', '')} {config_text}".lower()
 
         for term in terms:
             term_lower = term.lower()
@@ -607,6 +623,10 @@ class RobustCVEManager:
                     logger.warning(f"Failed to delete {cache_file}: {e}")
             logger.info(f"🗑️  Cleared {len(cache_files)} cache files")
 
+    def is_cve_relevant(self, cve: Dict, components: Set[str]) -> bool:
+        """Check if a CVE is relevant to the given components."""
+        return self._is_relevant_to_terms(cve, components)
 
-# Alias for backward compatibility
-UniversalCVEManager = RobustCVEManager
+    def get_cache_file_path(self, cache_key: str) -> Path:
+        """Get the cache file path for a given cache key."""
+        return self.cache_dir / f"{cache_key}.json.gz"

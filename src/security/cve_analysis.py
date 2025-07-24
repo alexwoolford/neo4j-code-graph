@@ -11,9 +11,9 @@ This tool analyzes CVE impact for ANY codebase by:
 NO HARDCODED MAPPINGS - Works with any language, any dependencies, any codebase.
 """
 
-from .cve_cache_manager import RobustCVEManager
-from utils.neo4j_utils import get_neo4j_config
-from utils.common import setup_logging, create_neo4j_driver
+from .cve_cache_manager import CVECacheManager
+from ..utils.neo4j_utils import get_neo4j_config
+from ..utils.common import setup_logging, create_neo4j_driver
 import argparse
 import logging
 import os
@@ -29,13 +29,20 @@ if ROOT not in sys.path:
 logger = logging.getLogger(__name__)
 
 
-class UniversalCVEAnalyzer:
+class CVEAnalyzer:
     """Language-agnostic CVE analyzer that works with any codebase."""
 
-    def __init__(self, driver, database: str = "neo4j"):
+    def __init__(self, driver=None, database: str = "neo4j"):
         self.driver = driver
         self.database = database
-        self.cve_manager = RobustCVEManager()
+        self.cve_manager = CVECacheManager()
+
+    def load_cve_data(self, file_path: str):
+        """Load CVE data from a file."""
+        import json
+
+        with open(file_path, "r") as f:
+            return json.load(f)
 
     def get_cache_status(self):
         """Get current cache status for user feedback."""
@@ -511,7 +518,7 @@ def main():
         sys.path.insert(0, ROOT)
 
     parser = argparse.ArgumentParser(
-        description="Robust Universal CVE Analysis",
+        description="CVE Analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -586,7 +593,7 @@ Examples:
     driver = create_neo4j_driver(config[0], config[1], config[2])
 
     try:
-        analyzer = UniversalCVEAnalyzer(driver, args.database)
+        analyzer = CVEAnalyzer(driver, args.database)
 
         # Handle cache management
         if args.cache_status:

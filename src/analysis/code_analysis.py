@@ -170,9 +170,7 @@ def _extract_gradle_dependencies(gradle_file):
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Ultra-optimized Java code structure and embeddings loader"
-    )
+    parser = argparse.ArgumentParser(description="Java code structure and embeddings loader")
     add_common_args(parser)
     parser.add_argument("repo_url", help="Git repository URL or local path to analyze")
     parser.add_argument("--batch-size", type=int, help="Override automatic batch size selection")
@@ -606,7 +604,7 @@ def bulk_create_nodes_and_relationships(
 
     logger.info("Creating file nodes...")
 
-    # 3. Bulk create file nodes with enhanced metrics
+    # 3. Bulk create file nodes with metrics
     file_nodes = []
     for i, file_data in enumerate(files_data):
         file_node = {
@@ -807,7 +805,7 @@ def bulk_create_nodes_and_relationships(
 
     logger.info("Creating method nodes...")
 
-    # 6. Bulk create method nodes with enhanced metrics
+    # 6. Bulk create method nodes with metrics
     method_nodes = []
     method_idx = 0
 
@@ -1302,7 +1300,7 @@ def main():
             model = model.to(device)
             logger.info(f"Model loaded on {device}")
 
-            # Compute embeddings with optimized batching
+            # Compute embeddings with batching
             batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
             logger.info(f"Using batch size: {batch_size}")
 

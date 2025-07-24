@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_schema_management_imports():
     """Test that schema_management module can be imported."""
-    import schema_management
+    from src.data import schema_management
 
     # Check key functions exist
     assert hasattr(schema_management, "create_schema_constraints_and_indexes")
@@ -26,7 +26,7 @@ def test_schema_management_imports():
 
 def test_constraint_creation():
     """Test that constraint creation statements are valid."""
-    import schema_management
+    from src.data import schema_management
 
     # Mock session
     mock_session = Mock()
@@ -51,7 +51,7 @@ def test_constraint_creation():
 
 def test_constraint_syntax():
     """Test that constraint syntax uses modern REQUIRE syntax."""
-    import schema_management
+    from src.data import schema_management
 
     mock_session = Mock()
     mock_session.run = Mock()
@@ -69,7 +69,7 @@ def test_constraint_syntax():
 
 def test_verify_schema_functions():
     """Test schema verification functions."""
-    import schema_management
+    from src.data import schema_management
 
     # Mock session for constraints verification
     mock_session = Mock()
@@ -117,7 +117,7 @@ def test_verify_schema_functions():
 
 def test_natural_key_coverage():
     """Test that all expected natural keys have constraints."""
-    import schema_management
+    from src.data import schema_management
 
     mock_session = Mock()
     mock_session.run = Mock()
@@ -146,8 +146,7 @@ def test_natural_key_coverage():
         matching_constraints = [call for call in constraint_calls if pattern in call]
         assert (
             len(matching_constraints) > 0
-        ), f"Missing constraint for {
-            node_type} natural key: {key_props}. Found constraints: {constraint_calls}"
+        ), f"Missing constraint for {node_type} natural key: {key_props}. Found constraints: {constraint_calls}"
 
 
 if __name__ == "__main__":

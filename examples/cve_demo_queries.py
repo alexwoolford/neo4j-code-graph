@@ -2,6 +2,12 @@
 """
 CVE Analysis Demo Queries - Multi-Modal Neo4j Access Patterns
 
+⚠️  WARNING: This file contains CONCEPTUAL examples with Component nodes that
+    don't exist in the actual graph schema. For WORKING queries, see README.md
+    
+    Actual schema: CVE -[:AFFECTS]-> ExternalDependency
+    This file uses: CVE -[:AFFECTS]-> Component (which doesn't exist)
+
 This script demonstrates various Neo4j access patterns for CVE analysis:
 1. Graph Traversal - Find dependency paths from CVEs to public APIs
 2. Vector Search - Find similar components using embeddings
@@ -35,44 +41,31 @@ def demo_graph_traversal(session):
 
     # Find critical paths from vulnerabilities to public APIs
     query = """
-    // Find all paths from CVE-affected components to public APIs
-    MATCH (cve:CVE)-[:AFFECTS]->(vuln_comp:Component)
-    MATCH (ed:ExternalDependency)-[:RESOLVED_TO]->(vuln_comp)
-    MATCH path = (public_file:File)-[:DEPENDS_ON*1..4]->(ed)
-    WHERE public_file.package CONTAINS "api"
-       OR public_file.package CONTAINS "controller"
-       OR public_file.package CONTAINS "rest"
-
-    // Calculate risk score based on path length and exposure
-    WITH cve, vuln_comp, public_file, length(path) AS hops,
-         CASE
-           WHEN public_file.package CONTAINS "api" THEN 10
-           WHEN public_file.package CONTAINS "controller" THEN 8
-           WHEN public_file.package CONTAINS "rest" THEN 9
-           ELSE 5
-         END AS exposure_score
-
-    // Risk = CVSS * Exposure / Distance
-    WITH cve, vuln_comp, public_file, hops, exposure_score,
-         (cve.cvss_score * exposure_score / hops) AS risk_score
-
-    RETURN cve.cve_id AS vulnerability,
-           vuln_comp.name AS vulnerable_component,
-           public_file.path AS exposed_api_file,
-           public_file.package AS api_package,
-           hops AS dependency_distance,
-           round(risk_score, 2) AS calculated_risk
-    ORDER BY risk_score DESC
-    LIMIT 10
+    // Find all paths from CVE-affected dependencies to public APIs
+    MATCH (cve:CVE)-[:AFFECTS]->(ed:ExternalDependency)
+    MATCH (ed)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
+    WHERE f.path CONTAINS "api"
+       OR f.path CONTAINS "controller"
+       OR f.path CONTAINS "rest"
+    
+    OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
+    
+    RETURN cve.cve_id AS cve_id,
+           cve.cvss_score AS severity,
+           ed.package AS vulnerable_dependency,
+           f.path AS exposed_file,
+           collect(DISTINCT m.name)[0..3] AS public_methods
+    ORDER BY cve.cvss_score DESC
+    LIMIT 20
     """
 
     result = session.run(query)
     for record in result:
-        print(f"🚨 {record['vulnerability']}")
-        print(f"   Component: {record['vulnerable_component']}")
-        print(f"   Exposed API: {record['exposed_api_file']}")
-        print(f"   Distance: {record['dependency_distance']} hops")
-        print(f"   Risk Score: {record['calculated_risk']}")
+        print(f"🚨 {record['cve_id']}")
+        print(f"   Severity: {record['severity']}")
+        print(f"   Vulnerable Dependency: {record['vulnerable_dependency']}")
+        print(f"   Exposed File: {record['exposed_file']}")
+        print(f"   Public Methods: {record['public_methods']}")
         print()
 
 

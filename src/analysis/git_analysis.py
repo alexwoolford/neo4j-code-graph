@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Git history loader for Neo4j using optimized git log commands and bulk processing.
+Git history loader for Neo4j using git log commands and bulk processing.
 """
 
 import sys
@@ -55,7 +55,7 @@ def parse_args():
 
 
 def extract_git_history(repo_path, branch, max_commits=None):
-    """Extract git history using optimized git log commands."""
+    """Extract git history using git log commands."""
     logger.info("🚀 Extracting git history...")
 
     # Build git log command
@@ -262,8 +262,8 @@ def bulk_load_to_neo4j(
         logger.info("⏭️  Skipping file changes loading as requested")
         return
 
-    # OPTIMIZED: Load file changes with sustainable bulk operations
-    logger.info(f"🚀 Loading {len(file_changes_df)} file changes with optimized bulk operations...")
+    # Load file changes with sustainable bulk operations
+    logger.info(f"🚀 Loading {len(file_changes_df)} file changes with bulk operations...")
     file_changes_data = file_changes_df.to_dict("records")
 
     # Use conservative batches to avoid overwhelming the database

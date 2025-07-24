@@ -2,7 +2,7 @@
 """
 Neo4j Code Graph Pipeline Manager
 
-A robust Python-based pipeline orchestrator that replaces the shell script
+A Python-based pipeline orchestrator that replaces the shell script
 with proper error handling, logging, and progress tracking.
 """
 
