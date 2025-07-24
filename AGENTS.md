@@ -148,12 +148,14 @@ Tests use mocked database connections for execution without requiring a running 
 ## Quick Quality Check Commands
 
 ```bash
-# One-liner to check everything before commit:
-make format-check && make lint && pytest tests/ -v
+# RECOMMENDED: Run the exact same checks as CI:
+pre-commit run --all-files
 
 # One-liner to fix most issues:
 make format
 
-# Check only what CI checks for quality job:
-isort --check-only --diff src/ tests/ && black --check --diff src/ tests/ && flake8 src/ tests/ && mypy src/ --ignore-missing-imports
+# Alternative: Check individual components:
+make format-check && make lint && pytest tests/ -v
+
+# Note: CI now uses pre-commit for perfect consistency between local and remote
 ```
