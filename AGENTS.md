@@ -130,6 +130,7 @@ Tests use mocked database connections for execution without requiring a running 
 6. **Branch not found**: Script auto-detects main/master/HEAD branches
 7. **Slow performance**: Ensure proper environment and GPU detection
 8. **🚨 CI Failures - Import Sorting**: Always run `isort src/ tests/ scripts/` before committing
+9. **Type Checking**: mypy configuration is currently lenient to allow gradual type annotation adoption
 
 ## Commit Checklist
 
