@@ -31,11 +31,11 @@ lint: ## Run all linting checks
 	mypy src/ --ignore-missing-imports
 
 format: ## Format code with black and isort
-	black src/ tests/ scripts/
+	black --line-length=100 src/ tests/ scripts/
 	isort src/ tests/ scripts/
 
 format-check: ## Check code formatting without modifying files
-	black --check --diff src/ tests/ scripts/
+	black --line-length=100 --check --diff src/ tests/ scripts/
 	isort --check-only --diff src/ tests/ scripts/
 
 type-check: ## Run type checking with mypy
