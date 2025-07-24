@@ -8,22 +8,21 @@ This script will:
 4. Safely process remaining method calls with resilient approach
 """
 
-import sys
 import argparse
-
+import sys
 from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from utils.common import get_neo4j_config, create_neo4j_driver, setup_logging
-from analysis.code_analysis import (
-    extract_file_data,
-    compute_embeddings_bulk,
-    load_model_and_tokenizer,
-    extract_dependency_versions_from_files,
-)
 import logging
 
+from analysis.code_analysis import (
+    compute_embeddings_bulk,
+    extract_dependency_versions_from_files,
+    extract_file_data,
+    load_model_and_tokenizer,
+)
+from utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
 
 logger = logging.getLogger(__name__)
 

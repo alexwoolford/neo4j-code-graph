@@ -4,12 +4,11 @@ Check the current state of the Neo4j database to see what data has been loaded.
 Useful for resuming after crashes or understanding pipeline progress.
 """
 
-import sys
 import argparse
-
+import sys
 
 sys.path.insert(0, "src")
-from utils.common import get_neo4j_config, create_neo4j_driver
+from utils.common import create_neo4j_driver, get_neo4j_config
 
 
 def check_database_state(driver, database):
