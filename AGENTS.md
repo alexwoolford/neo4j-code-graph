@@ -131,6 +131,7 @@ Tests use mocked database connections for execution without requiring a running 
 7. **Slow performance**: Ensure proper environment and GPU detection
 8. **🚨 CI Failures - Import Sorting**: Always run `isort src/ tests/ scripts/` before committing
 9. **Type Checking**: mypy configuration is currently lenient to allow gradual type annotation adoption
+10. **Pre-commit Hooks**: Use latest versions (black 25.1.0, isort 6.0.1, flake8 7.3.0, mypy 1.17.0)
 
 ## Commit Checklist
 
