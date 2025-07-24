@@ -1,6 +1,7 @@
-from src.utils.common import ensure_port, get_neo4j_config
 import os
 import sys
+
+from src.utils.common import ensure_port, get_neo4j_config
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 

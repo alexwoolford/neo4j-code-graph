@@ -11,14 +11,14 @@ Features:
 - Language-agnostic dependency analysis
 """
 
+import gzip
+import hashlib
 import json
 import logging
-import hashlib
 import time
-import gzip
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Set, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import requests
 from tqdm import tqdm

@@ -1,7 +1,7 @@
 import os
 import sys
-from unittest.mock import MagicMock
 import types
+from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 

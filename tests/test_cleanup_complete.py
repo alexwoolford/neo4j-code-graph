@@ -3,10 +3,11 @@
 Tests for complete database reset functionality in cleanup_graph.py
 """
 
-from src.utils import cleanup
 import sys
 import types
 from unittest.mock import MagicMock
+
+from src.utils import cleanup
 
 # Mock heavy dependencies
 sys.modules.setdefault("neo4j", types.SimpleNamespace(GraphDatabase=MagicMock()))

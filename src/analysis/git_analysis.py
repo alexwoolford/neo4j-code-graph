@@ -3,16 +3,16 @@
 Git history loader for Neo4j using git log commands and bulk processing.
 """
 
-import sys
-import tempfile
-import shutil
 import argparse
 import logging
+import shutil
 import subprocess
-import pandas as pd
-from pathlib import Path
+import sys
+import tempfile
 import time
+from pathlib import Path
 
+import pandas as pd
 from git import Repo
 from neo4j import GraphDatabase
 

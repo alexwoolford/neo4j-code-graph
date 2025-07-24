@@ -11,14 +11,15 @@ This tool analyzes CVE impact for ANY codebase by:
 NO HARDCODED MAPPINGS - Works with any language, any dependencies, any codebase.
 """
 
-from .cve_cache_manager import CVECacheManager
-from ..utils.neo4j_utils import get_neo4j_config
-from ..utils.common import setup_logging, create_neo4j_driver
 import argparse
 import logging
 import os
 import sys
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
+
+from ..utils.common import create_neo4j_driver, setup_logging
+from ..utils.neo4j_utils import get_neo4j_config
+from .cve_cache_manager import CVECacheManager
 
 # Add project root to path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -509,8 +510,8 @@ class CVEAnalyzer:
 
 def main():
     """Main entry point for CVE analysis."""
-    import sys
     import os
+    import sys
 
     # Add project root to path
     ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))

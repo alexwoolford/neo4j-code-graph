@@ -2,8 +2,9 @@ import argparse
 import logging
 import sys
 from time import perf_counter
-from graphdatascience import GraphDataScience
+
 import pandas as pd
+from graphdatascience import GraphDataScience
 
 try:
     # Try absolute import when called from CLI wrapper

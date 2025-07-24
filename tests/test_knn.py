@@ -1,10 +1,10 @@
-from src.analysis.similarity import run_knn
 import sys
 import types
 from unittest.mock import MagicMock
 
 import pandas as pd
 
+from src.analysis.similarity import run_knn
 
 # Stub heavy modules before importing the code under test
 sys.modules.setdefault("graphdatascience", types.ModuleType("graphdatascience"))

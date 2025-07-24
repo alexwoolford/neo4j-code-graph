@@ -6,15 +6,16 @@ A Python-based pipeline orchestrator that replaces the shell script
 with proper error handling, logging, and progress tracking.
 """
 
-from utils.common import setup_logging
 import argparse
 import logging
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from utils.common import setup_logging
 
 # Add src to path
 ROOT = Path(__file__).parent.parent

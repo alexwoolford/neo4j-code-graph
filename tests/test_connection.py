@@ -3,10 +3,12 @@
 Simple Neo4j connection test to help debug authentication issues.
 """
 
-from src.utils.common import get_neo4j_config
 import os
 import sys
+
 from neo4j import GraphDatabase
+
+from src.utils.common import get_neo4j_config
 
 # Add project root to path for imports
 ROOT = os.path.abspath(os.path.dirname(__file__))

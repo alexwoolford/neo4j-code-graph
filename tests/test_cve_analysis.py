@@ -3,12 +3,13 @@
 Test suite for CVE analysis functionality.
 """
 
+import json
 import os
 import sys
-import pytest
-import json
-from unittest.mock import MagicMock, patch, mock_open
 from types import ModuleType
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
 
 # Ensure project root is on the import path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

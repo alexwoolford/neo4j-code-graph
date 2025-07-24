@@ -7,19 +7,19 @@ Consolidates all analysis functions into a single CLI with subcommands.
 import argparse
 import logging
 import time
-from pathlib import Path
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
-from collections import defaultdict, Counter
 from itertools import combinations
+from pathlib import Path
 
 import javalang
 
 try:
     # Try absolute import when called from CLI wrapper
-    from utils.common import setup_logging, create_neo4j_driver, add_common_args
+    from utils.common import add_common_args, create_neo4j_driver, setup_logging
 except ImportError:
     # Fallback to relative import when used as module
-    from ..utils.common import setup_logging, create_neo4j_driver, add_common_args
+    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
 
 logger = logging.getLogger(__name__)
 

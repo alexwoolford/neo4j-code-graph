@@ -22,8 +22,9 @@ def ensure_port(uri: str, default: int = 7687) -> str:
 
 def get_neo4j_config():
     """Return connection settings after loading environment variables."""
-    from dotenv import load_dotenv
     import os
+
+    from dotenv import load_dotenv
 
     load_dotenv(override=True)
     uri = ensure_port(os.getenv("NEO4J_URI", "bolt://localhost:7687"))

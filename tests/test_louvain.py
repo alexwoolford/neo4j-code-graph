@@ -1,8 +1,10 @@
-from src.analysis.similarity import run_louvain
 import sys
 import types
-from unittest.mock import MagicMock, ANY
+from unittest.mock import ANY, MagicMock
+
 import pandas as pd
+
+from src.analysis.similarity import run_louvain
 
 # Stub heavy modules before importing the code under test
 sys.modules.setdefault("graphdatascience", types.ModuleType("graphdatascience"))

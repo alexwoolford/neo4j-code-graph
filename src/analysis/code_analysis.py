@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-import tempfile
-from pathlib import Path
-import time
-from time import perf_counter
 import gc
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 import re
+import tempfile
+import time
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from time import perf_counter
 
-import torch
 import javalang
-from transformers import AutoModel, AutoTokenizer
+import torch
 from tqdm import tqdm
+from transformers import AutoModel, AutoTokenizer
 
 try:
     # Try absolute import when called from CLI wrapper
-    from utils.common import setup_logging, create_neo4j_driver, add_common_args
+    from utils.common import add_common_args, create_neo4j_driver, setup_logging
 except ImportError:
     # Fallback to relative import when used as module
-    from ..utils.common import setup_logging, create_neo4j_driver, add_common_args
+    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
 
 logger = logging.getLogger(__name__)
 

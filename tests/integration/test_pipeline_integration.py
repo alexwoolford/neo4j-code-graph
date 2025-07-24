@@ -6,15 +6,16 @@ These tests use real components but against test data to ensure
 the entire pipeline works together correctly.
 """
 
-from src.data.schema_management import setup_complete_schema
-from src.analysis.code_analysis import extract_file_data
-from src.utils.common import get_neo4j_config, create_neo4j_driver
-import tempfile
-import pytest
-from pathlib import Path
-
 # Add src to path for testing
 import sys
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from src.analysis.code_analysis import extract_file_data
+from src.data.schema_management import setup_complete_schema
+from src.utils.common import create_neo4j_driver, get_neo4j_config
 
 ROOT = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(ROOT))
