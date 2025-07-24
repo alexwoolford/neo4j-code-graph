@@ -54,7 +54,7 @@ isort src/ tests/ scripts/
 
 # The project uses isort with "black" profile for consistent import ordering:
 # - Standard library imports first (alphabetically sorted)
-# - Third-party imports second (alphabetically sorted)  
+# - Third-party imports second (alphabetically sorted)
 # - Local imports last (alphabetically sorted)
 # - Blank lines between groups
 # - Imports within 'from' statements alphabetically sorted
@@ -156,4 +156,4 @@ make format
 
 # Check only what CI checks for quality job:
 isort --check-only --diff src/ tests/ && black --check --diff src/ tests/ && flake8 src/ tests/ && mypy src/ --ignore-missing-imports
-``` 
+```

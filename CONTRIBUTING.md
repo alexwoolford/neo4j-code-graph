@@ -45,7 +45,7 @@ git push origin feature/your-feature-name
 We use several tools to maintain code quality:
 
 - **Black**: Code formatting (line length: 100)
-- **isort**: Import sorting  
+- **isort**: Import sorting
 - **flake8**: Linting and style checking
 - **mypy**: Type checking
 - **pre-commit**: Automated quality checks
@@ -116,7 +116,7 @@ def test_function_unit():
     """Test individual function behavior."""
     pass
 
-@pytest.mark.integration  
+@pytest.mark.integration
 def test_with_database():
     """Test with real Neo4j database."""
     pass
@@ -138,7 +138,7 @@ def test_large_repository():
 Our CI pipeline runs:
 
 1. **Quality checks** (black, isort, flake8, mypy)
-2. **Security scans** (bandit, safety)  
+2. **Security scans** (bandit, safety)
 3. **Tests** across Python 3.8-3.11
 4. **Coverage reporting**
 
@@ -231,4 +231,4 @@ Pull requests will be reviewed for:
 4. **Documentation**: Is it properly documented?
 5. **Performance**: Does it impact performance negatively?
 
-Thank you for contributing to Neo4j Code Graph! 🎉 
+Thank you for contributing to Neo4j Code Graph! 🎉

@@ -9,12 +9,11 @@ This script will:
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
 sys.path.insert(0, "src")
-
-import logging
 
 from analysis.code_analysis import (
     compute_embeddings_bulk,
@@ -205,7 +204,9 @@ def main():
                         "   Use --files-only flag if you only want to complete file embeddings"
                     )
                 else:
-                    logger.info("⚠️  No method calls found - you may need to re-run full processing")
+                    logger.info(
+                        "⚠️  No method calls found - you may need to re-run full processing"
+                    )
 
             logger.info("🎉 Resume processing completed!")
 

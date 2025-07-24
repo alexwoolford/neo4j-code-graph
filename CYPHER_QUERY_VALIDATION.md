@@ -11,7 +11,7 @@ Based on your schema analysis, these are the **real properties** I used in the q
 #### File Node Properties
 - `path`, `total_lines`, `method_count`, `class_count`, `interface_count`, `code_lines`
 
-#### Method Node Properties  
+#### Method Node Properties
 - `name`, `file`, `line`, `class`, `estimated_lines`, `is_public`, `is_private`, `is_static`, `is_abstract`, `is_final`, `return_type`, `containing_type`
 - `pagerank_score`, `betweenness_score` (added by centrality analysis)
 
@@ -94,7 +94,7 @@ MATCH (dev:Developer)-[:AUTHORED]->(commit:Commit)-[:CHANGED]->(fv:FileVer)-[:OF
 ### 5. ✅ All Other Queries
 Similar systematic fixes applied to:
 - Dependency Risk Assessment
-- Large File Analysis  
+- Large File Analysis
 - Architecture Bottlenecks
 - Team Coordination
 - Recent Change Analysis
@@ -110,7 +110,7 @@ Similar systematic fixes applied to:
 Validated against your actual relationship counts:
 ```
 "(:File)-[:DEPENDS_ON]->(:ExternalDependency)": 134
-"(:CVE)-[:AFFECTS]->(:ExternalDependency)": 132  
+"(:CVE)-[:AFFECTS]->(:ExternalDependency)": 132
 "(:Method)-[:CALLS]->(:Method)": 13015
 "(:File)-[:CO_CHANGED]->(:File)": 31952
 ```
@@ -128,11 +128,11 @@ Based on your node counts, these queries should return:
 
 ### High-Volume Queries
 - **Method Call Analysis**: ~13,015 method calls available
-- **Team Coordination**: ~31,952 co-change relationships  
+- **Team Coordination**: ~31,952 co-change relationships
 - **Recent Change Analysis**: Subset of 1,643 commits
 - **Project Overview**: All 1,411 files, 1,464 methods, 398 classes
 
-### Filtered Queries  
+### Filtered Queries
 - **Hotspot Analysis**: Files with >500 lines AND >20 methods
 - **Security Surface**: Methods in files with vulnerable dependencies
 - **Critical CVE Impact**: 77 CVEs with CVSS scores ≥ 7.0
@@ -180,4 +180,4 @@ The test script will validate each query and show sample results, giving you com
 
 ---
 
-**Bottom Line**: Every single query now uses **real schema elements only**. No more made-up properties or relationships. These will work with your actual database and produce meaningful business insights. 
+**Bottom Line**: Every single query now uses **real schema elements only**. No more made-up properties or relationships. These will work with your actual database and produce meaningful business insights.

@@ -1,14 +1,13 @@
-from unittest.mock import Mock
-
-import pytest
-
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Tests for schema_management.py - Schema setup and validation
 """
 
 import sys
 from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

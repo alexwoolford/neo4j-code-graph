@@ -20,7 +20,7 @@ ORDER BY cve.cvss_score DESC
 MATCH (dep:ExternalDependency)
 OPTIONAL MATCH (dep)<-[:AFFECTS]-(cve:CVE)
 OPTIONAL MATCH (dep)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
-RETURN dep.package, dep.version, 
+RETURN dep.package, dep.version,
        count(DISTINCT cve) as vulnerabilities,
        count(DISTINCT f) as files_using_it,
        max(cve.cvss_score) as worst_cvss_score
@@ -47,7 +47,7 @@ LIMIT 25
 MATCH (m:Method)
 WHERE m.pagerank_score IS NOT NULL AND m.pagerank_score > 0.001
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name, 
+RETURN f.path, m.class, m.name,
        m.pagerank_score as importance,
        m.estimated_lines as complexity
 ORDER BY m.pagerank_score DESC
@@ -109,7 +109,7 @@ OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
 RETURN f.path, recent_changes,
        count(DISTINCT cve) as security_risks,
        count(DISTINCT m) as public_api_methods,
-       CASE 
+       CASE
          WHEN count(DISTINCT cve) > 0 AND count(DISTINCT m) > 0 THEN "HIGH RISK"
          WHEN count(DISTINCT cve) > 0 OR recent_changes > 10 THEN "MEDIUM RISK"
          ELSE "LOW RISK"
@@ -176,33 +176,33 @@ The knowledge graph uses this data model:
 erDiagram
     Directory ||--o{ Directory : CONTAINS
     Directory ||--o{ File : CONTAINS
-    
+
     File ||--o{ Method : DECLARES
     File ||--o{ Class : DEFINES
     File ||--o{ Interface : DEFINES
     File ||--o{ ExternalDependency : DEPENDS_ON
     File ||--o{ File : CO_CHANGED
-    
+
     Class ||--o{ Class : EXTENDS
     Class ||--o{ Interface : IMPLEMENTS
-    
+
     Interface ||--o{ Interface : EXTENDS
-    
+
     Method ||--o{ Method : CALLS
-    
+
     Developer ||--o{ Commit : AUTHORED
     Commit ||--o{ FileVer : CHANGED
     FileVer ||--|| File : OF_FILE
-    
+
     CVE ||--o{ ExternalDependency : AFFECTS
-    
+
     File {
         string path
         int total_lines
         int method_count
         int class_count
     }
-    
+
     Method {
         string name
         string class
@@ -211,23 +211,23 @@ erDiagram
         boolean is_static
         float pagerank_score
     }
-    
+
     CVE {
         string id
         float cvss_score
         string description
     }
-    
+
     ExternalDependency {
         string package
         string version
     }
-    
+
     Developer {
         string name
         string email
     }
-    
+
     Commit {
         string sha
         datetime date

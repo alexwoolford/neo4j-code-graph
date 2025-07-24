@@ -106,7 +106,6 @@ class CVECacheManager:
         with tqdm(
             desc="Searching dependencies", total=len(search_queries), unit=" queries"
         ) as pbar:
-
             for i, (query_term, original_terms) in enumerate(search_queries):
                 try:
                     # Rate limiting

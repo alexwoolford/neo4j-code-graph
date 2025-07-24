@@ -8,6 +8,7 @@ import argparse
 import sys
 
 sys.path.insert(0, "src")
+
 from utils.common import create_neo4j_driver, get_neo4j_config
 
 

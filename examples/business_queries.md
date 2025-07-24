@@ -13,7 +13,7 @@ This guide shows how to use Neo4j Code Graph for common business scenarios. Each
 // Find all public APIs that could be affected by Log4j vulnerability
 MATCH (cve:CVE {id: "CVE-2021-44228"})-[:AFFECTS]->(vuln_lib)
 MATCH path = (api:Method {is_public: true})-[:CALLS*1..5]->(internal:Method)-[:USES]->(vuln_lib)
-RETURN DISTINCT 
+RETURN DISTINCT
   api.class + "." + api.name as exposed_endpoint,
   length(path) as vulnerability_depth,
   "CRITICAL - Customer data at risk" as impact_level
@@ -47,7 +47,7 @@ ORDER BY usage_count DESC
 ```cypher
 // Find high-impact components using PageRank + complexity
 MATCH (m:Method)
-WHERE m.pagerank_score IS NOT NULL 
+WHERE m.pagerank_score IS NOT NULL
   AND m.estimated_lines > 20
 WITH m, (m.pagerank_score * m.estimated_lines) as impact_score
 MATCH (m)<-[:DECLARES]-(f:File)
@@ -80,7 +80,7 @@ RETURN f1.path, f2.path, cc.confidence,
 
 ## 👥 Team Productivity & Planning
 
-### Sprint Planning Support  
+### Sprint Planning Support
 **Scenario:** Product wants to add a feature to the payment system. Which developers should be involved?
 
 ```cypher
@@ -106,7 +106,7 @@ UNWIND $changed_files as file_path
 MATCH (dev:Developer)-[:AUTHORED]->(commit:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f:File {path: file_path})
 WITH file_path, dev, count(commit) as expertise_level
 WHERE expertise_level >= 3
-RETURN file_path, 
+RETURN file_path,
        collect({developer: dev.name, expertise: expertise_level})[0..2] as suggested_reviewers
 ```
 
@@ -122,7 +122,7 @@ OPTIONAL MATCH (c)-[:DECLARES]->(m:Method)
 WHERE m.pagerank_score > 0.001
 RETURN c.name, f.path,
        count(m) as important_methods,
-       CASE 
+       CASE
          WHEN EXISTS((c)-[:EXTENDS|IMPLEMENTS]->()) THEN "Core abstraction - start here"
          WHEN count(m) > 5 THEN "Complex component - understand after basics"
          ELSE "Supporting component"
@@ -138,7 +138,7 @@ ORDER BY important_methods DESC
 // Technical debt summary for executive dashboard
 MATCH (f:File)
 OPTIONAL MATCH (f)-[:DECLARES]->(m:Method)
-WITH f, 
+WITH f,
      count(m) as method_count,
      sum(m.estimated_lines) as total_complexity,
      sum(CASE WHEN m.estimated_lines > 100 THEN 1 ELSE 0 END) as high_complexity_methods
@@ -149,7 +149,7 @@ WHERE recent.date > datetime() - duration('P30D')
 OPTIONAL MATCH (f)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
 WHERE cve.cvss_score >= 7.0
 
-RETURN 
+RETURN
   "Technical Health Summary" as metric_category,
   count(DISTINCT f) as total_files,
   sum(method_count) as total_methods,
@@ -157,7 +157,7 @@ RETURN
   sum(high_complexity_methods) as complex_methods,
   count(DISTINCT recent) as files_changed_this_month,
   count(DISTINCT cve) as high_severity_vulnerabilities,
-  
+
   // Health score calculation (0-100)
   toInteger(100 - (
     (sum(high_complexity_methods) * 1.0 / sum(method_count) * 30) +
@@ -181,18 +181,18 @@ WHERE cve.cvss_score >= 7.0
 
 OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
 
-RETURN 
+RETURN
   f.path,
   recent_changes,
   count(DISTINCT cve) as security_risks,
   count(DISTINCT m) as public_api_methods,
-  CASE 
+  CASE
     WHEN count(DISTINCT cve) > 0 AND count(DISTINCT m) > 0 THEN "HIGH RISK"
     WHEN count(DISTINCT cve) > 0 OR recent_changes > 10 THEN "MEDIUM RISK"
     ELSE "LOW RISK"
   END as release_risk_level
-ORDER BY 
-  CASE 
+ORDER BY
+  CASE
     WHEN count(DISTINCT cve) > 0 AND count(DISTINCT m) > 0 THEN 1
     WHEN count(DISTINCT cve) > 0 OR recent_changes > 10 THEN 2
     ELSE 3
@@ -226,7 +226,7 @@ OPTIONAL MATCH (caller:Method)-[:CALLS]->(m)
 WITH m, count(caller) as call_frequency
 WHERE call_frequency > 10  // Frequently called
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name, 
+RETURN f.path, m.class, m.name,
        m.estimated_lines as complexity,
        call_frequency,
        (m.estimated_lines * call_frequency) as performance_risk_score,
@@ -246,9 +246,9 @@ Enhance queries with your specific business logic:
 // Add custom business criticality
 MATCH (f:File)
 WITH f,
-  CASE 
+  CASE
     WHEN f.path CONTAINS "payment" OR f.path CONTAINS "billing" THEN "Business Critical"
-    WHEN f.path CONTAINS "auth" OR f.path CONTAINS "security" THEN "Security Critical"  
+    WHEN f.path CONTAINS "auth" OR f.path CONTAINS "security" THEN "Security Critical"
     WHEN f.path CONTAINS "api" OR f.path CONTAINS "controller" THEN "Customer Facing"
     ELSE "Internal"
   END as business_impact
@@ -266,4 +266,4 @@ WHERE f.path STARTS WITH $team_module_prefix
 // ... rest of analysis
 ```
 
-These examples show how graph analysis translates directly to business value. Each query answers a specific business question and provides actionable insights for technical leaders. 
+These examples show how graph analysis translates directly to business value. Each query answers a specific business question and provides actionable insights for technical leaders.

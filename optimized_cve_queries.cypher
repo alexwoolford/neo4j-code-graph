@@ -36,7 +36,7 @@ WITH cve ORDER BY cve.cvss_score DESC LIMIT 100
 MATCH (cve)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(f:File)
 MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
 
-WITH dev, 
+WITH dev,
      collect(DISTINCT cve.id) as cves,
      collect(DISTINCT dep.package) as dependencies,
      collect(DISTINCT f.path) as files,
@@ -59,14 +59,14 @@ LIMIT 50;
 // 📊 SUMMARY: CVE exposure by file complexity
 // Identifies high-risk files that are complex AND have vulnerabilities
 MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(f:File)
-WHERE cve.cvss_score >= 7.0 
+WHERE cve.cvss_score >= 7.0
   AND f.total_lines > 100
   AND f.method_count > 5
 
 OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
 WHERE c.date > datetime() - duration('P365D')
 
-WITH f, 
+WITH f,
      count(DISTINCT cve) as vulnerability_count,
      max(cve.cvss_score) as max_cvss,
      collect(DISTINCT dep.package) as dependencies,
@@ -110,7 +110,7 @@ MATCH (cve:CVE {id: "CVE-2022-28291"})-[:AFFECTS]->(dep:ExternalDependency)<-[:D
 OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
 
 WITH f, dep, dev, count(DISTINCT c) as commit_count, max(c.date) as latest_commit
-WITH f, dep, 
+WITH f, dep,
      collect(DISTINCT {
        developer: dev.name,
        email: dev.email,
@@ -124,4 +124,4 @@ RETURN f.path as vulnerable_file,
        size(developers) as developer_count,
        [d IN developers WHERE d.commits >= 3] as experts,
        [d IN developers WHERE d.latest_commit > datetime() - duration('P90D')] as recent_contributors
-ORDER BY f.total_lines DESC; 
+ORDER BY f.total_lines DESC;

@@ -77,7 +77,7 @@ echo "📚 Step 3: Loading Git commit history..."
 python "$SCRIPT_DIR/git_history_to_graph.py" "$TEMP_REPO_DIR"
 echo "✅ Git history loaded"
 
-# Step 4: Create Method Similarities  
+# Step 4: Create Method Similarities
 echo ""
 echo "🔗 Step 4: Creating method similarities using KNN..."
 python "$SCRIPT_DIR/create_method_similarity.py" --top-k 5 --cutoff 0.8
@@ -157,4 +157,4 @@ echo "  2. Run example queries from examples/ directory"
 echo "  3. Build custom analyses using the rich graph structure"
 echo ""
 echo "📊 For interactive CVE analysis, run:"
-echo "     python examples/cve_demo_queries.py" 
+echo "     python examples/cve_demo_queries.py"

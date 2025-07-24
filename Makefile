@@ -87,4 +87,4 @@ schema: ## Setup Neo4j schema
 	python scripts/schema_management.py
 
 cleanup-db: ## Clean up Neo4j database
-	python scripts/cleanup_graph.py 
+	python scripts/cleanup_graph.py

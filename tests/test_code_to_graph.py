@@ -14,7 +14,6 @@ sys.modules.setdefault(
 
 
 class _NoGrad:
-
     def __enter__(self):
         pass
 

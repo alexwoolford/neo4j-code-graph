@@ -4,7 +4,7 @@ CVE Analysis Demo Queries - Multi-Modal Neo4j Access Patterns
 
 ⚠️  WARNING: This file contains CONCEPTUAL examples with Component nodes that
     don't exist in the actual graph schema. For WORKING queries, see README.md
-    
+
     Actual schema: CVE -[:AFFECTS]-> ExternalDependency
     This file uses: CVE -[:AFFECTS]-> Component (which doesn't exist)
 
@@ -18,11 +18,13 @@ This script demonstrates various Neo4j access patterns for CVE analysis:
 Run after: python cve_analysis.py
 """
 
-from utils import get_neo4j_config
 import os
 import sys
-from neo4j import GraphDatabase
+
 from graphdatascience import GraphDataScience
+from neo4j import GraphDatabase
+
+from utils import get_neo4j_config
 
 # Add project root to path for imports
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -47,9 +49,9 @@ def demo_graph_traversal(session):
     WHERE f.path CONTAINS "api"
        OR f.path CONTAINS "controller"
        OR f.path CONTAINS "rest"
-    
+
     OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
-    
+
     RETURN cve.cve_id AS cve_id,
            cve.cvss_score AS severity,
            ed.package AS vulnerable_dependency,
@@ -75,12 +77,14 @@ def demo_vector_search(session):
     print("=" * 60)
 
     # First, get a vulnerable component's embedding
-    vuln_component = session.run("""
+    vuln_component = session.run(
+        """
         MATCH (cve:CVE)-[:AFFECTS]->(comp:Component)
         WHERE comp.embedding IS NOT NULL
         RETURN comp.name AS name, comp.embedding AS embedding
         LIMIT 1
-    """).single()
+    """
+    ).single()
 
     if vuln_component:
         # Use vector index to find similar components
@@ -100,9 +104,9 @@ def demo_vector_search(session):
         ORDER BY score DESC
         """
 
-        result = session.run(query,
-                             embedding=vuln_component["embedding"],
-                             comp_name=vuln_component["name"])
+        result = session.run(
+            query, embedding=vuln_component["embedding"], comp_name=vuln_component["name"]
+        )
 
         print(f"Components similar to vulnerable: {vuln_component['name']}")
         print()
@@ -183,7 +187,7 @@ def demo_graph_algorithms(gds):
         MATCH (source)-[r:DEPENDS_ON|RESOLVED_TO]->(target)
         RETURN id(source) AS source, id(target) AS target,
                type(r) AS relationshipType
-        """
+        """,
     )
 
     print("Graph projection created with:")
@@ -194,7 +198,7 @@ def demo_graph_algorithms(gds):
     # Run PageRank to find most influential components
     print("Running PageRank analysis...")
     pagerank_result = gds.pageRank.stream(dependency_graph)
-    top_components = pagerank_result.nlargest(10, 'score')
+    top_components = pagerank_result.nlargest(10, "score")
 
     print("🏆 Most Influential Components:")
     for _, row in top_components.iterrows():
@@ -204,7 +208,7 @@ def demo_graph_algorithms(gds):
     # Run Louvain community detection
     print("Running community detection...")
     louvain_result = gds.louvain.stream(dependency_graph)
-    communities = louvain_result.groupby('communityId').size().sort_values(ascending=False)
+    communities = louvain_result.groupby("communityId").size().sort_values(ascending=False)
 
     print("🏘️  Dependency Communities:")
     for community_id, size in communities.head(5).items():
@@ -306,8 +310,9 @@ def main():
 
     # Connect to Neo4j
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
-    gds = GraphDataScience(NEO4J_URI, auth=(
-        NEO4J_USERNAME, NEO4J_PASSWORD), database=NEO4J_DATABASE)
+    gds = GraphDataScience(
+        NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD), database=NEO4J_DATABASE
+    )
 
     try:
         with driver.session(database=NEO4J_DATABASE) as session:

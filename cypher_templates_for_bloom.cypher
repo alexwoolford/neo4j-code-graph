@@ -61,7 +61,7 @@ LIMIT 10
 MATCH (dep:ExternalDependency)
 OPTIONAL MATCH (dep)<-[:AFFECTS]-(cve:CVE)
 OPTIONAL MATCH (dep)<-[:DEPENDS_ON]-(f:File)
-WITH dep, count(DISTINCT cve) as vuln_count, 
+WITH dep, count(DISTINCT cve) as vuln_count,
      count(DISTINCT f) as usage_count,
      max(cve.cvss_score) as worst_cvss
 RETURN dep.package, dep.version, vuln_count, usage_count, worst_cvss,
@@ -86,21 +86,21 @@ LIMIT 50
 MATCH (m:Method)
 WHERE m.pagerank_score IS NOT NULL AND m.pagerank_score > 0.001
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name, 
+RETURN f.path, m.class, m.name,
        m.pagerank_score,
        COALESCE(m.betweenness_score, 0) as betweenness_score,
        m.estimated_lines
 ORDER BY m.pagerank_score DESC
 LIMIT 20
 
-// 👥 TEAM COORDINATION: Find files that change together frequently  
+// 👥 TEAM COORDINATION: Find files that change together frequently
 // Shows file co-change patterns from git history
 MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
 WHERE cc.support > 5 AND cc.confidence > 0.6
 MATCH (f1)<-[:OF_FILE]-(fv1:FileVer)<-[:CHANGED]-(c1:Commit)<-[:AUTHORED]-(dev1:Developer)
 MATCH (f2)<-[:OF_FILE]-(fv2:FileVer)<-[:CHANGED]-(c2:Commit)<-[:AUTHORED]-(dev2:Developer)
 WHERE dev1 <> dev2
-RETURN f1.path, f2.path, cc.support, cc.confidence, 
+RETURN f1.path, f2.path, cc.support, cc.confidence,
        collect(DISTINCT dev1.name)[0..3] as f1_developers,
        collect(DISTINCT dev2.name)[0..3] as f2_developers
 ORDER BY cc.confidence DESC, cc.support DESC
@@ -132,9 +132,9 @@ WITH m, count(called) as calls_made
 WHERE calls_made > 5
 MATCH (m)<-[:DECLARES]-(f:File)
 RETURN f.path, m.class, m.name, calls_made, m.estimated_lines,
-       CASE 
+       CASE
          WHEN calls_made > 20 THEN "High Orchestrator"
-         WHEN calls_made > 10 THEN "Medium Orchestrator" 
+         WHEN calls_made > 10 THEN "Medium Orchestrator"
          ELSE "Low Orchestrator"
        END as orchestration_level
 ORDER BY calls_made DESC
@@ -145,17 +145,17 @@ LIMIT 30
 MATCH (m:Method)
 WHERE m.estimated_lines IS NOT NULL AND m.estimated_lines > 0
 WITH m.estimated_lines as lines,
-     CASE 
+     CASE
        WHEN m.estimated_lines <= 10 THEN "Simple (1-10 lines)"
        WHEN m.estimated_lines <= 30 THEN "Medium (11-30 lines)"
        WHEN m.estimated_lines <= 100 THEN "Complex (31-100 lines)"
        ELSE "Very Complex (100+ lines)"
      END as complexity_category
-RETURN complexity_category, 
+RETURN complexity_category,
        count(*) as method_count,
        round(avg(lines)) as avg_lines,
        max(lines) as max_lines
-ORDER BY 
+ORDER BY
   CASE complexity_category
     WHEN "Simple (1-10 lines)" THEN 1
     WHEN "Medium (11-30 lines)" THEN 2
@@ -171,9 +171,9 @@ WHERE NOT EXISTS(()-[:CALLS]->(m))
   AND m.name <> "main"
   AND NOT m.name STARTS WITH "test"
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, 
-       COALESCE(m.class, "Unknown") as class_name, 
-       m.name, 
+RETURN f.path,
+       COALESCE(m.class, "Unknown") as class_name,
+       m.name,
        m.estimated_lines,
        CASE WHEN m.is_static THEN "Static" ELSE "Instance" END as method_type
 ORDER BY m.estimated_lines DESC
@@ -188,7 +188,7 @@ WITH c, count(DISTINCT parent) as ancestors, count(DISTINCT child) as descendant
 MATCH (c)<-[:DEFINES]-(f:File)
 RETURN f.path, c.name, ancestors, descendants,
        (ancestors + descendants) as inheritance_involvement,
-       CASE 
+       CASE
          WHEN ancestors > 3 THEN "Deep Inheritance"
          WHEN descendants > 5 THEN "Wide Inheritance"
          WHEN ancestors = 0 AND descendants = 0 THEN "Standalone"
@@ -205,7 +205,7 @@ OPTIONAL MATCH (c:Class)
 OPTIONAL MATCH (i:Interface)
 OPTIONAL MATCH (dep:ExternalDependency)
 OPTIONAL MATCH (cve:CVE)
-RETURN 
+RETURN
   count(DISTINCT f) as total_files,
   sum(f.total_lines) as total_lines_of_code,
   count(DISTINCT m) as total_methods,
@@ -213,4 +213,4 @@ RETURN
   count(DISTINCT i) as total_interfaces,
   count(DISTINCT dep) as external_dependencies,
   count(DISTINCT cve) as total_cves,
-  round(avg(f.total_lines)) as avg_file_size 
+  round(avg(f.total_lines)) as avg_file_size
