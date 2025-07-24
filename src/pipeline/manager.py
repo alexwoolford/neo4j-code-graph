@@ -366,7 +366,9 @@ class PipelineManager:
         print(f"⏱️  Total Duration: {duration:.2f} seconds")
         print(f"✅ Completed Steps: {completed}")
         print(f"❌ Failed Steps: {failed}")
-        print(f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}")
+        print(
+            f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}"
+        )
 
         print("\n📋 Step Details:")
         for step in self.steps:
