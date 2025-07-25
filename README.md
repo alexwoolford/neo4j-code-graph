@@ -172,6 +172,8 @@ Open Neo4j Browser or Bloom and run the business queries above. Copy/paste any q
 
 The knowledge graph uses this data model:
 
+![Neo4j Code Graph Schema](docs/schema.png)
+
 ```mermaid
 erDiagram
     Directory ||--o{ Directory : CONTAINS
