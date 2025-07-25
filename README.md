@@ -174,69 +174,6 @@ The knowledge graph uses this data model:
 
 ![Neo4j Code Graph Schema](docs/schema.png)
 
-```mermaid
-erDiagram
-    Directory ||--o{ Directory : CONTAINS
-    Directory ||--o{ File : CONTAINS
-
-    File ||--o{ Method : DECLARES
-    File ||--o{ Class : DEFINES
-    File ||--o{ Interface : DEFINES
-    File ||--o{ ExternalDependency : DEPENDS_ON
-    File ||--o{ File : CO_CHANGED
-
-    Class ||--o{ Class : EXTENDS
-    Class ||--o{ Interface : IMPLEMENTS
-
-    Interface ||--o{ Interface : EXTENDS
-
-    Method ||--o{ Method : CALLS
-
-    Developer ||--o{ Commit : AUTHORED
-    Commit ||--o{ FileVer : CHANGED
-    FileVer ||--|| File : OF_FILE
-
-    CVE ||--o{ ExternalDependency : AFFECTS
-
-    File {
-        string path
-        int total_lines
-        int method_count
-        int class_count
-    }
-
-    Method {
-        string name
-        string class
-        int estimated_lines
-        boolean is_public
-        boolean is_static
-        float pagerank_score
-    }
-
-    CVE {
-        string id
-        float cvss_score
-        string description
-    }
-
-    ExternalDependency {
-        string package
-        string version
-    }
-
-    Developer {
-        string name
-        string email
-    }
-
-    Commit {
-        string sha
-        datetime date
-        string message
-    }
-```
-
 ## Project Structure
 
 ```
