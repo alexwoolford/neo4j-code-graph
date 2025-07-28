@@ -73,30 +73,26 @@ def extract_git_history(repo_path, branch, max_commits=None):
 
     start_time = time.time()
 
-    # Execute git log
+    # Execute git log with incremental output processing
     logger.info("Running git log command...")
-    result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True)
+    process = subprocess.Popen(
+        cmd,
+        cwd=repo_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
 
-    if result.returncode != 0:
-        raise Exception(f"Git log failed: {result.stderr}")
-
-    git_time = time.time() - start_time
-    logger.info(f"Git log completed in {git_time:.2f}s")
-
-    # Parse output efficiently
-    logger.info("Parsing git log output...")
-    parse_start = time.time()
-
-    lines = result.stdout.strip().split("\n")
     commits = []
     file_changes = []
-
     current_commit = None
     commits_processed = 0
 
-    for line in lines:
+    # Process stdout line by line as it arrives
+    for line in process.stdout:
+        line = line.rstrip("\n")
         if "|" in line and len(line.split("|")) >= 5:
-            # New commit line: sha|author|email|date|message
             if current_commit:
                 commits.append(current_commit)
                 commits_processed += 1
@@ -109,29 +105,33 @@ def extract_git_history(repo_path, branch, max_commits=None):
                 "date": parts[3],
                 "message": parts[4],
             }
-
         elif line.strip() and current_commit:
-            # File change line
             file_changes.append({"sha": current_commit["sha"], "file_path": line.strip()})
 
-    # Don't forget the last commit
+    # Finalize processing
+    process.stdout.close()
+    stderr = process.stderr.read()
+    return_code = process.wait()
+
     if current_commit:
         commits.append(current_commit)
         commits_processed += 1
 
-    parse_time = time.time() - parse_start
-    total_time = git_time + parse_time
+    if return_code != 0:
+        raise Exception(f"Git log failed: {stderr}")
+
+    total_time = time.time() - start_time
 
     logger.info(
         "Parsed %d commits and %d file changes in %.2fs",
         commits_processed,
         len(file_changes),
-        parse_time,
+        total_time,
     )
     logger.info(
         "Total extraction: %.2fs (%.1f commits/sec)",
         total_time,
-        commits_processed / total_time,
+        commits_processed / total_time if total_time > 0 else 0,
     )
 
     return commits, file_changes
