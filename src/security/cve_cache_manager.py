@@ -11,6 +11,7 @@ Features:
 - Language-agnostic dependency analysis
 """
 
+import asyncio
 import gzip
 import hashlib
 import json
@@ -20,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-import requests
+import aiohttp
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -103,83 +104,91 @@ class CVECacheManager:
 
         logger.info(f"🔍 Prepared {len(search_queries)} targeted search queries")
 
-        with tqdm(
-            desc="Searching dependencies", total=len(search_queries), unit=" queries"
-        ) as pbar:
-            for i, (query_term, original_terms) in enumerate(search_queries):
-                try:
-                    # Rate limiting
-                    self._enforce_rate_limit(max_requests_per_window)
+        async def _run_async() -> None:
+            semaphore = asyncio.Semaphore(max_requests_per_window)
+            lock = asyncio.Lock()
+            stop_event = asyncio.Event()
 
-                    # Targeted search for this specific dependency
-                    params = {
-                        "keywordSearch": query_term,
-                        "resultsPerPage": 100,  # Max allowed
-                        "startIndex": 0,
-                        # NO DATE CONSTRAINTS - for comprehensive CVE coverage
-                        # Date parameters were causing 404 errors regardless of format
-                        # For security analysis, we want ALL CVEs, not just recent ones
-                    }
+            async with aiohttp.ClientSession() as session:
 
-                    pbar.set_description(f"Searching: {query_term[:30]}...")
+                async def fetch_query(idx: int, query_term: str, original_terms: Set[str]) -> None:
+                    if stop_event.is_set():
+                        return
+                    async with semaphore:
+                        await self._async_enforce_rate_limit(max_requests_per_window)
 
-                    response = requests.get(base_url, headers=headers, params=params, timeout=30)
+                        params = {
+                            "keywordSearch": query_term,
+                            "resultsPerPage": 100,
+                            "startIndex": 0,
+                        }
 
-                    if response.status_code == 429:
-                        self._handle_rate_limit(response)
-                        continue
+                        pbar.set_description(f"Searching: {query_term[:30]}...")
 
-                    response.raise_for_status()
-                    data = response.json()
+                        try:
+                            async with session.get(
+                                base_url, headers=headers, params=params, timeout=30
+                            ) as resp:
+                                if resp.status == 429:
+                                    await self._async_handle_rate_limit(resp)
+                                    return
+
+                                resp.raise_for_status()
+                                data = await resp.json()
+                        except Exception as e:  # pragma: no cover - network errors
+                            logger.error(f"❌ Error searching '{query_term}': {e}")
+                            return
 
                     vulnerabilities = data.get("vulnerabilities", [])
 
-                    # Process results for this query
                     query_cves = []
                     for vuln in vulnerabilities:
                         clean_cve = self._extract_clean_cve_data(vuln)
                         if clean_cve and self._is_relevant_to_terms(clean_cve, original_terms):
                             query_cves.append(clean_cve)
 
-                    all_cves.extend(query_cves)
-                    completed_terms_set.update(original_terms)
-
-                    # Update progress
-                    pbar.update(1)
-                    pbar.set_postfix(
-                        {
-                            "found": len(query_cves),
-                            "total_cves": len(all_cves),
-                            "completed": len(completed_terms_set),
-                        }
-                    )
-
-                    # Incremental save every 5 queries
-                    if (i + 1) % 5 == 0:
-                        self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
-                        logger.debug(
-                            f"💾 Checkpoint: {len(all_cves)} CVEs, "
-                            f"{len(completed_terms_set)} terms completed"
+                    async with lock:
+                        all_cves.extend(query_cves)
+                        completed_terms_set.update(original_terms)
+                        pbar.update(1)
+                        pbar.set_postfix(
+                            {
+                                "found": len(query_cves),
+                                "total_cves": len(all_cves),
+                                "completed": len(completed_terms_set),
+                            }
                         )
 
-                    # Stop if we have enough results
-                    if len(all_cves) >= max_results:
-                        logger.info(f"🎯 Reached target of {max_results} CVEs")
-                        break
+                        if (idx + 1) % 5 == 0:
+                            self._save_partial_targeted_cache(
+                                cache_key, all_cves, completed_terms_set
+                            )
+                            logger.debug(
+                                f"💾 Checkpoint: {len(all_cves)} CVEs, "
+                                f"{len(completed_terms_set)} terms completed"
+                            )
 
-                except KeyboardInterrupt:
-                    logger.warning("⚠️  Search interrupted - saving progress...")
-                    self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
-                    logger.info(
-                        f"💾 Saved {len(all_cves)} CVEs, "
-                        f"{len(completed_terms_set)} terms completed"
-                    )
-                    raise
+                        if len(all_cves) >= max_results:
+                            stop_event.set()
 
-                except Exception as e:
-                    logger.error(f"❌ Error searching '{query_term}': {e}")
-                    # Continue with next term
-                    continue
+                tasks = [
+                    asyncio.create_task(fetch_query(i, q, terms))
+                    for i, (q, terms) in enumerate(search_queries)
+                ]
+                await asyncio.gather(*tasks)
+
+        with tqdm(
+            desc="Searching dependencies", total=len(search_queries), unit=" queries"
+        ) as pbar:
+            try:
+                asyncio.run(_run_async())
+            except KeyboardInterrupt:
+                logger.warning("⚠️  Search interrupted - saving progress...")
+                self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
+                logger.info(
+                    f"💾 Saved {len(all_cves)} CVEs, " f"{len(completed_terms_set)} terms completed"
+                )
+                raise
 
         # Remove duplicates and finalize
         unique_cves = self._deduplicate_cves(all_cves)
@@ -394,6 +403,21 @@ class CVECacheManager:
         # Record this request
         self.request_times.append(now)
 
+    async def _async_enforce_rate_limit(self, max_requests: int) -> None:
+        """Asynchronous version of rate limit enforcement."""
+        now = time.time()
+
+        self.request_times = [t for t in self.request_times if now - t < self.request_window]
+
+        if len(self.request_times) >= max_requests:
+            oldest_request = min(self.request_times)
+            wait_time = self.request_window - (now - oldest_request)
+            if wait_time > 0:
+                logger.debug(f"⏰ Rate limiting: waiting {wait_time:.1f}s")
+                await asyncio.sleep(wait_time + 0.1)
+
+        self.request_times.append(time.time())
+
     def _save_partial_targeted_cache(
         self, cache_key: str, cves: List[Dict], completed_terms: Set[str]
     ):
@@ -477,6 +501,26 @@ class CVECacheManager:
         logger.warning(f"⏰ Rate limited - waiting {wait_time:.1f}s")
         time.sleep(wait_time)
 
+    async def _async_handle_rate_limit(self, response) -> None:
+        """Asynchronous rate limit handling."""
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                wait_time = int(retry_after)
+                logger.warning(f"⏰ API rate limited - waiting {wait_time}s (from server)")
+                await asyncio.sleep(wait_time)
+                return
+            except ValueError:
+                pass
+
+        wait_time = (
+            self.request_window / self.requests_per_30s_with_key
+            if self.has_api_key
+            else self.request_window / self.requests_per_30s_no_key
+        )
+        logger.warning(f"⏰ Rate limited - waiting {wait_time:.1f}s")
+        await asyncio.sleep(wait_time)
+
     def _extract_clean_cve_data(self, vuln_entry: Dict) -> Optional[Dict]:
         """Extract clean, normalized CVE data."""
         try:
@@ -540,9 +584,8 @@ class CVECacheManager:
             with gzip.open(cache_file, "wt", encoding="utf-8") as f:
                 json.dump(cache_data, f, indent=2)
 
-            logger.info(
-                f"💾 Saved complete cache: {len(data)} CVEs ({cache_file.stat().st_size / 1024:.1f} KB)"
-            )
+            size_kb = cache_file.stat().st_size / 1024
+            logger.info(f"💾 Saved complete cache: {len(data)} CVEs ({size_kb:.1f} KB)")
 
         except Exception as e:
             logger.error(f"Failed to save complete cache: {e}")
