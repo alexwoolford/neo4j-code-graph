@@ -158,14 +158,12 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
 
     print("\n🏆 TOP PAGE RANK METHODS (Most Central in Call Ecosystem):")
     print("-" * 80)
-    if "score" in top_results.columns:
-        for _, row in top_results.iterrows():
-            class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
-    else:
-        for _, row in top_results.iterrows():
-            class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
+    for _, row in top_results.iterrows():
+        score = row.get("score", row.get("pagerank_score"))
+        class_name = row.get("class_name") or "Unknown"
+        method_name = row.get("method_name", "Unknown")
+        file = row.get("file", "Unknown")
+        print(f"  {score:.6f} | {class_name}.{method_name} ({file})")
 
     return top_results
 
