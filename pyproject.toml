@@ -59,7 +59,7 @@ Issues = "https://github.com/your-org/neo4j-code-graph/issues"
 
 [tool.black]
 line-length = 100
-target-version = ['py38']
+target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
 /(

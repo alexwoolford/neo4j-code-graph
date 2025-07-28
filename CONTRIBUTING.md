@@ -139,7 +139,7 @@ Our CI pipeline runs:
 
 1. **Quality checks** (black, isort, flake8, mypy)
 2. **Security scans** (bandit, safety)
-3. **Tests** across Python 3.8-3.11
+3. **Tests** across Python 3.10-3.12
 4. **Coverage reporting**
 
 All checks must pass before merging.

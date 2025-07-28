@@ -203,13 +203,16 @@ NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your_password
 NEO4J_DATABASE=neo4j
 
-# Optional: NVD API key for CVE data
+# 🔑 IMPORTANT: NVD API key for CVE analysis (highly recommended)
+# Get your free API key: https://nvd.nist.gov/developers/request-an-api-key
 NVD_API_KEY=your_nvd_api_key
 ```
 
+> 💡 **Without an NVD API key**, CVE analysis will be much slower (6 seconds per request vs 50 requests/30 seconds with key). Get your free key at: https://nvd.nist.gov/developers/request-an-api-key
+
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - Neo4j 4.0+ (Community or Enterprise)
 - Git (for repository analysis)
 
