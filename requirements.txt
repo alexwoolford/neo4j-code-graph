@@ -8,3 +8,4 @@ python-dotenv==1.1.1
 tqdm==4.66.4
 pandas==2.2.3
 pyarrow>=17.0,<21.0
+aiohttp==3.9.5
