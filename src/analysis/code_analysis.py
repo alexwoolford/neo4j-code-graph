@@ -291,6 +291,9 @@ def extract_file_data(file_path, repo_root):
         logger.error("Error reading file %s: %s", file_path, e)
         return None
 
+    # Split code into lines once to reuse throughout the function
+    source_lines = code.splitlines()
+
     # Parse Java and extract imports, classes, interfaces, and methods
     methods = []
     classes = []
@@ -345,8 +348,8 @@ def extract_file_data(file_path, repo_root):
                     "is_final": "final" in (node.modifiers or []),
                 }
 
-                # Calculate class metrics
-                class_lines = code.splitlines()
+                # Calculate class metrics using the pre-split code lines
+                class_lines = source_lines
                 if node.position and node.position.line:
                     start_line = node.position.line - 1
                     # Find class end (simplified)
@@ -415,12 +418,11 @@ def extract_file_data(file_path, repo_root):
                 method_code = ""
                 estimated_lines = 0
                 if start_line:
-                    code_lines = code.splitlines()
                     end_line = start_line
                     brace_count = 0
 
                     # Find method end by counting braces
-                    for i, line in enumerate(code_lines[start_line - 1 :], start_line - 1):
+                    for i, line in enumerate(source_lines[start_line - 1 :], start_line - 1):
                         if "{" in line:
                             brace_count += line.count("{")
                         if "}" in line:
@@ -432,7 +434,7 @@ def extract_file_data(file_path, repo_root):
                             end_line = i + 1
                             break
 
-                    method_code = "\n".join(code_lines[start_line - 1 : end_line])
+                    method_code = "\n".join(source_lines[start_line - 1 : end_line])
                     estimated_lines = end_line - start_line + 1
 
                 # Extract method calls within this method
@@ -468,10 +470,10 @@ def extract_file_data(file_path, repo_root):
     except Exception as e:
         logger.warning("Failed to parse Java file %s: %s", rel_path, e)
 
-    # Calculate file-level metrics
-    file_lines = len(code.splitlines())
+    # Calculate file-level metrics using the cached lines
+    file_lines = len(source_lines)
     code_lines = len(
-        [line for line in code.splitlines() if line.strip() and not line.strip().startswith("//")]
+        [line for line in source_lines if line.strip() and not line.strip().startswith("//")]
     )
 
     return {
