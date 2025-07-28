@@ -64,9 +64,33 @@ class PipelineStep:
 
 
 class PipelineManager:
-    """Manages the complete Neo4j code graph analysis pipeline."""
+    """Manages the complete Neo4j code graph analysis pipeline.
+
+    Orchestrates the execution of all analysis steps including schema setup,
+    code analysis, git history analysis, CVE analysis, and centrality analysis.
+    Provides robust error handling, retry logic, and progress tracking.
+
+    Attributes:
+        repo_url (str): URL of the repository to analyze
+        config (Dict[str, Any]): Pipeline configuration options
+        logger (logging.Logger): Logger instance for the pipeline
+        steps (List[PipelineStep]): List of pipeline steps to execute
+        start_time (Optional[datetime]): When pipeline execution started
+        end_time (Optional[datetime]): When pipeline execution finished
+
+    Example:
+        >>> config = {"dry_run": False, "skip_cve": False}
+        >>> pipeline = PipelineManager("https://github.com/user/repo", config)
+        >>> success = pipeline.run()
+    """
 
     def __init__(self, repo_url: str, config: Optional[Dict[str, Any]] = None):
+        """Initialize the pipeline manager.
+
+        Args:
+            repo_url: URL of the repository to analyze
+            config: Optional configuration dictionary with pipeline options
+        """
         self.repo_url = repo_url
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
@@ -264,7 +288,7 @@ class PipelineManager:
         result = subprocess.run([step.command] + step.args, capture_output=True, text=True)
 
         if result.returncode == 0 and result.stdout:
-            print(result.stdout)
+            self.logger.info(result.stdout)
 
             if not self.config.get("auto_cleanup", False):
                 response = input("Proceed with cleanup? (y/n): ").strip().lower()
@@ -359,16 +383,18 @@ class PipelineManager:
         """Print pipeline execution summary."""
         duration = (self.end_time - self.start_time).total_seconds()
 
-        print("\n" + "=" * 60)
-        print("🎉 Pipeline Execution Summary")
-        print("=" * 60)
-        print(f"📁 Repository: {self.repo_url}")
-        print(f"⏱️  Total Duration: {duration:.2f} seconds")
-        print(f"✅ Completed Steps: {completed}")
-        print(f"❌ Failed Steps: {failed}")
-        print(f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}")
+        self.logger.info("\n" + "=" * 60)
+        self.logger.info("🎉 Pipeline Execution Summary")
+        self.logger.info("=" * 60)
+        self.logger.info(f"📁 Repository: {self.repo_url}")
+        self.logger.info(f"⏱️  Total Duration: {duration:.2f} seconds")
+        self.logger.info(f"✅ Completed Steps: {completed}")
+        self.logger.info(f"❌ Failed Steps: {failed}")
+        self.logger.info(
+            f"⏭️  Skipped Steps: {len([s for s in self.steps if s.status == StepStatus.SKIPPED])}"
+        )
 
-        print("\n📋 Step Details:")
+        self.logger.info("\n📋 Step Details:")
         for step in self.steps:
             status_icon = {
                 StepStatus.COMPLETED: "✅",
@@ -378,20 +404,20 @@ class PipelineManager:
             }[step.status]
 
             duration_str = f"({step.duration:.2f}s)" if step.duration else ""
-            print(f"  {status_icon} {step.description} {duration_str}")
+            self.logger.info(f"  {status_icon} {step.description} {duration_str}")
 
             if step.status == StepStatus.FAILED and step.error_message:
-                print(f"      Error: {step.error_message}")
+                self.logger.error(f"      Error: {step.error_message}")
 
         if failed == 0:
-            print("\n🎉 Pipeline completed successfully!")
-            print("\n🔍 Next Steps:")
-            print("  1. Explore the graph via Neo4j Browser")
-            print("  2. Run example queries from examples/ directory")
-            print("  3. Run: python examples/cve_demo_queries.py")
+            self.logger.info("\n🎉 Pipeline completed successfully!")
+            self.logger.info("\n🔍 Next Steps:")
+            self.logger.info("  1. Explore the graph via Neo4j Browser")
+            self.logger.info("  2. Run example queries from examples/ directory")
+            self.logger.info("  3. Run: python examples/cve_demo_queries.py")
         else:
-            print(f"\n⚠️  Pipeline completed with {failed} failed steps")
-            print("📊 Check the logs above for error details")
+            self.logger.warning(f"\n⚠️  Pipeline completed with {failed} failed steps")
+            self.logger.warning("📊 Check the logs above for error details")
 
     def get_status(self) -> Dict[str, Any]:
         """Get current pipeline status."""

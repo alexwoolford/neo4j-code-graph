@@ -3,24 +3,33 @@
 Development environment setup script for neo4j-code-graph.
 """
 
+import logging
 import os
 import subprocess
 import sys
 from pathlib import Path
 
+# Setup logging for the dev setup script
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
+
 
 def run_command(cmd, check=True, shell=False):
     """Run a command and return the result."""
-    print(f"🔧 Running: {cmd}")
+    logger.info(f"🔧 Running: {cmd}")
     if isinstance(cmd, str) and not shell:
         cmd = cmd.split()
 
     result = subprocess.run(cmd, capture_output=True, text=True, shell=shell)
 
     if check and result.returncode != 0:
-        print(f"❌ Command failed: {cmd}")
-        print(f"stdout: {result.stdout}")
-        print(f"stderr: {result.stderr}")
+        logger.error(f"❌ Command failed: {cmd}")
+        logger.error(f"stdout: {result.stdout}")
+        logger.error(f"stderr: {result.stderr}")
         sys.exit(1)
 
     return result

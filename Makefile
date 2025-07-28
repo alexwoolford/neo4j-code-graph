@@ -88,3 +88,6 @@ schema: ## Setup Neo4j schema
 
 cleanup-db: ## Clean up Neo4j database
 	python scripts/cleanup_graph.py
+
+validate-env: ## Validate development environment
+	python scripts/validate_environment.py

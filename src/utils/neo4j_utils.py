@@ -1,8 +1,17 @@
+from typing import Tuple
 from urllib.parse import urlparse, urlunparse
 
 
 def ensure_port(uri: str, default: int = 7687) -> str:
-    """Return the URI with a port, using ``default`` if none present."""
+    """Return the URI with a port, using ``default`` if none present.
+
+    Args:
+        uri: Neo4j URI that may or may not include a port
+        default: Default port to use if none specified
+
+    Returns:
+        URI with port guaranteed to be present
+    """
     parsed = urlparse(uri)
     # When the URI lacks a netloc, ``urlparse`` places the host in ``path``
     host = parsed.hostname or parsed.path
@@ -20,8 +29,12 @@ def ensure_port(uri: str, default: int = 7687) -> str:
     return uri
 
 
-def get_neo4j_config():
-    """Return connection settings after loading environment variables."""
+def get_neo4j_config() -> Tuple[str, str, str, str]:
+    """Return connection settings after loading environment variables.
+
+    Returns:
+        Tuple of (uri, username, password, database) loaded from environment
+    """
     import os
 
     from dotenv import load_dotenv

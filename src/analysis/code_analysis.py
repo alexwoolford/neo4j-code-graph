@@ -30,7 +30,22 @@ EMBEDDING_TYPE = "graphcodebert"
 
 
 def extract_dependency_versions_from_files(repo_root):
-    """Extract dependency versions from pom.xml, build.gradle, and other dependency files."""
+    """Extract dependency versions from pom.xml, build.gradle, and other dependency files.
+
+    Scans the repository for dependency management files (Maven, Gradle, SBT) and extracts
+    dependency name-version mappings to enable accurate CVE analysis.
+
+    Args:
+        repo_root (Path): Root directory of the repository to scan
+
+    Returns:
+        dict: Mapping of dependency names to their versions
+
+    Example:
+        >>> versions = extract_dependency_versions_from_files(Path("/path/to/repo"))
+        >>> print(versions)
+        {'org.apache.commons:commons-lang3': '3.12.0', 'junit:junit': '4.13.2'}
+    """
     logger.info("🔍 Scanning for dependency management files...")
     dependency_versions = {}
 
