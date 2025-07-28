@@ -178,29 +178,31 @@ def bulk_load_to_neo4j(
     logger.info("💾 Loading data to Neo4j using bulk operations...")
 
     def execute_with_retry(session, query, params, description, max_retries=3):
-        """Execute query with retry logic and fresh sessions."""
+        """Execute query with retry logic and refresh the session on failure."""
         for attempt in range(max_retries):
             try:
-                result = session.run(query, params)
-                return result
+                session.run(query, params)
+                return session
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed for {description}: {e}")
                 if attempt == max_retries - 1:
                     raise
-                # Get fresh session for retry
-                session.close()
-                session = driver.session(database=database)
-        return None
+                try:
+                    session.close()
+                finally:
+                    session = driver.session(database=database)
+        return session
 
-    if not file_changes_only:
-        # Note: Schema constraints and indexes are now managed centrally by schema_management.py
-        # They should be created via run_pipeline.sh Step 0 or standalone schema setup
+    session = driver.session(database=database)
+    try:
+        if not file_changes_only:
+            # Note: Schema constraints and indexes are now managed centrally by schema_management.py
+            # They should be created via run_pipeline.sh Step 0 or standalone schema setup
 
-        # Load developers
-        with driver.session(database=database) as session:
+            # Load developers
             logger.info(f"Loading {len(developers_df)} developers...")
             developers_data = developers_df.to_dict("records")
-            execute_with_retry(
+            session = execute_with_retry(
                 session,
                 """
                 UNWIND $developers AS dev
@@ -221,70 +223,69 @@ def bulk_load_to_neo4j(
 
         commit_batch_size = 5000  # Smaller batches for better reliability
         for i in range(0, len(commits_data), commit_batch_size):
-            with driver.session(database=database) as session:
-                batch = commits_data[i : i + commit_batch_size]
-                execute_with_retry(
-                    session,
-                    """
-                    UNWIND $commits AS commit
-                    MERGE (c:Commit {sha: commit.sha})
-                    SET c.date = commit.date,
-                        c.message = commit.message
-                    WITH c, commit
-                    MERGE (d:Developer {email: commit.author_email})
-                    MERGE (d)-[:AUTHORED]->(c)
-                """,
-                    {"commits": batch},
-                    f"commits batch {i // commit_batch_size + 1}",
-                )
-                logger.info(
-                    "Loaded %d/%d commits",
-                    min(i + commit_batch_size, len(commits_data)),
-                    len(commits_data),
-                )
-
-        # Load files
-        with driver.session(database=database) as session:
-            logger.info(f"Loading {len(files_df)} files...")
-            files_data = files_df.to_dict("records")
-            execute_with_retry(
+            batch = commits_data[i : i + commit_batch_size]
+            session = execute_with_retry(
                 session,
                 """
-                UNWIND $files AS file
-                MERGE (f:File {path: file.path})
+                UNWIND $commits AS commit
+                MERGE (c:Commit {sha: commit.sha})
+                SET c.date = commit.date,
+                    c.message = commit.message
+                WITH c, commit
+                MERGE (d:Developer {email: commit.author_email})
+                MERGE (d)-[:AUTHORED]->(c)
             """,
-                {"files": files_data},
-                "files",
+                {"commits": batch},
+                f"commits batch {i // commit_batch_size + 1}",
+            )
+            logger.info(
+                "Loaded %d/%d commits",
+                min(i + commit_batch_size, len(commits_data)),
+                len(commits_data),
             )
 
-    # Skip file changes if requested
-    if skip_file_changes:
-        logger.info("⏭️  Skipping file changes loading as requested")
-        return
+        # Load files
+        logger.info(f"Loading {len(files_df)} files...")
+        files_data = files_df.to_dict("records")
+        session = execute_with_retry(
+            session,
+            """
+            UNWIND $files AS file
+            MERGE (f:File {path: file.path})
+        """,
+            {"files": files_data},
+            "files",
+        )
 
-    # Load file changes with sustainable bulk operations
-    logger.info(f"🚀 Loading {len(file_changes_df)} file changes with bulk operations...")
-    file_changes_data = file_changes_df.to_dict("records")
+        # Skip file changes if requested
+        if skip_file_changes:
+            logger.info("⏭️  Skipping file changes loading as requested")
+            return
 
-    # Use conservative batches to avoid overwhelming the database
-    batch_size = 10000  # Conservative size that won't crash the database
-    total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
+        # Load file changes with sustainable bulk operations
+        logger.info(f"🚀 Loading {len(file_changes_df)} file changes with bulk operations...")
+        file_changes_data = file_changes_df.to_dict("records")
 
-    logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
-    logger.info("⚡ Using sustainable 3-step bulk loading approach")
+        # Use conservative batches to avoid overwhelming the database
+        batch_size = 10000  # Conservative size that won't crash the database
+        total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
 
-    start_time = time.time()
-    for i in range(0, len(file_changes_data), batch_size):
-        batch_start = time.time()
-        batch_num = i // batch_size + 1
-        batch = file_changes_data[i : i + batch_size]
+        logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
+        logger.info("⚡ Using sustainable 3-step bulk loading approach")
 
-        logger.info(f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)...")
+        start_time = time.time()
+        for i in range(0, len(file_changes_data), batch_size):
+            batch_start = time.time()
+            batch_num = i // batch_size + 1
+            batch = file_changes_data[i : i + batch_size]
 
-        with driver.session(database=database) as session:
+            logger.info(
+                f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)..."
+            )
+
             # STEP 1: Bulk create FileVer nodes (fastest approach)
             step1_start = time.time()
-            execute_with_retry(
+            session = execute_with_retry(
                 session,
                 """
                 UNWIND $changes AS change
@@ -298,7 +299,7 @@ def bulk_load_to_neo4j(
 
             # STEP 2: Bulk create CHANGED relationships (using existing commits)
             step2_start = time.time()
-            execute_with_retry(
+            session = execute_with_retry(
                 session,
                 """
                 UNWIND $changes AS change
@@ -314,7 +315,7 @@ def bulk_load_to_neo4j(
 
             # STEP 3: Bulk create OF_FILE relationships (using existing files)
             step3_start = time.time()
-            execute_with_retry(
+            session = execute_with_retry(
                 session,
                 """
                 UNWIND $changes AS change
@@ -328,33 +329,45 @@ def bulk_load_to_neo4j(
             step3_time = time.time() - step3_start
             logger.info(f"  ✅ Created {len(batch):,} OF_FILE relationships in {step3_time:.1f}s")
 
-        batch_time = time.time() - batch_start
-        elapsed_total = time.time() - start_time
-        processed = min(i + batch_size, len(file_changes_data))
+            batch_time = time.time() - batch_start
+            elapsed_total = time.time() - start_time
+            processed = min(i + batch_size, len(file_changes_data))
 
-        # Enhanced progress reporting
-        if processed > 0:
-            avg_time_per_batch = elapsed_total / batch_num
-            remaining_batches = total_batches - batch_num
-            eta_seconds = avg_time_per_batch * remaining_batches
-            eta_minutes = eta_seconds / 60
+            # Enhanced progress reporting
+            if processed > 0:
+                avg_time_per_batch = elapsed_total / batch_num
+                remaining_batches = total_batches - batch_num
+                eta_seconds = avg_time_per_batch * remaining_batches
+                eta_minutes = eta_seconds / 60
 
-            throughput = processed / elapsed_total
-            completion_pct = (processed / len(file_changes_data)) * 100
+                throughput = processed / elapsed_total
+                completion_pct = (processed / len(file_changes_data)) * 100
 
             logger.info(
-                f"📊 Batch {batch_num}/{total_batches} COMPLETED in {batch_time:.1f}s "
-                f"({completion_pct:.1f}% done, {throughput:.0f} records/sec, ETA: {eta_minutes:.1f}min)"
+                (
+                    "📊 Batch %d/%d COMPLETED in %.1fs (%.1f%% done, %.0f records/sec, ETA: %.1fmin)"
+                    % (
+                        batch_num,
+                        total_batches,
+                        batch_time,
+                        completion_pct,
+                        throughput,
+                        eta_minutes,
+                    )
+                )
             )
 
-        # Memory cleanup
-        import gc
+            # Memory cleanup
+            import gc
 
-        gc.collect()
+            gc.collect()
 
-        # Small pause between batches to be gentle on the database
-        if batch_num < total_batches:  # Don't pause after the last batch
-            time.sleep(0.1)
+            # Small pause between batches to be gentle on the database
+            if batch_num < total_batches:  # Don't pause after the last batch
+                time.sleep(0.1)
+
+    finally:
+        session.close()
 
 
 def export_to_csv(commits_df, developers_df, files_df, file_changes_df, output_dir):
