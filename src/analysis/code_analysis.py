@@ -604,13 +604,8 @@ def _extract_method_calls(method_code, containing_class):
     return method_calls
 
 
-def bulk_create_nodes_and_relationships(
-    session, files_data, file_embeddings, method_embeddings, dependency_versions=None
-):
-    """Create all nodes and relationships using bulk operations."""
-    logger.info("Creating directory structure...")
-
-    # 1. Create all directories first
+def create_directories(session, files_data):
+    """Create Directory nodes and relationships."""
     directories = set()
     for file_data in files_data:
         path_parts = Path(file_data["path"]).parent.parts
@@ -618,16 +613,14 @@ def bulk_create_nodes_and_relationships(
             dir_path = str(Path(*path_parts[:i])) if i > 0 else ""
             directories.add(dir_path)
 
-    # Bulk create directories
     session.run(
-        "UNWIND $directories AS dir_path " "MERGE (:Directory {path: dir_path})",
+        "UNWIND $directories AS dir_path MERGE (:Directory {path: dir_path})",
         directories=list(directories),
     )
 
-    # 2. Create directory relationships
     dir_relationships = []
     for directory in directories:
-        if directory:  # Not root
+        if directory:
             parent = str(Path(directory).parent) if Path(directory).parent != Path(".") else ""
             dir_relationships.append({"parent": parent, "child": directory})
 
@@ -640,9 +633,9 @@ def bulk_create_nodes_and_relationships(
             rels=dir_relationships,
         )
 
-    logger.info("Creating file nodes...")
 
-    # 3. Bulk create file nodes with metrics
+def create_files(session, files_data, file_embeddings):
+    """Create File nodes and CONTAINS relationships."""
     file_nodes = []
     for i, file_data in enumerate(files_data):
         file_node = {
@@ -670,7 +663,6 @@ def bulk_create_nodes_and_relationships(
         files=file_nodes,
     )
 
-    # 4. Create file-to-directory relationships
     file_dir_rels = []
     for file_data in files_data:
         parent_dir = (
@@ -688,10 +680,9 @@ def bulk_create_nodes_and_relationships(
         rels=file_dir_rels,
     )
 
-    # 5. Create Class and Interface nodes with inheritance relationships
-    logger.info("Creating class and interface nodes...")
 
-    # Collect all classes and interfaces
+def create_classes(session, files_data):
+    """Create Class and Interface nodes with relationships."""
     all_classes = []
     all_interfaces = []
     class_inheritance = []
@@ -699,7 +690,6 @@ def bulk_create_nodes_and_relationships(
     class_implementations = []
 
     for file_data in files_data:
-        # Process classes
         for class_info in file_data.get("classes", []):
             class_node = {
                 "name": class_info["name"],
@@ -712,7 +702,6 @@ def bulk_create_nodes_and_relationships(
             }
             all_classes.append(class_node)
 
-            # Track inheritance relationships
             if class_info.get("extends"):
                 class_inheritance.append(
                     {
@@ -722,7 +711,6 @@ def bulk_create_nodes_and_relationships(
                     }
                 )
 
-            # Track interface implementations
             for interface in class_info.get("implements", []):
                 class_implementations.append(
                     {
@@ -732,7 +720,6 @@ def bulk_create_nodes_and_relationships(
                     }
                 )
 
-        # Process interfaces
         for interface_info in file_data.get("interfaces", []):
             interface_node = {
                 "name": interface_info["name"],
@@ -743,7 +730,6 @@ def bulk_create_nodes_and_relationships(
             }
             all_interfaces.append(interface_node)
 
-            # Track interface inheritance (extends)
             for extended_interface in interface_info.get("extends", []):
                 interface_inheritance.append(
                     {
@@ -753,7 +739,6 @@ def bulk_create_nodes_and_relationships(
                     }
                 )
 
-    # Bulk create class nodes
     if all_classes:
         logger.info(f"Creating {len(all_classes)} class nodes...")
         session.run(
@@ -765,7 +750,6 @@ def bulk_create_nodes_and_relationships(
             classes=all_classes,
         )
 
-    # Bulk create interface nodes
     if all_interfaces:
         logger.info(f"Creating {len(all_interfaces)} interface nodes...")
         session.run(
@@ -776,7 +760,6 @@ def bulk_create_nodes_and_relationships(
             interfaces=all_interfaces,
         )
 
-    # Create class inheritance relationships (EXTENDS)
     if class_inheritance:
         logger.info(f"Creating {len(class_inheritance)} class inheritance relationships...")
         session.run(
@@ -787,7 +770,6 @@ def bulk_create_nodes_and_relationships(
             inheritance=class_inheritance,
         )
 
-    # Create interface inheritance relationships (EXTENDS)
     if interface_inheritance:
         logger.info(f"Creating {len(interface_inheritance)} interface inheritance relationships...")
         session.run(
@@ -798,7 +780,6 @@ def bulk_create_nodes_and_relationships(
             inheritance=interface_inheritance,
         )
 
-    # Create class-interface implementation relationships (IMPLEMENTS)
     if class_implementations:
         logger.info(f"Creating {len(class_implementations)} implementation relationships...")
         session.run(
@@ -809,7 +790,6 @@ def bulk_create_nodes_and_relationships(
             implementations=class_implementations,
         )
 
-    # Create file-to-class relationships
     file_class_rels = []
     for file_data in files_data:
         for class_info in file_data.get("classes", []):
@@ -824,7 +804,6 @@ def bulk_create_nodes_and_relationships(
             rels=file_class_rels,
         )
 
-    # Create file-to-interface relationships
     file_interface_rels = []
     for file_data in files_data:
         for interface_info in file_data.get("interfaces", []):
@@ -841,9 +820,9 @@ def bulk_create_nodes_and_relationships(
             rels=file_interface_rels,
         )
 
-    logger.info("Creating method nodes...")
 
-    # 6. Bulk create method nodes with metrics
+def create_methods(session, files_data, method_embeddings):
+    """Create Method nodes and related relationships."""
     method_nodes = []
     method_idx = 0
 
@@ -871,7 +850,6 @@ def bulk_create_nodes_and_relationships(
             method_nodes.append(method_node)
             method_idx += 1
 
-    # Split method creation into batches to avoid huge queries
     batch_size = 1000
     total_batches = (len(method_nodes) + batch_size - 1) // batch_size
     logger.info(f"Creating {len(method_nodes)} method nodes in {total_batches} batches...")
@@ -902,7 +880,6 @@ def bulk_create_nodes_and_relationships(
         batch_time = perf_counter() - start_time
         logger.info(f"Batch {batch_num} completed in {batch_time:.1f}s")
 
-    # 6. Create method-to-file relationships
     method_file_rels = []
     for file_data in files_data:
         for method in file_data["methods"]:
@@ -914,10 +891,11 @@ def bulk_create_nodes_and_relationships(
                 }
             )
 
-    # Batch the relationships too
     total_rel_batches = (len(method_file_rels) + batch_size - 1) // batch_size
     logger.info(
-        f"Creating {len(method_file_rels)} method-file relationships in {total_rel_batches} batches..."
+        "Creating %d method-file relationships in %d batches...",
+        len(method_file_rels),
+        total_rel_batches,
     )
 
     for i in range(0, len(method_file_rels), batch_size):
@@ -925,7 +903,10 @@ def bulk_create_nodes_and_relationships(
         batch = method_file_rels[i : i + batch_size]
 
         logger.info(
-            f"Creating relationship batch {batch_num}/{total_rel_batches} ({len(batch)} relationships)..."
+            "Creating relationship batch %d/%d (%d relationships)...",
+            batch_num,
+            total_rel_batches,
+            len(batch),
         )
         start_time = perf_counter()
 
@@ -940,7 +921,6 @@ def bulk_create_nodes_and_relationships(
         batch_time = perf_counter() - start_time
         logger.info(f"Relationship batch {batch_num} completed in {batch_time:.1f}s")
 
-    # 7. Create method-to-class/interface relationships
     method_class_rels = []
     method_interface_rels = []
 
@@ -956,7 +936,7 @@ def bulk_create_nodes_and_relationships(
                             "interface_name": method["class"],
                         }
                     )
-                else:  # class or default
+                else:
                     method_class_rels.append(
                         {
                             "method_name": method["name"],
@@ -966,37 +946,35 @@ def bulk_create_nodes_and_relationships(
                         }
                     )
 
-    # Create method-to-class relationships
     if method_class_rels:
         logger.info(f"Creating {len(method_class_rels)} method-to-class relationships...")
         for i in range(0, len(method_class_rels), batch_size):
             batch = method_class_rels[i : i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
-                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
+                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, "
+                "line: rel.method_line}) "
                 "MATCH (c:Class {name: rel.class_name, file: rel.method_file}) "
                 "MERGE (c)-[:CONTAINS_METHOD]->(m)",
                 rels=batch,
             )
 
-    # Create method-to-interface relationships
     if method_interface_rels:
         logger.info(f"Creating {len(method_interface_rels)} method-to-interface relationships...")
         for i in range(0, len(method_interface_rels), batch_size):
             batch = method_interface_rels[i : i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
-                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
+                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, "
+                "line: rel.method_line}) "
                 "MATCH (i:Interface {name: rel.interface_name, file: rel.method_file}) "
                 "MERGE (i)-[:CONTAINS_METHOD]->(m)",
                 rels=batch,
             )
 
-    # 8. Create method call relationships (CALLS)
-    # 9. Create Import nodes and IMPORTS relationships
-    logger.info("Creating import nodes and relationships...")
 
-    # Collect all imports and create external dependencies
+def create_imports(session, files_data, dependency_versions=None):
+    """Create Import nodes, IMPORTS relationships and external dependencies."""
     all_imports = []
     external_dependencies = set()
 
@@ -1004,22 +982,16 @@ def bulk_create_nodes_and_relationships(
         for import_info in file_data.get("imports", []):
             all_imports.append(import_info)
 
-            # Create external dependency entries for external imports
             if import_info["import_type"] == "external":
-                # Extract base package for dependency grouping
                 import_path = import_info["import_path"]
                 if "." in import_path:
-                    # Group by organization (e.g., com.fasterxml.jackson.* -> com.fasterxml.jackson)
                     parts = import_path.split(".")
                     if len(parts) >= 3:
-                        base_package = ".".join(parts[:3])  # e.g., com.fasterxml.jackson
+                        base_package = ".".join(parts[:3])
                         external_dependencies.add(base_package)
 
-    # Bulk create Import nodes
     if all_imports:
         logger.info(f"Creating {len(all_imports)} import nodes...")
-
-        # Use the same batching approach as methods for consistency and performance
         batch_size = 1000
         total_batches = (len(all_imports) + batch_size - 1) // batch_size
         logger.info(f"Creating {len(all_imports)} import nodes in {total_batches} batches...")
@@ -1044,7 +1016,6 @@ def bulk_create_nodes_and_relationships(
             batch_time = perf_counter() - start_time
             logger.info(f"Import batch {batch_num} completed in {batch_time:.1f}s")
 
-        # Create IMPORTS relationships using batching
         logger.info(
             f"Creating {len(all_imports)} IMPORTS relationships in {total_batches} batches..."
         )
@@ -1054,7 +1025,10 @@ def bulk_create_nodes_and_relationships(
             batch = all_imports[i : i + batch_size]
 
             logger.info(
-                f"Creating IMPORTS relationship batch {batch_num}/{total_batches} ({len(batch)} relationships)..."
+                "Creating IMPORTS relationship batch %d/%d (%d relationships)...",
+                batch_num,
+                total_batches,
+                len(batch),
             )
             start_time = perf_counter()
 
@@ -1069,21 +1043,16 @@ def bulk_create_nodes_and_relationships(
             batch_time = perf_counter() - start_time
             logger.info(f"IMPORTS relationship batch {batch_num} completed in {batch_time:.1f}s")
 
-    # Create ExternalDependency nodes for CVE analysis
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
         dependency_nodes = []
 
         for dep in external_dependencies:
-            # Try to find version information
             version = None
             if dependency_versions:
-                # Try exact match first
                 if dep in dependency_versions:
                     version = dependency_versions[dep]
                 else:
-                    # Try partial matches (e.g., for com.fasterxml.jackson.core match
-                    # com.fasterxml.jackson)
                     for dep_key, dep_version in dependency_versions.items():
                         if dep.startswith(dep_key) or dep_key.startswith(dep):
                             version = dep_version
@@ -1091,7 +1060,6 @@ def bulk_create_nodes_and_relationships(
 
             dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
 
-            # Add version if found
             if version:
                 dependency_node["version"] = version
                 logger.debug(f"📦 {dep} -> version {version}")
@@ -1100,7 +1068,6 @@ def bulk_create_nodes_and_relationships(
 
             dependency_nodes.append(dependency_node)
 
-        # Create nodes with version information
         if dependency_versions:
             session.run(
                 "UNWIND $dependencies AS dep "
@@ -1117,7 +1084,6 @@ def bulk_create_nodes_and_relationships(
                 dependencies=dependency_nodes,
             )
 
-        # Create relationships from Import nodes to ExternalDependency nodes
         session.run(
             "MATCH (i:Import) "
             "WHERE i.import_type = 'external' "
@@ -1128,14 +1094,15 @@ def bulk_create_nodes_and_relationships(
             "MERGE (i)-[:DEPENDS_ON]->(e)"
         )
 
-    # 10. Create method call relationships
-    logger.info("Creating method call relationships...")
+
+def create_method_calls(session, files_data):
+    """Create CALLS relationships between methods."""
+    batch_size = 1000
     method_call_rels = []
 
     for file_data in files_data:
         for method in file_data["methods"]:
             for call in method.get("calls", []):
-                # Create relationship for each method call
                 method_call_rels.append(
                     {
                         "caller_name": method["name"],
@@ -1152,14 +1119,12 @@ def bulk_create_nodes_and_relationships(
     if method_call_rels:
         logger.info(f"Processing {len(method_call_rels)} method call relationships...")
 
-        # Group by call type for different handling
         same_class_calls = [r for r in method_call_rels if r["call_type"] in ["same_class", "this"]]
         static_calls = [r for r in method_call_rels if r["call_type"] == "static"]
         other_calls = [
             r for r in method_call_rels if r["call_type"] not in ["same_class", "this", "static"]
         ]
 
-        # Handle same-class calls (most reliable)
         if same_class_calls:
             logger.info(f"Creating {len(same_class_calls)} same-class method calls...")
             for i in range(0, len(same_class_calls), batch_size):
@@ -1169,12 +1134,11 @@ def bulk_create_nodes_and_relationships(
                     "MATCH (caller:Method {name: call.caller_name, "
                     "file: call.caller_file, line: call.caller_line}) "
                     "MATCH (callee:Method {name: call.callee_name, class: call.callee_class}) "
-                    "WHERE caller.file = callee.file "  # Same file for same-class calls
+                    "WHERE caller.file = callee.file "
                     "MERGE (caller)-[:CALLS {type: call.call_type}]->(callee)",
                     calls=batch,
                 )
 
-        # Handle static calls (by class name)
         if static_calls:
             logger.info(f"Creating {len(static_calls)} static method calls...")
             for i in range(0, len(static_calls), batch_size):
@@ -1190,73 +1154,73 @@ def bulk_create_nodes_and_relationships(
                     calls=batch,
                 )
 
-        # Handle other calls (best effort - by method name only)
         if other_calls:
             logger.info(f"Creating {len(other_calls)} other method calls (best effort)...")
-
-            # Use much smaller batches for this problematic section
-            small_batch_size = 100  # Much smaller than normal batch_size
+            small_batch_size = 100
             total_small_batches = (len(other_calls) + small_batch_size - 1) // small_batch_size
-
             logger.warning(
                 f"⚠️ Using small batches ({small_batch_size}) for complex method matching"
             )
-
             successful_calls = 0
             failed_batches = 0
-
             for i in range(0, len(other_calls), small_batch_size):
                 batch_num = i // small_batch_size + 1
                 batch = other_calls[i : i + small_batch_size]
-
                 try:
                     logger.info(
-                        f"Processing small batch {batch_num}/{total_small_batches} ({len(batch)} calls)..."
+                        "Processing small batch %d/%d (%d calls)...",
+                        batch_num,
+                        total_small_batches,
+                        len(batch),
                     )
                     start_time = perf_counter()
-
-                    # Use a more conservative query with timeouts
                     result = session.run(
                         "UNWIND $calls AS call "
                         "MATCH (caller:Method {name: call.caller_name, "
                         "file: call.caller_file, line: call.caller_line}) "
                         "OPTIONAL MATCH (callee:Method {name: call.callee_name}) "
                         "WHERE callee IS NOT NULL "
-                        "WITH caller, callee, call LIMIT 500 "  # Limit matches per batch
+                        "WITH caller, callee, call LIMIT 500 "
                         "MERGE (caller)-[:CALLS {type: call.call_type, "
                         "qualifier: call.qualifier}]->(callee) "
                         "RETURN count(*) as created",
                         calls=batch,
                     )
-
                     created = result.single()["created"]
                     successful_calls += created
-
                     batch_time = perf_counter() - start_time
                     logger.info(
-                        f"Small batch {batch_num} completed: {created} relationships in {batch_time:.1f}s"
+                        "Small batch %d completed: %d relationships in %.1fs",
+                        batch_num,
+                        created,
+                        batch_time,
                     )
-
-                    # Add a longer pause between batches to let database recover
                     if batch_num < total_small_batches:
                         time.sleep(0.5)
-
                 except Exception as e:
                     failed_batches += 1
                     logger.warning(f"Batch {batch_num} failed (continuing): {e}")
-
-                    # If too many failures, stop to avoid further database issues
                     if failed_batches > 10:
                         logger.error(
                             "Too many failed batches, stopping other method calls processing"
                         )
                         break
-
             logger.info(
                 f"Other method calls completed: {successful_calls} relationships created, "
                 f"{failed_batches} batches failed"
             )
 
+
+def bulk_create_nodes_and_relationships(
+    session, files_data, file_embeddings, method_embeddings, dependency_versions=None
+):
+    """Create all nodes and relationships using bulk operations."""
+    create_directories(session, files_data)
+    create_files(session, files_data, file_embeddings)
+    create_classes(session, files_data)
+    create_methods(session, files_data, method_embeddings)
+    create_imports(session, files_data, dependency_versions)
+    create_method_calls(session, files_data)
     logger.info("Bulk creation completed!")
 
 
@@ -1265,9 +1229,8 @@ def main():
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
-    driver = create_neo4j_driver(args.uri, args.username, args.password)
 
-    try:
+    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             # Check if repo_url is a local path or a URL
             repo_path = Path(args.repo_url)
@@ -1403,9 +1366,6 @@ def main():
 
                 shutil.rmtree(tmpdir, ignore_errors=True)
                 logger.info("Cleaned up temporary repository clone")
-
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

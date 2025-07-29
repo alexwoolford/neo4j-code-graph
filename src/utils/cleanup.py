@@ -16,9 +16,8 @@ import time
 
 from neo4j import GraphDatabase
 
-from .neo4j_utils import ensure_port, get_neo4j_config
-
-NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
+from .common import add_common_args
+from .neo4j_utils import ensure_port
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +27,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Clean up analysis results or perform complete database reset"
     )
-    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
-    parser.add_argument("--username", default=NEO4J_USERNAME, help="Neo4j authentication username")
-    parser.add_argument("--password", default=NEO4J_PASSWORD, help="Neo4j authentication password")
-    parser.add_argument("--database", default=NEO4J_DATABASE, help="Neo4j database")
-    parser.add_argument("--log-level", default="INFO", help="Logging level (DEBUG, INFO, WARNING)")
+    add_common_args(parser)
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -264,51 +259,49 @@ def main():
     )
 
     try:
-        driver = GraphDatabase.driver(ensure_port(args.uri), auth=(args.username, args.password))
-        driver.verify_connectivity()
-        logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
-    except Exception as e:
-        logger.error("Failed to connect to Neo4j: %s", e)
-        sys.exit(1)
+        with GraphDatabase.driver(
+            ensure_port(args.uri), auth=(args.username, args.password)
+        ) as driver:
+            driver.verify_connectivity()
+            logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
 
-    try:
-        with driver.session(database=args.database) as session:
-            if args.complete:
-                # Complete database reset
-                if not args.confirm and not args.dry_run:
-                    response = input(
-                        "⚠️  This will DELETE EVERYTHING in the database. Type 'RESET' to confirm: "
-                    )
+            with driver.session(database=args.database) as session:
+                if args.complete:
+                    # Complete database reset
+                    if not args.confirm and not args.dry_run:
+                        response = input(
+                            "⚠️  This will DELETE EVERYTHING in the database. Type 'RESET' to confirm: "
+                        )
                     if response != "RESET":
                         logger.info("Complete reset cancelled.")
                         return
 
-                logger.info(
-                    "Starting complete database reset%s...",
-                    " (DRY RUN)" if args.dry_run else "",
-                )
-                complete_database_reset(session, args.dry_run)
+                    logger.info(
+                        "Starting complete database reset%s...",
+                        " (DRY RUN)" if args.dry_run else "",
+                    )
+                    complete_database_reset(session, args.dry_run)
 
-            else:
-                # Selective cleanup (default behavior)
-                logger.info("Starting cleanup%s...", " (DRY RUN)" if args.dry_run else "")
+                else:
+                    # Selective cleanup (default behavior)
+                    logger.info("Starting cleanup%s...", " (DRY RUN)" if args.dry_run else "")
 
-                # Clean up similarities
-                cleanup_similarities(session, args.dry_run)
+                    # Clean up similarities
+                    cleanup_similarities(session, args.dry_run)
 
-                # Clean up community properties
-                cleanup_communities(session, "similarityCommunity", args.dry_run)
+                    # Clean up community properties
+                    cleanup_communities(session, "similarityCommunity", args.dry_run)
 
-                # Clean up GDS graph projections
-                cleanup_graph_projections(session, args.dry_run)
+                    # Clean up GDS graph projections
+                    cleanup_graph_projections(session, args.dry_run)
 
-                # Check vector indexes (but don't remove)
-                cleanup_vector_index(session, args.dry_run)
+                    # Check vector indexes (but don't remove)
+                    cleanup_vector_index(session, args.dry_run)
 
-                logger.info("Cleanup completed%s", " (DRY RUN)" if args.dry_run else "")
-
-    finally:
-        driver.close()
+                    logger.info("Cleanup completed%s", " (DRY RUN)" if args.dry_run else "")
+    except Exception as e:
+        logger.error("Failed to connect to Neo4j: %s", e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

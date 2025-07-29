@@ -30,13 +30,13 @@ def test_neo4j_connection():
     print()
 
     try:
-        driver = GraphDatabase.driver(uri, auth=(username, password))
-        driver.verify_connectivity()
+        with GraphDatabase.driver(uri, auth=(username, password)) as driver:
+            driver.verify_connectivity()
 
-        with driver.session(database=database) as session:
-            result = session.run("RETURN 'Connection successful!' AS message")
-            record = result.single()
-            print(f"✅ {record['message']}")
+            with driver.session(database=database) as session:
+                result = session.run("RETURN 'Connection successful!' AS message")
+                record = result.single()
+                print(f"✅ {record['message']}")
 
             # Test if we have any data
             count_query = """
@@ -67,8 +67,6 @@ def test_neo4j_connection():
                     print("   Run: ./run_pipeline.sh <your-repo-url> first")
             else:
                 print("📊 Database is empty - run the pipeline first")
-
-        driver.close()
 
     except Exception as e:
         print(f"❌ Connection failed: {e}")

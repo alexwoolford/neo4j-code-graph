@@ -309,39 +309,38 @@ def main():
     print()
 
     # Connect to Neo4j
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
     gds = GraphDataScience(
         NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD), database=NEO4J_DATABASE
     )
 
     try:
-        with driver.session(database=NEO4J_DATABASE) as session:
-            # Check if we have data
-            count_check = session.run("MATCH (cve:CVE) RETURN count(cve) AS cve_count").single()
-            if count_check["cve_count"] == 0:
-                print("❌ No CVE data found. Please run: python cve_analysis.py first")
-                return
+        with GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD)) as driver:
+            with driver.session(database=NEO4J_DATABASE) as session:
+                # Check if we have data
+                count_check = session.run("MATCH (cve:CVE) RETURN count(cve) AS cve_count").single()
+                if count_check["cve_count"] == 0:
+                    print("❌ No CVE data found. Please run: python cve_analysis.py first")
+                    return
 
-            print(f"✅ Found {count_check['cve_count']} CVEs in database")
-            print()
+                print(f"✅ Found {count_check['cve_count']} CVEs in database")
+                print()
 
-            # Run demonstrations
-            demo_graph_traversal(session)
-            demo_vector_search(session)
-            demo_lucene_search(session)
-            demo_graph_algorithms(gds)
-            demo_hybrid_queries(session)
+                # Run demonstrations
+                demo_graph_traversal(session)
+                demo_vector_search(session)
+                demo_lucene_search(session)
+                demo_graph_algorithms(gds)
+                demo_hybrid_queries(session)
 
-            print("\n🎉 CVE Analysis Demo Complete!")
-            print("\nKey Takeaways:")
-            print("• Graph traversal reveals dependency impact chains")
-            print("• Vector search finds similar vulnerable components")
-            print("• Lucene search identifies related vulnerability patterns")
-            print("• Graph algorithms highlight critical architectural components")
-            print("• Hybrid queries combine multiple signals for comprehensive risk assessment")
-
-    finally:
-        driver.close()
+                print("\n🎉 CVE Analysis Demo Complete!")
+                print("\nKey Takeaways:")
+                print("• Graph traversal reveals dependency impact chains")
+                print("• Vector search finds similar vulnerable components")
+                print("• Lucene search identifies related vulnerability patterns")
+                print("• Graph algorithms highlight critical architectural components")
+                print("• Hybrid queries combine multiple signals for comprehensive risk assessment")
+    except Exception as e:
+        print(f"❌ Demo failed: {e}")
 
 
 if __name__ == "__main__":
