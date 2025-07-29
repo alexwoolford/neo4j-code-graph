@@ -8,6 +8,7 @@
 # 1. REQUIRED: Full CI validation (run exactly what CI runs)
 flake8 src/ tests/ scripts/ --max-line-length=100  # Must have ZERO violations
 mypy src/ --ignore-missing-imports --strict-optional  # Must pass
+black --check --diff src/ tests/ scripts/  # Must show "All done!" - no reformatting needed
 python -m pytest tests/ -v  # Should have minimal failures (DB connection issues OK)
 
 # 2. Fix any violations immediately:
@@ -17,6 +18,7 @@ python -m pytest tests/ -v  # Should have minimal failures (DB connection issues
 
 # 3. Verify fixes:
 flake8 src/ tests/ scripts/ --max-line-length=100  # Must show NO output
+black --check --diff src/ tests/ scripts/  # Must show "All done!"
 echo "✅ All CI checks passed - safe to commit"
 ```
 
@@ -160,6 +162,7 @@ Tests use mocked database connections for execution without requiring a running 
 **🚨 CRITICAL CI VALIDATION (MUST PASS):**
 - [ ] **Zero flake8 violations**: `flake8 src/ tests/ scripts/ --max-line-length=100` (NO OUTPUT)
 - [ ] **MyPy passes**: `mypy src/ --ignore-missing-imports --strict-optional`
+- [ ] **Black formatting valid**: `black --check --diff src/ tests/ scripts/` (MUST show "All done!")
 - [ ] **Tests run successfully**: `python -m pytest tests/ -v` (minimal failures OK)
 
 **Standard Quality Checks:**
