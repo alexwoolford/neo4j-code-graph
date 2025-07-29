@@ -142,18 +142,26 @@ def _extract_gradle_dependencies(gradle_file):
         with open(gradle_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Pattern for Gradle dependencies like: implementation 'group:artifact:version'
+        # Regex patterns capturing groupId, artifactId and version
         patterns = [
-            r"['\"]([a-zA-Z][a-zA-Z0-9_.\\-]+):([a-zA-Z][a-zA-Z0-9_.\\-]+):([^'\"\\s]+)['\"]",
-            r"group\s*:\s*['\"]([^'\"]+)['\"].*?name\s*:\s*['\"]([^'\"]+)['\"]"
-            r".*?version\s*:\s*['\"]([^'\"]+)['\"]",
-            r"group\s*=\s*['\"]([^'\"]+)['\"].*?name\s*=\s*['\"]([^'\"]+)['\"]"
-            r".*?version\s*=\s*['\"]([^'\"]+)['\"]",
+            # implementation 'group:artifact:version'
+            (
+                r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+[\"']"
+                r"([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):([^\"'\s]+)[\"']"
+            ),
+            # implementation group: 'group', name: 'artifact', version: '1.0.0'
+            (
+                r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+.*?"
+                r"group\s*[:=]\s*[\"']([a-zA-Z0-9._-]+)[\"'].*?"
+                r"name\s*[:=]\s*[\"']([a-zA-Z0-9._-]+)[\"'].*?"
+                r"version\s*[:=]\s*[\"']([^\"']+)[\"']"
+            ),
         ]
-
         for pattern in patterns:
             matches = re.finditer(pattern, content, re.MULTILINE | re.DOTALL)
             for match in matches:
+                if len(match.groups()) != 3 or None in match.groups():
+                    continue
                 group_id, artifact_id, version = match.groups()
                 package_name = f"{group_id}.{artifact_id}"
 
