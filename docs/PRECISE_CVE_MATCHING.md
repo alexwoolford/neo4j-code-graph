@@ -11,13 +11,13 @@ The original CVE matching system had several critical accuracy issues:
 ### ❌ **Original Problems:**
 
 1. **Loose GAV Storage** - Dependencies stored as `group.artifact` without proper versioning
-2. **Dangerous Fuzzy Matching** - `startswith()` matching that could match unrelated dependencies  
+2. **Dangerous Fuzzy Matching** - `startswith()` matching that could match unrelated dependencies
 3. **Text-Based CVE Matching** - Simple substring matching on CVE descriptions
 4. **No Version Awareness** - Could match fixed versions to old CVEs
 
 ### **Example False Positives:**
 - CVE for `spring-boot 1.5.0` would match `spring-boot 3.0.0`
-- CVE for `commons-collections` would match `commons-lang3`  
+- CVE for `commons-collections` would match `commons-lang3`
 - Any "Apache" CVE would match any Apache project
 
 ## Solution: Precise GAV Matching
@@ -53,7 +53,7 @@ scripts/
 @dataclass
 class GAVCoordinate:
     group_id: str      # e.g., "org.apache.logging.log4j"
-    artifact_id: str   # e.g., "log4j-core" 
+    artifact_id: str   # e.g., "log4j-core"
     version: str       # e.g., "2.14.1"
 ```
 
@@ -126,7 +126,7 @@ test_cases = [
 ```python
 # These should NOT match:
 - commons-collections CVE → commons-lang3 dependency
-- log4j CVE → logback dependency  
+- log4j CVE → logback dependency
 - spring-framework CVE → spring-boot dependency (different project)
 ```
 
@@ -137,7 +137,7 @@ test_cases = [
 2. ✅ Create comprehensive test cases
 3. ✅ Add required dependencies (`packaging`)
 
-### Phase 2: Integration (Week 2) 
+### Phase 2: Integration (Week 2)
 1. Update `cve_analysis.py` to use `PreciseGAVMatcher`
 2. Replace dependency extraction with `EnhancedDependencyExtractor`
 3. Update Neo4j node creation to store full GAV data
@@ -161,7 +161,7 @@ The system includes known mappings from GAV coordinates to CPE patterns:
 ```python
 KNOWN_CPE_PATTERNS = {
     "org.apache.logging.log4j:log4j-core": "apache:log4j",
-    "org.springframework:spring-core": "vmware:spring_framework", 
+    "org.springframework:spring-core": "vmware:spring_framework",
     "com.fasterxml.jackson.core:jackson-databind": "fasterxml:jackson-databind",
     # ... more mappings
 }
