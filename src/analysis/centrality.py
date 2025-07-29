@@ -376,7 +376,8 @@ def summarize_analysis(
         top_degree = degree_results.iloc[0]
         class_name = top_degree["class_name"] if top_degree["class_name"] else "Unknown"
         print(
-            f"📊 Highest Degree: {class_name}.{top_degree['method_name']} ({top_degree['total_degree']} connections)"
+            f"📊 Highest Degree: {class_name}.{top_degree['method_name']} "
+            f"({top_degree['total_degree']} connections)"
         )
 
     print("\n💡 Use these insights to:")
@@ -406,7 +407,8 @@ def main():
 
         if method_count < args.min_methods:
             logger.error(
-                f"Insufficient methods for analysis. Found {method_count}, need at least {args.min_methods}"
+                "Insufficient methods for analysis. "
+                f"Found {method_count}, need at least {args.min_methods}"
             )
             return
 

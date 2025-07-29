@@ -144,9 +144,10 @@ def test_natural_key_coverage():
         # Pattern should match (variable:NodeType) format
         pattern = f":{node_type}"
         matching_constraints = [call for call in constraint_calls if pattern in call]
-        assert (
-            len(matching_constraints) > 0
-        ), f"Missing constraint for {node_type} natural key: {key_props}. Found constraints: {constraint_calls}"
+        assert len(matching_constraints) > 0, (
+            f"Missing constraint for {node_type} natural key: {key_props}. "
+            f"Found constraints: {constraint_calls}"
+        )
 
 
 if __name__ == "__main__":

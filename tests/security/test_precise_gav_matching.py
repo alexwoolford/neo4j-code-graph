@@ -213,7 +213,9 @@ class TestFalsePositivePrevention:
                         {
                             "cpeMatch": [
                                 {
-                                    "criteria": "cpe:2.3:a:apache:commons_collections:*:*:*:*:*:*:*:*",
+                                    "criteria": (
+                                        "cpe:2.3:a:apache:commons_collections:" "*:*:*:*:*:*:*:*"
+                                    ),
                                     "versionEndExcluding": "3.2.2",
                                 }
                             ]

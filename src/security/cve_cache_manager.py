@@ -45,6 +45,7 @@ class CVECacheManager:
         # Track requests for rate limiting
         self.request_times = []
         self.has_api_key = False
+        self._rate_lock = asyncio.Lock()
 
     def fetch_targeted_cves(
         self,
@@ -405,18 +406,19 @@ class CVECacheManager:
 
     async def _async_enforce_rate_limit(self, max_requests: int) -> None:
         """Asynchronous version of rate limit enforcement."""
-        now = time.time()
+        async with self._rate_lock:
+            now = time.time()
 
-        self.request_times = [t for t in self.request_times if now - t < self.request_window]
+            self.request_times = [t for t in self.request_times if now - t < self.request_window]
 
-        if len(self.request_times) >= max_requests:
-            oldest_request = min(self.request_times)
-            wait_time = self.request_window - (now - oldest_request)
-            if wait_time > 0:
-                logger.debug(f"⏰ Rate limiting: waiting {wait_time:.1f}s")
-                await asyncio.sleep(wait_time + 0.1)
+            if len(self.request_times) >= max_requests:
+                oldest_request = min(self.request_times)
+                wait_time = self.request_window - (now - oldest_request)
+                if wait_time > 0:
+                    logger.debug(f"⏰ Rate limiting: waiting {wait_time:.1f}s")
+                    await asyncio.sleep(wait_time + 0.1)
 
-        self.request_times.append(time.time())
+            self.request_times.append(time.time())
 
     def _save_partial_targeted_cache(
         self, cache_key: str, cves: List[Dict], completed_terms: Set[str]

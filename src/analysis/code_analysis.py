@@ -900,7 +900,8 @@ def bulk_create_nodes_and_relationships(
     # Batch the relationships too
     total_rel_batches = (len(method_file_rels) + batch_size - 1) // batch_size
     logger.info(
-        f"Creating {len(method_file_rels)} method-file relationships in {total_rel_batches} batches..."
+        "Creating %d method-file relationships in %d batches..."
+        % (len(method_file_rels), total_rel_batches)
     )
 
     for i in range(0, len(method_file_rels), batch_size):
@@ -908,7 +909,8 @@ def bulk_create_nodes_and_relationships(
         batch = method_file_rels[i : i + batch_size]
 
         logger.info(
-            f"Creating relationship batch {batch_num}/{total_rel_batches} ({len(batch)} relationships)..."
+            "Creating relationship batch %d/%d (%d relationships)..."
+            % (batch_num, total_rel_batches, len(batch))
         )
         start_time = perf_counter()
 
@@ -951,12 +953,13 @@ def bulk_create_nodes_and_relationships(
 
     # Create method-to-class relationships
     if method_class_rels:
-        logger.info(f"Creating {len(method_class_rels)} method-to-class relationships...")
+        logger.info("Creating %d method-to-class relationships..." % len(method_class_rels))
         for i in range(0, len(method_class_rels), batch_size):
             batch = method_class_rels[i : i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
-                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
+                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, "
+                "line: rel.method_line}) "
                 "MATCH (c:Class {name: rel.class_name, file: rel.method_file}) "
                 "MERGE (c)-[:CONTAINS_METHOD]->(m)",
                 rels=batch,
@@ -964,12 +967,13 @@ def bulk_create_nodes_and_relationships(
 
     # Create method-to-interface relationships
     if method_interface_rels:
-        logger.info(f"Creating {len(method_interface_rels)} method-to-interface relationships...")
+        logger.info("Creating %d method-to-interface relationships..." % len(method_interface_rels))
         for i in range(0, len(method_interface_rels), batch_size):
             batch = method_interface_rels[i : i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
-                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
+                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, "
+                "line: rel.method_line}) "
                 "MATCH (i:Interface {name: rel.interface_name, file: rel.method_file}) "
                 "MERGE (i)-[:CONTAINS_METHOD]->(m)",
                 rels=batch,
@@ -1029,7 +1033,7 @@ def bulk_create_nodes_and_relationships(
 
         # Create IMPORTS relationships using batching
         logger.info(
-            f"Creating {len(all_imports)} IMPORTS relationships in {total_batches} batches..."
+            "Creating %d IMPORTS relationships in %d batches..." % (len(all_imports), total_batches)
         )
 
         for i in range(0, len(all_imports), batch_size):
@@ -1037,7 +1041,8 @@ def bulk_create_nodes_and_relationships(
             batch = all_imports[i : i + batch_size]
 
             logger.info(
-                f"Creating IMPORTS relationship batch {batch_num}/{total_batches} ({len(batch)} relationships)..."
+                "Creating IMPORTS relationship batch %d/%d (%d relationships)..."
+                % (batch_num, total_batches, len(batch))
             )
             start_time = perf_counter()
 
@@ -1182,7 +1187,7 @@ def bulk_create_nodes_and_relationships(
             total_small_batches = (len(other_calls) + small_batch_size - 1) // small_batch_size
 
             logger.warning(
-                f"⚠️ Using small batches ({small_batch_size}) for complex method matching"
+                "⚠️ Using small batches (%d) for complex method matching" % small_batch_size
             )
 
             successful_calls = 0
@@ -1194,7 +1199,8 @@ def bulk_create_nodes_and_relationships(
 
                 try:
                     logger.info(
-                        f"Processing small batch {batch_num}/{total_small_batches} ({len(batch)} calls)..."
+                        "Processing small batch %d/%d (%d calls)..."
+                        % (batch_num, total_small_batches, len(batch))
                     )
                     start_time = perf_counter()
 
@@ -1217,7 +1223,8 @@ def bulk_create_nodes_and_relationships(
 
                     batch_time = perf_counter() - start_time
                     logger.info(
-                        f"Small batch {batch_num} completed: {created} relationships in {batch_time:.1f}s"
+                        "Small batch %d completed: %d relationships in %.1fs"
+                        % (batch_num, created, batch_time)
                     )
 
                     # Add a longer pause between batches to let database recover
