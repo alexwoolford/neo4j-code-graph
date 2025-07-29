@@ -146,9 +146,7 @@ def main():
     else:
         config = get_neo4j_config()
 
-    driver = create_neo4j_driver(config[0], config[1], config[2])
-
-    try:
+    with create_neo4j_driver(config[0], config[1], config[2]) as driver:
         state = check_database_state(driver, config[3])
 
         print("\n💡 RECOMMENDATIONS:")
@@ -159,9 +157,6 @@ def main():
                 print("  🚀 Ready for: similarity analysis, CVE analysis, etc.")
         else:
             print("  ⚠️  Consider re-running: python scripts/code_to_graph.py <repo-url>")
-
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

@@ -30,9 +30,8 @@ class TestPipelineIntegration:
         """Create a Neo4j driver for testing."""
         try:
             config = get_neo4j_config()
-            driver = create_neo4j_driver(config[0], config[1], config[2])
-            yield driver
-            driver.close()
+            with create_neo4j_driver(config[0], config[1], config[2]) as driver:
+                yield driver
         except Exception as e:
             pytest.skip(f"Neo4j not available: {e}")
 

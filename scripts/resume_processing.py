@@ -167,9 +167,7 @@ def main():
     else:
         config = get_neo4j_config()
 
-    driver = create_neo4j_driver(config[0], config[1], config[2])
-
-    try:
+    with create_neo4j_driver(config[0], config[1], config[2]) as driver:
         with driver.session(database=config[3]) as session:
             logger.info("🔄 Resuming code processing...")
 
@@ -207,9 +205,6 @@ def main():
                     logger.info("⚠️  No method calls found - you may need to re-run full processing")
 
             logger.info("🎉 Resume processing completed!")
-
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

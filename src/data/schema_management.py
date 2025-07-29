@@ -319,17 +319,13 @@ def main():
     args = parser.parse_args()
     setup_logging(args.log_level, args.log_file)
 
-    driver = create_neo4j_driver(args.uri, args.username, args.password)
-
-    try:
+    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             if args.verify_only:
                 verify_schema_constraints(session)
                 verify_schema_indexes(session)
             else:
                 setup_complete_schema(session)
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

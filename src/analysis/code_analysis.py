@@ -1248,9 +1248,8 @@ def main():
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
-    driver = create_neo4j_driver(args.uri, args.username, args.password)
 
-    try:
+    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             # Check if repo_url is a local path or a URL
             repo_path = Path(args.repo_url)
@@ -1386,9 +1385,6 @@ def main():
 
                 shutil.rmtree(tmpdir, ignore_errors=True)
                 logger.info("Cleaned up temporary repository clone")
-
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

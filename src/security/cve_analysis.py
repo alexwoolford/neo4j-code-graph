@@ -591,9 +591,8 @@ Examples:
 
     # Connect to Neo4j
     config = get_neo4j_config()
-    driver = create_neo4j_driver(config[0], config[1], config[2])
 
-    try:
+    with create_neo4j_driver(config[0], config[1], config[2]) as driver:
         analyzer = CVEAnalyzer(driver, args.database)
 
         # Handle cache management
@@ -697,9 +696,6 @@ Examples:
             print("2. Try again with --api-key for better reliability")
             print("3. Use --cache-status to see saved progress")
             print("4. Use --clear-partial-cache if data seems corrupted")
-
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

@@ -388,7 +388,9 @@ def export_to_csv(commits_df, developers_df, files_df, file_changes_df, output_d
 def load_history(
     repo_url,
     branch,
-    driver,
+    uri,
+    username,
+    password,
     database=None,
     csv_export=None,
     max_commits=None,
@@ -453,16 +455,18 @@ def load_history(
         if csv_export:
             export_to_csv(commits_df, developers_df, files_df, file_changes_df, csv_export)
         else:
-            bulk_load_to_neo4j(
-                commits_df,
-                developers_df,
-                files_df,
-                file_changes_df,
-                driver,
-                database,
-                skip_file_changes,
-                file_changes_only,
-            )
+            with GraphDatabase.driver(ensure_port(uri), auth=(username, password)) as driver:
+                driver.verify_connectivity()
+                bulk_load_to_neo4j(
+                    commits_df,
+                    developers_df,
+                    files_df,
+                    file_changes_df,
+                    driver,
+                    database,
+                    skip_file_changes,
+                    file_changes_only,
+                )
 
         logger.info("✅ Git history processing completed successfully")
 
@@ -487,33 +491,41 @@ def main():
         handlers=handlers,
     )
 
-    # Setup Neo4j connection (unless exporting to CSV)
-    driver = None
-    if not args.csv_export:
-        try:
-            driver = GraphDatabase.driver(
-                ensure_port(args.uri), auth=(args.username, args.password)
-            )
-            driver.verify_connectivity()
-            logger.info(f"Connected to Neo4j at {ensure_port(args.uri)}")
-        except Exception as e:
-            logger.error(f"Failed to connect to Neo4j: {e}")
-            sys.exit(1)
-
-    try:
+    if args.csv_export:
         load_history(
             args.repo_url,
             args.branch,
-            driver,
+            args.uri,
+            args.username,
+            args.password,
             args.database,
             args.csv_export,
             args.max_commits,
             args.skip_file_changes,
             args.file_changes_only,
         )
-    finally:
-        if driver:
-            driver.close()
+    else:
+        try:
+            with GraphDatabase.driver(
+                ensure_port(args.uri), auth=(args.username, args.password)
+            ) as driver:
+                driver.verify_connectivity()
+                logger.info(f"Connected to Neo4j at {ensure_port(args.uri)}")
+                load_history(
+                    args.repo_url,
+                    args.branch,
+                    args.uri,
+                    args.username,
+                    args.password,
+                    args.database,
+                    None,
+                    args.max_commits,
+                    args.skip_file_changes,
+                    args.file_changes_only,
+                )
+        except Exception as e:
+            logger.error(f"Failed to connect to Neo4j: {e}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
