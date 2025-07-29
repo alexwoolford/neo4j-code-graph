@@ -36,6 +36,7 @@ def setup_logging(log_level: Union[str, int] = "INFO", log_file: Optional[str] =
         level=level,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=handlers,
+        force=True,
     )
 
 
