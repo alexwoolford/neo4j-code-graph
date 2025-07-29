@@ -1,5 +1,27 @@
 # AGENTS Instructions
 
+## 🚨 CRITICAL: Pre-Commit CI Validation
+
+**MANDATORY: Always run these exact checks before ANY git commit or push to prevent CI failures:**
+
+```bash
+# 1. REQUIRED: Full CI validation (run exactly what CI runs)
+flake8 src/ tests/ scripts/ --max-line-length=100  # Must have ZERO violations
+mypy src/ --ignore-missing-imports --strict-optional  # Must pass
+python -m pytest tests/ -v  # Should have minimal failures (DB connection issues OK)
+
+# 2. Fix any violations immediately:
+# For line length: Break long lines, shorten variable names, split f-strings
+# For imports: isort src/ tests/ scripts/
+# For formatting: black src/ tests/ scripts/
+
+# 3. Verify fixes:
+flake8 src/ tests/ scripts/ --max-line-length=100  # Must show NO output
+echo "✅ All CI checks passed - safe to commit"
+```
+
+**🔥 Golden Rule: If flake8 shows ANY violations, DO NOT commit!**
+
 ## Development Setup
 
 1. **Environment Setup**:
@@ -135,16 +157,21 @@ Tests use mocked database connections for execution without requiring a running 
 
 ## Commit Checklist
 
+**🚨 CRITICAL CI VALIDATION (MUST PASS):**
+- [ ] **Zero flake8 violations**: `flake8 src/ tests/ scripts/ --max-line-length=100` (NO OUTPUT)
+- [ ] **MyPy passes**: `mypy src/ --ignore-missing-imports --strict-optional`
+- [ ] **Tests run successfully**: `python -m pytest tests/ -v` (minimal failures OK)
+
+**Standard Quality Checks:**
 - [ ] **Import sorting fixed**: `isort src/ tests/ scripts/` (CRITICAL for CI)
 - [ ] Code formatted with `black src/ tests/ scripts/`
 - [ ] No import sorting violations: `isort --check-only --diff src/ tests/ scripts/`
 - [ ] No formatting violations: `black --check --diff src/ tests/ scripts/`
-- [ ] No flake8 violations: `flake8 src/ tests/`
-- [ ] Type checking passes: `mypy src/ --ignore-missing-imports`
-- [ ] All tests pass: `pytest tests/ -v`
 - [ ] Documentation updated if adding new features
 - [ ] No sensitive data in commits (`.env` is gitignored)
 - [ ] Environment activated: `conda activate neo4j-code-graph`
+
+**❌ DO NOT COMMIT if any CI validation fails - fix issues first!**
 
 ## Quick Quality Check Commands
 
