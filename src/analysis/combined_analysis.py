@@ -908,9 +908,8 @@ def main():
         return
 
     setup_logging(args.log_level, args.log_file)
-    driver = create_neo4j_driver(args.uri, args.username, args.password)
 
-    try:
+    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             if args.command == "coupling":
                 analyze_change_coupling(session, args)
@@ -920,9 +919,6 @@ def main():
                 analyze_hotspots(session, args)
             else:
                 logger.error(f"Unknown command: {args.command}")
-
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

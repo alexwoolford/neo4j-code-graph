@@ -392,72 +392,75 @@ def main():
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
-    driver = create_neo4j_driver(args.uri, args.username, args.password)
 
-    try:
-        # Initialize GDS
-        gds = GraphDataScience(
-            args.uri, auth=(args.username, args.password), database=args.database
-        )
-        logger.info(f"Connected to Neo4j GDS at {args.uri}")
-
-        # Check if we have enough data
-        call_count, method_count = check_call_graph_exists(gds)
-        logger.info(f"Found {method_count:,} methods with {call_count:,} call relationships")
-
-        if method_count < args.min_methods:
-            logger.error(
-                "Insufficient methods for analysis. "
-                f"Found {method_count}, need at least {args.min_methods}"
+    with create_neo4j_driver(args.uri, args.username, args.password) as _:
+        try:
+            # Initialize GDS
+            gds = GraphDataScience(
+                args.uri, auth=(args.username, args.password), database=args.database
             )
-            return
+            logger.info(f"Connected to Neo4j GDS at {args.uri}")
 
-        if call_count == 0:
-            logger.error(
-                "No CALLS relationships found. Run code_to_graph.py first to extract method calls."
+            # Check if we have enough data
+            call_count, method_count = check_call_graph_exists(gds)
+            logger.info(f"Found {method_count:,} methods with {call_count:,} call relationships")
+
+            if method_count < args.min_methods:
+                logger.error(
+                    "Insufficient methods for analysis. "
+                    f"Found {method_count}, need at least {args.min_methods}"
+                )
+                return
+
+            if call_count == 0:
+                logger.error(
+                    "No CALLS relationships found. "
+                    "Run code_to_graph.py first to extract method calls."
+                )
+                return
+
+            # Create graph projection
+            graph = create_call_graph_projection(gds)
+
+            # Run requested algorithms
+            pagerank_results = None
+            betweenness_results = None
+            degree_results = None
+            hits_authorities = None
+            hits_hubs = None
+
+            if "pagerank" in args.algorithms:
+                pagerank_results = run_pagerank_analysis(gds, graph, args.top_n, args.write_back)
+
+            if "betweenness" in args.algorithms:
+                betweenness_results = run_betweenness_analysis(
+                    gds, graph, args.top_n, args.write_back
+                )
+
+            if "degree" in args.algorithms:
+                degree_results = run_degree_analysis(gds, graph, args.top_n, args.write_back)
+
+            if "hits" in args.algorithms:
+                hits_authorities, hits_hubs = run_hits_analysis(
+                    gds, graph, args.top_n, args.write_back
+                )
+
+            # Provide summary
+            summarize_analysis(
+                pagerank_results,
+                betweenness_results,
+                degree_results,
+                hits_authorities,
+                hits_hubs,
             )
-            return
 
-        # Create graph projection
-        graph = create_call_graph_projection(gds)
+            # Cleanup
+            gds.graph.drop(graph.name())
+            logger.info("Analysis completed successfully")
 
-        # Run requested algorithms
-        pagerank_results = None
-        betweenness_results = None
-        degree_results = None
-        hits_authorities = None
-        hits_hubs = None
-
-        if "pagerank" in args.algorithms:
-            pagerank_results = run_pagerank_analysis(gds, graph, args.top_n, args.write_back)
-
-        if "betweenness" in args.algorithms:
-            betweenness_results = run_betweenness_analysis(gds, graph, args.top_n, args.write_back)
-
-        if "degree" in args.algorithms:
-            degree_results = run_degree_analysis(gds, graph, args.top_n, args.write_back)
-
-        if "hits" in args.algorithms:
-            hits_authorities, hits_hubs = run_hits_analysis(gds, graph, args.top_n, args.write_back)
-
-        # Provide summary
-        summarize_analysis(
-            pagerank_results,
-            betweenness_results,
-            degree_results,
-            hits_authorities,
-            hits_hubs,
-        )
-
-        # Cleanup
-        gds.graph.drop(graph.name())
-        logger.info("Analysis completed successfully")
-
-    except Exception as e:
-        logger.error(f"Analysis failed: {e}")
-        raise
-    finally:
-        driver.close()
+        except Exception as e:
+            logger.error(f"Analysis failed: {e}")
+            raise
 
 
 if __name__ == "__main__":
