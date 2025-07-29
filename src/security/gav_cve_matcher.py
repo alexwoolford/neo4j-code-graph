@@ -36,6 +36,14 @@ class GAVCoordinate:
         """Return package key for matching (group:artifact)."""
         return f"{self.group_id}:{self.artifact_id}"
 
+    def is_in_range(self, start_version: str, end_version: str) -> bool:
+        """Check if this coordinate's version falls within [start, end)."""
+        try:
+            current = Version(self.version)
+            return Version(start_version) <= current < Version(end_version)
+        except Exception:
+            return False
+
 
 @dataclass
 class CVEVulnerability:
