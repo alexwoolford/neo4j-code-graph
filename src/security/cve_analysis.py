@@ -632,7 +632,8 @@ Examples:
         # Extract dependencies from the graph
         dependencies_by_ecosystem, detected_languages = analyzer.extract_codebase_dependencies()
         logger.info(
-            f"📊 Detected {sum(len(deps) for deps in dependencies_by_ecosystem.values())} dependencies"
+            "📊 Detected %d dependencies"
+            % sum(len(deps) for deps in dependencies_by_ecosystem.values())
         )
         logger.info(f"📊 Languages: {', '.join(sorted(detected_languages))}")
 

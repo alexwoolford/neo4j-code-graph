@@ -3,6 +3,7 @@
 Test suite for CVE analysis functionality.
 """
 
+import asyncio
 import json
 import os
 import sys
@@ -143,6 +144,35 @@ class TestCVECacheManager:
             cache_file = cache_manager.get_cache_file_path(cache_key)
             assert cache_file.parent.name == "test_cache"
             assert cache_file.name == "test_key_123.json.gz"
+
+    def test_async_rate_limit_concurrent(self):
+        """Test concurrent calls to async rate limiter."""
+        with patch.dict(sys.modules, HEAVY_MODULES):
+            from src.security.cve_cache_manager import CVECacheManager
+
+            cache_manager = CVECacheManager()
+            cache_manager.request_window = 0.01
+
+            sleep_calls: list[float] = []
+
+            async def fake_sleep(duration: float) -> None:
+                sleep_calls.append(duration)
+
+            async def run_tasks() -> None:
+                with (
+                    patch("src.security.cve_cache_manager.time.time", return_value=0),
+                    patch("src.security.cve_cache_manager.asyncio.sleep", new=fake_sleep),
+                ):
+                    tasks = [
+                        asyncio.create_task(cache_manager._async_enforce_rate_limit(1))
+                        for _ in range(3)
+                    ]
+                    await asyncio.gather(*tasks)
+
+            asyncio.run(run_tasks())
+
+            assert len(sleep_calls) == 2
+            assert len(cache_manager.request_times) == 3
 
 
 class TestCVEAnalyzer:

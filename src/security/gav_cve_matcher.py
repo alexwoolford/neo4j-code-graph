@@ -36,16 +36,17 @@ class GAVCoordinate:
         """Return package key for matching (group:artifact)."""
         return f"{self.group_id}:{self.artifact_id}"
 
-    def is_in_range(self, start_version: str, end_version: str) -> bool:
-        """Return ``True`` if ``version`` is within ``[start_version, end_version)``."""
+    def is_in_range(self, start: str, end: str) -> bool:
+        """Return ``True`` if ``version`` is within ``[start, end)``."""
         try:
-            start = Version(start_version)
-            end = Version(end_version)
-            if start > end:
-                start, end = end, start
+            start_v = Version(start)
+            end_v = Version(end)
+            if start_v > end_v:
+                start_v, end_v = end_v, start_v
             current = Version(self.version)
-            return start <= current < end
-        except Exception:
+            return start_v <= current < end_v
+        except Exception as e:  # pragma: no cover - invalid version strings
+            logger.warning("Version comparison failed for %s: %s", self.version, e)
             return False
 
 
@@ -318,8 +319,9 @@ def run_validation_tests():
             {
                 "lang": "en",
                 "value": (
-                    "Apache Log4j2 2.0-beta9 through 2.15.0 (excluding security releases "
-                    "2.12.2, 2.12.3, and 2.3.1) JNDI features..."
+                    "Apache Log4j2 2.0-beta9 through 2.15.0 "
+                    "(excluding security releases 2.12.2, 2.12.3, and 2.3.1) "
+                    "JNDI features..."
                 ),
             }
         ],

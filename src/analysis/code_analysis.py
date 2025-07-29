@@ -893,9 +893,8 @@ def create_methods(session, files_data, method_embeddings):
 
     total_rel_batches = (len(method_file_rels) + batch_size - 1) // batch_size
     logger.info(
-        "Creating %d method-file relationships in %d batches...",
-        len(method_file_rels),
-        total_rel_batches,
+        "Creating %d method-file relationships in %d batches..."
+        % (len(method_file_rels), total_rel_batches)
     )
 
     for i in range(0, len(method_file_rels), batch_size):
@@ -903,10 +902,8 @@ def create_methods(session, files_data, method_embeddings):
         batch = method_file_rels[i : i + batch_size]
 
         logger.info(
-            "Creating relationship batch %d/%d (%d relationships)...",
-            batch_num,
-            total_rel_batches,
-            len(batch),
+            "Creating relationship batch %d/%d (%d relationships)..."
+            % (batch_num, total_rel_batches, len(batch))
         )
         start_time = perf_counter()
 
@@ -947,7 +944,7 @@ def create_methods(session, files_data, method_embeddings):
                     )
 
     if method_class_rels:
-        logger.info(f"Creating {len(method_class_rels)} method-to-class relationships...")
+        logger.info("Creating %d method-to-class relationships..." % len(method_class_rels))
         for i in range(0, len(method_class_rels), batch_size):
             batch = method_class_rels[i : i + batch_size]
             session.run(
@@ -960,7 +957,7 @@ def create_methods(session, files_data, method_embeddings):
             )
 
     if method_interface_rels:
-        logger.info(f"Creating {len(method_interface_rels)} method-to-interface relationships...")
+        logger.info("Creating %d method-to-interface relationships..." % len(method_interface_rels))
         for i in range(0, len(method_interface_rels), batch_size):
             batch = method_interface_rels[i : i + batch_size]
             session.run(
@@ -1017,7 +1014,7 @@ def create_imports(session, files_data, dependency_versions=None):
             logger.info(f"Import batch {batch_num} completed in {batch_time:.1f}s")
 
         logger.info(
-            f"Creating {len(all_imports)} IMPORTS relationships in {total_batches} batches..."
+            "Creating %d IMPORTS relationships in %d batches..." % (len(all_imports), total_batches)
         )
 
         for i in range(0, len(all_imports), batch_size):
@@ -1159,7 +1156,7 @@ def create_method_calls(session, files_data):
             small_batch_size = 100
             total_small_batches = (len(other_calls) + small_batch_size - 1) // small_batch_size
             logger.warning(
-                f"⚠️ Using small batches ({small_batch_size}) for complex method matching"
+                "⚠️ Using small batches (%d) for complex method matching" % small_batch_size
             )
             successful_calls = 0
             failed_batches = 0
@@ -1229,7 +1226,6 @@ def main():
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
-
     with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             # Check if repo_url is a local path or a URL

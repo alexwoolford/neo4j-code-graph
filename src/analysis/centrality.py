@@ -407,8 +407,8 @@ def main():
 
             if method_count < args.min_methods:
                 logger.error(
-                    f"Insufficient methods for analysis. Found {method_count}, "
-                    f"need at least {args.min_methods}"
+                    "Insufficient methods for analysis. "
+                    f"Found {method_count}, need at least {args.min_methods}"
                 )
                 return
 

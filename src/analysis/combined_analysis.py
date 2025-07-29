@@ -115,7 +115,7 @@ def analyze_change_coupling(session, args):
 
 
 def _create_coupling_relationships_parallel(session, relationships_data):
-    """Create CO_CHANGED relationships using APOC parallel processing for optimal sustainable performance."""
+    """Create CO_CHANGED relationships using APOC for performance."""
     if not relationships_data:
         return 0
 
@@ -168,7 +168,13 @@ def _create_coupling_relationships_parallel(session, relationships_data):
             batch_time = time.time() - batch_start
             batch_num = (i // batch_size) + 1
             logger.info(
-                f"   📦 Batch {batch_num}/{total_batches}: {stats['committedOperations']} ops in {batch_time:.1f}s"
+                "   📦 Batch %d/%d: %d ops in %.1fs"
+                % (
+                    batch_num,
+                    total_batches,
+                    stats["committedOperations"],
+                    batch_time,
+                )
             )
 
             # Small pause to be gentle on the database
@@ -214,7 +220,8 @@ def _create_coupling_batch_fallback(session, relationships_data):
         total_batches = (len(relationships_data) + batch_size - 1) // batch_size
 
         logger.info(
-            f"   📦 Batch {batch_num}/{total_batches}: {len(batch)} relationships in {batch_time:.1f}s"
+            "   📦 Batch %d/%d: %d relationships in %.1fs"
+            % (batch_num, total_batches, len(batch), batch_time)
         )
 
         # Small pause between batches to be gentle on the database
@@ -787,7 +794,8 @@ def _print_hotspot_summary(file_hotspots, method_hotspots, coupling_hotspots, to
 
         if large_files:
             print(
-                f"   📏 Large hotspots ({len(large_files)}): Focus on breaking down these large files"
+                "   📏 Large hotspots (%d): Focus on breaking down these large files"
+                % len(large_files)
             )
         if coupled_files:
             print(f"   🔗 Highly coupled ({len(coupled_files)}): Review architecture dependencies")

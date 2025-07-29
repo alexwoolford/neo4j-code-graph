@@ -172,10 +172,17 @@ class EnhancedDependencyExtractor:
                 content = f.read()
 
             # Pattern for standard Gradle dependencies: 'group:artifact:version'
-            standard_pattern = r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+['\"]([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+)['\"]"
+            standard_pattern = (
+                r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+"
+                r"['\"]([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+)['\"]"
+            )  # noqa: E501
 
             # Pattern for map-style dependencies
-            map_pattern = r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+(?:group\s*:\s*['\"]([^'\"]+)['\"],?\s*)?name\s*:\s*['\"]([^'\"]+)['\"],?\s*version\s*:\s*['\"]([^'\"]+)['\"]"
+            map_pattern = (
+                r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+"
+                r"(?:group\s*:\s*['\"]([^'\"]+)['\"],?\s*)?name\s*:\s*['\"]([^'\"]+)['\"]"  # noqa: E501
+                r",?\s*version\s*:\s*['\"]([^'\"]+)['\"]"
+            )
 
             # Extract version properties
             version_props = {}
