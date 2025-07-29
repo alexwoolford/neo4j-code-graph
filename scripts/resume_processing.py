@@ -203,9 +203,7 @@ def main():
                         "   Use --files-only flag if you only want to complete file embeddings"
                     )
                 else:
-                    logger.info(
-                        "⚠️  No method calls found - you may need to re-run full processing"
-                    )
+                    logger.info("⚠️  No method calls found - may need re-run")
 
             logger.info("🎉 Resume processing completed!")
 

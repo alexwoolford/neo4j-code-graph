@@ -622,9 +622,7 @@ def create_directories(session, files_data):
         for i in range(0, len(directories_list), batch_size):
             batch_num = i // batch_size + 1
             batch = directories_list[i : i + batch_size]
-            logger.debug(
-                f"Creating directory batch {batch_num} ({len(batch)} directories)"
-            )
+            logger.debug(f"Creating directory batch {batch_num} ({len(batch)} directories)")
             session.run(
                 "UNWIND $directories AS dir_path MERGE (:Directory {path: dir_path})",
                 directories=batch,
@@ -707,9 +705,7 @@ def create_files(session, files_data, file_embeddings):
         for i in range(0, len(file_dir_rels), batch_size):
             batch_num = i // batch_size + 1
             batch = file_dir_rels[i : i + batch_size]
-            logger.debug(
-                f"Creating file-dir rel batch {batch_num} ({len(batch)} relationships)"
-            )
+            logger.debug(f"Creating file-dir rel batch {batch_num} ({len(batch)} relationships)")
             session.run(
                 "UNWIND $rels AS rel "
                 "MATCH (d:Directory {path: rel.directory}) "

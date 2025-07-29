@@ -10,10 +10,9 @@ if ROOT not in sys.path:
 
 # Stub heavy modules used during import for this test module
 sys.modules.setdefault("tqdm", types.SimpleNamespace(tqdm=lambda *a, **k: a[0]))
-sys.modules.setdefault("neo4j", types.SimpleNamespace(
-    GraphDatabase=MagicMock(),
-    Driver=MagicMock()
-))
+sys.modules.setdefault(
+    "neo4j", types.SimpleNamespace(GraphDatabase=MagicMock(), Driver=MagicMock())
+)
 sys.modules.setdefault("dotenv", types.SimpleNamespace(load_dotenv=lambda **k: None))
 
 
