@@ -12,9 +12,7 @@ from pathlib import Path
 from time import perf_counter
 
 import javalang
-import torch
 from tqdm import tqdm
-from transformers import AutoModel, AutoTokenizer
 
 try:
     # Try absolute import when called from CLI wrapper
@@ -200,6 +198,8 @@ def parse_args():
 
 def get_device():
     """Get the appropriate device for PyTorch computations."""
+    import torch
+
     if torch.cuda.is_available():
         return torch.device("cuda")
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -210,6 +210,8 @@ def get_device():
 
 def get_optimal_batch_size(device):
     """Determine optimal batch size based on device and available memory."""
+    import torch
+
     if device.type == "cuda":
         gpu_memory = torch.cuda.get_device_properties(0).total_memory
         if gpu_memory > 20 * 1024**3:  # >20GB (RTX 4090, etc.)
@@ -227,6 +229,8 @@ def get_optimal_batch_size(device):
 
 def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
     """Compute embeddings for all snippets using maximum batching."""
+    import torch
+
     if not snippets:
         return []
 
@@ -1302,6 +1306,8 @@ def main():
 
             # Initialize model
             logger.info("Loading GraphCodeBERT model...")
+            from transformers import AutoModel, AutoTokenizer
+
             tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
             model = AutoModel.from_pretrained(MODEL_NAME)
             device = get_device()
