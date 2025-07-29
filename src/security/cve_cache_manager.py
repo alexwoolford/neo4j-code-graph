@@ -45,6 +45,7 @@ class CVECacheManager:
         # Track requests for rate limiting
         self.request_times = []
         self.has_api_key = False
+        # Lock to coordinate concurrent calls when enforcing rate limits
         self._rate_lock = asyncio.Lock()
 
     def fetch_targeted_cves(
