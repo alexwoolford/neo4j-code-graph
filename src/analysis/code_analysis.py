@@ -622,7 +622,9 @@ def create_directories(session, files_data):
         for i in range(0, len(directories_list), batch_size):
             batch_num = i // batch_size + 1
             batch = directories_list[i : i + batch_size]
-            logger.debug(f"Creating directory batch {batch_num} ({len(batch)} directories)")
+            logger.debug(
+                f"Creating directory batch {batch_num} ({len(batch)} directories)"
+            )
             session.run(
                 "UNWIND $directories AS dir_path MERGE (:Directory {path: dir_path})",
                 directories=batch,
@@ -640,7 +642,9 @@ def create_directories(session, files_data):
         for i in range(0, len(dir_relationships), batch_size):
             batch_num = i // batch_size + 1
             batch = dir_relationships[i : i + batch_size]
-            logger.debug(f"Creating directory relationship batch {batch_num} ({len(batch)} relationships)")
+            logger.debug(
+                f"Creating directory relationship batch {batch_num} ({len(batch)} relationships)"
+            )
             session.run(
                 "UNWIND $rels AS rel "
                 "MATCH (parent:Directory {path: rel.parent}) "
@@ -703,7 +707,9 @@ def create_files(session, files_data, file_embeddings):
         for i in range(0, len(file_dir_rels), batch_size):
             batch_num = i // batch_size + 1
             batch = file_dir_rels[i : i + batch_size]
-            logger.debug(f"Creating file-directory relationship batch {batch_num} ({len(batch)} relationships)")
+            logger.debug(
+                f"Creating file-dir rel batch {batch_num} ({len(batch)} relationships)"
+            )
             session.run(
                 "UNWIND $rels AS rel "
                 "MATCH (d:Directory {path: rel.directory}) "
@@ -810,7 +816,9 @@ def create_classes(session, files_data):
         for i in range(0, len(class_inheritance), batch_size):
             batch_num = i // batch_size + 1
             batch = class_inheritance[i : i + batch_size]
-            logger.debug(f"Creating class inheritance batch {batch_num} ({len(batch)} relationships)")
+            logger.debug(
+                f"Creating class inheritance batch {batch_num} ({len(batch)} relationships)"
+            )
             session.run(
                 "UNWIND $inheritance AS rel "
                 "MATCH (child:Class {name: rel.child, file: rel.child_file}) "
@@ -825,7 +833,9 @@ def create_classes(session, files_data):
         for i in range(0, len(interface_inheritance), batch_size):
             batch_num = i // batch_size + 1
             batch = interface_inheritance[i : i + batch_size]
-            logger.debug(f"Creating interface inheritance batch {batch_num} ({len(batch)} relationships)")
+            logger.debug(
+                f"Creating interface inheritance batch {batch_num} ({len(batch)} relationships)"
+            )
             session.run(
                 "UNWIND $inheritance AS rel "
                 "MATCH (child:Interface {name: rel.child, file: rel.child_file}) "
@@ -861,7 +871,9 @@ def create_classes(session, files_data):
         for i in range(0, len(file_class_rels), batch_size):
             batch_num = i // batch_size + 1
             batch = file_class_rels[i : i + batch_size]
-            logger.debug(f"Creating file-class relationship batch {batch_num} ({len(batch)} relationships)")
+            logger.debug(
+                f"Creating file-class relationship batch {batch_num} ({len(batch)} relationships)"
+            )
             session.run(
                 "UNWIND $rels AS rel "
                 "MATCH (f:File {path: rel.file}) "
@@ -884,7 +896,9 @@ def create_classes(session, files_data):
         for i in range(0, len(file_interface_rels), batch_size):
             batch_num = i // batch_size + 1
             batch = file_interface_rels[i : i + batch_size]
-            logger.debug(f"Creating file-interface relationship batch {batch_num} ({len(batch)} relationships)")
+            logger.debug(
+                f"Creating file-interface rel batch {batch_num} ({len(batch)} relationships)"
+            )
             session.run(
                 "UNWIND $rels AS rel "
                 "MATCH (f:File {path: rel.file}) "
