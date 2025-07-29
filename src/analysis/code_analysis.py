@@ -606,6 +606,8 @@ def _extract_method_calls(method_code, containing_class):
 
 def create_directories(session, files_data):
     """Create Directory nodes and relationships."""
+    batch_size = 1000
+
     directories = set()
     for file_data in files_data:
         path_parts = Path(file_data["path"]).parent.parts
@@ -613,10 +615,18 @@ def create_directories(session, files_data):
             dir_path = str(Path(*path_parts[:i])) if i > 0 else ""
             directories.add(dir_path)
 
-    session.run(
-        "UNWIND $directories AS dir_path MERGE (:Directory {path: dir_path})",
-        directories=list(directories),
-    )
+    # Batch create directories
+    directories_list = list(directories)
+    if directories_list:
+        logger.info(f"Creating {len(directories_list)} directory nodes...")
+        for i in range(0, len(directories_list), batch_size):
+            batch_num = i // batch_size + 1
+            batch = directories_list[i : i + batch_size]
+            logger.debug(f"Creating directory batch {batch_num} ({len(batch)} directories)")
+            session.run(
+                "UNWIND $directories AS dir_path MERGE (:Directory {path: dir_path})",
+                directories=batch,
+            )
 
     dir_relationships = []
     for directory in directories:
@@ -624,18 +634,26 @@ def create_directories(session, files_data):
             parent = str(Path(directory).parent) if Path(directory).parent != Path(".") else ""
             dir_relationships.append({"parent": parent, "child": directory})
 
+    # Batch create directory relationships
     if dir_relationships:
-        session.run(
-            "UNWIND $rels AS rel "
-            "MATCH (parent:Directory {path: rel.parent}) "
-            "MATCH (child:Directory {path: rel.child}) "
-            "MERGE (parent)-[:CONTAINS]->(child)",
-            rels=dir_relationships,
-        )
+        logger.info(f"Creating {len(dir_relationships)} directory relationships...")
+        for i in range(0, len(dir_relationships), batch_size):
+            batch_num = i // batch_size + 1
+            batch = dir_relationships[i : i + batch_size]
+            logger.debug(f"Creating directory relationship batch {batch_num} ({len(batch)} relationships)")
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (parent:Directory {path: rel.parent}) "
+                "MATCH (child:Directory {path: rel.child}) "
+                "MERGE (parent)-[:CONTAINS]->(child)",
+                rels=batch,
+            )
 
 
 def create_files(session, files_data, file_embeddings):
     """Create File nodes and CONTAINS relationships."""
+    batch_size = 1000
+
     file_nodes = []
     for i, file_data in enumerate(files_data):
         file_node = {
@@ -652,16 +670,23 @@ def create_files(session, files_data, file_embeddings):
         }
         file_nodes.append(file_node)
 
-    session.run(
-        "UNWIND $files AS file "
-        "MERGE (f:File {path: file.path}) "
-        "SET f.embedding = file.embedding, f.embedding_type = file.embedding_type, "
-        "f.language = file.language, f.ecosystem = file.ecosystem, "
-        "f.total_lines = file.total_lines, f.code_lines = file.code_lines, "
-        "f.method_count = file.method_count, f.class_count = file.class_count, "
-        "f.interface_count = file.interface_count",
-        files=file_nodes,
-    )
+    # Batch create file nodes
+    if file_nodes:
+        logger.info(f"Creating {len(file_nodes)} file nodes...")
+        for i in range(0, len(file_nodes), batch_size):
+            batch_num = i // batch_size + 1
+            batch = file_nodes[i : i + batch_size]
+            logger.debug(f"Creating file batch {batch_num} ({len(batch)} files)")
+            session.run(
+                "UNWIND $files AS file "
+                "MERGE (f:File {path: file.path}) "
+                "SET f.embedding = file.embedding, f.embedding_type = file.embedding_type, "
+                "f.language = file.language, f.ecosystem = file.ecosystem, "
+                "f.total_lines = file.total_lines, f.code_lines = file.code_lines, "
+                "f.method_count = file.method_count, f.class_count = file.class_count, "
+                "f.interface_count = file.interface_count",
+                files=batch,
+            )
 
     file_dir_rels = []
     for file_data in files_data:
@@ -672,17 +697,26 @@ def create_files(session, files_data, file_embeddings):
         )
         file_dir_rels.append({"file": file_data["path"], "directory": parent_dir})
 
-    session.run(
-        "UNWIND $rels AS rel "
-        "MATCH (d:Directory {path: rel.directory}) "
-        "MATCH (f:File {path: rel.file}) "
-        "MERGE (d)-[:CONTAINS]->(f)",
-        rels=file_dir_rels,
-    )
+    # Batch create file-directory relationships
+    if file_dir_rels:
+        logger.info(f"Creating {len(file_dir_rels)} file-directory relationships...")
+        for i in range(0, len(file_dir_rels), batch_size):
+            batch_num = i // batch_size + 1
+            batch = file_dir_rels[i : i + batch_size]
+            logger.debug(f"Creating file-directory relationship batch {batch_num} ({len(batch)} relationships)")
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (d:Directory {path: rel.directory}) "
+                "MATCH (f:File {path: rel.file}) "
+                "MERGE (d)-[:CONTAINS]->(f)",
+                rels=batch,
+            )
 
 
 def create_classes(session, files_data):
     """Create Class and Interface nodes with relationships."""
+    batch_size = 1000
+
     all_classes = []
     all_interfaces = []
     class_inheritance = []
@@ -739,71 +773,104 @@ def create_classes(session, files_data):
                     }
                 )
 
+    # Batch create class nodes
     if all_classes:
         logger.info(f"Creating {len(all_classes)} class nodes...")
-        session.run(
-            "UNWIND $classes AS class "
-            "MERGE (c:Class {name: class.name, file: class.file}) "
-            "SET c.line = class.line, c.estimated_lines = class.estimated_lines, "
-            "c.is_abstract = class.is_abstract, c.is_final = class.is_final, "
-            "c.modifiers = class.modifiers",
-            classes=all_classes,
-        )
+        for i in range(0, len(all_classes), batch_size):
+            batch_num = i // batch_size + 1
+            batch = all_classes[i : i + batch_size]
+            logger.debug(f"Creating class batch {batch_num} ({len(batch)} classes)")
+            session.run(
+                "UNWIND $classes AS class "
+                "MERGE (c:Class {name: class.name, file: class.file}) "
+                "SET c.line = class.line, c.estimated_lines = class.estimated_lines, "
+                "c.is_abstract = class.is_abstract, c.is_final = class.is_final, "
+                "c.modifiers = class.modifiers",
+                classes=batch,
+            )
 
+    # Batch create interface nodes
     if all_interfaces:
         logger.info(f"Creating {len(all_interfaces)} interface nodes...")
-        session.run(
-            "UNWIND $interfaces AS interface "
-            "MERGE (i:Interface {name: interface.name, file: interface.file}) "
-            "SET i.line = interface.line, i.method_count = interface.method_count, "
-            "i.modifiers = interface.modifiers",
-            interfaces=all_interfaces,
-        )
+        for i in range(0, len(all_interfaces), batch_size):
+            batch_num = i // batch_size + 1
+            batch = all_interfaces[i : i + batch_size]
+            logger.debug(f"Creating interface batch {batch_num} ({len(batch)} interfaces)")
+            session.run(
+                "UNWIND $interfaces AS interface "
+                "MERGE (i:Interface {name: interface.name, file: interface.file}) "
+                "SET i.line = interface.line, i.method_count = interface.method_count, "
+                "i.modifiers = interface.modifiers",
+                interfaces=batch,
+            )
 
+    # Batch create class inheritance relationships
     if class_inheritance:
         logger.info(f"Creating {len(class_inheritance)} class inheritance relationships...")
-        session.run(
-            "UNWIND $inheritance AS rel "
-            "MATCH (child:Class {name: rel.child, file: rel.child_file}) "
-            "MERGE (parent:Class {name: rel.parent}) "
-            "MERGE (child)-[:EXTENDS]->(parent)",
-            inheritance=class_inheritance,
-        )
+        for i in range(0, len(class_inheritance), batch_size):
+            batch_num = i // batch_size + 1
+            batch = class_inheritance[i : i + batch_size]
+            logger.debug(f"Creating class inheritance batch {batch_num} ({len(batch)} relationships)")
+            session.run(
+                "UNWIND $inheritance AS rel "
+                "MATCH (child:Class {name: rel.child, file: rel.child_file}) "
+                "MERGE (parent:Class {name: rel.parent}) "
+                "MERGE (child)-[:EXTENDS]->(parent)",
+                inheritance=batch,
+            )
 
+    # Batch create interface inheritance relationships
     if interface_inheritance:
         logger.info(f"Creating {len(interface_inheritance)} interface inheritance relationships...")
-        session.run(
-            "UNWIND $inheritance AS rel "
-            "MATCH (child:Interface {name: rel.child, file: rel.child_file}) "
-            "MERGE (parent:Interface {name: rel.parent}) "
-            "MERGE (child)-[:EXTENDS]->(parent)",
-            inheritance=interface_inheritance,
-        )
+        for i in range(0, len(interface_inheritance), batch_size):
+            batch_num = i // batch_size + 1
+            batch = interface_inheritance[i : i + batch_size]
+            logger.debug(f"Creating interface inheritance batch {batch_num} ({len(batch)} relationships)")
+            session.run(
+                "UNWIND $inheritance AS rel "
+                "MATCH (child:Interface {name: rel.child, file: rel.child_file}) "
+                "MERGE (parent:Interface {name: rel.parent}) "
+                "MERGE (child)-[:EXTENDS]->(parent)",
+                inheritance=batch,
+            )
 
+    # Batch create class implementation relationships
     if class_implementations:
         logger.info(f"Creating {len(class_implementations)} implementation relationships...")
-        session.run(
-            "UNWIND $implementations AS rel "
-            "MATCH (c:Class {name: rel.class, file: rel.class_file}) "
-            "MERGE (i:Interface {name: rel.interface}) "
-            "MERGE (c)-[:IMPLEMENTS]->(i)",
-            implementations=class_implementations,
-        )
+        for i in range(0, len(class_implementations), batch_size):
+            batch_num = i // batch_size + 1
+            batch = class_implementations[i : i + batch_size]
+            logger.debug(f"Creating implementation batch {batch_num} ({len(batch)} relationships)")
+            session.run(
+                "UNWIND $implementations AS rel "
+                "MATCH (c:Class {name: rel.class, file: rel.class_file}) "
+                "MERGE (i:Interface {name: rel.interface}) "
+                "MERGE (c)-[:IMPLEMENTS]->(i)",
+                implementations=batch,
+            )
 
+    # Create file-to-class relationships
     file_class_rels = []
     for file_data in files_data:
         for class_info in file_data.get("classes", []):
             file_class_rels.append({"file": file_data["path"], "class": class_info["name"]})
 
+    # Batch create file-to-class relationships
     if file_class_rels:
-        session.run(
-            "UNWIND $rels AS rel "
-            "MATCH (f:File {path: rel.file}) "
-            "MATCH (c:Class {name: rel.class, file: rel.file}) "
-            "MERGE (f)-[:DEFINES]->(c)",
-            rels=file_class_rels,
-        )
+        logger.info(f"Creating {len(file_class_rels)} file-to-class relationships...")
+        for i in range(0, len(file_class_rels), batch_size):
+            batch_num = i // batch_size + 1
+            batch = file_class_rels[i : i + batch_size]
+            logger.debug(f"Creating file-class relationship batch {batch_num} ({len(batch)} relationships)")
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (f:File {path: rel.file}) "
+                "MATCH (c:Class {name: rel.class, file: rel.file}) "
+                "MERGE (f)-[:DEFINES]->(c)",
+                rels=batch,
+            )
 
+    # Create file-to-interface relationships
     file_interface_rels = []
     for file_data in files_data:
         for interface_info in file_data.get("interfaces", []):
@@ -811,14 +878,20 @@ def create_classes(session, files_data):
                 {"file": file_data["path"], "interface": interface_info["name"]}
             )
 
+    # Batch create file-to-interface relationships
     if file_interface_rels:
-        session.run(
-            "UNWIND $rels AS rel "
-            "MATCH (f:File {path: rel.file}) "
-            "MATCH (i:Interface {name: rel.interface, file: rel.file}) "
-            "MERGE (f)-[:DEFINES]->(i)",
-            rels=file_interface_rels,
-        )
+        logger.info(f"Creating {len(file_interface_rels)} file-to-interface relationships...")
+        for i in range(0, len(file_interface_rels), batch_size):
+            batch_num = i // batch_size + 1
+            batch = file_interface_rels[i : i + batch_size]
+            logger.debug(f"Creating file-interface relationship batch {batch_num} ({len(batch)} relationships)")
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (f:File {path: rel.file}) "
+                "MATCH (i:Interface {name: rel.interface, file: rel.file}) "
+                "MERGE (f)-[:DEFINES]->(i)",
+                rels=batch,
+            )
 
 
 def create_methods(session, files_data, method_embeddings):
@@ -902,8 +975,10 @@ def create_methods(session, files_data, method_embeddings):
         batch = method_file_rels[i : i + batch_size]
 
         logger.info(
-            "Creating relationship batch %d/%d (%d relationships)..."
-            % (batch_num, total_rel_batches, len(batch))
+            "Creating relationship batch %d/%d (%d relationships)...",
+            batch_num,
+            total_rel_batches,
+            len(batch),
         )
         start_time = perf_counter()
 
