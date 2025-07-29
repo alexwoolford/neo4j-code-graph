@@ -36,6 +36,27 @@ class GAVCoordinate:
         """Return package key for matching (group:artifact)."""
         return f"{self.group_id}:{self.artifact_id}"
 
+    def is_in_range(self, start: str, end: str) -> bool:
+        """Return True if this coordinate's version is within ``start`` and ``end``.
+
+        The check only succeeds when the provided ``start`` has the same major
+        version as this coordinate and is less than ``end``.
+        """
+        try:
+            version = Version(self.version)
+            start_v = Version(start)
+            end_v = Version(end)
+
+            if start_v.major != version.major:
+                return False
+            if start_v >= end_v:
+                return False
+
+            return start_v <= version < end_v
+        except Exception as e:
+            logger.warning("Version range check failed for %s: %s", self.version, e)
+            return False
+
 
 @dataclass
 class CVEVulnerability:
@@ -305,7 +326,10 @@ def run_validation_tests():
         "descriptions": [
             {
                 "lang": "en",
-                "value": "Apache Log4j2 2.0-beta9 through 2.15.0 (excluding security releases 2.12.2, 2.12.3, and 2.3.1) JNDI features...",
+                "value": (
+                    "Apache Log4j2 2.0-beta9 through 2.15.0 (excluding security releases "
+                    "2.12.2, 2.12.3, and 2.3.1) JNDI features..."
+                ),
             }
         ],
         "configurations": [
