@@ -49,7 +49,8 @@ def get_files_needing_embeddings(session, repo_root):
             files_needing_processing.append(java_file)
 
     logger.info(
-        f"Found {len(files_needing_processing)} files needing embeddings out of {len(java_files)} total"
+        f"Found {len(files_needing_processing)} files needing embeddings "
+        f"out of {len(java_files)} total"
     )
     return files_needing_processing
 
@@ -202,7 +203,9 @@ def main():
                         "   Use --files-only flag if you only want to complete file embeddings"
                     )
                 else:
-                    logger.info("⚠️  No method calls found - you may need to re-run full processing")
+                    logger.info(
+                        "⚠️  No method calls found - you may need to re-run full processing"
+                    )
 
             logger.info("🎉 Resume processing completed!")
 

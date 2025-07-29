@@ -71,7 +71,8 @@ class EnvironmentValidator:
 
         if sys.version_info >= (3, 10):
             logger.info(
-                f"{STATUS_ICONS['success']} Python {sys.version_info.major}.{sys.version_info.minor} detected"
+                f"{STATUS_ICONS['success']} Python "
+                f"{sys.version_info.major}.{sys.version_info.minor} detected"
             )
             self.checks_passed += 1
         else:

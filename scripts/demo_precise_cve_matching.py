@@ -42,7 +42,11 @@ def demonstrate_old_vs_new_matching():
         "descriptions": [
             {
                 "lang": "en",
-                "value": "Apache Log4j2 2.0-beta9 through 2.15.0 JNDI features used in configuration, log messages, and parameters do not protect against attacker controlled LDAP and other JNDI related endpoints.",
+                "value": (
+                    "Apache Log4j2 2.0-beta9 through 2.15.0 JNDI features used in configuration, "
+                    "log messages, and parameters do not protect against attacker controlled "
+                    "LDAP and other JNDI related endpoints."
+                ),
             }
         ],
         "configurations": [
@@ -72,7 +76,9 @@ def demonstrate_old_vs_new_matching():
         "descriptions": [
             {
                 "lang": "en",
-                "value": "Serialization vulnerability in Apache Commons Collections library before 3.2.2",
+                "value": (
+                    "Serialization vulnerability in Apache Commons Collections library before 3.2.2"
+                ),
             }
         ],
         "configurations": [

@@ -270,7 +270,8 @@ def main():
                     # Complete database reset
                     if not args.confirm and not args.dry_run:
                         response = input(
-                            "⚠️  This will DELETE EVERYTHING in the database. Type 'RESET' to confirm: "
+                            "⚠️  This will DELETE EVERYTHING in the database. "
+                            "Type 'RESET' to confirm: "
                         )
                     if response != "RESET":
                         logger.info("Complete reset cancelled.")

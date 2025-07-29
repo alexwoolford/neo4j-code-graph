@@ -48,7 +48,9 @@ def check_database_state(driver, database):
             """
             CALL db.relationshipTypes() YIELD relationshipType
             WITH relationshipType
-            CALL apoc.cypher.run('MATCH ()-[r:' + relationshipType + ']->() RETURN count(r) as count', {})
+            CALL apoc.cypher.run(
+                'MATCH ()-[r:' + relationshipType + ']->() RETURN count(r) as count', {}
+            )
             YIELD value
             RETURN relationshipType, value.count as count
             ORDER BY count DESC
