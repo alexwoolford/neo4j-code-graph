@@ -16,9 +16,8 @@ import time
 
 from neo4j import GraphDatabase
 
-from .neo4j_utils import ensure_port, get_neo4j_config
-
-NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
+from .common import add_common_args
+from .neo4j_utils import ensure_port
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +27,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Clean up analysis results or perform complete database reset"
     )
-    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
-    parser.add_argument("--username", default=NEO4J_USERNAME, help="Neo4j authentication username")
-    parser.add_argument("--password", default=NEO4J_PASSWORD, help="Neo4j authentication password")
-    parser.add_argument("--database", default=NEO4J_DATABASE, help="Neo4j database")
-    parser.add_argument("--log-level", default="INFO", help="Logging level (DEBUG, INFO, WARNING)")
+    add_common_args(parser)
     parser.add_argument(
         "--dry-run",
         action="store_true",
