@@ -30,8 +30,14 @@ class TestPipelineIntegration:
         """Create a Neo4j driver for testing."""
         try:
             config = get_neo4j_config()
-            with create_neo4j_driver(config[0], config[1], config[2]) as driver:
-                yield driver
+            driver = create_neo4j_driver(config[0], config[1], config[2])
+            try:
+                driver.verify_connectivity()
+            except Exception as e:
+                driver.close()
+                pytest.skip(f"Neo4j not available: {e}")
+            yield driver
+            driver.close()
         except Exception as e:
             pytest.skip(f"Neo4j not available: {e}")
 
@@ -274,12 +280,12 @@ class TestRealWorldScenarios:
 
             # Add many methods
             for i in range(100):
-                content += """
+                content += f"""
     public void method{i}() {{
-        System.out.println("Method {i}");
+        System.out.println(\"Method {i}\");
         int x = {i};
         if (x > 50) {{
-            System.out.println("Large number");
+            System.out.println(\"Large number\");
         }}
     }}
 """

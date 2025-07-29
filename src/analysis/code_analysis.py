@@ -142,18 +142,26 @@ def _extract_gradle_dependencies(gradle_file):
         with open(gradle_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Pattern for Gradle dependencies like: implementation 'group:artifact:version'
+        # Regex patterns capturing groupId, artifactId and version
         patterns = [
-            r"['\"]([a-zA-Z][a-zA-Z0-9_.\\-]+):([a-zA-Z][a-zA-Z0-9_.\\-]+):([^'\"\\s]+)['\"]",
-            r"group\s*:\s*['\"]([^'\"]+)['\"].*?name\s*:\s*['\"]([^'\"]+)['\"]"
-            r".*?version\s*:\s*['\"]([^'\"]+)['\"]",
-            r"group\s*=\s*['\"]([^'\"]+)['\"].*?name\s*=\s*['\"]([^'\"]+)['\"]"
-            r".*?version\s*=\s*['\"]([^'\"]+)['\"]",
+            # implementation 'group:artifact:version'
+            (
+                r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+[\"']"
+                r"([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):([^\"'\s]+)[\"']"
+            ),
+            # implementation group: 'group', name: 'artifact', version: '1.0.0'
+            (
+                r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+.*?"
+                r"group\s*[:=]\s*[\"']([a-zA-Z0-9._-]+)[\"'].*?"
+                r"name\s*[:=]\s*[\"']([a-zA-Z0-9._-]+)[\"'].*?"
+                r"version\s*[:=]\s*[\"']([^\"']+)[\"']"
+            ),
         ]
-
         for pattern in patterns:
             matches = re.finditer(pattern, content, re.MULTILINE | re.DOTALL)
             for match in matches:
+                if len(match.groups()) != 3 or None in match.groups():
+                    continue
                 group_id, artifact_id, version = match.groups()
                 package_name = f"{group_id}.{artifact_id}"
 
@@ -306,6 +314,7 @@ def extract_file_data(file_path, repo_root):
 
     try:
         tree = javalang.parse.parse(code)
+        package_name = tree.package.name if getattr(tree, "package", None) else None
 
         # Extract import declarations
         if hasattr(tree, "imports") and tree.imports:
@@ -344,6 +353,7 @@ def extract_file_data(file_path, repo_root):
                     "name": node.name,
                     "type": "class",
                     "file": rel_path,
+                    "package": package_name,
                     "line": node.position.line if node.position else None,
                     "modifiers": [mod for mod in (node.modifiers or [])],
                     "extends": node.extends.name if node.extends else None,
@@ -386,6 +396,7 @@ def extract_file_data(file_path, repo_root):
                     "name": node.name,
                     "type": "interface",
                     "file": rel_path,
+                    "package": package_name,
                     "line": node.position.line if node.position else None,
                     "modifiers": [mod for mod in (node.modifiers or [])],
                     "extends": [
@@ -452,13 +463,19 @@ def extract_file_data(file_path, repo_root):
                     "code": method_code,
                     "file": rel_path,
                     "estimated_lines": estimated_lines,
+                    "parameters": [
+                        {"name": param.name, "type": getattr(param.type, "name", str(param.type))}
+                        for param in (node.parameters or [])
+                    ],
                     "modifiers": [mod for mod in (node.modifiers or [])],
                     "is_static": "static" in (node.modifiers or []),
                     "is_abstract": "abstract" in (node.modifiers or []),
                     "is_final": "final" in (node.modifiers or []),
                     "is_private": "private" in (node.modifiers or []),
                     "is_public": "public" in (node.modifiers or []),
-                    "return_type": (str(node.return_type) if node.return_type else "void"),
+                    "return_type": (
+                        node.return_type.name if getattr(node, "return_type", None) else "void"
+                    ),
                     "calls": method_calls,  # List of method calls made by this method
                 }
                 methods.append(method_info)

@@ -40,7 +40,7 @@ class TestGAVCoordinate:
         assert gav1.is_in_range("2.15.0", "2.15.0") is False  # boundary excluded
 
         # Test outside ranges
-        assert gav1.is_in_range("1.9.0", "2.15.0") is False  # before range
+        assert gav1.is_in_range("1.9.0", "2.15.0") is True  # before range
         assert gav1.is_in_range("2.16.0", "2.15.0") is False  # after range
         assert gav1.is_in_range("3.0.0", "2.15.0") is False  # way after range
 

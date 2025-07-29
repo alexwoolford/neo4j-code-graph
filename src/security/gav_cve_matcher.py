@@ -36,20 +36,16 @@ class GAVCoordinate:
         """Return package key for matching (group:artifact)."""
         return f"{self.group_id}:{self.artifact_id}"
 
-    def is_in_range(self, start_including: str, end_excluding: str) -> bool:
-        """Check if this coordinate's version falls within the given range."""
+    def is_in_range(self, start_version: str, end_version: str) -> bool:
+        """Return ``True`` if ``version`` is within ``[start_version, end_version)``."""
         try:
-            start_ver = Version(start_including)
-            end_ver = Version(end_excluding)
-            target = Version(self.version)
-
-            if start_ver >= end_ver:
-                return False
-            if start_ver.major < target.major and start_ver < target:
-                return False
-            return start_ver <= target < end_ver
-        except Exception as e:  # pragma: no cover - parsing errors
-            logger.warning(f"Version comparison failed: {e}")
+            start = Version(start_version)
+            end = Version(end_version)
+            if start > end:
+                start, end = end, start
+            current = Version(self.version)
+            return start <= current < end
+        except Exception:
             return False
 
 
