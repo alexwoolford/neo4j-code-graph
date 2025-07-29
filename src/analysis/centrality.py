@@ -392,6 +392,7 @@ def main():
 
     setup_logging(args.log_level, args.log_file)
     driver = create_neo4j_driver(args.uri, args.username, args.password)
+    gds = None
 
     try:
         # Initialize GDS
@@ -455,6 +456,11 @@ def main():
         logger.error(f"Analysis failed: {e}")
         raise
     finally:
+        if gds is not None:
+            try:
+                gds.close()
+            except Exception:
+                logger.warning("Failed to close GraphDataScience connection")
         driver.close()
 
 
