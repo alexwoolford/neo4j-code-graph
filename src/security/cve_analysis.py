@@ -183,7 +183,10 @@ class CVEAnalyzer:
         return search_terms
 
     def fetch_relevant_cves(
-        self, search_terms: Set[str], api_key: Optional[str] = None
+        self,
+        search_terms: Set[str],
+        api_key: Optional[str] = None,
+        max_concurrency: Optional[int] = None,
     ) -> List[Dict]:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
@@ -193,6 +196,7 @@ class CVEAnalyzer:
             search_terms=search_terms,
             max_results=2000,  # Reasonable limit for comprehensive analysis
             days_back=365,  # One year of CVE data
+            max_concurrency=max_concurrency,
         )
 
     def create_vulnerability_graph(self, cve_data: List[Dict]) -> int:
@@ -426,7 +430,9 @@ class CVEAnalyzer:
                     else:
                         logger.warning(f"Failed to create index: {e}")
 
-    def analyze_vulnerability_impact(self, max_hops=4, risk_threshold=7.0):
+    def analyze_vulnerability_impact(
+        self, max_hops: int = 4, risk_threshold: float = 7.0, max_concurrency: Optional[int] = None
+    ):
         """Analyze the impact of CVEs on the codebase."""
         logger.info("🎯 Analyzing vulnerability impact...")
 
@@ -444,7 +450,7 @@ class CVEAnalyzer:
                     dependencies_by_ecosystem
                 )
                 cve_data = self.cve_manager.fetch_targeted_cves(
-                    api_key=None, search_terms=search_terms
+                    api_key=None, search_terms=search_terms, max_concurrency=max_concurrency
                 )
 
                 if cve_data:
@@ -549,6 +555,11 @@ Examples:
     parser.add_argument(
         "--days-back", type=int, default=365, help="Days back to search (default: 365)"
     )
+    parser.add_argument(
+        "--max-concurrency",
+        type=int,
+        help="Maximum concurrent requests (default: API rate limit)",
+    )
     parser.add_argument("--cache-status", action="store_true", help="Show cache status and exit")
     parser.add_argument(
         "--clear-partial-cache",
@@ -591,9 +602,8 @@ Examples:
 
     # Connect to Neo4j
     config = get_neo4j_config()
-    driver = create_neo4j_driver(config[0], config[1], config[2])
 
-    try:
+    with create_neo4j_driver(config[0], config[1], config[2]) as driver:
         analyzer = CVEAnalyzer(driver, args.database)
 
         # Handle cache management
@@ -664,6 +674,7 @@ Examples:
                 search_terms=search_terms,
                 max_results=args.max_results,
                 days_back=args.days_back,
+                max_concurrency=args.max_concurrency,
             )
 
             if not cve_data:
@@ -679,7 +690,9 @@ Examples:
 
             # Analyze impact
             impact_summary = analyzer.analyze_vulnerability_impact(
-                max_hops=args.max_hops, risk_threshold=args.risk_threshold
+                max_hops=args.max_hops,
+                risk_threshold=args.risk_threshold,
+                max_concurrency=args.max_concurrency,
             )
 
             # Generate report
@@ -697,9 +710,6 @@ Examples:
             print("2. Try again with --api-key for better reliability")
             print("3. Use --cache-status to see saved progress")
             print("4. Use --clear-partial-cache if data seems corrupted")
-
-    finally:
-        driver.close()
 
 
 if __name__ == "__main__":

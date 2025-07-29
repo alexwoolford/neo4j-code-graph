@@ -44,7 +44,6 @@ class GAVCoordinate:
         except Exception:
             return False
 
-
 @dataclass
 class CVEVulnerability:
     """Structured CVE vulnerability data."""
@@ -313,7 +312,10 @@ def run_validation_tests():
         "descriptions": [
             {
                 "lang": "en",
-                "value": "Apache Log4j2 2.0-beta9 through 2.15.0 (excluding security releases 2.12.2, 2.12.3, and 2.3.1) JNDI features...",
+                "value": (
+                    "Apache Log4j2 2.0-beta9 through 2.15.0 (excluding security releases "
+                    "2.12.2, 2.12.3, and 2.3.1) JNDI features..."
+                ),
             }
         ],
         "configurations": [

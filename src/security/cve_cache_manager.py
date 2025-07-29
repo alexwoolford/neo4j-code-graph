@@ -52,8 +52,16 @@ class CVECacheManager:
         search_terms: Set[str],
         max_results: int = 1000,
         days_back: int = 365,
+        max_concurrency: Optional[int] = None,
     ) -> List[Dict]:
-        """Fetch CVEs using targeted searches for specific dependencies."""
+        """Fetch CVEs using targeted searches for specific dependencies.
+
+        Parameters
+        ----------
+        max_concurrency : Optional[int]
+            Maximum number of concurrent requests. Defaults to the API rate
+            limit if not provided.
+        """
 
         self.has_api_key = bool(api_key)
         max_requests_per_window = (
@@ -105,7 +113,8 @@ class CVECacheManager:
         logger.info(f"🔍 Prepared {len(search_queries)} targeted search queries")
 
         async def _run_async() -> None:
-            semaphore = asyncio.Semaphore(max_requests_per_window)
+            concurrency_limit = max_concurrency or max_requests_per_window
+            semaphore = asyncio.Semaphore(concurrency_limit)
             lock = asyncio.Lock()
             stop_event = asyncio.Event()
 

@@ -317,7 +317,10 @@ class PipelineManager:
         """Check if NVD API key is available."""
         import os
 
-        return bool(os.getenv("NVD_API_KEY") or Path(".env").exists())
+        from dotenv import load_dotenv
+
+        load_dotenv(override=True)
+        return bool(os.getenv("NVD_API_KEY"))
 
     def _retry_step(self, step: PipelineStep) -> bool:
         """Retry a failed step."""
