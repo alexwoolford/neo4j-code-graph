@@ -593,6 +593,8 @@ def bulk_create_nodes_and_relationships(
     """Create all nodes and relationships using bulk operations."""
     logger.info("Creating directory structure...")
 
+    batch_size = 1000
+
     # 1. Create all directories first
     directories = set()
     for file_data in files_data:
@@ -602,10 +604,12 @@ def bulk_create_nodes_and_relationships(
             directories.add(dir_path)
 
     # Bulk create directories
-    session.run(
-        "UNWIND $directories AS dir_path " "MERGE (:Directory {path: dir_path})",
-        directories=list(directories),
-    )
+    directories_list = list(directories)
+    for i in range(0, len(directories_list), batch_size):
+        session.run(
+            "UNWIND $directories AS dir_path MERGE (:Directory {path: dir_path})",
+            directories=directories_list[i : i + batch_size],
+        )
 
     # 2. Create directory relationships
     dir_relationships = []
@@ -615,13 +619,14 @@ def bulk_create_nodes_and_relationships(
             dir_relationships.append({"parent": parent, "child": directory})
 
     if dir_relationships:
-        session.run(
-            "UNWIND $rels AS rel "
-            "MATCH (parent:Directory {path: rel.parent}) "
-            "MATCH (child:Directory {path: rel.child}) "
-            "MERGE (parent)-[:CONTAINS]->(child)",
-            rels=dir_relationships,
-        )
+        for i in range(0, len(dir_relationships), batch_size):
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (parent:Directory {path: rel.parent}) "
+                "MATCH (child:Directory {path: rel.child}) "
+                "MERGE (parent)-[:CONTAINS]->(child)",
+                rels=dir_relationships[i : i + batch_size],
+            )
 
     logger.info("Creating file nodes...")
 
@@ -642,16 +647,17 @@ def bulk_create_nodes_and_relationships(
         }
         file_nodes.append(file_node)
 
-    session.run(
-        "UNWIND $files AS file "
-        "MERGE (f:File {path: file.path}) "
-        "SET f.embedding = file.embedding, f.embedding_type = file.embedding_type, "
-        "f.language = file.language, f.ecosystem = file.ecosystem, "
-        "f.total_lines = file.total_lines, f.code_lines = file.code_lines, "
-        "f.method_count = file.method_count, f.class_count = file.class_count, "
-        "f.interface_count = file.interface_count",
-        files=file_nodes,
-    )
+    for i in range(0, len(file_nodes), batch_size):
+        session.run(
+            "UNWIND $files AS file "
+            "MERGE (f:File {path: file.path}) "
+            "SET f.embedding = file.embedding, f.embedding_type = file.embedding_type, "
+            "f.language = file.language, f.ecosystem = file.ecosystem, "
+            "f.total_lines = file.total_lines, f.code_lines = file.code_lines, "
+            "f.method_count = file.method_count, f.class_count = file.class_count, "
+            "f.interface_count = file.interface_count",
+            files=file_nodes[i : i + batch_size],
+        )
 
     # 4. Create file-to-directory relationships
     file_dir_rels = []
@@ -739,58 +745,63 @@ def bulk_create_nodes_and_relationships(
     # Bulk create class nodes
     if all_classes:
         logger.info(f"Creating {len(all_classes)} class nodes...")
-        session.run(
-            "UNWIND $classes AS class "
-            "MERGE (c:Class {name: class.name, file: class.file}) "
-            "SET c.line = class.line, c.estimated_lines = class.estimated_lines, "
-            "c.is_abstract = class.is_abstract, c.is_final = class.is_final, "
-            "c.modifiers = class.modifiers",
-            classes=all_classes,
-        )
+        for i in range(0, len(all_classes), batch_size):
+            session.run(
+                "UNWIND $classes AS class "
+                "MERGE (c:Class {name: class.name, file: class.file}) "
+                "SET c.line = class.line, c.estimated_lines = class.estimated_lines, "
+                "c.is_abstract = class.is_abstract, c.is_final = class.is_final, "
+                "c.modifiers = class.modifiers",
+                classes=all_classes[i : i + batch_size],
+            )
 
     # Bulk create interface nodes
     if all_interfaces:
         logger.info(f"Creating {len(all_interfaces)} interface nodes...")
-        session.run(
-            "UNWIND $interfaces AS interface "
-            "MERGE (i:Interface {name: interface.name, file: interface.file}) "
-            "SET i.line = interface.line, i.method_count = interface.method_count, "
-            "i.modifiers = interface.modifiers",
-            interfaces=all_interfaces,
-        )
+        for i in range(0, len(all_interfaces), batch_size):
+            session.run(
+                "UNWIND $interfaces AS interface "
+                "MERGE (i:Interface {name: interface.name, file: interface.file}) "
+                "SET i.line = interface.line, i.method_count = interface.method_count, "
+                "i.modifiers = interface.modifiers",
+                interfaces=all_interfaces[i : i + batch_size],
+            )
 
     # Create class inheritance relationships (EXTENDS)
     if class_inheritance:
         logger.info(f"Creating {len(class_inheritance)} class inheritance relationships...")
-        session.run(
-            "UNWIND $inheritance AS rel "
-            "MATCH (child:Class {name: rel.child, file: rel.child_file}) "
-            "MERGE (parent:Class {name: rel.parent}) "
-            "MERGE (child)-[:EXTENDS]->(parent)",
-            inheritance=class_inheritance,
-        )
+        for i in range(0, len(class_inheritance), batch_size):
+            session.run(
+                "UNWIND $inheritance AS rel "
+                "MATCH (child:Class {name: rel.child, file: rel.child_file}) "
+                "MERGE (parent:Class {name: rel.parent}) "
+                "MERGE (child)-[:EXTENDS]->(parent)",
+                inheritance=class_inheritance[i : i + batch_size],
+            )
 
     # Create interface inheritance relationships (EXTENDS)
     if interface_inheritance:
         logger.info(f"Creating {len(interface_inheritance)} interface inheritance relationships...")
-        session.run(
-            "UNWIND $inheritance AS rel "
-            "MATCH (child:Interface {name: rel.child, file: rel.child_file}) "
-            "MERGE (parent:Interface {name: rel.parent}) "
-            "MERGE (child)-[:EXTENDS]->(parent)",
-            inheritance=interface_inheritance,
-        )
+        for i in range(0, len(interface_inheritance), batch_size):
+            session.run(
+                "UNWIND $inheritance AS rel "
+                "MATCH (child:Interface {name: rel.child, file: rel.child_file}) "
+                "MERGE (parent:Interface {name: rel.parent}) "
+                "MERGE (child)-[:EXTENDS]->(parent)",
+                inheritance=interface_inheritance[i : i + batch_size],
+            )
 
     # Create class-interface implementation relationships (IMPLEMENTS)
     if class_implementations:
         logger.info(f"Creating {len(class_implementations)} implementation relationships...")
-        session.run(
-            "UNWIND $implementations AS rel "
-            "MATCH (c:Class {name: rel.class, file: rel.class_file}) "
-            "MERGE (i:Interface {name: rel.interface}) "
-            "MERGE (c)-[:IMPLEMENTS]->(i)",
-            implementations=class_implementations,
-        )
+        for i in range(0, len(class_implementations), batch_size):
+            session.run(
+                "UNWIND $implementations AS rel "
+                "MATCH (c:Class {name: rel.class, file: rel.class_file}) "
+                "MERGE (i:Interface {name: rel.interface}) "
+                "MERGE (c)-[:IMPLEMENTS]->(i)",
+                implementations=class_implementations[i : i + batch_size],
+            )
 
     # Create file-to-class relationships
     file_class_rels = []
@@ -799,13 +810,14 @@ def bulk_create_nodes_and_relationships(
             file_class_rels.append({"file": file_data["path"], "class": class_info["name"]})
 
     if file_class_rels:
-        session.run(
-            "UNWIND $rels AS rel "
-            "MATCH (f:File {path: rel.file}) "
-            "MATCH (c:Class {name: rel.class, file: rel.file}) "
-            "MERGE (f)-[:DEFINES]->(c)",
-            rels=file_class_rels,
-        )
+        for i in range(0, len(file_class_rels), batch_size):
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (f:File {path: rel.file}) "
+                "MATCH (c:Class {name: rel.class, file: rel.file}) "
+                "MERGE (f)-[:DEFINES]->(c)",
+                rels=file_class_rels[i : i + batch_size],
+            )
 
     # Create file-to-interface relationships
     file_interface_rels = []
@@ -816,13 +828,14 @@ def bulk_create_nodes_and_relationships(
             )
 
     if file_interface_rels:
-        session.run(
-            "UNWIND $rels AS rel "
-            "MATCH (f:File {path: rel.file}) "
-            "MATCH (i:Interface {name: rel.interface, file: rel.file}) "
-            "MERGE (f)-[:DEFINES]->(i)",
-            rels=file_interface_rels,
-        )
+        for i in range(0, len(file_interface_rels), batch_size):
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (f:File {path: rel.file}) "
+                "MATCH (i:Interface {name: rel.interface, file: rel.file}) "
+                "MERGE (f)-[:DEFINES]->(i)",
+                rels=file_interface_rels[i : i + batch_size],
+            )
 
     logger.info("Creating method nodes...")
 
