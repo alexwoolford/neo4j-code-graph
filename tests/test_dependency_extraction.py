@@ -195,7 +195,7 @@ class TestMavenDependencyExtraction:
             pom_content = """<?xml version="1.0" encoding="UTF-8"?>
             <project xmlns="http://maven.apache.org/POM/4.0.0">
                 <modelVersion>4.0.0</modelVersion>
-                
+
                 <properties>
                     <junit.version>5.8.2</junit.version>
                     <spring.version>5.3.21</spring.version>
@@ -363,7 +363,7 @@ class TestGradleDependencyExtraction:
                 implementation 'org.springframework:spring-core:5.3.21'
                 testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
                 runtime 'mysql:mysql-connector-java:8.0.29'
-                
+
                 // Map format - requires group to be properly extracted
                 implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.13.3'
             }
