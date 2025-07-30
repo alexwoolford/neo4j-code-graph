@@ -4,13 +4,17 @@ from unittest.mock import ANY, MagicMock
 
 import pandas as pd
 
-from src.analysis.similarity import run_louvain
-
 # Stub heavy modules before importing the code under test
 sys.modules.setdefault("graphdatascience", types.ModuleType("graphdatascience"))
 sys.modules["graphdatascience"].GraphDataScience = object  # type: ignore[attr-defined]
 sys.modules.setdefault("dotenv", types.ModuleType("dotenv"))
 sys.modules["dotenv"].load_dotenv = lambda override=True: None  # type: ignore[attr-defined]
+
+# Mock pyarrow dependencies
+sys.modules.setdefault("pyarrow", types.ModuleType("pyarrow"))
+sys.modules.setdefault("pyarrow.flight", types.ModuleType("pyarrow.flight"))
+
+from src.analysis.similarity import run_louvain
 
 
 def test_run_louvain_creates_projection_and_runs():
