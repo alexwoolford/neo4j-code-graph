@@ -283,7 +283,7 @@ def bulk_load_to_neo4j(
                 f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)..."
             )
 
-            # OPTIMIZED: Single-step approach - create nodes and relationships together
+            # Single-step approach - create nodes and relationships together
             # This eliminates the need for expensive MATCH operations on newly created nodes
             step_start = time.time()
             session = execute_with_retry(

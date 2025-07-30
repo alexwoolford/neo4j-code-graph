@@ -183,6 +183,32 @@ Tests use mocked database connections for execution without requiring a running 
 
 **✅ CI Success Guarantee: If pre-commit passes locally, CI will pass too!**
 
+## Code Quality Guidelines
+
+### Avoid Overused Terminology
+
+**❌ NEVER use these meaningless terms in code comments or commit messages:**
+- "OPTIMIZED" / "optimized" / "optimize"
+- "ENHANCED" / "enhanced" / "enhance"
+- "IMPROVED" / "improved" / "improve"
+- "BETTER" / "better"
+- "FASTER" / "faster"
+- "EFFICIENT" / "efficient"
+
+**✅ Instead, be specific about WHAT and WHY:**
+```python
+# ❌ Bad: Use optimized query for better performance
+# ✅ Good: Use EXISTS clause to reduce failed MATCH operations
+
+# ❌ Bad: Improved memory management
+# ✅ Good: Clear GPU cache every 2 batches to prevent OOM
+
+# ❌ Bad: Enhanced batch processing
+# ✅ Good: Increase batch size from 100 to 500 to reduce database round-trips
+```
+
+**Rationale**: Terms like "optimized" become meaningless over time - everything could be argued to be "optimized" making the term completely useless for understanding actual changes.
+
 ## Quick Quality Check Commands
 
 ```bash
