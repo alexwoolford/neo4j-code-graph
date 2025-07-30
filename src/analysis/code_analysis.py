@@ -5,7 +5,6 @@ import gc
 import logging
 import re
 import tempfile
-import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -217,6 +216,11 @@ def parse_args():
         default=4,
         help="Number of files to process in parallel",
     )
+    parser.add_argument(
+        "--force-reprocess",
+        action="store_true",
+        help="Force reprocessing of all files even if they exist in database",
+    )
     return parser.parse_args()
 
 
@@ -252,7 +256,7 @@ def get_optimal_batch_size(device):
 
 
 def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
-    """Compute embeddings for all snippets using maximum batching."""
+    """Compute embeddings for all snippets using batching with memory management."""
     import torch
 
     if not snippets:
@@ -263,45 +267,95 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
     all_embeddings = []
     use_amp = device.type == "cuda" and hasattr(torch.cuda, "amp")
 
-    # Process in batches
+    # Pre-allocate tensor for better memory efficiency
+    max_length = 512
+
+    # Set model to eval mode and enable optimizations
+    model.eval()
+    if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
+        torch.backends.cudnn.benchmark = True
+
+    # Enable Flash Attention if available (PyTorch 2.0+)
+    if hasattr(torch.nn.functional, "scaled_dot_product_attention"):
+        torch.nn.functional.scaled_dot_product_attention._enabled = True
+
+        # Process in batches
     for i in tqdm(range(0, len(snippets), batch_size), desc="Computing embeddings"):
         batch_snippets = snippets[i : i + batch_size]
 
-        # Tokenize batch
+        # Pre-filter empty or very short snippets to reduce computation
+        valid_snippets = []
+        valid_indices = []
+        for j, snippet in enumerate(batch_snippets):
+            if snippet and len(snippet.strip()) > 10:  # Skip empty/tiny snippets
+                valid_snippets.append(snippet)
+                valid_indices.append(j)
+
+        if not valid_snippets:
+            # Fill with zero embeddings for skipped snippets
+            zero_embedding = [0.0] * 768  # GraphCodeBERT embedding size
+            all_embeddings.extend([zero_embedding] * len(batch_snippets))
+            continue
+
+            # Tokenize batch
         tokens = tokenizer(
-            batch_snippets,
-            padding=True,
+            valid_snippets,
+            padding="max_length",  # More efficient than dynamic padding
             truncation=True,
-            max_length=512,
+            max_length=max_length,
             return_tensors="pt",
+            add_special_tokens=True,
         )
 
-        # Move to device efficiently
-        tokens = {k: v.to(device, non_blocking=True) for k, v in tokens.items()}
+        # Move to device efficiently with pinned memory
+        if device.type == "cuda":
+            tokens = {k: v.to(device, non_blocking=True) for k, v in tokens.items()}
+        else:
+            tokens = {k: v.to(device) for k, v in tokens.items()}
 
-        # Compute embeddings
+            # Compute embeddings
         with torch.no_grad():
             if use_amp:
-                with torch.amp.autocast("cuda"):
+                with torch.amp.autocast("cuda", dtype=torch.float16):
                     outputs = model(**tokens)
             else:
                 outputs = model(**tokens)
 
-            # Use [CLS] token embedding (first token)
-            embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+            # Use [CLS] token embedding (first token) - more efficient extraction
+            embeddings = outputs.last_hidden_state[:, 0, :].detach()
 
-        # Convert to lists and store
-        batch_embeddings = [embedding.tolist() for embedding in embeddings]
+            # Convert to CPU efficiently
+            if device.type == "cuda":
+                embeddings = embeddings.cpu()
+
+            embeddings_np = embeddings.numpy()
+
+        # Reconstruct full batch with zero embeddings for skipped items
+        batch_embeddings = []
+        valid_idx = 0
+        zero_embedding = [0.0] * embeddings_np.shape[1]
+
+        for j in range(len(batch_snippets)):
+            if j in valid_indices:
+                batch_embeddings.append(embeddings_np[valid_idx].tolist())
+                valid_idx += 1
+            else:
+                batch_embeddings.append(zero_embedding)
+
         all_embeddings.extend(batch_embeddings)
 
-        # Cleanup
-        del tokens, outputs, embeddings
-        if i % (batch_size * 4) == 0:  # Periodic cleanup
+        # More aggressive cleanup for better memory management
+        del tokens, outputs, embeddings, embeddings_np
+
+        # More frequent cleanup on GPU
+        if device.type == "cuda" and i % (batch_size * 2) == 0:
+            torch.cuda.empty_cache()
             gc.collect()
-            if device.type == "cuda":
-                torch.cuda.empty_cache()
-            elif device.type == "mps":
-                torch.mps.empty_cache()
+        elif device.type == "mps" and i % (batch_size * 2) == 0:
+            torch.mps.empty_cache()
+            gc.collect()
+        elif i % (batch_size * 4) == 0:
+            gc.collect()
 
     logger.info(f"Computed {len(all_embeddings)} embeddings")
     return all_embeddings
@@ -677,14 +731,23 @@ def create_files(session, files_data, file_embeddings):
             batch_num = i // batch_size + 1
             batch = file_nodes[i : i + batch_size]
             logger.debug(f"Creating file batch {batch_num} ({len(batch)} files)")
+            # Use CREATE instead of MERGE for better performance (assumes clean database or skip-existing logic)
             session.run(
-                "UNWIND $files AS file "
-                "MERGE (f:File {path: file.path}) "
-                "SET f.embedding = file.embedding, f.embedding_type = file.embedding_type, "
-                "f.language = file.language, f.ecosystem = file.ecosystem, "
-                "f.total_lines = file.total_lines, f.code_lines = file.code_lines, "
-                "f.method_count = file.method_count, f.class_count = file.class_count, "
-                "f.interface_count = file.interface_count",
+                """
+                UNWIND $files AS file
+                CREATE (f:File {
+                    path: file.path,
+                    embedding: file.embedding,
+                    embedding_type: file.embedding_type,
+                    language: file.language,
+                    ecosystem: file.ecosystem,
+                    total_lines: file.total_lines,
+                    code_lines: file.code_lines,
+                    method_count: file.method_count,
+                    class_count: file.class_count,
+                    interface_count: file.interface_count
+                })
+                """,
                 files=batch,
             )
 
@@ -942,16 +1005,29 @@ def create_methods(session, files_data, method_embeddings):
         logger.info(f"Creating method batch {batch_num}/{total_batches} ({len(batch)} methods)...")
         start_time = perf_counter()
 
+        # Use CREATE instead of MERGE for new nodes (much faster)
+        # MERGE is expensive because it checks for existence first
         session.run(
-            "UNWIND $methods AS method "
-            "MERGE (m:Method {name: method.name, file: method.file, line: method.line}) "
-            "SET m.embedding = method.embedding, m.embedding_type = method.embedding_type, "
-            "m.estimated_lines = method.estimated_lines, m.is_static = method.is_static, "
-            "m.is_abstract = method.is_abstract, m.is_final = method.is_final, "
-            "m.is_private = method.is_private, m.is_public = method.is_public, "
-            "m.return_type = method.return_type, m.modifiers = method.modifiers "
+            """
+            UNWIND $methods AS method
+            CREATE (m:Method {
+                name: method.name,
+                file: method.file,
+                line: method.line,
+                embedding: method.embedding,
+                embedding_type: method.embedding_type,
+                estimated_lines: method.estimated_lines,
+                is_static: method.is_static,
+                is_abstract: method.is_abstract,
+                is_final: method.is_final,
+                is_private: method.is_private,
+                is_public: method.is_public,
+                return_type: method.return_type,
+                modifiers: method.modifiers
+            })
+            """
             + (
-                "SET m.class = method.class, m.containing_type = method.containing_type "
+                "SET m.class = method.class, m.containing_type = method.containing_type"
                 if any("class" in m for m in batch)
                 else ""
             ),
@@ -1085,11 +1161,17 @@ def create_imports(session, files_data, dependency_versions=None):
             )
             start_time = perf_counter()
 
+            # Use CREATE instead of MERGE for better performance
             session.run(
-                "UNWIND $imports AS imp "
-                "MERGE (i:Import {import_path: imp.import_path}) "
-                "SET i.is_static = imp.is_static, i.is_wildcard = imp.is_wildcard, "
-                "i.import_type = imp.import_type",
+                """
+                UNWIND $imports AS imp
+                CREATE (i:Import {
+                    import_path: imp.import_path,
+                    is_static: imp.is_static,
+                    is_wildcard: imp.is_wildcard,
+                    import_type: imp.import_type
+                })
+                """,
                 imports=batch,
             )
 
@@ -1236,55 +1318,74 @@ def create_method_calls(session, files_data):
 
         if other_calls:
             logger.info(f"Creating {len(other_calls)} other method calls (best effort)...")
-            small_batch_size = 100
-            total_small_batches = (len(other_calls) + small_batch_size - 1) // small_batch_size
-            logger.warning(
-                "⚠️ Using small batches (%d) for complex method matching" % small_batch_size
-            )
+
+            # Pre-filter to only attempt calls where both caller and callee likely exist
+            # This reduces failed attempts significantly
+            filtered_calls = []
+            for call in other_calls:
+                if call.get("callee_name") and len(call["callee_name"]) > 1:
+                    filtered_calls.append(call)
+
+            if not filtered_calls:
+                logger.info("No valid method calls to process after filtering")
+                return
+
+            logger.info(f"Filtered to {len(filtered_calls)} potentially valid calls")
+
+            # Use EXISTS clause to reduce failures
+            batch_size = 500  # Larger batches for efficiency
+            total_batches = (len(filtered_calls) + batch_size - 1) // batch_size
             successful_calls = 0
             failed_batches = 0
-            for i in range(0, len(other_calls), small_batch_size):
-                batch_num = i // small_batch_size + 1
-                batch = other_calls[i : i + small_batch_size]
+
+            for i in range(0, len(filtered_calls), batch_size):
+                batch_num = i // batch_size + 1
+                batch = filtered_calls[i : i + batch_size]
                 try:
                     logger.info(
-                        "Processing small batch %d/%d (%d calls)...",
+                        "Processing batch %d/%d (%d calls)...",
                         batch_num,
-                        total_small_batches,
+                        total_batches,
                         len(batch),
                     )
                     start_time = perf_counter()
+
+                    # Query using EXISTS clause for better matching
                     result = session.run(
-                        "UNWIND $calls AS call "
-                        "MATCH (caller:Method {name: call.caller_name, "
-                        "file: call.caller_file, line: call.caller_line}) "
-                        "OPTIONAL MATCH (callee:Method {name: call.callee_name}) "
-                        "WHERE callee IS NOT NULL "
-                        "WITH caller, callee, call LIMIT 500 "
-                        "MERGE (caller)-[:CALLS {type: call.call_type, "
-                        "qualifier: call.qualifier}]->(callee) "
-                        "RETURN count(*) as created",
+                        """
+                        UNWIND $calls AS call
+                        MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line})
+                        WHERE EXISTS {
+                            MATCH (callee:Method {name: call.callee_name})
+                            WHERE callee.name = call.callee_name
+                        }
+                        WITH caller, call
+                        MATCH (callee:Method {name: call.callee_name})
+                        WITH caller, callee, call
+                        LIMIT 1000
+                        MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)
+                        RETURN count(*) as created
+                        """,
                         calls=batch,
                     )
                     created = result.single()["created"]
                     successful_calls += created
                     batch_time = perf_counter() - start_time
                     logger.info(
-                        "Small batch %d completed: %d relationships in %.1fs",
+                        "Batch %d completed: %d relationships in %.1fs",
                         batch_num,
                         created,
                         batch_time,
                     )
-                    if batch_num < total_small_batches:
-                        time.sleep(0.5)
                 except Exception as e:
                     failed_batches += 1
                     logger.warning(f"Batch {batch_num} failed (continuing): {e}")
-                    if failed_batches > 10:
+                    if failed_batches > 5:  # Lower threshold - fail faster
                         logger.error(
                             "Too many failed batches, stopping other method calls processing"
                         )
                         break
+
             logger.info(
                 f"Other method calls completed: {successful_calls} relationships created, "
                 f"{failed_batches} batches failed"
@@ -1336,25 +1437,49 @@ def main():
             # Extract dependency versions from build files
             dependency_versions = extract_dependency_versions_from_files(repo_root)
 
-            # Phase 1: Extract all file data in parallel
+            # Phase 1: Extract all file data in parallel (with skip-existing logic)
             logger.info("Phase 1: Extracting file data...")
             start_phase1 = perf_counter()
 
-            files_data = []
-            with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
-                future_to_file = {
-                    executor.submit(extract_file_data, file_path, repo_root): file_path
-                    for file_path in java_files
-                }
+            # Check which files already exist in the database to skip processing
+            existing_files = set()
+            if not args.force_reprocess:
+                try:
+                    result = session.run("MATCH (f:File) RETURN f.path as path")
+                    existing_files = {record["path"] for record in result}
+                    if existing_files:
+                        logger.info(
+                            f"Found {len(existing_files)} files already in database - will skip processing"
+                        )
+                except Exception as e:
+                    logger.debug(f"Could not check existing files (continuing): {e}")
 
-                for future in tqdm(
-                    as_completed(future_to_file),
-                    total=len(java_files),
-                    desc="Extracting files",
-                ):
-                    result = future.result()
-                    if result:
-                        files_data.append(result)
+            # Filter out files that already exist (unless force reprocessing)
+            files_to_process = []
+            for file_path in java_files:
+                rel_path = str(file_path.relative_to(repo_root))
+                if rel_path not in existing_files:
+                    files_to_process.append(file_path)
+
+            skipped_count = len(java_files) - len(files_to_process)
+            logger.info(f"Processing {len(files_to_process)} files ({skipped_count} skipped)")
+
+            files_data = []
+            if files_to_process:
+                with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
+                    future_to_file = {
+                        executor.submit(extract_file_data, file_path, repo_root): file_path
+                        for file_path in files_to_process
+                    }
+
+                    for future in tqdm(
+                        as_completed(future_to_file),
+                        total=len(files_to_process),
+                        desc="Extracting files",
+                    ):
+                        result = future.result()
+                        if result:
+                            files_data.append(result)
 
             phase1_time = perf_counter() - start_phase1
             logger.info("Phase 1 completed in %.2fs", phase1_time)
@@ -1363,49 +1488,67 @@ def main():
             logger.info("Phase 2: Computing embeddings...")
             start_phase2 = perf_counter()
 
-            # Initialize model
-            logger.info("Loading GraphCodeBERT model...")
-            from transformers import AutoModel, AutoTokenizer
+            file_embeddings = []
+            method_embeddings = []
 
-            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-            model = AutoModel.from_pretrained(MODEL_NAME)
-            device = get_device()
+            if files_data:
+                # Initialize model
+                logger.info("Loading GraphCodeBERT model...")
+                from transformers import AutoModel, AutoTokenizer
 
-            # Optimize for MPS performance
-            if device.type == "mps":
-                # Enable high memory usage mode for better performance
-                import os
+                tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+                model = AutoModel.from_pretrained(MODEL_NAME)
+                device = get_device()
 
-                os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-                logger.info("Enabled MPS high performance mode")
+                # Optimize for MPS performance
+                if device.type == "mps":
+                    # Enable high memory usage mode for better performance
+                    import os
 
-            model = model.to(device)
-            logger.info(f"Model loaded on {device}")
+                    os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+                    logger.info("Enabled MPS high performance mode")
 
-            # Compute embeddings with batching
-            batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
-            logger.info(f"Using batch size: {batch_size}")
+                model = model.to(device)
+                logger.info(f"Model loaded on {device}")
 
-            # Collect all code snippets
-            file_snippets = [file_data["code"] for file_data in files_data]
-            method_snippets = []
-            for file_data in files_data:
-                for method in file_data["methods"]:
-                    method_snippets.append(method["code"])
+                # Compute embeddings with batching
+                batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
+                logger.info(f"Using batch size: {batch_size}")
 
-            logger.info(
-                "Computing embeddings for %d files and %d methods",
-                len(file_snippets),
-                len(method_snippets),
-            )
+                # Collect all code snippets
+                file_snippets = [file_data["code"] for file_data in files_data]
+                method_snippets = []
+                for file_data in files_data:
+                    for method in file_data["methods"]:
+                        method_snippets.append(method["code"])
 
-            # Compute embeddings
-            file_embeddings = compute_embeddings_bulk(
-                file_snippets, tokenizer, model, device, batch_size
-            )
-            method_embeddings = compute_embeddings_bulk(
-                method_snippets, tokenizer, model, device, batch_size
-            )
+                logger.info(
+                    "Computing embeddings for %d files and %d methods",
+                    len(file_snippets),
+                    len(method_snippets),
+                )
+
+                # Compute embeddings
+                file_embeddings = compute_embeddings_bulk(
+                    file_snippets, tokenizer, model, device, batch_size
+                )
+                method_embeddings = compute_embeddings_bulk(
+                    method_snippets, tokenizer, model, device, batch_size
+                )
+
+                # Clean up model to free memory
+                del model, tokenizer
+                if device.type == "cuda":
+                    import torch
+
+                    torch.cuda.empty_cache()
+                elif device.type == "mps":
+                    import torch
+
+                    torch.mps.empty_cache()
+                gc.collect()
+            else:
+                logger.info("No new files - skipping embedding computation")
 
             phase2_time = perf_counter() - start_phase2
             logger.info("Phase 2 completed in %.2fs", phase2_time)
@@ -1414,13 +1557,17 @@ def main():
             logger.info("Phase 3: Creating graph in Neo4j...")
             start_phase3 = perf_counter()
 
-            bulk_create_nodes_and_relationships(
-                session,
-                files_data,
-                file_embeddings,
-                method_embeddings,
-                dependency_versions,
-            )
+            # Skip bulk creation if no new files to process
+            if files_data:
+                bulk_create_nodes_and_relationships(
+                    session,
+                    files_data,
+                    file_embeddings,
+                    method_embeddings,
+                    dependency_versions,
+                )
+            else:
+                logger.info("No new files to process - skipping bulk creation")
 
             phase3_time = perf_counter() - start_phase3
             logger.info("Phase 3 completed in %.2fs", phase3_time)

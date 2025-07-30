@@ -283,51 +283,26 @@ def bulk_load_to_neo4j(
                 f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)..."
             )
 
-            # STEP 1: Bulk create FileVer nodes (fastest approach)
-            step1_start = time.time()
-            session = execute_with_retry(
-                session,
-                """
-                UNWIND $changes AS change
-                CREATE (fv:FileVer {sha: change.sha, path: change.file_path})
-                """,
-                {"changes": batch},
-                f"FileVer creation batch {batch_num}",
-            )
-            step1_time = time.time() - step1_start
-            logger.info(f"  ✅ Created {len(batch):,} FileVer nodes in {step1_time:.1f}s")
-
-            # STEP 2: Bulk create CHANGED relationships (using existing commits)
-            step2_start = time.time()
+            # Single-step approach - create nodes and relationships together
+            # This eliminates the need for expensive MATCH operations on newly created nodes
+            step_start = time.time()
             session = execute_with_retry(
                 session,
                 """
                 UNWIND $changes AS change
                 MATCH (c:Commit {sha: change.sha})
-                MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
-                MERGE (c)-[:CHANGED]->(fv)
-                """,
-                {"changes": batch},
-                f"CHANGED relationships batch {batch_num}",
-            )
-            step2_time = time.time() - step2_start
-            logger.info(f"  ✅ Created {len(batch):,} CHANGED relationships in {step2_time:.1f}s")
-
-            # STEP 3: Bulk create OF_FILE relationships (using existing files)
-            step3_start = time.time()
-            session = execute_with_retry(
-                session,
-                """
-                UNWIND $changes AS change
                 MATCH (f:File {path: change.file_path})
-                MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
-                MERGE (fv)-[:OF_FILE]->(f)
+                CREATE (fv:FileVer {sha: change.sha, path: change.file_path})
+                CREATE (c)-[:CHANGED]->(fv)
+                CREATE (fv)-[:OF_FILE]->(f)
                 """,
                 {"changes": batch},
-                f"OF_FILE relationships batch {batch_num}",
+                f"FileVer creation and relationships batch {batch_num}",
             )
-            step3_time = time.time() - step3_start
-            logger.info(f"  ✅ Created {len(batch):,} OF_FILE relationships in {step3_time:.1f}s")
+            step_time = time.time() - step_start
+            logger.info(
+                f"  ✅ Created {len(batch):,} FileVer nodes and relationships in {step_time:.1f}s"
+            )
 
             batch_time = time.time() - batch_start
             elapsed_total = time.time() - start_time
