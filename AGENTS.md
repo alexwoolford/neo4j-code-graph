@@ -2,27 +2,34 @@
 
 ## 🚨 CRITICAL: Pre-Commit CI Validation
 
-**MANDATORY: Always run these exact checks before ANY git commit or push to prevent CI failures:**
+**⚠️ MANDATORY: Run pre-commit hooks before EVERY commit - this is what CI runs!**
 
 ```bash
-# 1. REQUIRED: Full CI validation (run exactly what CI runs)
-flake8 src/ tests/ scripts/ --max-line-length=100  # Must have ZERO violations
-mypy src/ --ignore-missing-imports --strict-optional  # Must pass
-black --check --diff src/ tests/ scripts/  # Must show "All done!" - no reformatting needed
-python -m pytest tests/ -v  # Should have minimal failures (DB connection issues OK)
+# 🔥 THE SINGLE COMMAND THAT PREVENTS ALL CI FAILURES:
+pre-commit run --all-files
 
-# 2. Fix any violations immediately:
-# For line length: Break long lines, shorten variable names, split f-strings
-# For imports: isort src/ tests/ scripts/
-# For formatting: black src/ tests/ scripts/
+# This runs the EXACT same checks as CI:
+# ✅ black (code formatting)
+# ✅ isort (import sorting)
+# ✅ flake8 (style violations)
+# ✅ mypy (type checking)
+# ✅ trim whitespace, fix end of files, etc.
 
-# 3. Verify fixes:
-flake8 src/ tests/ scripts/ --max-line-length=100  # Must show NO output
-black --check --diff src/ tests/ scripts/  # Must show "All done!"
-echo "✅ All CI checks passed - safe to commit"
+# 🚨 CRITICAL: If ANY check fails, DO NOT commit until fixed!
 ```
 
-**🔥 Golden Rule: If flake8 shows ANY violations, DO NOT commit!**
+**🔥 Golden Rule: `pre-commit run --all-files` must show "Passed" for all checks!**
+
+### Quick Fix Commands:
+```bash
+# Fix most issues automatically:
+make format  # Runs black + isort to fix formatting/imports
+
+# Then re-run to verify:
+pre-commit run --all-files
+
+# Only commit when ALL checks pass!
+```
 
 ## Development Setup
 
@@ -153,40 +160,42 @@ Tests use mocked database connections for execution without requiring a running 
 5. **OpenMP conflicts on macOS**: Set `export KMP_DUPLICATE_LIB_OK=TRUE`
 6. **Branch not found**: Script auto-detects main/master/HEAD branches
 7. **Slow performance**: Ensure proper environment and GPU detection
-8. **🚨 CI Failures - Import Sorting**: Always run `isort src/ tests/ scripts/` before committing
+8. **🚨 CI Failures**: Run `pre-commit run --all-files` before committing to prevent ALL CI failures (formatting, imports, style, typing)
 9. **Type Checking**: mypy configuration is currently lenient to allow gradual type annotation adoption
 10. **Pre-commit Hooks**: Use latest versions (black 25.1.0, isort 6.0.1, flake8 7.3.0, mypy 1.17.0)
 
 ## Commit Checklist
 
-**🚨 CRITICAL CI VALIDATION (MUST PASS):**
-- [ ] **Zero flake8 violations**: `flake8 src/ tests/ scripts/ --max-line-length=100` (NO OUTPUT)
-- [ ] **MyPy passes**: `mypy src/ --ignore-missing-imports --strict-optional`
-- [ ] **Black formatting valid**: `black --check --diff src/ tests/ scripts/` (MUST show "All done!")
-- [ ] **Tests run successfully**: `python -m pytest tests/ -v` (minimal failures OK)
+**🚨 MANDATORY SINGLE CHECK (replaces all individual checks):**
+- [ ] **Pre-commit hooks pass**: `pre-commit run --all-files` (ALL checks must show "Passed")
+
+**If pre-commit fails, fix with:**
+- [ ] **Auto-fix formatting/imports**: `make format`
+- [ ] **Re-run validation**: `pre-commit run --all-files`
+- [ ] **Repeat until all checks pass**
 
 **Standard Quality Checks:**
-- [ ] **Import sorting fixed**: `isort src/ tests/ scripts/` (CRITICAL for CI)
-- [ ] Code formatted with `black src/ tests/ scripts/`
-- [ ] No import sorting violations: `isort --check-only --diff src/ tests/ scripts/`
-- [ ] No formatting violations: `black --check --diff src/ tests/ scripts/`
 - [ ] Documentation updated if adding new features
 - [ ] No sensitive data in commits (`.env` is gitignored)
 - [ ] Environment activated: `conda activate neo4j-code-graph`
 
-**❌ DO NOT COMMIT if any CI validation fails - fix issues first!**
+**❌ NEVER COMMIT if `pre-commit run --all-files` shows ANY failures!**
+
+**✅ CI Success Guarantee: If pre-commit passes locally, CI will pass too!**
 
 ## Quick Quality Check Commands
 
 ```bash
-# RECOMMENDED: Run the exact same checks as CI:
+# 🚨 MANDATORY: The only command you need before committing:
 pre-commit run --all-files
 
-# One-liner to fix most issues:
-make format
+# Fix issues automatically first:
+make format  # Fixes black + isort violations
 
-# Alternative: Check individual components:
-make format-check && make lint && pytest tests/ -v
+# Then verify everything passes:
+pre-commit run --all-files
 
-# Note: CI now uses pre-commit for perfect consistency between local and remote
+# ❌ NEVER commit if pre-commit shows any failures!
+
+# Note: CI runs the exact same pre-commit hooks - perfect consistency
 ```
