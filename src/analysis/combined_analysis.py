@@ -14,8 +14,12 @@ from pathlib import Path
 
 import javalang
 
-# Use relative imports consistently (module is always part of package)
-from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
+try:
+    # Try absolute import when called from CLI wrapper
+    from utils.common import add_common_args, create_neo4j_driver, setup_logging
+except ImportError:
+    # Fallback to relative import when used as module
+    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
 
 logger = logging.getLogger(__name__)
 
