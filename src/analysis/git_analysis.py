@@ -300,7 +300,9 @@ def bulk_load_to_neo4j(
                 f"FileVer creation and relationships batch {batch_num}",
             )
             step_time = time.time() - step_start
-            logger.info(f"  ✅ Created {len(batch):,} FileVer nodes and relationships in {step_time:.1f}s")
+            logger.info(
+                f"  ✅ Created {len(batch):,} FileVer nodes and relationships in {step_time:.1f}s"
+            )
 
             batch_time = time.time() - batch_start
             elapsed_total = time.time() - start_time

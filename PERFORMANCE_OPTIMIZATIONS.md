@@ -15,7 +15,7 @@ Based on the timing analysis showing:
 
 **Solution**:
 - Pre-filter method calls to only process valid ones (non-empty callee names > 1 char)
-- Increased batch size from 100 to 500 for better efficiency 
+- Increased batch size from 100 to 500 for better efficiency
 - Replaced inefficient `OPTIONAL MATCH` with optimized `EXISTS` clause
 - Reduced failure threshold from 10 to 5 batches for faster failure detection
 - Removed unnecessary sleep delays between batches

@@ -5,7 +5,6 @@ import gc
 import logging
 import re
 import tempfile
-import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -273,14 +272,14 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
 
     # Set model to eval mode and enable optimizations
     model.eval()
-    if hasattr(torch, 'backends') and hasattr(torch.backends, 'cudnn'):
+    if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
         torch.backends.cudnn.benchmark = True
 
     # Enable Flash Attention if available (PyTorch 2.0+)
-    if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
+    if hasattr(torch.nn.functional, "scaled_dot_product_attention"):
         torch.nn.functional.scaled_dot_product_attention._enabled = True
 
-         # Process in batches
+        # Process in batches
     for i in tqdm(range(0, len(snippets), batch_size), desc="Computing embeddings"):
         batch_snippets = snippets[i : i + batch_size]
 
@@ -298,7 +297,7 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
             all_embeddings.extend([zero_embedding] * len(batch_snippets))
             continue
 
-                 # Tokenize batch
+            # Tokenize batch
         tokens = tokenizer(
             valid_snippets,
             padding="max_length",  # More efficient than dynamic padding
@@ -314,7 +313,7 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
         else:
             tokens = {k: v.to(device) for k, v in tokens.items()}
 
-                 # Compute embeddings
+            # Compute embeddings
         with torch.no_grad():
             if use_amp:
                 with torch.amp.autocast("cuda", dtype=torch.float16):
@@ -1026,7 +1025,8 @@ def create_methods(session, files_data, method_embeddings):
                 return_type: method.return_type,
                 modifiers: method.modifiers
             })
-            """ + (
+            """
+            + (
                 "SET m.class = method.class, m.containing_type = method.containing_type"
                 if any("class" in m for m in batch)
                 else ""
@@ -1332,7 +1332,7 @@ def create_method_calls(session, files_data):
 
             logger.info(f"Filtered to {len(filtered_calls)} potentially valid calls")
 
-                         # Use EXISTS clause to reduce failures
+            # Use EXISTS clause to reduce failures
             batch_size = 500  # Larger batches for efficiency
             total_batches = (len(filtered_calls) + batch_size - 1) // batch_size
             successful_calls = 0
@@ -1350,7 +1350,7 @@ def create_method_calls(session, files_data):
                     )
                     start_time = perf_counter()
 
-                                         # Query using EXISTS clause for better matching
+                    # Query using EXISTS clause for better matching
                     result = session.run(
                         """
                         UNWIND $calls AS call
@@ -1448,7 +1448,9 @@ def main():
                     result = session.run("MATCH (f:File) RETURN f.path as path")
                     existing_files = {record["path"] for record in result}
                     if existing_files:
-                        logger.info(f"Found {len(existing_files)} files already in database - will skip processing")
+                        logger.info(
+                            f"Found {len(existing_files)} files already in database - will skip processing"
+                        )
                 except Exception as e:
                     logger.debug(f"Could not check existing files (continuing): {e}")
 
@@ -1538,9 +1540,11 @@ def main():
                 del model, tokenizer
                 if device.type == "cuda":
                     import torch
+
                     torch.cuda.empty_cache()
                 elif device.type == "mps":
                     import torch
+
                     torch.mps.empty_cache()
                 gc.collect()
             else:
