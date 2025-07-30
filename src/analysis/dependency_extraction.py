@@ -347,4 +347,4 @@ if __name__ == "__main__":
         for dep in deps:
             print(f"  {dep.gav.full_coordinate} (scope: {dep.scope})")
     else:
-        print("Usage: python enhanced_dependency_extraction.py <repo_path>")
+        print("Usage: python dependency_extraction.py <repo_path>")

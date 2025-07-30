@@ -36,7 +36,7 @@ The original CVE matching system had several critical accuracy issues:
 ```
 src/security/
 ├── gav_cve_matcher.py           # Core matching logic
-├── enhanced_dependency_extraction.py  # Proper GAV extraction
+├── dependency_extraction.py  # Proper GAV extraction
 └── cve_analysis.py             # Updated CVE analysis (to be modified)
 
 tests/security/

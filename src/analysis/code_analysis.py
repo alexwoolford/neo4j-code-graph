@@ -21,6 +21,22 @@ except ImportError:
     # Fallback to relative import when used as module
     from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
 
+# Constants for method call parsing
+JAVA_KEYWORDS_TO_SKIP = {
+    "i",
+    "while",
+    "for",
+    "switch",
+    "catch",
+    "synchronized",
+    "return",
+    "throw",
+    "new",
+    "assert",
+    "super",
+    "this",
+}
+
 logger = logging.getLogger(__name__)
 
 MODEL_NAME = "microsoft/graphcodebert-base"
@@ -543,50 +559,15 @@ def _extract_method_calls(method_code, containing_class):
             method_name = match.group(2)
 
             # Skip common Java keywords and operators that match the pattern
-            skip_keywords = {
-                "i",
-                "while",
-                "for",
-                "switch",
-                "catch",
-                "synchronized",
-                "return",
-                "throw",
-                "new",
-                "assert",
-                "super",
-                "this",
-            }
-
-            if method_name.lower() in skip_keywords:
+            if method_name.lower() in JAVA_KEYWORDS_TO_SKIP:
                 continue
 
             # Skip obvious constructors (capitalized method names)
             if method_name[0].isupper():
                 continue
 
-            # Determine target class/object
-            target_class = None
-            call_type = "unknown"
-
-            if qualifier is None:
-                # Direct method call - assume same class
-                target_class = containing_class
-                call_type = "same_class"
-            elif qualifier == "this":
-                target_class = containing_class
-                call_type = "this"
-            elif qualifier == "super":
-                target_class = "super"  # We'll resolve inheritance later
-                call_type = "super"
-            elif qualifier[0].isupper():
-                # Capitalized qualifier likely a class name (static call)
-                target_class = qualifier
-                call_type = "static"
-            else:
-                # Lowercase qualifier likely an object instance
-                target_class = qualifier  # We'll resolve the type later if possible
-                call_type = "instance"
+            # Determine target class and call type based on qualifier
+            target_class, call_type = _determine_call_target(qualifier, containing_class)
 
             method_calls.append(
                 {
@@ -602,6 +583,23 @@ def _extract_method_calls(method_code, containing_class):
         logger.debug(f"Error parsing method calls in {containing_class}: {e}")
 
     return method_calls
+
+
+def _determine_call_target(qualifier, containing_class):
+    """Determine the target class and call type for a method call."""
+    if qualifier is None:
+        # Direct method call - assume same class
+        return containing_class, "same_class"
+    elif qualifier == "this":
+        return containing_class, "this"
+    elif qualifier == "super":
+        return "super", "super"  # We'll resolve inheritance later
+    elif qualifier[0].isupper():
+        # Capitalized qualifier likely a class name (static call)
+        return qualifier, "static"
+    else:
+        # Lowercase qualifier likely an object instance
+        return qualifier, "instance"  # We'll resolve the type later if possible
 
 
 def create_directories(session, files_data):

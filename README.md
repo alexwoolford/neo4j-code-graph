@@ -129,7 +129,7 @@ ORDER BY recent_changes DESC
 
 ### 1. Setup
 ```bash
-git clone https://github.com/your-repo/neo4j-code-graph
+git clone https://github.com/alexwoolford/neo4j-code-graph
 cd neo4j-code-graph
 pip install -r requirements.txt
 
@@ -226,4 +226,4 @@ NVD_API_KEY=your_nvd_api_key
 
 ## License
 
-Licensed under the Apache License, Version 2.0.
+Licensed under the MIT License.
