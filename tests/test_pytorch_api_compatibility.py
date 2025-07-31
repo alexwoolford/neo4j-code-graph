@@ -20,7 +20,6 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
     def test_scaled_dot_product_attention_api(self):
         """Test that we don't try to set invalid attributes on PyTorch functions."""
         try:
-            import torch
             import torch.nn.functional as F
         except ImportError:
             self.skipTest("PyTorch not available")
@@ -29,13 +28,13 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
         if hasattr(F, "scaled_dot_product_attention"):
             # This should be a function
             self.assertTrue(callable(F.scaled_dot_product_attention))
-            
+
             # This should NOT have an _enabled attribute
             self.assertFalse(
                 hasattr(F.scaled_dot_product_attention, "_enabled"),
-                "scaled_dot_product_attention should not have _enabled attribute"
+                "scaled_dot_product_attention should not have _enabled attribute",
             )
-            
+
             # Attempting to set _enabled should raise an AttributeError
             with self.assertRaises(AttributeError):
                 F.scaled_dot_product_attention._enabled = True
@@ -47,43 +46,48 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
             # Create a mock scaled_dot_product_attention function
             mock_sdpa = MagicMock()
             mock_functional.scaled_dot_product_attention = mock_sdpa
-            
+
             # Mock other torch components
-            with patch("torch.cuda") as mock_cuda, \
-                 patch("torch.backends.cudnn") as mock_cudnn, \
-                 patch("torch.device") as mock_device:
-                
+            with (
+                patch("torch.cuda") as mock_cuda,
+                patch("torch.backends.cudnn"),
+                patch("torch.device") as mock_device,
+            ):
+
                 mock_cuda.is_available.return_value = True
                 mock_cuda.amp = MagicMock()
                 mock_device.return_value = MagicMock(type="cuda")
-                
+
                 # Import the function after mocking
                 try:
                     from analysis.code_analysis import compute_embeddings_bulk
-                    
+
                     # Create minimal test inputs
                     snippets = ["test code snippet"]
                     tokenizer = MagicMock()
                     tokenizer.return_value = {
                         "input_ids": MagicMock(),
-                        "attention_mask": MagicMock()
+                        "attention_mask": MagicMock(),
                     }
-                    
+
                     model = MagicMock()
                     model.eval.return_value = model
                     model.return_value = MagicMock(last_hidden_state=MagicMock())
-                    
+
                     device = MagicMock(type="cuda")
                     batch_size = 1
-                    
+
                     # This should NOT attempt to set _enabled on the function
                     try:
                         compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size)
                     except Exception as e:
                         # If it fails, it shouldn't be due to trying to set _enabled
                         self.assertNotIn("_enabled", str(e))
-                        self.assertNotIn("'builtin_function_or_method' object has no attribute '_enabled'", str(e))
-                        
+                        self.assertNotIn(
+                            "'builtin_function_or_method' object has no attribute '_enabled'",
+                            str(e),
+                        )
+
                 except ImportError:
                     self.skipTest("Could not import compute_embeddings_bulk")
 
@@ -93,22 +97,22 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
             import torch
         except ImportError:
             self.skipTest("PyTorch not available")
-            
+
         # Test that we can access backends without errors
         if hasattr(torch, "backends"):
             backends = torch.backends
-            
+
             # Test CUDA backend access
             if hasattr(backends, "cuda"):
                 cuda_backend = backends.cuda
-                
+
                 # These should be available for controlling SDPA backends
                 expected_attrs = [
                     "flash_sdp_enabled",
-                    "mem_efficient_sdp_enabled", 
-                    "math_sdp_enabled"
+                    "mem_efficient_sdp_enabled",
+                    "math_sdp_enabled",
                 ]
-                
+
                 for attr in expected_attrs:
                     if hasattr(cuda_backend, attr):
                         # Should be callable functions
@@ -121,17 +125,17 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
             import torch.nn.functional as F
         except ImportError:
             self.skipTest("PyTorch not available")
-            
+
         # Test that we can detect if scaled_dot_product_attention is available
         has_sdpa = hasattr(F, "scaled_dot_product_attention")
-        
+
         if has_sdpa:
             # Should be a function
             self.assertTrue(callable(F.scaled_dot_product_attention))
-            
+
             # Test that the function signature makes sense
             func = F.scaled_dot_product_attention
-            
+
             # Should not raise when called properly (this is a basic smoke test)
             try:
                 # Create minimal tensors for testing
@@ -139,15 +143,15 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
                     device = "cuda"
                 else:
                     device = "cpu"
-                    
+
                 q = torch.randn(1, 1, 4, 8, device=device)
                 k = torch.randn(1, 1, 4, 8, device=device)
                 v = torch.randn(1, 1, 4, 8, device=device)
-                
+
                 # This should work without errors
                 result = func(q, k, v)
                 self.assertIsInstance(result, torch.Tensor)
-                
+
             except Exception as e:
                 # If it fails, it shouldn't be due to API misuse
                 self.assertNotIn("_enabled", str(e))
