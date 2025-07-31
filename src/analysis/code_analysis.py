@@ -1202,40 +1202,65 @@ def create_imports(session, files_data, dependency_versions=None):
 
         for dep in external_dependencies:
             version = None
+            group_id = None
+            artifact_id = None
+
             if dependency_versions:
+                # Try exact match first
                 if dep in dependency_versions:
                     version = dependency_versions[dep]
                 else:
+                    # Try fuzzy matching for import-based dependencies
                     for dep_key, dep_version in dependency_versions.items():
                         if dep.startswith(dep_key) or dep_key.startswith(dep):
                             version = dep_version
                             break
 
+                # Try to extract GAV coordinates from dependency_versions keys
+                # Enhanced extraction stores full GAV coordinates as keys
+                for dep_key, dep_version in dependency_versions.items():
+                    if ":" in dep_key and len(dep_key.split(":")) == 3:
+                        # This is a full GAV coordinate: group:artifact:version
+                        parts = dep_key.split(":")
+                        potential_group = parts[0]
+                        potential_artifact = parts[1]
+
+                        # Check if this GAV matches our import-based dependency
+                        if dep.startswith(potential_group) or potential_group in dep:
+                            group_id = potential_group
+                            artifact_id = potential_artifact
+                            version = dep_version
+                            break
+
             dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
 
+            # Add GAV coordinates if available
+            if group_id:
+                dependency_node["group_id"] = group_id
+            if artifact_id:
+                dependency_node["artifact_id"] = artifact_id
             if version:
                 dependency_node["version"] = version
-                logger.debug(f"📦 {dep} -> version {version}")
+                logger.debug(f"📦 {dep} -> {group_id}:{artifact_id}:{version}")
             else:
-                logger.debug(f"📦 {dep} -> no version found")
+                dependency_node["version"] = "unknown"  # Fallback for CVE analysis
+                logger.debug(f"📦 {dep} -> no version found, using 'unknown'")
 
             dependency_nodes.append(dependency_node)
 
-        if dependency_versions:
-            session.run(
-                "UNWIND $dependencies AS dep "
-                "MERGE (e:ExternalDependency {package: dep.package}) "
-                "SET e.language = dep.language, e.ecosystem = dep.ecosystem, "
-                "e.version = CASE WHEN dep.version IS NOT NULL THEN dep.version ELSE e.version END",
-                dependencies=dependency_nodes,
-            )
-        else:
-            session.run(
-                "UNWIND $dependencies AS dep "
-                "MERGE (e:ExternalDependency {package: dep.package}) "
-                "SET e.language = dep.language, e.ecosystem = dep.ecosystem",
-                dependencies=dependency_nodes,
-            )
+        # Create ExternalDependency nodes with GAV coordinates
+        session.run(
+            """
+            UNWIND $dependencies AS dep
+            MERGE (e:ExternalDependency {package: dep.package})
+            SET e.language = dep.language,
+                e.ecosystem = dep.ecosystem,
+                e.version = CASE WHEN dep.version IS NOT NULL THEN dep.version ELSE "unknown" END,
+                e.group_id = CASE WHEN dep.group_id IS NOT NULL THEN dep.group_id ELSE null END,
+                e.artifact_id = CASE WHEN dep.artifact_id IS NOT NULL THEN dep.artifact_id ELSE null END
+            """,
+            dependencies=dependency_nodes,
+        )
 
         session.run(
             "MATCH (i:Import) "
@@ -1425,8 +1450,19 @@ def main():
                 java_files = list(repo_root.rglob("*.java"))
                 logger.info("Found %d Java files to process", len(java_files))
 
-            # Extract dependency versions from build files
-            dependency_versions = extract_dependency_versions_from_files(repo_root)
+            # Extract dependency versions from build files using enhanced extraction
+            try:
+                from .dependency_extraction import extract_enhanced_dependencies_for_neo4j
+
+                dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
+                logger.info(
+                    f"🚀 Using enhanced dependency extraction: {len(dependency_versions)} dependencies"
+                )
+            except ImportError:
+                logger.warning(
+                    "Enhanced dependency extraction not available, falling back to basic extraction"
+                )
+                dependency_versions = extract_dependency_versions_from_files(repo_root)
 
             # Phase 1: Extract all file data in parallel (with skip-existing logic)
             logger.info("Phase 1: Extracting file data...")

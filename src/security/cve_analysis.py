@@ -269,16 +269,28 @@ class CVEAnalyzer:
             return "NONE"
 
     def _link_cves_to_dependencies(self, session, cve_data: List[Dict]):
-        """Link CVEs to external dependencies based on content analysis."""
-        logger.info("🔗 Linking CVEs to codebase dependencies...")
+        """Link CVEs to external dependencies using precise GAV matching."""
+        logger.info("🔗 Linking CVEs to codebase dependencies using precise GAV matching...")
 
-        # Get all external dependencies
+        # Get all external dependencies with GAV coordinates
         deps_query = """
         MATCH (ed:ExternalDependency)
-        RETURN ed.package AS import_path
+        RETURN ed.package AS import_path,
+               ed.group_id AS group_id,
+               ed.artifact_id AS artifact_id,
+               ed.version AS version
         """
         deps_result = session.run(deps_query)
-        dependencies = [record["import_path"] for record in deps_result]
+        dependencies = []
+
+        for record in deps_result:
+            dep_info = {
+                "package": record["import_path"],
+                "group_id": record["group_id"],
+                "artifact_id": record["artifact_id"],
+                "version": record["version"],
+            }
+            dependencies.append(dep_info)
 
         if not dependencies:
             logger.warning("No external dependencies found in graph")
@@ -286,37 +298,110 @@ class CVEAnalyzer:
 
         logger.info(f"Found {len(dependencies)} dependencies to match against")
 
-        # Create links based on content matching using cleaned CVE data
-        link_pairs = []
-        for cve in cve_data:
-            cve_id = cve.get("id", "")
-            description = cve.get("description", "").lower()
+        # Initialize precise GAV matcher
+        try:
+            from .gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
 
-            # Simple but effective matching for cleaned data
-            for dep_path in dependencies:
-                if self._is_dependency_affected_simple(dep_path, description):
-                    link_pairs.append(
-                        {
-                            "cve_id": cve_id,
-                            "dep_package": dep_path,
-                            "confidence": self._calculate_match_confidence_simple(
+            matcher = PreciseGAVMatcher()
+
+            # Convert dependencies to GAV coordinates for precise matching
+            gav_dependencies = []
+            for dep in dependencies:
+                if (
+                    dep["group_id"]
+                    and dep["artifact_id"]
+                    and dep["version"]
+                    and dep["version"] != "unknown"
+                ):
+                    gav = GAVCoordinate(dep["group_id"], dep["artifact_id"], dep["version"])
+                    gav_dependencies.append((gav, dep["package"]))
+
+            logger.info(
+                f"🎯 Using precise GAV matching for {len(gav_dependencies)} dependencies with full coordinates"
+            )
+
+            # Use precise GAV matching for dependencies with full coordinates
+            precise_matches = []
+            if gav_dependencies:
+                for gav, package in gav_dependencies:
+                    for cve in cve_data:
+                        confidence = matcher.match_gav_to_cve(gav, cve)
+                        if confidence is not None:
+                            precise_matches.append(
+                                {
+                                    "cve_id": cve.get("id", ""),
+                                    "dep_package": package,
+                                    "confidence": confidence,
+                                    "match_type": "precise_gav",
+                                }
+                            )
+
+            logger.info(
+                f"🎯 Precise GAV matching found {len(precise_matches)} high-confidence matches"
+            )
+
+        except ImportError:
+            logger.warning("Precise GAV matcher not available, skipping precise matching")
+            precise_matches = []
+
+        # Fall back to improved text matching only for dependencies without GAV coordinates
+        # and only if no precise matches were found
+        text_matches = []
+        if len(precise_matches) < 10:  # Only use text matching if we have very few precise matches
+            deps_without_gav = [
+                dep
+                for dep in dependencies
+                if not (
+                    dep["group_id"]
+                    and dep["artifact_id"]
+                    and dep["version"]
+                    and dep["version"] != "unknown"
+                )
+            ]
+
+            if deps_without_gav:
+                logger.info(
+                    f"⚠️  Using fallback text matching for {len(deps_without_gav)} dependencies without GAV coordinates"
+                )
+
+                for cve in cve_data:
+                    cve_id = cve.get("id", "")
+                    description = cve.get("description", "").lower()
+
+                    for dep in deps_without_gav:
+                        dep_path = dep["package"]
+                        if self._is_dependency_affected_improved(dep_path, description):
+                            confidence = self._calculate_match_confidence_improved(
                                 dep_path, description
-                            ),
-                        }
-                    )
+                            )
+                            if confidence > 0.7:  # Higher threshold for text matching
+                                text_matches.append(
+                                    {
+                                        "cve_id": cve_id,
+                                        "dep_package": dep_path,
+                                        "confidence": confidence,
+                                        "match_type": "text_fallback",
+                                    }
+                                )
+
+        # Combine all matches
+        all_matches = precise_matches + text_matches
 
         # Create relationships
-        if link_pairs:
+        if all_matches:
             link_query = """
             UNWIND $links AS link
             MATCH (cve:CVE {id: link.cve_id})
             MATCH (ed:ExternalDependency {package: link.dep_package})
             MERGE (cve)-[r:AFFECTS]->(ed)
             SET r.confidence = link.confidence,
+                r.match_type = link.match_type,
                 r.created_at = datetime()
             """
-            session.run(link_query, links=link_pairs)
-            logger.info(f"🔗 Created {len(link_pairs)} CVE-dependency relationships")
+            session.run(link_query, links=all_matches)
+            logger.info(f"🔗 Created {len(all_matches)} CVE-dependency relationships")
+            logger.info(f"   - {len(precise_matches)} precise GAV matches")
+            logger.info(f"   - {len(text_matches)} text fallback matches")
         else:
             logger.info("No CVE-dependency matches found")
 
@@ -415,6 +500,92 @@ class CVEAnalyzer:
             confidence += 0.4 * (partial_matches / len(dep_parts))
 
         return min(confidence, 1.0)
+
+    def _is_dependency_affected_improved(self, dep_path: str, cve_description: str) -> bool:
+        """Improved dependency matching with stricter criteria to reduce false positives."""
+        dep_lower = dep_path.lower()
+
+        # Direct exact match (most reliable)
+        if dep_lower in cve_description:
+            return True
+
+        # Extract meaningful components (avoid common words)
+        parts = []
+        for sep in [".", "/", "-", "_"]:
+            if sep in dep_path:
+                parts.extend(
+                    part.lower()
+                    for part in dep_path.split(sep)
+                    if len(part) > 4
+                    and part
+                    not in {
+                        "java",
+                        "com",
+                        "org",
+                        "io",
+                        "net",
+                        "util",
+                        "core",
+                        "common",
+                        "main",
+                        "test",
+                        "api",
+                        "impl",
+                        "base",
+                    }
+                )
+
+        # Require at least 2 meaningful parts to match for high confidence
+        matches = [part for part in parts if part in cve_description]
+        return len(matches) >= 2
+
+    def _calculate_match_confidence_improved(self, dep_path: str, cve_description: str) -> float:
+        """Calculate confidence with stricter criteria."""
+        dep_lower = dep_path.lower()
+
+        # Direct match gets highest confidence
+        if dep_lower in cve_description:
+            return 0.95
+
+        # Component matching with stricter scoring
+        parts = []
+        for sep in [".", "/", "-", "_"]:
+            if sep in dep_path:
+                parts.extend(
+                    part.lower()
+                    for part in dep_path.split(sep)
+                    if len(part) > 4
+                    and part
+                    not in {
+                        "java",
+                        "com",
+                        "org",
+                        "io",
+                        "net",
+                        "util",
+                        "core",
+                        "common",
+                        "main",
+                        "test",
+                        "api",
+                        "impl",
+                        "base",
+                    }
+                )
+
+        if not parts:
+            return 0.0
+
+        matches = [part for part in parts if part in cve_description]
+        match_ratio = len(matches) / len(parts)
+
+        # Require high match ratio for confidence
+        if match_ratio >= 0.8:
+            return 0.8
+        elif match_ratio >= 0.6:
+            return 0.6
+        else:
+            return 0.0
 
     def setup_indexes(self):
         """Create necessary indexes for efficient querying."""
