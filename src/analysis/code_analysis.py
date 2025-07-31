@@ -730,22 +730,20 @@ def create_files(session, files_data, file_embeddings):
             batch_num = i // batch_size + 1
             batch = file_nodes[i : i + batch_size]
             logger.debug(f"Creating file batch {batch_num} ({len(batch)} files)")
-            # Use CREATE instead of MERGE for better performance (assumes clean database or skip-existing logic)
+            # Use MERGE to handle re-runs and avoid constraint violations
             session.run(
                 """
                 UNWIND $files AS file
-                CREATE (f:File {
-                    path: file.path,
-                    embedding: file.embedding,
-                    embedding_type: file.embedding_type,
-                    language: file.language,
-                    ecosystem: file.ecosystem,
-                    total_lines: file.total_lines,
-                    code_lines: file.code_lines,
-                    method_count: file.method_count,
-                    class_count: file.class_count,
-                    interface_count: file.interface_count
-                })
+                MERGE (f:File {path: file.path})
+                SET f.embedding = file.embedding,
+                    f.embedding_type = file.embedding_type,
+                    f.language = file.language,
+                    f.ecosystem = file.ecosystem,
+                    f.total_lines = file.total_lines,
+                    f.code_lines = file.code_lines,
+                    f.method_count = file.method_count,
+                    f.class_count = file.class_count,
+                    f.interface_count = file.interface_count
                 """,
                 files=batch,
             )
@@ -1004,26 +1002,22 @@ def create_methods(session, files_data, method_embeddings):
         logger.info(f"Creating method batch {batch_num}/{total_batches} ({len(batch)} methods)...")
         start_time = perf_counter()
 
-        # Use CREATE instead of MERGE for new nodes (much faster)
-        # MERGE is expensive because it checks for existence first
+        # Use MERGE to handle re-runs and avoid constraint violations
+        # Method has unique constraint on (name, file, line)
         session.run(
             """
             UNWIND $methods AS method
-            CREATE (m:Method {
-                name: method.name,
-                file: method.file,
-                line: method.line,
-                embedding: method.embedding,
-                embedding_type: method.embedding_type,
-                estimated_lines: method.estimated_lines,
-                is_static: method.is_static,
-                is_abstract: method.is_abstract,
-                is_final: method.is_final,
-                is_private: method.is_private,
-                is_public: method.is_public,
-                return_type: method.return_type,
-                modifiers: method.modifiers
-            })
+            MERGE (m:Method {name: method.name, file: method.file, line: method.line})
+            SET m.embedding = method.embedding,
+                m.embedding_type = method.embedding_type,
+                m.estimated_lines = method.estimated_lines,
+                m.is_static = method.is_static,
+                m.is_abstract = method.is_abstract,
+                m.is_final = method.is_final,
+                m.is_private = method.is_private,
+                m.is_public = method.is_public,
+                m.return_type = method.return_type,
+                m.modifiers = method.modifiers
             """
             + (
                 "SET m.class = method.class, m.containing_type = method.containing_type"
@@ -1160,16 +1154,14 @@ def create_imports(session, files_data, dependency_versions=None):
             )
             start_time = perf_counter()
 
-            # Use CREATE instead of MERGE for better performance
+            # Use MERGE to handle re-runs and avoid constraint violations
             session.run(
                 """
                 UNWIND $imports AS imp
-                CREATE (i:Import {
-                    import_path: imp.import_path,
-                    is_static: imp.is_static,
-                    is_wildcard: imp.is_wildcard,
-                    import_type: imp.import_type
-                })
+                MERGE (i:Import {import_path: imp.import_path})
+                SET i.is_static = imp.is_static,
+                    i.is_wildcard = imp.is_wildcard,
+                    i.import_type = imp.import_type
                 """,
                 imports=batch,
             )
