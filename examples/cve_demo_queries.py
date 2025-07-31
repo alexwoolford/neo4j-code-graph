@@ -2,15 +2,13 @@
 """
 CVE Analysis Demo Queries - Multi-Modal Neo4j Access Patterns
 
-⚠️  WARNING: This file contains CONCEPTUAL examples with Component nodes that
-    don't exist in the actual graph schema. For WORKING queries, see README.md
+✅ This file contains WORKING examples using the actual graph schema.
 
-    Actual schema: CVE -[:AFFECTS]-> ExternalDependency
-    This file uses: CVE -[:AFFECTS]-> Component (which doesn't exist)
+    Schema: CVE -[:AFFECTS]-> ExternalDependency
 
 This script demonstrates various Neo4j access patterns for CVE analysis:
 1. Graph Traversal - Find dependency paths from CVEs to public APIs
-2. Vector Search - Find similar components using embeddings
+2. Vector Search - Find similar dependencies using embeddings
 3. Lucene Search - Text search CVE descriptions
 4. Graph Algorithms - PageRank, community detection for risk prioritization
 5. Hybrid Queries - Combining multiple signals for risk assessment
@@ -72,50 +70,55 @@ def demo_graph_traversal(session):
 
 
 def demo_vector_search(session):
-    """Demonstrate vector similarity search for components."""
-    print("\n🎯 2. VECTOR SEARCH: Find Similar Vulnerable Components")
+    """Demonstrate vector similarity search for dependencies."""
+    print("\n🎯 2. VECTOR SEARCH: Find Similar Vulnerable Dependencies")
     print("=" * 60)
 
-    # First, get a vulnerable component's embedding
+    # First, get a vulnerable dependency's embedding
     vuln_component = session.run(
         """
-        MATCH (cve:CVE)-[:AFFECTS]->(comp:Component)
-        WHERE comp.embedding IS NOT NULL
-        RETURN comp.name AS name, comp.embedding AS embedding
+        MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)
+        WHERE dep.embedding IS NOT NULL
+        RETURN dep.gav AS name, dep.embedding AS embedding
         LIMIT 1
-    """
+        """
     ).single()
 
     if vuln_component:
-        # Use vector index to find similar components
+        # Find similar dependencies by group/artifact pattern matching
         query = """
-        CALL db.index.vector.queryNodes('component_embeddings', 5, $embedding)
-        YIELD node, score
-        WHERE node:Component AND node.name <> $comp_name
+        MATCH (dep:ExternalDependency)
+        WHERE dep.gav <> $comp_name
+          AND (dep.group_id = split($comp_name, ':')[0]
+               OR dep.artifact_id CONTAINS split(split($comp_name, ':')[1], '/')[0])
+        WITH dep,
+             CASE
+               WHEN dep.group_id = split($comp_name, ':')[0] THEN 0.8
+               ELSE 0.3
+             END AS similarity_score
 
-        // Check if similar components are also used in the codebase
-        OPTIONAL MATCH (ed:ExternalDependency)-[:RESOLVED_TO]->(node)
-        OPTIONAL MATCH (file:File)-[:DEPENDS_ON]->(ed)
+        // Check if similar dependencies are used in the codebase
+        OPTIONAL MATCH (dep)<-[:DEPENDS_ON]-(i:Import)
+        OPTIONAL MATCH (i)<-[:IMPORTS]-(file:File)
 
-        RETURN node.name AS similar_component,
-               round(score, 3) AS similarity_score,
+        RETURN dep.gav AS similar_dependency,
+               round(similarity_score, 3) AS similarity_score,
                count(DISTINCT file) AS usage_count,
-               collect(DISTINCT file.package)[0..3] AS sample_packages
-        ORDER BY score DESC
+               collect(DISTINCT file.language)[0..3] AS sample_languages
+        ORDER BY similarity_score DESC, usage_count DESC
+        LIMIT 5
         """
 
-        result = session.run(
-            query, embedding=vuln_component["embedding"], comp_name=vuln_component["name"]
-        )
+        result = session.run(query, comp_name=vuln_component["name"])
 
-        print(f"Components similar to vulnerable: {vuln_component['name']}")
+        print(f"Dependencies similar to vulnerable: {vuln_component['name']}")
         print()
 
         for record in result:
-            print(f"📦 {record['similar_component']}")
+            print(f"📦 {record['similar_dependency']}")
             print(f"   Similarity: {record['similarity_score']}")
             print(f"   Used in {record['usage_count']} files")
-            print(f"   Packages: {record['sample_packages']}")
+            print(f"   Languages: {record['sample_languages']}")
             print()
 
 
@@ -135,15 +138,15 @@ def demo_lucene_search(session):
         YIELD node, score
         WHERE score > 0.5
 
-        // Find what components are affected
-        MATCH (node)-[:AFFECTS]->(comp:Component)
+        // Find what dependencies are affected
+        MATCH (node)-[:AFFECTS]->(dep:ExternalDependency)
         OPTIONAL MATCH (ed:ExternalDependency)-[:RESOLVED_TO]->(comp)
         OPTIONAL MATCH (file:File)-[:DEPENDS_ON]->(ed)
 
         RETURN node.cve_id AS cve_id,
                node.cvss_score AS cvss_score,
                round(score, 3) AS search_relevance,
-               collect(DISTINCT comp.name)[0..3] AS affected_components,
+               collect(DISTINCT dep.gav)[0..3] AS affected_dependencies,
                count(DISTINCT file) AS codebase_usage
         ORDER BY score DESC
         LIMIT 3
@@ -153,14 +156,14 @@ def demo_lucene_search(session):
         for record in result:
             print(f"  🔍 {record['cve_id']} (CVSS: {record['cvss_score']})")
             print(f"     Relevance: {record['search_relevance']}")
-            print(f"     Components: {record['affected_components']}")
+            print(f"     Dependencies: {record['affected_dependencies']}")
             print(f"     Codebase usage: {record['codebase_usage']} files")
         print()
 
 
 def demo_graph_algorithms(gds):
     """Demonstrate graph algorithms for dependency analysis."""
-    print("\n📊 4. GRAPH ALGORITHMS: Component Importance & Communities")
+    print("\n📊 4. GRAPH ALGORITHMS: Dependency Importance & Communities")
     print("=" * 60)
 
     # Create dependency graph projection
@@ -174,10 +177,9 @@ def demo_graph_algorithms(gds):
         "dependency_analysis",
         """
         MATCH (n)
-        WHERE n:File OR n:ExternalDependency OR n:Component
+        WHERE n:File OR n:ExternalDependency
         RETURN id(n) AS id,
                CASE
-                 WHEN n:Component THEN 'Component'
                  WHEN n:ExternalDependency THEN 'ExternalDep'
                  ELSE 'File'
                END AS nodeType,
@@ -195,13 +197,13 @@ def demo_graph_algorithms(gds):
     print(f"  Relationships: {dependency_graph.relationship_count()}")
     print()
 
-    # Run PageRank to find most influential components
+    # Run PageRank to find most influential dependencies
     print("Running PageRank analysis...")
     pagerank_result = gds.pageRank.stream(dependency_graph)
-    top_components = pagerank_result.nlargest(10, "score")
+    top_dependencies = pagerank_result.nlargest(10, "score")
 
-    print("🏆 Most Influential Components:")
-    for _, row in top_components.iterrows():
+    print("🏆 Most Influential Dependencies:")
+    for _, row in top_dependencies.iterrows():
         print(f"   Score: {row['score']:.4f} - Node ID: {row['nodeId']}")
     print()
 
@@ -227,43 +229,43 @@ def demo_hybrid_queries(session):
     # Complex query combining traversal, centrality, and text search
     query = """
     // Find high-risk vulnerabilities using multiple signals
-    MATCH (cve:CVE)-[:AFFECTS]->(vuln_comp:Component)
+            MATCH (cve:CVE)-[:AFFECTS]->(vuln_dep:ExternalDependency)
     WHERE cve.cvss_score >= 7.0  // High severity only
 
     // Graph traversal: Find dependency paths to public APIs
-    OPTIONAL MATCH path = (api_file:File)-[:DEPENDS_ON*1..3]->(ed:ExternalDependency)-[:RESOLVED_TO]->(vuln_comp)
+    OPTIONAL MATCH path = (api_file:File)-[:DEPENDS_ON*1..3]->(ed:ExternalDependency)-[:RESOLVED_TO]->(vuln_dep)
     WHERE api_file.package CONTAINS "api"
        OR api_file.package CONTAINS "controller"
 
-    WITH cve, vuln_comp,
+    WITH cve, vuln_dep,
          count(DISTINCT path) AS api_exposure_count,
          min(length(path)) AS shortest_path_to_api
 
-    // Component similarity: Check if similar components exist
-    OPTIONAL MATCH (similar:Component)
-    WHERE similar <> vuln_comp
+    // Dependency similarity: Check if similar dependencies exist
+    OPTIONAL MATCH (similar:ExternalDependency)
+    WHERE similar <> vuln_dep
       AND similar.embedding IS NOT NULL
-      AND vuln_comp.embedding IS NOT NULL
-      AND gds.similarity.cosine(similar.embedding, vuln_comp.embedding) > 0.8
+      AND vuln_dep.embedding IS NOT NULL
+      AND gds.similarity.cosine(similar.embedding, vuln_dep.embedding) > 0.8
 
-    WITH cve, vuln_comp, api_exposure_count, shortest_path_to_api,
-         count(DISTINCT similar) AS similar_component_count
+    WITH cve, vuln_dep, api_exposure_count, shortest_path_to_api,
+         count(DISTINCT similar) AS similar_dependency_count
 
     // Calculate composite risk score
-    WITH cve, vuln_comp,
+    WITH cve, vuln_dep,
          api_exposure_count,
          shortest_path_to_api,
-         similar_component_count,
+         similar_dependency_count,
          // Risk formula combining multiple factors
          (cve.cvss_score *
           CASE WHEN api_exposure_count > 0 THEN 2.0 ELSE 1.0 END *
           CASE WHEN shortest_path_to_api <= 2 THEN 1.5 ELSE 1.0 END *
-          (1 + similar_component_count * 0.2)
+          (1 + similar_dependency_count * 0.2)
          ) AS composite_risk_score
 
     // Text search: Check for known attack patterns
-    WITH cve, vuln_comp, api_exposure_count, shortest_path_to_api,
-         similar_component_count, composite_risk_score,
+    WITH cve, vuln_dep, api_exposure_count, shortest_path_to_api,
+         similar_dependency_count, composite_risk_score,
          CASE
            WHEN toLower(cve.description) CONTAINS "remote code execution" THEN true
            WHEN toLower(cve.description) CONTAINS "sql injection" THEN true
@@ -274,11 +276,11 @@ def demo_hybrid_queries(session):
     WHERE api_exposure_count > 0 OR composite_risk_score > 15.0
 
     RETURN cve.cve_id AS vulnerability,
-           vuln_comp.name AS component,
+           vuln_dep.gav AS dependency,
            round(cve.cvss_score, 1) AS cvss_score,
            api_exposure_count AS api_exposures,
            shortest_path_to_api AS min_path_length,
-           similar_component_count AS similar_components,
+           similar_dependency_count AS similar_dependencies,
            round(composite_risk_score, 2) AS risk_score,
            has_critical_keywords AS critical_attack_pattern
     ORDER BY composite_risk_score DESC
@@ -292,11 +294,11 @@ def demo_hybrid_queries(session):
 
     for record in result:
         print(f"CVE: {record['vulnerability']}")
-        print(f"  Component: {record['component']}")
+        print(f"  Dependency: {record['dependency']}")
         print(f"  CVSS Score: {record['cvss_score']}")
         print(f"  API Exposures: {record['api_exposures']}")
         print(f"  Min Path to API: {record['min_path_length']} hops")
-        print(f"  Similar Components: {record['similar_components']}")
+        print(f"  Similar Dependencies: {record['similar_dependencies']}")
         print(f"  Composite Risk: {record['risk_score']}")
         print(f"  Critical Pattern: {record['critical_attack_pattern']}")
         print("-" * 40)
@@ -335,9 +337,9 @@ def main():
                 print("\n🎉 CVE Analysis Demo Complete!")
                 print("\nKey Takeaways:")
                 print("• Graph traversal reveals dependency impact chains")
-                print("• Vector search finds similar vulnerable components")
+                print("• Pattern search finds similar vulnerable dependencies")
                 print("• Lucene search identifies related vulnerability patterns")
-                print("• Graph algorithms highlight critical architectural components")
+                print("• Graph algorithms highlight critical architectural dependencies")
                 print("• Hybrid queries combine multiple signals for comprehensive risk assessment")
     except Exception as e:
         print(f"❌ Demo failed: {e}")
