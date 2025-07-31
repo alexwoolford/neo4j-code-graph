@@ -275,11 +275,10 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
     if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
         torch.backends.cudnn.benchmark = True
 
-    # Enable Flash Attention if available (PyTorch 2.0+)
-    if hasattr(torch.nn.functional, "scaled_dot_product_attention"):
-        torch.nn.functional.scaled_dot_product_attention._enabled = True
+    # Flash Attention is automatically enabled in PyTorch 2.0+ when using scaled_dot_product_attention
+    # No additional configuration needed - PyTorch will select the optimal backend
 
-        # Process in batches
+    # Process in batches
     for i in tqdm(range(0, len(snippets), batch_size), desc="Computing embeddings"):
         batch_snippets = snippets[i : i + batch_size]
 
