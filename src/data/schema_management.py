@@ -302,8 +302,11 @@ def main():
     if str(root_dir / "src") not in sys.path:
         sys.path.insert(0, str(root_dir / "src"))
 
-    # Use relative imports - this is a library module
-    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
+    # Handle both script and module execution contexts
+    try:
+        from utils.common import add_common_args, create_neo4j_driver, setup_logging
+    except ImportError:
+        from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
 
     parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)

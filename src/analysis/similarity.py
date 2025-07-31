@@ -23,14 +23,19 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     """Parse command line arguments."""
-    from ..utils.common import add_common_args
-
     parser = argparse.ArgumentParser(
         description=(
             "Create SIMILAR relationships between methods and optionally run "
             "Louvain community detection"
         )
     )
+
+    # Import add_common_args - handle both script and module execution
+    try:
+        from utils.common import add_common_args
+    except ImportError:
+        from ..utils.common import add_common_args
+
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
     # Add similarity-specific arguments
@@ -178,8 +183,11 @@ def run_louvain(gds, threshold=0.8, community_property="similarityCommunity"):
 def main():
     args = parse_args()
 
-    # Use consistent logging helper
-    from ..utils.common import setup_logging
+    # Use consistent logging helper - handle both script and module execution
+    try:
+        from utils.common import setup_logging
+    except ImportError:
+        from ..utils.common import setup_logging
 
     setup_logging(args.log_level, args.log_file)
 

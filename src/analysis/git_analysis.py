@@ -29,9 +29,14 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     """Parse command line arguments."""
-    from ..utils.common import add_common_args
-
     parser = argparse.ArgumentParser(description="Load git history into Neo4j")
+
+    # Import add_common_args - handle both script and module execution
+    try:
+        from utils.common import add_common_args
+    except ImportError:
+        from ..utils.common import add_common_args
+
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
     # Add git-specific arguments
@@ -428,7 +433,11 @@ def load_history(
         if csv_export:
             export_to_csv(commits_df, developers_df, files_df, file_changes_df, csv_export)
         else:
-            from ..utils.common import create_neo4j_driver
+            # Import create_neo4j_driver - handle both script and module execution
+            try:
+                from utils.common import create_neo4j_driver
+            except ImportError:
+                from ..utils.common import create_neo4j_driver
 
             with create_neo4j_driver(uri, username, password) as driver:
                 bulk_load_to_neo4j(
@@ -456,7 +465,10 @@ def main():
     args = parse_args()
 
     # Setup logging using consistent helper
-    from ..utils.common import setup_logging
+    try:
+        from utils.common import setup_logging
+    except ImportError:
+        from ..utils.common import setup_logging
 
     setup_logging(args.log_level, args.log_file)
 
@@ -475,7 +487,11 @@ def main():
         )
     else:
         try:
-            from ..utils.common import create_neo4j_driver
+            # Import create_neo4j_driver - handle both script and module execution
+            try:
+                from utils.common import create_neo4j_driver
+            except ImportError:
+                from ..utils.common import create_neo4j_driver
 
             with create_neo4j_driver(args.uri, args.username, args.password) as _:
                 logger.info(f"Connected to Neo4j at {args.uri}")

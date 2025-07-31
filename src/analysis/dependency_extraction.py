@@ -336,7 +336,11 @@ if __name__ == "__main__":
     # Test the enhanced extraction
     import sys
 
-    from ..utils.common import setup_logging
+    # Handle both script and module execution
+    try:
+        from utils.common import setup_logging
+    except ImportError:
+        from ..utils.common import setup_logging
 
     setup_logging("INFO")
 
