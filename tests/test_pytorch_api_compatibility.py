@@ -156,6 +156,52 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
                 # If it fails, it shouldn't be due to API misuse
                 self.assertNotIn("_enabled", str(e))
 
+    def test_device_tensor_to_numpy_compatibility(self):
+        """Test that tensors are properly moved to CPU before numpy conversion."""
+        try:
+            import torch
+        except ImportError:
+            self.skipTest("PyTorch not available")
+
+        # Test different device types
+        devices_to_test = ["cpu"]
+
+        if torch.cuda.is_available():
+            devices_to_test.append("cuda")
+
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            devices_to_test.append("mps")
+
+        for device_name in devices_to_test:
+            with self.subTest(device=device_name):
+                device = torch.device(device_name)
+
+                # Create a tensor on the device
+                tensor = torch.randn(2, 3, device=device)
+
+                # Test proper conversion to numpy
+                if device.type in ["cuda", "mps"]:
+                    # Should move to CPU first
+                    cpu_tensor = tensor.cpu()
+                    numpy_array = cpu_tensor.numpy()
+                else:
+                    # CPU tensors can convert directly
+                    numpy_array = tensor.numpy()
+
+                # Verify conversion worked
+                self.assertEqual(numpy_array.shape, (2, 3))
+
+                # Test the pattern our code uses
+                if device.type in ["cuda", "mps"]:
+                    tensor = tensor.cpu()
+
+                # This should never fail regardless of original device
+                try:
+                    result = tensor.numpy()
+                    self.assertIsNotNone(result)
+                except Exception as e:
+                    self.fail(f"Failed to convert {device_name} tensor to numpy: {e}")
+
 
 if __name__ == "__main__":
     unittest.main()

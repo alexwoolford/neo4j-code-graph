@@ -323,8 +323,8 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
             # Use [CLS] token embedding (first token) - more efficient extraction
             embeddings = outputs.last_hidden_state[:, 0, :].detach()
 
-            # Convert to CPU efficiently
-            if device.type == "cuda":
+            # Convert to CPU efficiently for all device types
+            if device.type in ["cuda", "mps"]:
                 embeddings = embeddings.cpu()
 
             embeddings_np = embeddings.numpy()
