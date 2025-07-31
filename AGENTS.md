@@ -1,6 +1,31 @@
 # AGENTS Instructions
 
-## 🚨 CRITICAL: Pre-Commit CI Validation
+## 🚨 CRITICAL: ZERO TOLERANCE FOR CI FAILURES
+
+**🔥 SYSTEMIC FIX: Automatic pre-commit validation is now ENFORCED**
+
+### ⚡ AUTOMATED SOLUTION (Recommended)
+
+```bash
+# Use the safe commit script that automatically validates everything:
+./scripts/safe_commit.sh "Your commit message"
+
+# This script:
+# ✅ Auto-fixes formatting/imports (black, isort)
+# ✅ Runs ALL pre-commit checks automatically
+# ✅ Only commits if EVERYTHING passes
+# ✅ Guarantees CI will pass
+```
+
+### 🛡️ AUTOMATIC GIT HOOK (Already Installed)
+
+Git is now configured to automatically run pre-commit checks before ANY commit:
+- ✅ Pre-commit hook automatically runs on `git commit`
+- ✅ Blocks commits that would fail CI
+- ✅ Shows exactly what needs to be fixed
+- ✅ No more CI surprises!
+
+### 💥 MANUAL METHOD (Fallback)
 
 **⚠️ MANDATORY: Run pre-commit hooks before EVERY commit - this is what CI runs!**
 
@@ -209,7 +234,23 @@ Tests use mocked database connections for execution without requiring a running 
 
 **Rationale**: Terms like "optimized" become meaningless over time - everything could be argued to be "optimized" making the term completely useless for understanding actual changes.
 
-## Quick Quality Check Commands
+## 🔧 AUTOMATED TOOLS SUMMARY
+
+### 1. **Safe Commit Script** (RECOMMENDED)
+```bash
+./scripts/safe_commit.sh "Add new feature"
+# ✅ Handles everything automatically
+# ✅ Guarantees CI success
+```
+
+### 2. **Automatic Git Hook** (BACKUP PROTECTION)
+```bash
+git commit -m "message"
+# ✅ Automatically validates before commit
+# ✅ Blocks commits that would fail CI
+```
+
+### 3. **Manual Quality Checks** (LEGACY)
 
 ```bash
 # 🚨 MANDATORY: The only command you need before committing:

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Git pre-commit hook to automatically run pre-commit checks
+# This prevents ANY commits that would fail CI
+
+echo "🚨 Running pre-commit checks to prevent CI failures..."
+echo "======================================================"
+
+# Run pre-commit checks
+if ! pre-commit run --all-files; then
+    echo ""
+    echo "❌ PRE-COMMIT CHECKS FAILED!"
+    echo "======================================================"
+    echo "⚠️  COMMIT BLOCKED: Fix the issues above first"
+    echo ""
+    echo "🔧 Quick fixes:"
+    echo "   make format              # Auto-fix formatting/imports"
+    echo "   pre-commit run --all-files  # Re-run checks"
+    echo ""
+    echo "🚨 DO NOT COMMIT until all checks show 'Passed'"
+    echo "======================================================"
+    exit 1
+fi
+
+echo ""
+echo "✅ All pre-commit checks passed!"
+echo "✅ Commit allowed - CI will pass too!"
+echo "======================================================"
