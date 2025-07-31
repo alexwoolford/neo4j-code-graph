@@ -92,14 +92,18 @@ def parse_args():
 ### ❌ **NEVER USE: Manual Common Arguments**
 
 ```python
-# ❌ WRONG - Manually defining common args
+# ❌ WRONG - Manually defining common args with hardcoded defaults
 def parse_args():
     parser = argparse.ArgumentParser(description="My Analysis Tool")
     parser.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
     parser.add_argument("--username", default="neo4j", help="Neo4j username")
     parser.add_argument("--password", default="password", help="Neo4j password")
+    parser.add_argument("--database", default="neo4j", help="Database")  # IGNORES .env!
     parser.add_argument("--log-level", default="INFO", help="Logging level")
     # ... duplicate definitions
+
+# ❌ WRONG - Class constructor with hardcoded database default
+def __init__(self, driver=None, database: str = "neo4j"):  # IGNORES .env!
 ```
 
 **Why**: The helper ensures consistency, reduces duplication, and automatically includes all necessary connection arguments.
@@ -248,6 +252,7 @@ Before submitting new code, verify:
 4. **Import Confusion**: Mixing relative and absolute imports inconsistently
 5. **Configuration Scattering**: Hardcoding values instead of using config helpers
 6. **Relative Imports in Functions**: Causes "attempted relative import beyond top-level package" errors when modules are executed as scripts
+7. **Hardcoded Database Defaults**: Using `default="neo4j"` instead of reading from `.env` via `add_common_args()`
 
 ---
 
