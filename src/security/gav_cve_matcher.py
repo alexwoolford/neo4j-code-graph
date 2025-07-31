@@ -358,5 +358,7 @@ def run_validation_tests():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    from ..utils.common import setup_logging
+
+    setup_logging("INFO")
     run_validation_tests()

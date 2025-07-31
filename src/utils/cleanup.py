@@ -14,10 +14,7 @@ import logging
 import sys
 import time
 
-from neo4j import GraphDatabase
-
 from .common import add_common_args
-from .neo4j_utils import ensure_port
 
 logger = logging.getLogger(__name__)
 
@@ -261,18 +258,17 @@ def main():
     """Main cleanup function."""
     args = parse_args()
 
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), "INFO"),
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
+    # Use consistent logging helper
+    from .common import setup_logging
+
+    setup_logging(args.log_level, args.log_file)
 
     try:
-        with GraphDatabase.driver(
-            ensure_port(args.uri), auth=(args.username, args.password)
-        ) as driver:
-            driver.verify_connectivity()
-            logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
+        # Use consistent Neo4j connection helper
+        from .common import create_neo4j_driver
+
+        with create_neo4j_driver(args.uri, args.username, args.password) as driver:
+            logger.info("Connected to Neo4j at %s", args.uri)
 
             with driver.session(database=args.database) as session:
                 if args.complete:

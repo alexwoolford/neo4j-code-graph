@@ -231,7 +231,13 @@ def test_version_precision():
 
 def main():
     """Main demonstration function."""
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+    from utils.common import setup_logging
+
+    setup_logging("INFO")
 
     print("🔬 Neo4j Code Graph - CVE Matching Accuracy Demo")
     print("This demo shows why precise GAV matching is critical for security analysis")

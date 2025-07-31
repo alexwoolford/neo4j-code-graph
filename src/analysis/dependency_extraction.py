@@ -336,7 +336,9 @@ if __name__ == "__main__":
     # Test the enhanced extraction
     import sys
 
-    logging.basicConfig(level=logging.INFO)
+    from ..utils.common import setup_logging
+
+    setup_logging("INFO")
 
     if len(sys.argv) > 1:
         repo_path = Path(sys.argv[1])

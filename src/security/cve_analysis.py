@@ -17,16 +17,10 @@ import os
 import sys
 from typing import Dict, List, Optional, Set
 
-try:
-    # Try absolute import when called from CLI wrapper
-    from security.cve_cache_manager import CVECacheManager
-    from utils.common import create_neo4j_driver, setup_logging
-    from utils.neo4j_utils import get_neo4j_config
-except ImportError:
-    # Fallback to relative import when used as module
-    from ..utils.common import create_neo4j_driver, setup_logging
-    from ..utils.neo4j_utils import get_neo4j_config
-    from .cve_cache_manager import CVECacheManager
+# Use relative imports - this is a library module
+from ..utils.common import create_neo4j_driver, setup_logging
+from ..utils.neo4j_utils import get_neo4j_config
+from .cve_cache_manager import CVECacheManager
 
 # Add project root to path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

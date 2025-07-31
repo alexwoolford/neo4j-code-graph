@@ -14,14 +14,13 @@ from pathlib import Path
 
 import pandas as pd
 from git import Repo
-from neo4j import GraphDatabase
 
 try:
     # Try absolute import when called from CLI wrapper
-    from utils.neo4j_utils import ensure_port, get_neo4j_config
+    from utils.neo4j_utils import get_neo4j_config
 except ImportError:
     # Fallback to relative import when used as module
-    from ..utils.neo4j_utils import ensure_port, get_neo4j_config
+    from ..utils.neo4j_utils import get_neo4j_config
 
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
@@ -30,15 +29,14 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     """Parse command line arguments."""
+    from ..utils.common import add_common_args
+
     parser = argparse.ArgumentParser(description="Load git history into Neo4j")
+    add_common_args(parser)  # Adds Neo4j connection and logging args
+
+    # Add git-specific arguments
     parser.add_argument("repo_url", help="URL or local path of the Git repository")
     parser.add_argument("--branch", default="master", help="Branch to process")
-    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
-    parser.add_argument("--username", default=NEO4J_USERNAME, help="Neo4j username")
-    parser.add_argument("--password", default=NEO4J_PASSWORD, help="Neo4j password")
-    parser.add_argument("--database", default=NEO4J_DATABASE, help="Neo4j database")
-    parser.add_argument("--log-level", default="INFO", help="Logging level")
-    parser.add_argument("--log-file", help="Optional log file")
     parser.add_argument("--csv-export", help="Export to CSV files instead of Neo4j")
     parser.add_argument("--max-commits", type=int, help="Limit number of commits (for testing)")
     parser.add_argument(
@@ -430,8 +428,9 @@ def load_history(
         if csv_export:
             export_to_csv(commits_df, developers_df, files_df, file_changes_df, csv_export)
         else:
-            with GraphDatabase.driver(ensure_port(uri), auth=(username, password)) as driver:
-                driver.verify_connectivity()
+            from ..utils.common import create_neo4j_driver
+
+            with create_neo4j_driver(uri, username, password) as driver:
                 bulk_load_to_neo4j(
                     commits_df,
                     developers_df,
@@ -456,15 +455,10 @@ def load_history(
 def main():
     args = parse_args()
 
-    # Setup logging
-    handlers = [logging.StreamHandler(sys.stdout)]
-    if args.log_file:
-        handlers.append(logging.FileHandler(args.log_file))
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), "INFO"),
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=handlers,
-    )
+    # Setup logging using consistent helper
+    from ..utils.common import setup_logging
+
+    setup_logging(args.log_level, args.log_file)
 
     if args.csv_export:
         load_history(
@@ -481,11 +475,10 @@ def main():
         )
     else:
         try:
-            with GraphDatabase.driver(
-                ensure_port(args.uri), auth=(args.username, args.password)
-            ) as driver:
-                driver.verify_connectivity()
-                logger.info(f"Connected to Neo4j at {ensure_port(args.uri)}")
+            from ..utils.common import create_neo4j_driver
+
+            with create_neo4j_driver(args.uri, args.username, args.password) as _:
+                logger.info(f"Connected to Neo4j at {args.uri}")
                 load_history(
                     args.repo_url,
                     args.branch,

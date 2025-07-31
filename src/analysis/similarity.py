@@ -1,6 +1,5 @@
 import argparse
 import logging
-import sys
 from time import perf_counter
 
 import pandas as pd
@@ -24,18 +23,17 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     """Parse command line arguments."""
+    from ..utils.common import add_common_args
+
     parser = argparse.ArgumentParser(
         description=(
             "Create SIMILAR relationships between methods and optionally run "
             "Louvain community detection"
         )
     )
-    parser.add_argument("--uri", default=NEO4J_URI, help="Neo4j connection URI")
-    parser.add_argument("--username", default=NEO4J_USERNAME, help="Neo4j username")
-    parser.add_argument("--password", default=NEO4J_PASSWORD, help="Neo4j password")
-    parser.add_argument("--database", default=NEO4J_DATABASE, help="Neo4j database")
-    parser.add_argument("--log-level", default="INFO", help="Logging level")
-    parser.add_argument("--log-file", help="Optional log file")
+    add_common_args(parser)  # Adds Neo4j connection and logging args
+
+    # Add similarity-specific arguments
     parser.add_argument("--top-k", type=int, default=5, help="Number of nearest neighbours")
     parser.add_argument("--cutoff", type=float, default=0.8, help="Similarity cutoff")
     parser.add_argument(
@@ -179,14 +177,11 @@ def run_louvain(gds, threshold=0.8, community_property="similarityCommunity"):
 
 def main():
     args = parse_args()
-    handlers = [logging.StreamHandler(sys.stdout)]
-    if args.log_file:
-        handlers.append(logging.FileHandler(args.log_file))
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), "INFO"),
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=handlers,
-    )
+
+    # Use consistent logging helper
+    from ..utils.common import setup_logging
+
+    setup_logging(args.log_level, args.log_file)
 
     gds = GraphDataScience(
         ensure_port(args.uri),
