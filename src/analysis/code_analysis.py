@@ -275,7 +275,8 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
     if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
         torch.backends.cudnn.benchmark = True
 
-    # Flash Attention is automatically enabled in PyTorch 2.0+ when using scaled_dot_product_attention
+    # Flash Attention is automatically enabled in PyTorch 2.0+ when using
+    # scaled_dot_product_attention
     # No additional configuration needed - PyTorch will select the optimal backend
 
     # Process in batches
@@ -1345,7 +1346,9 @@ def create_method_calls(session, files_data):
                     result = session.run(
                         """
                         UNWIND $calls AS call
-                        MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line})
+                        MATCH (caller:Method {name: call.caller_name,
+                                               file: call.caller_file,
+                                               line: call.caller_line})
                         WHERE EXISTS {
                             MATCH (callee:Method {name: call.callee_name})
                             WHERE callee.name = call.callee_name
@@ -1354,7 +1357,8 @@ def create_method_calls(session, files_data):
                         MATCH (callee:Method {name: call.callee_name})
                         WITH caller, callee, call
                         LIMIT 1000
-                        MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)
+                        MERGE (caller)-[:CALLS {type: call.call_type,
+                                                qualifier: call.qualifier}]->(callee)
                         RETURN count(*) as created
                         """,
                         calls=batch,
@@ -1440,7 +1444,8 @@ def main():
                     existing_files = {record["path"] for record in result}
                     if existing_files:
                         logger.info(
-                            f"Found {len(existing_files)} files already in database - will skip processing"
+                            f"Found {len(existing_files)} files already in database - "
+                            f"will skip processing"
                         )
                 except Exception as e:
                     logger.debug(f"Could not check existing files (continuing): {e}")
