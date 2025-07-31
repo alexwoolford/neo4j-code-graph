@@ -110,11 +110,26 @@ def parse_args():
 
 ### ✅ **CORRECT: Clean Import Patterns**
 
+**For Top-Level Module Imports (when module can be used as both library and script):**
+```python
+# ✅ CORRECT - Support both script and module execution
+try:
+    # Try absolute import when called from CLI wrapper
+    from utils.common import setup_logging, create_neo4j_driver
+except ImportError:
+    # Fallback to relative import when used as module
+    from ..utils.common import setup_logging, create_neo4j_driver
+```
+
+**For Pure Library Modules (never called as scripts):**
 ```python
 # ✅ For library modules (src/**)
 from ..utils.common import setup_logging, create_neo4j_driver
 from ..utils.neo4j_utils import get_neo4j_config
+```
 
+**For Pure Scripts (scripts/**):**
+```python
 # ✅ For scripts (scripts/**)
 import sys
 from pathlib import Path
@@ -122,17 +137,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from utils.common import setup_logging
 ```
 
-### ❌ **NEVER USE: Conditional Import Patterns**
+### ❌ **NEVER USE: Relative Imports Inside Functions**
 
 ```python
-# ❌ WRONG - Messy conditional imports
-try:
-    from utils.common import setup_logging
-except ImportError:
-    from ..utils.common import setup_logging
+# ❌ WRONG - Relative import inside function breaks CLI execution
+def parse_args():
+    from ..utils.common import add_common_args  # BREAKS when called as script!
+    parser = argparse.ArgumentParser()
+    add_common_args(parser)
 ```
 
-**Why**: Conditional imports make code harder to understand and indicate poor module structure.
+**Why**: When a module is executed as a script (via CLI), relative imports inside functions fail with "attempted relative import beyond top-level package".
 
 ---
 
@@ -216,10 +231,12 @@ Before submitting new code, verify:
 - [ ] Uses `create_neo4j_driver()` instead of `GraphDatabase.driver()`
 - [ ] Uses `add_common_args()` instead of manual argument definitions
 - [ ] Uses `get_neo4j_config()` for configuration
-- [ ] No conditional try/except import patterns
-- [ ] Proper relative imports for library modules
+- [ ] Uses conditional imports for modules that can be both library and script
+- [ ] No relative imports inside functions
+- [ ] Proper import patterns for module type (library vs script vs hybrid)
 - [ ] Consistent error handling and logging
 - [ ] All pre-commit checks pass
+- [ ] CLI scripts can run `--help` without import errors
 
 ---
 
@@ -230,6 +247,7 @@ Before submitting new code, verify:
 3. **Connection Inconsistency**: Some modules using helpers, others using manual patterns
 4. **Import Confusion**: Mixing relative and absolute imports inconsistently
 5. **Configuration Scattering**: Hardcoding values instead of using config helpers
+6. **Relative Imports in Functions**: Causes "attempted relative import beyond top-level package" errors when modules are executed as scripts
 
 ---
 
