@@ -255,6 +255,29 @@ def get_optimal_batch_size(device):
         return 32
 
 
+def get_database_batch_size(has_embeddings=False, estimated_size_mb=None):
+    """
+    Determine optimal batch size for database operations.
+
+    Args:
+        has_embeddings: Whether the data includes large embedding vectors
+        estimated_size_mb: Estimated size per item in MB
+
+    Returns:
+        Optimal batch size for Neo4j operations
+    """
+    if has_embeddings:
+        # GraphCodeBERT embeddings are ~3KB per vector (768 floats)
+        # Conservative batch size to avoid memory issues
+        return 200
+    elif estimated_size_mb and estimated_size_mb > 1:
+        # Large data items - reduce batch size
+        return 500
+    else:
+        # Standard batch size for simple operations
+        return 1000
+
+
 def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
     """Compute embeddings for all snippets using batching with memory management."""
     import torch
@@ -705,7 +728,8 @@ def create_directories(session, files_data):
 
 def create_files(session, files_data, file_embeddings):
     """Create File nodes and CONTAINS relationships."""
-    batch_size = 1000
+    # Use intelligent batch sizing for embedding operations
+    batch_size = get_database_batch_size(has_embeddings=True)
 
     file_nodes = []
     for i, file_data in enumerate(files_data):
@@ -991,7 +1015,8 @@ def create_methods(session, files_data, method_embeddings):
             method_nodes.append(method_node)
             method_idx += 1
 
-    batch_size = 1000
+    # Use intelligent batch sizing for embedding operations
+    batch_size = get_database_batch_size(has_embeddings=True)
     total_batches = (len(method_nodes) + batch_size - 1) // batch_size
     logger.info(f"Creating {len(method_nodes)} method nodes in {total_batches} batches...")
 
