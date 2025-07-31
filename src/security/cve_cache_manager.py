@@ -427,8 +427,11 @@ class CVECacheManager:
                 if wait_time > 0:
                     logger.debug(f"⏰ Rate limiting: waiting {wait_time:.1f}s")
                     await asyncio.sleep(wait_time + 0.1)
+                    # Recalculate now after sleep to maintain consistency
+                    now = time.time()
 
-            self.request_times.append(time.time())
+            # Use consistent timestamp for the request we're about to make
+            self.request_times.append(now)
 
     def _save_partial_targeted_cache(
         self, cache_key: str, cves: List[Dict], completed_terms: Set[str]
@@ -585,6 +588,8 @@ class CVECacheManager:
     def _save_complete_cache(self, cache_key: str, data: List[Dict]):
         """Save complete dataset to permanent cache."""
         cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
+        temp_file = cache_file.with_suffix('.tmp')
+        
         try:
             cache_data = {
                 "data": data,
@@ -593,13 +598,20 @@ class CVECacheManager:
                 "version": "2.0",
             }
 
-            with gzip.open(cache_file, "wt", encoding="utf-8") as f:
+            # Write to temporary file first for atomic operation
+            with gzip.open(temp_file, "wt", encoding="utf-8") as f:
                 json.dump(cache_data, f, indent=2)
+            
+            # Atomic rename to final location
+            temp_file.rename(cache_file)
 
             size_kb = cache_file.stat().st_size / 1024
             logger.info(f"💾 Saved complete cache: {len(data)} CVEs ({size_kb:.1f} KB)")
 
         except Exception as e:
+            # Clean up temp file if it exists
+            if temp_file.exists():
+                temp_file.unlink()
             logger.error(f"Failed to save complete cache: {e}")
 
     def load_complete_cache(self, cache_key: str) -> Optional[List[Dict]]:
