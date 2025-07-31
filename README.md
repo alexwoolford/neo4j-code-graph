@@ -224,6 +224,32 @@ NVD_API_KEY=your_nvd_api_key
 - Neo4j 4.0+ (Community or Enterprise)
 - Git (for repository analysis)
 
+## Development
+
+### Contributing
+
+When contributing code, please follow our [Coding Style Guide](CODING_STYLE_GUIDE.md) to maintain consistency across the codebase.
+
+Key guidelines:
+- Use helper functions from `utils.common` (logging, Neo4j connections, argument parsing)
+- Follow established import patterns
+- Maintain consistent error handling
+- Run pre-commit checks before submitting
+
+### Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src tests/
+
+# Run specific test categories
+pytest tests/security/
+pytest tests/integration/
+```
+
 ## License
 
 Licensed under the MIT License.
