@@ -41,8 +41,11 @@ logger = logging.getLogger(__name__)
 class CVEAnalyzer:
     """Language-agnostic CVE analyzer that works with any codebase."""
 
-    def __init__(self, driver=None, database: str = "neo4j"):
+    def __init__(self, driver=None, database: str = None):
         self.driver = driver
+        # Use centralized config if database not specified
+        if database is None:
+            _, _, _, database = get_neo4j_config()
         self.database = database
         self.cve_manager = CVECacheManager()
 
@@ -551,8 +554,16 @@ Examples:
         """,
     )
 
-    parser.add_argument("--log-level", default="INFO", help="Logging level")
-    parser.add_argument("--database", default="neo4j", help="Neo4j database name")
+    # Add common Neo4j connection and logging arguments
+    try:
+        from utils.common import add_common_args
+    except ImportError:
+        from ..utils.common import add_common_args
+
+    add_common_args(
+        parser
+    )  # Adds --uri, --username, --password, --database, --log-level, --log-file
+
     parser.add_argument("--api-key", help="NVD API key for faster, more reliable downloads")
     parser.add_argument(
         "--max-results",
@@ -591,7 +602,7 @@ Examples:
 
     args = parser.parse_args()
 
-    setup_logging(args.log_level)
+    setup_logging(args.log_level, args.log_file)
 
     # Handle informational requests
     if args.api_key_info:
@@ -608,10 +619,8 @@ Examples:
         print("• Better progress tracking")
         return
 
-    # Connect to Neo4j
-    config = get_neo4j_config()
-
-    with create_neo4j_driver(config[0], config[1], config[2]) as driver:
+    # Connect to Neo4j using consistent args (which now come from .env via add_common_args)
+    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         analyzer = CVEAnalyzer(driver, args.database)
 
         # Handle cache management
