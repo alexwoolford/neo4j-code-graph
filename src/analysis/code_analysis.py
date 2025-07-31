@@ -266,6 +266,8 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
 
     all_embeddings = []
     use_amp = device.type == "cuda" and hasattr(torch.cuda, "amp")
+    embedding_dim = None  # Will be determined from first valid batch
+    zero_embedding = None  # Will be cached after first valid batch
 
     # Pre-allocate tensor for better memory efficiency
     max_length = 512
@@ -293,8 +295,12 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
 
         if not valid_snippets:
             # Fill with zero embeddings for skipped snippets
-            zero_embedding = [0.0] * 768  # GraphCodeBERT embedding size
-            all_embeddings.extend([zero_embedding] * len(batch_snippets))
+            if zero_embedding is None:
+                # Use default dimension if no embeddings computed yet
+                current_zero = [0.0] * 768  # GraphCodeBERT default embedding size
+            else:
+                current_zero = zero_embedding
+            all_embeddings.extend([current_zero] * len(batch_snippets))
             continue
 
             # Tokenize batch
@@ -329,11 +335,15 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
                 embeddings = embeddings.cpu()
 
             embeddings_np = embeddings.numpy()
+            
+            # Cache embedding dimension and zero embedding after first valid batch
+            if embedding_dim is None:
+                embedding_dim = embeddings_np.shape[1]
+                zero_embedding = [0.0] * embedding_dim
 
         # Reconstruct full batch with zero embeddings for skipped items
         batch_embeddings = []
         valid_idx = 0
-        zero_embedding = [0.0] * embeddings_np.shape[1]
 
         for j in range(len(batch_snippets)):
             if j in valid_indices:
@@ -1273,11 +1283,19 @@ def create_method_calls(session, files_data):
     if method_call_rels:
         logger.info(f"Processing {len(method_call_rels)} method call relationships...")
 
-        same_class_calls = [r for r in method_call_rels if r["call_type"] in ["same_class", "this"]]
-        static_calls = [r for r in method_call_rels if r["call_type"] == "static"]
-        other_calls = [
-            r for r in method_call_rels if r["call_type"] not in ["same_class", "this", "static"]
-        ]
+        # Efficiently categorize calls in a single pass
+        same_class_calls = []
+        static_calls = []
+        other_calls = []
+        
+        for rel in method_call_rels:
+            call_type = rel["call_type"]
+            if call_type in ["same_class", "this"]:
+                same_class_calls.append(rel)
+            elif call_type == "static":
+                static_calls.append(rel)
+            else:
+                other_calls.append(rel)
 
         if same_class_calls:
             logger.info(f"Creating {len(same_class_calls)} same-class method calls...")

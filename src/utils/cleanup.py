@@ -69,7 +69,8 @@ def cleanup_communities(session, community_property="similarityCommunity", dry_r
     """Remove community properties from Method nodes."""
     # Count nodes with community property
     result = session.run(
-        f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL RETURN count(m) as count"
+        "MATCH (m:Method) WHERE m[$property] IS NOT NULL RETURN count(m) as count",
+        property=community_property
     )
     count = result.single()["count"]
 
@@ -87,8 +88,9 @@ def cleanup_communities(session, community_property="similarityCommunity", dry_r
         )
     else:
         session.run(
-            f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL "
-            f"REMOVE m.{community_property}"
+            "MATCH (m:Method) WHERE m[$property] IS NOT NULL "
+            "REMOVE m[$property]",
+            property=community_property
         )
         logger.info("Removed %s property from %d Method nodes", community_property, count)
 
