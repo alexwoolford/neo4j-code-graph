@@ -94,17 +94,24 @@ def cleanup_communities(session, community_property="similarityCommunity", dry_r
 
 
 def cleanup_graph_projections(session, dry_run=False):
-    """Remove any lingering GDS graph projections."""
-    # This requires the graphdatascience package, but we'll do it via Cypher
+    """Remove any lingering GDS graph projections using proper GDS Python client."""
     try:
-        # List existing graphs
-        result = session.run("CALL gds.graph.list() YIELD graphName")
-        graphs = [record["graphName"] for record in result]
+        from graphdatascience import GraphDataScience
 
-        if not graphs:
+        from .common import get_neo4j_config
+
+        # Create GDS client using proper Python client
+        uri, username, password, database = get_neo4j_config()
+        gds = GraphDataScience(uri, auth=(username, password), database=database)
+
+        # List existing graphs using GDS Python client
+        graph_list = gds.graph.list()
+        if graph_list.empty:
             logger.info("No GDS graph projections found")
+            gds.close()
             return
 
+        graphs = graph_list["graphName"].tolist()
         logger.info("Found GDS graph projections: %s", graphs)
 
         for graph_name in graphs:
@@ -112,10 +119,12 @@ def cleanup_graph_projections(session, dry_run=False):
                 logger.info("[DRY RUN] Would drop graph projection: %s", graph_name)
             else:
                 try:
-                    session.run("CALL gds.graph.drop($graphName)", graphName=graph_name)
+                    gds.graph.drop(graph_name)
                     logger.info("Dropped graph projection: %s", graph_name)
                 except Exception as e:
                     logger.warning("Failed to drop graph %s: %s", graph_name, e)
+
+        gds.close()
 
     except Exception as e:
         logger.warning("Could not check GDS graph projections: %s", e)

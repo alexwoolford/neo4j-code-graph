@@ -241,12 +241,12 @@ def demo_hybrid_queries(session):
          count(DISTINCT path) AS api_exposure_count,
          min(length(path)) AS shortest_path_to_api
 
-    // Dependency similarity: Check if similar dependencies exist
+    // Dependency similarity: Use pattern matching instead of embedding similarity
+    // (Embedding similarity should be calculated using GDS Python client, not in Cypher)
     OPTIONAL MATCH (similar:ExternalDependency)
     WHERE similar <> vuln_dep
-      AND similar.embedding IS NOT NULL
-      AND vuln_dep.embedding IS NOT NULL
-      AND gds.similarity.cosine(similar.embedding, vuln_dep.embedding) > 0.8
+      AND similar.group_id = vuln_dep.group_id
+      AND similar.artifact_id = vuln_dep.artifact_id
 
     WITH cve, vuln_dep, api_exposure_count, shortest_path_to_api,
          count(DISTINCT similar) AS similar_dependency_count
