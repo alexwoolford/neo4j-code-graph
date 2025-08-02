@@ -6,9 +6,6 @@ These tests use real components but against test data to ensure
 the entire pipeline works together correctly.
 """
 
-# CI utilities
-import os
-
 # Add src to path for testing
 import sys
 import tempfile
@@ -32,18 +29,7 @@ class TestPipelineIntegration:
     def neo4j_driver(self):
         """Create a Neo4j driver for testing."""
         try:
-            # Use CI config if available, fallback to .env config
-            ci_uri = os.getenv("NEO4J_URI")
-            if ci_uri:
-                config = (
-                    ci_uri,
-                    os.getenv("NEO4J_USERNAME", "neo4j"),
-                    os.getenv("NEO4J_PASSWORD", "testpassword"),
-                    os.getenv("NEO4J_DATABASE", "neo4j"),
-                )
-            else:
-                config = get_neo4j_config()
-
+            config = get_neo4j_config()
             driver = create_neo4j_driver(config[0], config[1], config[2])
             try:
                 driver.verify_connectivity()
@@ -349,57 +335,6 @@ public class NestedClass {
             assert result is not None
             assert result["path"] == "src/main/java/com/company/product/module/NestedClass.java"
             assert result["classes"][0]["package"] == "com.company.product.module"
-
-
-@pytest.mark.integration
-class TestCIPipelineIntegration:
-    """CI-specific integration tests with minimal data."""
-
-    def test_ci_data_available(self):
-        """Test that CI test data is properly prepared."""
-        ci_test_data_dir = Path("./test_cache/ci_data")
-        if not ci_test_data_dir.exists():
-            pytest.skip("CI test data not available")
-
-        assert ci_test_data_dir.exists()
-        config_file = ci_test_data_dir / "ci_test_config.json"
-        assert config_file.exists()
-
-    def test_ci_java_project_structure(self):
-        """Test that CI sample Java project has expected structure."""
-        ci_test_data_dir = Path("./test_cache/ci_data")
-        if not ci_test_data_dir.exists():
-            pytest.skip("CI test data not available")
-
-        project_dir = ci_test_data_dir / "sample-java-project"
-        if not project_dir.exists():
-            pytest.skip("CI sample project not available")
-
-        assert project_dir.exists()
-        java_files = list(project_dir.rglob("*.java"))
-        assert len(java_files) > 0
-
-        pom_file = project_dir / "pom.xml"
-        assert pom_file.exists()
-
-    def test_ci_file_extraction(self):
-        """Test file data extraction with CI minimal data."""
-        ci_test_data_dir = Path("./test_cache/ci_data")
-        project_dir = ci_test_data_dir / "sample-java-project"
-        if not project_dir.exists():
-            pytest.skip("CI test data not available")
-
-        java_files = list(project_dir.rglob("*.java"))
-        assert len(java_files) > 0
-
-        java_file = java_files[0]
-        result = extract_file_data(java_file, project_dir)
-
-        assert result is not None
-        assert "path" in result
-        assert "methods" in result
-        # CI minimal data should have at least one method
-        assert len(result["methods"]) > 0
 
 
 if __name__ == "__main__":
