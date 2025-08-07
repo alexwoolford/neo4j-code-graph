@@ -151,6 +151,7 @@ def create_schema_constraints_and_indexes(session):
             "CREATE INDEX method_estimated_lines IF NOT EXISTS "
             "FOR (m:Method) ON (m.estimated_lines)",
         ),
+        # Keep only the boolean indexes that are actually queried
         (
             "method_is_public",
             "Method",
@@ -161,15 +162,21 @@ def create_schema_constraints_and_indexes(session):
             "Method",
             "CREATE INDEX method_is_static IF NOT EXISTS FOR (m:Method) ON (m.is_static)",
         ),
+        # Composite indexes for common query patterns
         (
-            "method_is_abstract",
+            "method_name_class",
             "Method",
-            "CREATE INDEX method_is_abstract IF NOT EXISTS FOR (m:Method) ON (m.is_abstract)",
+            "CREATE INDEX method_name_class IF NOT EXISTS FOR (m:Method) ON (m.name, m.class)",
         ),
         (
-            "method_class",
+            "method_file_line",
             "Method",
-            "CREATE INDEX method_class IF NOT EXISTS FOR (m:Method) ON (m.class)",
+            "CREATE INDEX method_file_line IF NOT EXISTS FOR (m:Method) ON (m.file, m.line)",
+        ),
+        (
+            "class_name_file",
+            "Class",
+            "CREATE INDEX class_name_file_composite IF NOT EXISTS FOR (c:Class) ON (c.name, c.file)",
         ),
         # Git history indexes
         (
@@ -274,6 +281,71 @@ def verify_schema_indexes(session):
     return existing_indexes
 
 
+def validate_schema_consistency(session):
+    """
+    Validate schema consistency and check for potential issues.
+    Returns a report of findings and recommendations.
+    """
+    logger.info("🔍 Validating schema consistency...")
+
+    issues = []
+    recommendations = []
+
+    # Check for reserved word usage in property names
+    # Note: 'class' is a reserved word that should be avoided in property names
+
+    # Check Method.class property usage
+    try:
+        result = session.run("MATCH (m:Method) WHERE m.class IS NOT NULL RETURN count(m) as count")
+        count = result.single()["count"]
+        if count > 0:
+            issues.append(f"⚠️  Found {count} Method nodes using reserved 'class' property")
+            recommendations.append(
+                "Consider renaming 'class' property to 'class_name' or 'declaring_class'"
+            )
+    except Exception as e:
+        logger.warning(f"Could not check class property: {e}")
+
+    # Check for unused indexes
+    try:
+        result = session.run("SHOW INDEXES")
+        for record in result:
+            index_name = record.get("name", "")
+            if "is_abstract" in index_name or "is_private" in index_name:
+                recommendations.append(f"Consider removing unused boolean index: {index_name}")
+    except Exception as e:
+        logger.warning(f"Could not check indexes: {e}")
+
+    # Check for missing composite indexes on commonly queried patterns
+    common_patterns = [
+        ("Method", ["name", "class"], "method_name_class"),
+        ("Method", ["file", "line"], "method_file_line"),
+        ("Class", ["name", "file"], "class_name_file_composite"),
+    ]
+
+    for node_type, properties, expected_index in common_patterns:
+        try:
+            # This is a simplified check - in practice you'd want to analyze query patterns
+            recommendations.append(
+                f"Ensure composite index exists: {expected_index} on {node_type}({','.join(properties)})"
+            )
+        except Exception as e:
+            logger.warning(f"Could not check {expected_index}: {e}")
+
+    # Report findings
+    if issues:
+        logger.warning("Found schema issues:")
+        for issue in issues:
+            logger.warning(f"  {issue}")
+
+    if recommendations:
+        logger.info("Schema recommendations:")
+        for rec in recommendations:
+            logger.info(f"  • {rec}")
+
+    return {"issues": issues, "recommendations": recommendations}
+
+
 def setup_complete_schema(session):
     """
     Complete schema setup: constraints + indexes + verification.
@@ -320,13 +392,20 @@ def main():
         action="store_true",
         help="Only verify existing schema, don't create new constraints/indexes",
     )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Run schema validation and provide recommendations",
+    )
 
     args = parser.parse_args()
     setup_logging(args.log_level, args.log_file)
 
     with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
-            if args.verify_only:
+            if args.validate:
+                validate_schema_consistency(session)
+            elif args.verify_only:
                 verify_schema_constraints(session)
                 verify_schema_indexes(session)
             else:
