@@ -839,9 +839,16 @@ Examples:
         print(f"Target CVEs:     {args.max_results}")
         print(f"Days back:       {args.days_back}")
         print(f"Search terms:    {len(search_terms)}")
-        print(f"API key:         {'✅ Yes (fast)' if args.api_key else '❌ No (slow)'}")
+        # Check for API key from environment if not provided via command line
+        api_key = args.api_key
+        if not api_key:
+            import os
 
-        if not args.api_key:
+            api_key = os.getenv("NVD_API_KEY")
+
+        print(f"API key:         {'✅ Yes (fast)' if api_key else '❌ No (slow)'}")
+
+        if not api_key:
             print("\n💡 **TIP**: Get an API key for 10x faster downloads!")
             print("   Use --api-key-info for instructions")
             print("   Without API key: ~2-5 CVEs/second")
@@ -859,7 +866,7 @@ Examples:
 
         try:
             cve_data = analyzer.cve_manager.fetch_targeted_cves(
-                api_key=args.api_key,
+                api_key=api_key,
                 search_terms=search_terms,
                 max_results=args.max_results,
                 days_back=args.days_back,

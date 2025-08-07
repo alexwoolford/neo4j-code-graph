@@ -236,6 +236,33 @@ def get_device():
         return torch.device("cpu")
 
 
+def load_model_and_tokenizer():
+    """Load the GraphCodeBERT model and tokenizer for embedding computation."""
+    from transformers import AutoModel, AutoTokenizer
+
+    logger.info("Loading GraphCodeBERT model...")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModel.from_pretrained(MODEL_NAME)
+    device = get_device()
+
+    # Optimize for MPS performance
+    if device.type == "mps":
+        # Enable high memory usage mode for better performance
+        import os
+
+        os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+        logger.info("Enabled MPS high performance mode")
+
+    model = model.to(device)
+    logger.info(f"Model loaded on {device}")
+
+    # Get optimal batch size
+    batch_size = get_optimal_batch_size(device)
+    logger.info(f"Using batch size: {batch_size}")
+
+    return tokenizer, model, device, batch_size
+
+
 def get_optimal_batch_size(device):
     """Determine optimal batch size based on device and available memory."""
     import torch
