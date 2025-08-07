@@ -166,6 +166,11 @@ def create_schema_constraints_and_indexes(session):
             "Method",
             "CREATE INDEX method_is_abstract IF NOT EXISTS FOR (m:Method) ON (m.is_abstract)",
         ),
+        (
+            "method_class",
+            "Method",
+            "CREATE INDEX method_class IF NOT EXISTS FOR (m:Method) ON (m.class)",
+        ),
         # Git history indexes
         (
             "commit_date",
