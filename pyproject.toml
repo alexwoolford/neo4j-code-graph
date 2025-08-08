@@ -52,6 +52,7 @@ dev = [
     "pre-commit>=3.0.0",
     "pytest-mock>=3.10.0",
     "pytest-xdist>=3.0.0",
+    "pytest-asyncio>=0.23",
 ]
 
 [project.urls]
@@ -127,6 +128,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "asyncio: marks tests as asyncio tests",
 ]
 
 [tool.coverage.run]
