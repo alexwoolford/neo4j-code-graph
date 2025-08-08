@@ -26,11 +26,22 @@ jobs:
       - name: Unit tests (no integration)
         run: |
           pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing -k "not integration"
+      - name: Verify coverage report exists
+        run: |
+          ls -lh || true
+          if [ ! -f coverage.xml ]; then echo "coverage.xml missing"; exit 1; fi
+          head -n 5 coverage.xml || true
+      - name: Upload coverage.xml as artifact (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         if: always()
         with:
           files: coverage.xml
+          verbose: true
           fail_ci_if_error: false
 
   integration:
