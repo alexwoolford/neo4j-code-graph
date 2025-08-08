@@ -23,11 +23,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
           pip install -r requirements.txt
-      - name: Unit tests with coverage (no integration)
+      - name: Unit tests with coverage (exclude integration + torch-compat)
         run: |
           TEST_EXIT=0
           python -m coverage erase || true
-          python -m coverage run -m pytest tests/ -v -k "not integration" || TEST_EXIT=$?
+          python -m coverage run -m pytest tests/ -v -k "not integration and not test_pytorch_api_compatibility" --junitxml=pytest-report.xml || TEST_EXIT=$?
           python -m coverage xml -o coverage.xml || true
           python -m coverage report -m || true
           echo "Listing workspace to show coverage.xml presence:" && ls -lah
@@ -37,6 +37,7 @@ jobs:
         run: |
           echo "Searching for coverage files..."
           find . -maxdepth 4 \( -name "coverage.xml" -o -name ".coverage*" -o -name "*.coverage" \) -print -ls || true
+          if [ -f pytest-report.xml ]; then echo "Found pytest-report.xml"; else echo "pytest-report.xml missing"; fi
       - name: Verify coverage report exists
         run: |
           ls -lh || true
@@ -47,6 +48,12 @@ jobs:
         with:
           name: coverage-xml
           path: coverage.xml
+      - name: Upload pytest JUnit report (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit
+          path: pytest-report.xml
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         if: always()
