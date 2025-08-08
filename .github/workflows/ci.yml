@@ -5,6 +5,7 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
 
 env:
   # Fix OpenMP conflicts on macOS-like environments
@@ -99,6 +100,7 @@ jobs:
         name: codecov-py312
         fail_ci_if_error: false
         disable_search: true
+        root_dir: .
 
   security:
     runs-on: ubuntu-latest
