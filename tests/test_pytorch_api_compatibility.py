@@ -42,16 +42,21 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
     def test_compute_embeddings_bulk_no_invalid_pytorch_calls(self):
         """Test that compute_embeddings_bulk doesn't make invalid PyTorch API calls."""
         # Mock PyTorch modules to detect invalid calls
-        with patch("torch.nn.functional") as mock_functional:
+        try:
+            import torch.nn.functional as F  # noqa: F401
+        except ImportError:
+            self.skipTest("PyTorch not available")
+
+        with patch("analysis.code_analysis.torch.nn.functional") as mock_functional:
             # Create a mock scaled_dot_product_attention function
             mock_sdpa = MagicMock()
             mock_functional.scaled_dot_product_attention = mock_sdpa
 
             # Mock other torch components
             with (
-                patch("torch.cuda") as mock_cuda,
-                patch("torch.backends.cudnn"),
-                patch("torch.device") as mock_device,
+                patch("analysis.code_analysis.torch.cuda") as mock_cuda,
+                patch("analysis.code_analysis.torch.backends.cudnn"),
+                patch("analysis.code_analysis.torch.device") as mock_device,
             ):
 
                 mock_cuda.is_available.return_value = True
@@ -164,6 +169,10 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
             self.skipTest("PyTorch not available")
 
         # Test different device types
+        # If torch is a stub or lacks basic APIs, skip
+        if not hasattr(torch, "randn") or not hasattr(torch, "device"):
+            self.skipTest("PyTorch basic APIs not available in this environment")
+
         devices_to_test = ["cpu"]
 
         if torch.cuda.is_available():

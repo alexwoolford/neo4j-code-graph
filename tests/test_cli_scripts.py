@@ -196,12 +196,19 @@ print("Test completed successfully")
             f.flush()
 
             try:
+                # Ensure the project's src/ is on PYTHONPATH so absolute imports work
+                env = os.environ.copy()
+                src_dir = Path(__file__).parent.parent / "src"
+                existing = env.get("PYTHONPATH", "")
+                env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{existing}" if existing else str(src_dir)
+
                 result = subprocess.run(
                     [sys.executable, f.name],
                     capture_output=True,
                     text=True,
                     cwd=Path(__file__).parent.parent,
                     timeout=10,
+                    env=env,
                 )
 
                 assert result.returncode == 0, (

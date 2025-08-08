@@ -59,7 +59,9 @@ class TestCVEAnalyzer:
         analyzer = CVEAnalyzer()
 
         assert analyzer.driver is None
-        assert analyzer.database == "neo4j"
+        # Default DB name comes from environment via get_neo4j_config; ensure it's a non-empty string
+        assert isinstance(analyzer.database, str)
+        assert len(analyzer.database) > 0
         assert analyzer.cve_manager is not None
 
     def test_analyzer_initialization_with_parameters(self):
@@ -568,6 +570,8 @@ class TestMainFunction:
 
         test_args = ["cve_analysis.py"]
 
+        import os
+
         with patch("sys.argv", test_args):
             with patch("src.security.cve_analysis.CVEAnalyzer") as mock_analyzer_class:
                 mock_analyzer = MagicMock()
@@ -581,7 +585,9 @@ class TestMainFunction:
                     "java",
                 ]
 
-                main()
+                # Ensure no API key in environment
+                with patch.dict(os.environ, {"NVD_API_KEY": ""}, clear=False):
+                    main()
 
                 # Should exit early without running analysis
                 mock_analyzer.cve_manager.fetch_targeted_cves.assert_not_called()

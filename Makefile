@@ -91,3 +91,16 @@ cleanup-db: ## Clean up Neo4j database
 
 validate-env: ## Validate development environment
 	python scripts/validate_environment.py
+
+# Integration-aware test targets
+.PHONY: test-ci test-unit-only test-integration-only
+
+test-unit-only: ## Run unit tests only (skip integration)
+	pytest tests/ -v --cov=src --cov-report=term-missing -k "not integration"
+
+test-integration-only: ## Run integration tests only (requires Neo4j env)
+	pytest tests/ -v -m "integration"
+
+test-ci: ## Run unit tests; if Neo4j env present, run integration tests too
+	pytest tests/ -v --cov=src --cov-report=term-missing -k "not integration"
+	@if [ -n "$(NEO4J_URI)" ]; then echo "Running integration tests..."; pytest tests/ -v -m "integration"; else echo "Skipping integration tests (NEO4J_URI not set)"; fi

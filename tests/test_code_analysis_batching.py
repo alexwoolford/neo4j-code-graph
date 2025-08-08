@@ -48,11 +48,17 @@ def test_file_node_batching():
 
     importlib.reload(ca)
 
+    # Compute expected batch count based on current configuration
+    import math
+
+    expected_file_batch_size = ca.get_database_batch_size(has_embeddings=True)
+    expected_file_batches = math.ceil(num_files / expected_file_batch_size)
+
     file_query = "MERGE (f:File"
     file_calls = [c for c in session.run.call_args_list if file_query in c.args[0]]
-    assert len(file_calls) == 3
+    assert len(file_calls) == expected_file_batches
     for call in file_calls:
-        assert len(call.kwargs["files"]) <= 1000
+        assert len(call.kwargs["files"]) <= expected_file_batch_size
 
     dir_rel_query = "MERGE (parent)-[:CONTAINS]->(child)"
     dir_calls = [
