@@ -49,10 +49,14 @@ jobs:
       env:
         KMP_DUPLICATE_LIB_OK: "TRUE"
         OMP_NUM_THREADS: "1"
+        NEO4J_URI: ${{ secrets.NEO4J_URI }}
+        NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+        NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+        NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
       run: |
         TEST_EXIT=0
         python -m coverage erase || true
-        python -m coverage run -m pytest tests/ -q -k "not integration and not test_pytorch_api_compatibility" --disable-warnings --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
+        python -m coverage run -m pytest tests/ -q -k "not test_pytorch_api_compatibility" --disable-warnings --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
         python -m coverage xml -o coverage.xml || true
         python -m coverage report -m || true
         echo "Listing workspace to show coverage.xml presence:" && ls -lah
