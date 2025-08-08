@@ -255,18 +255,18 @@ class CVEAnalyzer:
 
             return len(cve_nodes)
 
+    # Note: legacy helper retained for backwards-compatibility in tests and docs
     def _get_severity(self, cvss_score: float) -> str:
         """Get severity level from CVSS score."""
         if cvss_score >= 9.0:
             return "CRITICAL"
-        elif cvss_score >= 7.0:
+        if cvss_score >= 7.0:
             return "HIGH"
-        elif cvss_score >= 4.0:
+        if cvss_score >= 4.0:
             return "MEDIUM"
-        elif cvss_score > 0.0:
+        if cvss_score > 0.0:
             return "LOW"
-        else:
-            return "NONE"
+        return "NONE"
 
     def _link_cves_to_dependencies(self, session, cve_data: List[Dict]):
         """Link CVEs to external dependencies using precise GAV matching."""

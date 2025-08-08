@@ -287,10 +287,6 @@ class EnhancedDependencyExtractor:
 
         return list(dependency_map.values())
 
-    def create_neo4j_nodes(self, dependencies: List[DependencyInfo]) -> List[Dict]:
-        """Create Neo4j node data from dependencies."""
-        return [dep.to_neo4j_node() for dep in dependencies]
-
 
 class PropertyResolver:
     """Resolves Maven/Gradle property references."""
