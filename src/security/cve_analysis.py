@@ -405,101 +405,13 @@ class CVEAnalyzer:
         else:
             logger.info("No CVE-dependency matches found")
 
-    def _is_dependency_affected_simple(self, dep_path: str, cve_description: str) -> bool:
-        """Simple dependency matching using cleaned CVE data."""
-        dep_lower = dep_path.lower()
+    # Removed unused legacy simple-matching helpers to reduce maintenance surface
 
-        # Direct match
-        if dep_lower in cve_description:
-            return True
+    # Removed unused legacy simple-matching helpers to reduce maintenance surface
 
-        # Component matching
-        parts = []
-        for sep in [".", "/", "-", "_", "::"]:
-            if sep in dep_path:
-                parts.extend(part.lower() for part in dep_path.split(sep) if len(part) > 2)
+    # Removed unused legacy universal-matching helper to reduce maintenance surface
 
-        # At least one meaningful part must match
-        for part in parts:
-            if len(part) > 3 and part in cve_description:
-                return True
-
-        return False
-
-    def _calculate_match_confidence_simple(self, dep_path: str, cve_description: str) -> float:
-        """Calculate confidence for simple matching."""
-        dep_lower = dep_path.lower()
-
-        if dep_lower in cve_description:
-            return 0.9
-
-        parts = []
-        for sep in [".", "/", "-", "_", "::"]:
-            if sep in dep_path:
-                parts.extend(part.lower() for part in dep_path.split(sep) if len(part) > 2)
-
-        matches = sum(1 for part in parts if len(part) > 3 and part in cve_description)
-        if matches and parts:
-            return 0.6 * (matches / len(parts))
-
-        return 0.1
-
-    def _is_dependency_affected(
-        self, dep_path: str, cve_text: str, cpe_components: Set[str]
-    ) -> bool:
-        """Determine if a dependency is affected by a CVE using universal matching."""
-        dep_lower = dep_path.lower()
-
-        # Direct text match
-        if dep_lower in cve_text:
-            return True
-
-        # Extract components from dependency path
-        dep_parts = set()
-
-        # Split by various separators
-        for sep in [".", "/", "-", "_", "::"]:
-            if sep in dep_path:
-                dep_parts.update(part.lower() for part in dep_path.split(sep) if len(part) > 2)
-
-        # Check if any part matches CPE components
-        if dep_parts.intersection(cpe_components):
-            return True
-
-        # Check for partial matches in CVE text
-        for part in dep_parts:
-            if len(part) > 3 and part in cve_text:
-                return True
-
-        return False
-
-    def _calculate_match_confidence(
-        self, dep_path: str, cve_text: str, cpe_components: Set[str]
-    ) -> float:
-        """Calculate confidence score for CVE-dependency matching."""
-        confidence = 0.0
-        dep_lower = dep_path.lower()
-
-        # Direct path match (highest confidence)
-        if dep_lower in cve_text:
-            confidence += 0.8
-
-        # CPE component matches
-        dep_parts = set()
-        for sep in [".", "/", "-", "_", "::"]:
-            if sep in dep_path:
-                dep_parts.update(part.lower() for part in dep_path.split(sep) if len(part) > 2)
-
-        matches = dep_parts.intersection(cpe_components)
-        if matches:
-            confidence += 0.6 * (len(matches) / len(dep_parts))
-
-        # Partial text matches
-        partial_matches = sum(1 for part in dep_parts if len(part) > 3 and part in cve_text)
-        if partial_matches:
-            confidence += 0.4 * (partial_matches / len(dep_parts))
-
-        return min(confidence, 1.0)
+    # Removed unused legacy universal-matching helper to reduce maintenance surface
 
     def _is_dependency_affected_improved(self, dep_path: str, cve_description: str) -> bool:
         """Improved dependency matching with stricter criteria to reduce false positives."""

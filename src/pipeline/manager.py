@@ -447,9 +447,7 @@ class PipelineManager:
         }
 
 
-def create_pipeline_manager(repo_url: str, **kwargs) -> PipelineManager:
-    """Factory function to create a pipeline manager."""
-    return PipelineManager(repo_url, config=kwargs)
+# Note: factory removed to reduce API surface; construct PipelineManager directly
 
 
 def main():
