@@ -134,6 +134,7 @@ secrets.json
 
 # Neo4j dumps and exports
 *.dump
+.scratch/
 
 # local tmp artifacts
 .local-pytest-output.txt
