@@ -51,7 +51,7 @@ jobs:
       run: |
         TEST_EXIT=0
         python -m coverage erase || true
-        python -m coverage run -m pytest tests/ -v -k "not integration and not test_pytorch_api_compatibility" --junitxml=pytest-report.xml || TEST_EXIT=$?
+        python -m coverage run -m pytest tests/ -v -k "not integration and not test_pytorch_api_compatibility" --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
         python -m coverage xml -o coverage.xml || true
         python -m coverage report -m || true
         echo "Listing workspace to show coverage.xml presence:" && ls -lah
@@ -82,6 +82,12 @@ jobs:
       with:
         name: junit-${{ matrix.python-version }}
         path: pytest-report.xml
+    - name: Upload pytest raw output (debug)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-output-${{ matrix.python-version }}
+        path: pytest-output.txt
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
