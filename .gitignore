@@ -134,3 +134,7 @@ secrets.json
 
 # Neo4j dumps and exports
 *.dump
+
+# local tmp artifacts
+.local-pytest-output.txt
+bloom/*.json
