@@ -137,4 +137,3 @@ secrets.json
 
 # local tmp artifacts
 .local-pytest-output.txt
-bloom/*.json
