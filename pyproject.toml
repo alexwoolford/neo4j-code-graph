@@ -136,6 +136,13 @@ omit = [
     "*/test_*",
     "scripts/*",
 ]
+relative_files = true
+
+[tool.coverage.paths]
+source = [
+    "src",
+    "*/neo4j-code-graph/src",
+]
 
 [tool.coverage.report]
 exclude_lines = [

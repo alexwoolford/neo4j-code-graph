@@ -98,6 +98,7 @@ jobs:
         flags: py312
         name: codecov-py312
         fail_ci_if_error: false
+        disable_search: true
 
   security:
     runs-on: ubuntu-latest
