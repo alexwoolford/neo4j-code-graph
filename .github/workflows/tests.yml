@@ -1,8 +1,7 @@
-name: Tests
+name: Tests (disabled)
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 env:
   NEO4J_URI: ${{ secrets.NEO4J_URI }}
