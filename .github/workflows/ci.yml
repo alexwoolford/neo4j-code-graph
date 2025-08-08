@@ -53,14 +53,28 @@ jobs:
         echo "🧪 Running tests (failures won't break CI)..."
         pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing || echo "⚠️ Some tests failed, but that's OK for now"
 
+    - name: Verify coverage report exists
+      if: always()
+      run: |
+        ls -lh || true
+        if [ ! -f coverage.xml ]; then echo "coverage.xml missing"; exit 1; fi
+        head -n 5 coverage.xml || true
+
+    - name: Upload coverage.xml as artifact (debug)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-xml-${{ matrix.python-version }}
+        path: coverage.xml
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       if: always()
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./coverage.xml
+        files: ./coverage.xml
         flags: unittests
-        name: codecov-umbrella
+        name: codecov-umbrella-${{ matrix.python-version }}
         fail_ci_if_error: false
 
   security:
