@@ -63,3 +63,4 @@ def test_explain_cleanup_show_indexes():
     driver, database = _get_driver_or_skip()
     with driver.session(database=database) as s:
         s.run("EXPLAIN SHOW INDEXES").consume()
+        s.run("EXPLAIN SHOW CONSTRAINTS").consume()
