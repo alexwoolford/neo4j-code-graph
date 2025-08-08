@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
 
+env:
+  NEO4J_URI: ${{ secrets.NEO4J_URI }}
+  NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+  NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+  NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
+
 jobs:
   unit:
     runs-on: ubuntu-latest
@@ -30,7 +36,7 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     needs: unit
-    if: ${{ secrets.NEO4J_URI != '' }}
+    if: ${{ env.NEO4J_URI != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,10 +48,5 @@ jobs:
           pip install -r config/requirements.txt
           pip install -r config/dev-requirements.txt
       - name: Run integration tests
-        env:
-          NEO4J_URI: ${{ secrets.NEO4J_URI }}
-          NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
-          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
-          NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
         run: |
           pytest tests/ -v -m "integration"
