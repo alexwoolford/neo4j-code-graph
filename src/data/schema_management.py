@@ -66,14 +66,13 @@ def create_schema_constraints_and_indexes(session):
             "CREATE CONSTRAINT interface_name_file IF NOT EXISTS "
             "FOR (i:Interface) REQUIRE (i.name, i.file) IS UNIQUE",
         ),
-        # Method: unique by (name, file, line) - allows method overloading but
-        # ensures unique signatures
+        # Method: unique by method_signature (stable and collision-proof)
         (
-            "method_name_file_line",
+            "method_signature_unique",
             "Method",
-            "(name, file, line)",
-            "CREATE CONSTRAINT method_name_file_line IF NOT EXISTS "
-            "FOR (m:Method) REQUIRE (m.name, m.file, m.line) IS UNIQUE",
+            "method_signature",
+            "CREATE CONSTRAINT method_signature_unique IF NOT EXISTS "
+            "FOR (m:Method) REQUIRE m.method_signature IS UNIQUE",
         ),
         # Git history constraints
         (
@@ -171,9 +170,9 @@ def create_schema_constraints_and_indexes(session):
         ),
         # Composite indexes for common query patterns
         (
-            "method_name_class",
+            "method_name_class_name",
             "Method",
-            "CREATE INDEX method_name_class IF NOT EXISTS FOR (m:Method) ON (m.name, m.class)",
+            "CREATE INDEX method_name_class_name IF NOT EXISTS FOR (m:Method) ON (m.name, m.class_name)",
         ),
         (
             "method_file_line",

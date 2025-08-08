@@ -95,8 +95,19 @@ def run_validation(session) -> List[Tuple[str, bool, Optional[str]]]:
         ),
         (
             "method_nodes",
-            "UNWIND $methods AS method MERGE (m:Method {name: method.name, file: method.file, line: method.line}) SET m.is_static = method.is_static",
-            {"methods": [{"name": "foo", "file": "src/Main.java", "line": 10, "is_static": True}]},
+            "UNWIND $methods AS method MERGE (m:Method {method_signature: method.method_signature}) SET m.name = method.name, m.file = method.file, m.line = method.line, m.class_name = method.class_name, m.is_static = method.is_static",
+            {
+                "methods": [
+                    {
+                        "method_signature": "com.example.Main#foo():void",
+                        "name": "foo",
+                        "class_name": "Main",
+                        "file": "src/Main.java",
+                        "line": 10,
+                        "is_static": True,
+                    }
+                ]
+            },
         ),
         (
             "method_file_rels",
@@ -134,7 +145,7 @@ def run_validation(session) -> List[Tuple[str, bool, Optional[str]]]:
         ),
         (
             "calls_same_class",
-            "UNWIND $calls AS call MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line}) MATCH (callee:Method {name: call.callee_name, class: call.callee_class}) WHERE caller.file = callee.file MERGE (caller)-[:CALLS {type: call.call_type}]->(callee)",
+            "UNWIND $calls AS call MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line}) MATCH (callee:Method {name: call.callee_name, class_name: call.callee_class}) WHERE caller.file = callee.file MERGE (caller)-[:CALLS {type: call.call_type}]->(callee)",
             {
                 "calls": [
                     {
@@ -150,7 +161,7 @@ def run_validation(session) -> List[Tuple[str, bool, Optional[str]]]:
         ),
         (
             "calls_static",
-            "UNWIND $calls AS call MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line}) MATCH (callee:Method {name: call.callee_name, class: call.callee_class}) WHERE callee.is_static = true MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)",
+            "UNWIND $calls AS call MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line}) MATCH (callee:Method {name: call.callee_name, class_name: call.callee_class}) WHERE callee.is_static = true MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)",
             {
                 "calls": [
                     {

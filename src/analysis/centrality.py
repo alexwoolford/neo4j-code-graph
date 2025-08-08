@@ -125,7 +125,7 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
         MATCH (m:Method)
         WHERE m.pagerank_score IS NOT NULL
         RETURN m.name as method_name,
-               m.class as class_name,
+               m.class_name as class_name,
                m.file as file,
                m.pagerank_score as score
         ORDER BY m.pagerank_score DESC
@@ -143,7 +143,7 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
             UNWIND $nodeIds as nodeId
             MATCH (m:Method) WHERE id(m) = nodeId
             RETURN id(m) as nodeId, m.name as method_name,
-                   m.class as class_name, m.file as file
+                   m.class_name as class_name, m.file as file
             """
             method_details = gds.run_cypher(query, {"nodeIds": method_ids})
             top_results = result.merge(method_details, on="nodeId")
@@ -180,7 +180,7 @@ def run_betweenness_analysis(gds, graph, top_n=20, write_back=False):
         MATCH (m:Method)
         WHERE m.betweenness_score IS NOT NULL
         RETURN m.name as method_name,
-               m.class as class_name,
+               m.class_name as class_name,
                m.file as file,
                m.betweenness_score as score
         ORDER BY m.betweenness_score DESC
@@ -197,7 +197,7 @@ def run_betweenness_analysis(gds, graph, top_n=20, write_back=False):
             UNWIND $nodeIds as nodeId
             MATCH (m:Method) WHERE id(m) = nodeId
             RETURN id(m) as nodeId, m.name as method_name,
-                   m.class as class_name, m.file as file
+                   m.class_name as class_name, m.file as file
             """
             method_details = gds.run_cypher(query, {"nodeIds": method_ids})
             top_results = result.merge(method_details, on="nodeId")
@@ -231,7 +231,7 @@ def run_degree_analysis(gds, graph, top_n=20, write_back=False):
     OPTIONAL MATCH (m)-[out:CALLS]->()
     OPTIONAL MATCH ()-[in:CALLS]->(m)
     WITH m, count(DISTINCT out) as out_degree, count(DISTINCT in) as in_degree
-    RETURN id(m) as nodeId, m.name as method_name, m.class as class_name,
+    RETURN id(m) as nodeId, m.name as method_name, m.class_name as class_name,
            m.file as file, out_degree, in_degree,
            (out_degree + in_degree) as total_degree
     ORDER BY total_degree DESC
@@ -284,7 +284,7 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
             query = """
             MATCH (m:Method)
             WHERE m.hits_auth IS NOT NULL
-            RETURN m.name as method_name, m.class as class_name, m.file as file,
+            RETURN m.name as method_name, m.class_name as class_name, m.file as file,
                    m.hits_auth as authority_score, m.hits_hub as hub_score
             ORDER BY m.hits_auth DESC
             LIMIT $top_n
@@ -294,7 +294,7 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
             query = """
             MATCH (m:Method)
             WHERE m.hits_hub IS NOT NULL
-            RETURN m.name as method_name, m.class as class_name, m.file as file,
+            RETURN m.name as method_name, m.class_name as class_name, m.file as file,
                    m.hits_auth as authority_score, m.hits_hub as hub_score
             ORDER BY m.hits_hub DESC
             LIMIT $top_n
@@ -315,7 +315,7 @@ def run_hits_analysis(gds, graph, top_n=20, write_back=False):
                 UNWIND $nodeIds as nodeId
                 MATCH (m:Method) WHERE id(m) = nodeId
                 RETURN id(m) as nodeId, m.name as method_name,
-                       m.class as class_name, m.file as file
+                       m.class_name as class_name, m.file as file
                 """
                 auth_details = gds.run_cypher(query, {"nodeIds": auth_ids})
                 authorities = authorities.merge(auth_details, on="nodeId")

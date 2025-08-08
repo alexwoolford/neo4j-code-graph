@@ -51,7 +51,7 @@ WHERE m.pagerank_score IS NOT NULL
   AND m.estimated_lines > 20
 WITH m, (m.pagerank_score * m.estimated_lines) as impact_score
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name,
+RETURN f.path, m.class_name, m.name,
        m.pagerank_score as system_importance,
        m.estimated_lines as complexity,
        impact_score,
@@ -226,7 +226,7 @@ OPTIONAL MATCH (caller:Method)-[:CALLS]->(m)
 WITH m, count(caller) as call_frequency
 WHERE call_frequency > 10  // Frequently called
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name,
+RETURN f.path, m.class_name, m.name,
        m.estimated_lines as complexity,
        call_frequency,
        (m.estimated_lines * call_frequency) as performance_risk_score,

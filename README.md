@@ -19,7 +19,7 @@ Turn your codebase into a queryable knowledge graph. Find security vulnerabiliti
 MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
 MATCH (f)-[:DECLARES]->(m:Method)
 WHERE m.is_public = true AND cve.cvss_score >= 7.0
-RETURN f.path, m.class, m.name, cve.id, cve.cvss_score
+RETURN f.path, m.class_name, m.name, cve.id, cve.cvss_score
 ORDER BY cve.cvss_score DESC
 ```
 
@@ -55,7 +55,7 @@ LIMIT 25
 MATCH (m:Method)
 WHERE m.pagerank_score IS NOT NULL AND m.pagerank_score > 0.001
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name,
+RETURN f.path, m.class_name, m.name,
        m.pagerank_score as importance,
        m.estimated_lines as complexity
 ORDER BY m.pagerank_score DESC
@@ -142,7 +142,7 @@ export NEO4J_PASSWORD="your_password"
 ### 2. Analyze Your Codebase
 ```bash
 # Run complete analysis pipeline
-./scripts/run_pipeline.sh https://github.com/your-org/your-repo
+./scripts/run_pipeline.sh https://github.com/your-org/your-reposh
 
 # Or run individual components
 python scripts/code_to_graph.py /path/to/local/repo

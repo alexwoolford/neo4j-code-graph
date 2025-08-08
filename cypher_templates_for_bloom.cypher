@@ -26,7 +26,7 @@ LIMIT 25
 MATCH (f:File)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
 MATCH (f)-[:DECLARES]->(m:Method)
 WHERE m.is_public = true
-RETURN f.path, m.class, m.name,
+RETURN f.path, m.class_name, m.name,
        collect(DISTINCT dep.package) as dependencies,
        collect(DISTINCT cve.id) as vulnerabilities,
        cve.cvss_score
@@ -86,7 +86,7 @@ LIMIT 50
 MATCH (m:Method)
 WHERE m.pagerank_score IS NOT NULL AND m.pagerank_score > 0.001
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name,
+RETURN f.path, m.class_name, m.name,
        m.pagerank_score,
        COALESCE(m.betweenness_score, 0) as betweenness_score,
        m.estimated_lines
@@ -131,7 +131,7 @@ MATCH (m:Method)-[:CALLS]->(called:Method)
 WITH m, count(called) as calls_made
 WHERE calls_made > 5
 MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class, m.name, calls_made, m.estimated_lines,
+RETURN f.path, m.class_name, m.name, calls_made, m.estimated_lines,
        CASE
          WHEN calls_made > 20 THEN "High Orchestrator"
          WHEN calls_made > 10 THEN "Medium Orchestrator"
@@ -172,7 +172,7 @@ WHERE NOT EXISTS(()-[:CALLS]->(m))
   AND NOT m.name STARTS WITH "test"
 MATCH (m)<-[:DECLARES]-(f:File)
 RETURN f.path,
-       COALESCE(m.class, "Unknown") as class_name,
+       COALESCE(m.class_name, "Unknown") as class_name,
        m.name,
        m.estimated_lines,
        CASE WHEN m.is_static THEN "Static" ELSE "Instance" END as method_type

@@ -282,6 +282,33 @@ def get_optimal_batch_size(device):
         return 32
 
 
+def build_method_signature(
+    package_name: str | None,
+    class_name: str | None,
+    method_name: str,
+    parameters: list,
+    return_type: str | None,
+) -> str:
+    """Build a stable method signature string for uniqueness and Bloom captions.
+
+    Format: <package>.<class>#<method>(<paramType,...>):<returnType>
+    Missing parts are omitted gracefully.
+    """
+    pkg = f"{package_name}." if package_name else ""
+    cls = class_name or ""
+    param_types = []
+    for p in parameters or []:
+        # parameters are {name, type}
+        t = p.get("type") if isinstance(p, dict) else None
+        param_types.append(str(t) if t is not None else "?")
+    params_str = ",".join(param_types)
+    ret = return_type or "void"
+    if cls:
+        return f"{pkg}{cls}#{method_name}({params_str}):{ret}"
+    # Fallback without class
+    return f"{pkg}{method_name}({params_str}):{ret}"
+
+
 def get_database_batch_size(has_embeddings=False, estimated_size_mb=None):
     """
     Determine optimal batch size for database operations.
@@ -576,7 +603,7 @@ def extract_file_data(file_path, repo_root):
 
                 method_info = {
                     "name": method_name,
-                    "class": containing_class,
+                    "class_name": containing_class,
                     "containing_type": containing_type,
                     "line": start_line,
                     "code": method_code,
@@ -597,6 +624,14 @@ def extract_file_data(file_path, repo_root):
                     ),
                     "calls": method_calls,  # List of method calls made by this method
                 }
+                # add stable signature for uniqueness and Bloom captions
+                method_info["method_signature"] = build_method_signature(
+                    package_name,
+                    containing_class,
+                    method_name,
+                    method_info["parameters"],
+                    method_info["return_type"],
+                )
                 methods.append(method_info)
 
             except Exception as e:
@@ -1038,9 +1073,10 @@ def create_methods(session, files_data, method_embeddings):
                 "is_public": method.get("is_public", False),
                 "return_type": method.get("return_type", "void"),
                 "modifiers": method.get("modifiers", []),
+                "method_signature": method.get("method_signature"),
             }
-            if method["class"]:
-                method_node["class"] = method["class"]
+            if method.get("class_name"):
+                method_node["class_name"] = method["class_name"]
                 method_node["containing_type"] = method.get("containing_type", "class")
 
             method_nodes.append(method_node)
@@ -1076,8 +1112,8 @@ def create_methods(session, files_data, method_embeddings):
                 m.modifiers = method.modifiers
             """
             + (
-                "SET m.class = method.class, m.containing_type = method.containing_type"
-                if any("class" in m for m in batch)
+                "SET m.class_name = method.class_name, m.containing_type = method.containing_type"
+                if any("class_name" in m for m in batch)
                 else ""
             ),
             methods=batch,
@@ -1131,14 +1167,14 @@ def create_methods(session, files_data, method_embeddings):
 
     for file_data in files_data:
         for method in file_data["methods"]:
-            if method.get("class"):
+            if method.get("class_name"):
                 if method.get("containing_type") == "interface":
                     method_interface_rels.append(
                         {
                             "method_name": method["name"],
                             "method_file": method["file"],
                             "method_line": method["line"],
-                            "interface_name": method["class"],
+                            "interface_name": method["class_name"],
                         }
                     )
                 else:
@@ -1147,7 +1183,7 @@ def create_methods(session, files_data, method_embeddings):
                             "method_name": method["name"],
                             "method_file": method["file"],
                             "method_line": method["line"],
-                            "class_name": method["class"],
+                            "class_name": method["class_name"],
                         }
                     )
 
@@ -1342,7 +1378,7 @@ def create_method_calls(session, files_data):
                         "caller_name": method["name"],
                         "caller_file": method["file"],
                         "caller_line": method["line"],
-                        "caller_class": method.get("class"),
+                        "caller_class": method.get("class_name"),
                         "callee_name": call["method_name"],
                         "callee_class": call["target_class"],
                         "call_type": call["call_type"],
@@ -1367,7 +1403,7 @@ def create_method_calls(session, files_data):
                     "UNWIND $calls AS call "
                     "MATCH (caller:Method {name: call.caller_name, "
                     "file: call.caller_file, line: call.caller_line}) "
-                    "MATCH (callee:Method {name: call.callee_name, class: call.callee_class}) "
+                    "MATCH (callee:Method {name: call.callee_name, class_name: call.callee_class}) "
                     "WHERE caller.file = callee.file "
                     "MERGE (caller)-[:CALLS {type: call.call_type}]->(callee)",
                     calls=batch,
@@ -1381,7 +1417,7 @@ def create_method_calls(session, files_data):
                     "UNWIND $calls AS call "
                     "MATCH (caller:Method {name: call.caller_name, "
                     "file: call.caller_file, line: call.caller_line}) "
-                    "MATCH (callee:Method {name: call.callee_name, class: call.callee_class}) "
+                    "MATCH (callee:Method {name: call.callee_name, class_name: call.callee_class}) "
                     "WHERE callee.is_static = true "
                     "MERGE (caller)-[:CALLS {type: call.call_type, "
                     "qualifier: call.qualifier}]->(callee)",

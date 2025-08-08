@@ -578,7 +578,7 @@ def _calculate_method_hotspots(session, cutoff_date, min_changes):
         m.name as method_name,
         m.file as file_path,
         m.line as line_number,
-        m.class as class_name,
+        m.class_name as class_name,
         m.containing_type as containing_type,
         m.estimated_lines as estimated_lines,
         m.is_static as is_static,
