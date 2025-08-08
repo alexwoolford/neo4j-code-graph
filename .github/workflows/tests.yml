@@ -27,7 +27,7 @@ jobs:
         run: |
           TEST_EXIT=0
           python -m coverage erase || true
-          python -m coverage run -m pytest tests/ -v -k "not integration and not test_pytorch_api_compatibility" --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
+          python -m coverage run -m pytest tests/ -q -k "not integration and not test_pytorch_api_compatibility" --disable-warnings --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
           python -m coverage xml -o coverage.xml || true
           python -m coverage report -m || true
           echo "Listing workspace to show coverage.xml presence:" && ls -lah
