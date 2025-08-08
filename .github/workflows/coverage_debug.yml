@@ -56,8 +56,13 @@ jobs:
             pytest-report.xml
             pip-freeze.txt
 
-      - name: Optional SSH debug session
-        if: ${{ github.event.inputs.open_ssh == 'true' }}
+  ssh:
+    if: ${{ github.event.inputs.open_ssh == 'true' }}
+    needs: debug
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Start tmate session (optional)
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
