@@ -89,14 +89,14 @@ jobs:
         name: pytest-output-${{ matrix.python-version }}
         path: pytest-output.txt
 
-    - name: Upload coverage to Codecov
+    - name: Upload coverage to Codecov (only once on 3.12)
       uses: codecov/codecov-action@v4
-      if: always()
+      if: always() && matrix.python-version == '3.12'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella-${{ matrix.python-version }}
+        flags: py312
+        name: codecov-py312
         fail_ci_if_error: false
 
   security:
