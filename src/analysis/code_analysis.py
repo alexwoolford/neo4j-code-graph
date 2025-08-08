@@ -760,8 +760,11 @@ def create_files(session, files_data, file_embeddings):
 
     file_nodes = []
     for i, file_data in enumerate(files_data):
+        file_path_str = file_data["path"]
+        file_name_only = Path(file_path_str).name if file_path_str else file_path_str
         file_node = {
-            "path": file_data["path"],
+            "path": file_path_str,
+            "name": file_name_only,
             "embedding": file_embeddings[i],
             "embedding_type": EMBEDDING_TYPE,
             "language": file_data.get("language", "java"),
@@ -790,6 +793,7 @@ def create_files(session, files_data, file_embeddings):
                     f.embedding_type = file.embedding_type,
                     f.language = file.language,
                     f.ecosystem = file.ecosystem,
+                    f.name = file.name,
                     f.total_lines = file.total_lines,
                     f.code_lines = file.code_lines,
                     f.method_count = file.method_count,

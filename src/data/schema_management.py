@@ -43,6 +43,13 @@ def create_schema_constraints_and_indexes(session):
             "path",
             "CREATE CONSTRAINT file_path IF NOT EXISTS " "FOR (f:File) REQUIRE f.path IS UNIQUE",
         ),
+        # File: index on name for fast retrieval by filename
+        (
+            "file_name",
+            "File",
+            "name",
+            "CREATE INDEX file_name IF NOT EXISTS FOR (f:File) ON (f.name)",
+        ),
         # Class: unique by (name, file) - same class name can exist in different files
         (
             "class_name_file",
