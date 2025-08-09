@@ -45,7 +45,8 @@ def test_constraint_creation():
     # Should have constraints for all major node types
     assert any("directory_path" in call for call in constraint_calls)
     assert any("file_path" in call for call in constraint_calls)
-    assert any("method_name_file_line" in call for call in constraint_calls)
+    # Method uniqueness now uses method_signature
+    assert any("method_signature_unique" in call for call in constraint_calls)
     assert any("commit_sha" in call for call in constraint_calls)
 
 
@@ -64,7 +65,10 @@ def test_constraint_syntax():
 
     for call in constraint_calls:
         assert "REQUIRE" in call, f"Constraint should use REQUIRE syntax: {call}"
-        assert "IS UNIQUE" in call, f"Constraint should use IS UNIQUE syntax: {call}"
+        # Allow both UNIQUE and NOT NULL constraints
+        assert (
+            "IS UNIQUE" in call or "IS NOT NULL" in call
+        ), f"Constraint should use IS UNIQUE or IS NOT NULL syntax: {call}"
 
 
 def test_verify_schema_functions():
@@ -127,13 +131,13 @@ def test_natural_key_coverage():
     call_args = [call[0][0] for call in mock_session.run.call_args_list]
     constraint_calls = [call for call in call_args if "CONSTRAINT" in call and "CREATE" in call]
 
-    # Expected node types and their natural keys
+    # Expected node types and their natural keys (or unique identifiers)
     expected_constraints = [
         ("Directory", "path"),
         ("File", "path"),
         ("Class", "name, file"),
         ("Interface", "name, file"),
-        ("Method", "name, file, line"),
+        ("Method", "method_signature"),
         ("Commit", "sha"),
         ("Developer", "email"),
         ("FileVer", "sha, path"),

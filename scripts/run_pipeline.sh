@@ -35,14 +35,20 @@ echo "✅ Schema setup completed"
 
 echo ""
 echo "🧹 Cleaning up previous analysis (if any)..."
-python "$SCRIPT_DIR/cleanup_graph.py" --dry-run
-read -p "Proceed with cleanup? (y/n): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    python "$SCRIPT_DIR/cleanup_graph.py"
-    echo "✅ Cleanup completed"
+# Auto-confirm cleanup in CI/non-interactive mode
+if [ -n "$CI" ] || [ ! -t 0 ]; then
+  python "$SCRIPT_DIR/cleanup_graph.py"
+  echo "✅ Cleanup completed (non-interactive)"
 else
-    echo "⚠️  Skipping cleanup - you may have duplicate data"
+  python "$SCRIPT_DIR/cleanup_graph.py" --dry-run
+  read -p "Proceed with cleanup? (y/n): " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+      python "$SCRIPT_DIR/cleanup_graph.py"
+      echo "✅ Cleanup completed"
+  else
+      echo "⚠️  Skipping cleanup - you may have duplicate data"
+  fi
 fi
 
 # Step 1: Clone Repository (once for efficiency)
@@ -110,7 +116,14 @@ echo "  ✅ Hotspot analysis completed"
 # Step 8: Universal CVE Vulnerability Analysis
 echo ""
 echo "🛡️  Step 8: Universal vulnerability analysis..."
-if [ -n "${NVD_API_KEY}" ] || [ -f ".env" ]; then
+# Source .env if present for local runs
+if [ -f ".env" ]; then
+  set -o allexport
+  # shellcheck disable=SC1091
+  source .env
+  set +o allexport
+fi
+if [ -n "${NVD_API_KEY}" ]; then
     echo "  🔍 Analyzing vulnerability impact using dynamic dependency extraction..."
     python "$SCRIPT_DIR/cve_analysis.py" --risk-threshold 7.0 --max-hops 4
     echo "  ✅ CVE analysis completed"

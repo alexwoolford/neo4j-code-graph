@@ -113,13 +113,13 @@ def create_schema_constraints_and_indexes(session):
             "CREATE CONSTRAINT file_ver_sha_path IF NOT EXISTS "
             "FOR (fv:FileVer) REQUIRE (fv.sha, fv.path) IS UNIQUE",
         ),
-        # External dependencies
+        # External dependencies: unique by package (aligns with data loader)
         (
-            "external_dependency_path",
+            "external_dependency_package",
             "ExternalDependency",
-            "import_path",
-            "CREATE CONSTRAINT external_dependency_path IF NOT EXISTS "
-            "FOR (ed:ExternalDependency) REQUIRE ed.import_path IS UNIQUE",
+            "package",
+            "CREATE CONSTRAINT external_dependency_package IF NOT EXISTS "
+            "FOR (ed:ExternalDependency) REQUIRE ed.package IS UNIQUE",
         ),
         # Import: unique by import_path
         (
@@ -129,12 +129,12 @@ def create_schema_constraints_and_indexes(session):
             "CREATE CONSTRAINT import_path IF NOT EXISTS "
             "FOR (i:Import) REQUIRE i.import_path IS UNIQUE",
         ),
-        # CVE: unique by CVE ID
+        # CVE: unique by id (aligns with analysis and Bloom templates)
         (
-            "cve_id",
+            "cve_id_unique",
             "CVE",
-            "cve_id",
-            "CREATE CONSTRAINT cve_id IF NOT EXISTS " "FOR (cve:CVE) REQUIRE cve.cve_id IS UNIQUE",
+            "id",
+            "CREATE CONSTRAINT cve_id_unique IF NOT EXISTS FOR (cve:CVE) REQUIRE cve.id IS UNIQUE",
         ),
     ]
 
@@ -173,6 +173,11 @@ def create_schema_constraints_and_indexes(session):
             "CREATE INDEX method_estimated_lines IF NOT EXISTS "
             "FOR (m:Method) ON (m.estimated_lines)",
         ),
+        (
+            "method_name",
+            "Method",
+            "CREATE INDEX method_name IF NOT EXISTS FOR (m:Method) ON (m.name)",
+        ),
         # Keep only the boolean indexes that are actually queried
         (
             "method_is_public",
@@ -194,6 +199,11 @@ def create_schema_constraints_and_indexes(session):
             "method_file_line",
             "Method",
             "CREATE INDEX method_file_line IF NOT EXISTS FOR (m:Method) ON (m.file, m.line)",
+        ),
+        (
+            "method_name_file_line",
+            "Method",
+            "CREATE INDEX method_name_file_line IF NOT EXISTS FOR (m:Method) ON (m.name, m.file, m.line)",
         ),
         (
             "class_name_file",

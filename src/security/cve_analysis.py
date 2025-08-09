@@ -766,10 +766,14 @@ Examples:
             print("   Without API key: ~2-5 CVEs/second")
             print("   With API key:    ~20-50 CVEs/second")
 
-            proceed = input("\nProceed without API key? (y/N): ")
-            if proceed.lower() != "y":
-                print("💡 Get an API key first with --api-key-info")
-                return
+            # In CI environments, proceed without prompting
+            if os.getenv("CI", "").lower() == "true":
+                logger.info("Proceeding without API key (non-interactive mode)")
+            else:
+                proceed = input("\nProceed without API key? (y/N): ")
+                if proceed.lower() != "y":
+                    print("💡 Get an API key first with --api-key-info")
+                    return
 
         # Fetch CVE data with robust error handling
         print("\n🌐 **FETCHING CVE DATA**")
