@@ -74,6 +74,22 @@ def create_schema_constraints_and_indexes(session):
             "CREATE CONSTRAINT method_signature_unique IF NOT EXISTS "
             "FOR (m:Method) REQUIRE m.method_signature IS UNIQUE",
         ),
+        # Method: ensure id exists for Bloom/perspective compatibility
+        (
+            "method_id_required",
+            "Method",
+            "id",
+            "CREATE CONSTRAINT method_id_required IF NOT EXISTS "
+            "FOR (m:Method) REQUIRE m.id IS NOT NULL",
+        ),
+        # Method: ensure method_signature exists (complements uniqueness constraint)
+        (
+            "method_signature_required",
+            "Method",
+            "method_signature",
+            "CREATE CONSTRAINT method_signature_required IF NOT EXISTS "
+            "FOR (m:Method) REQUIRE m.method_signature IS NOT NULL",
+        ),
         # Git history constraints
         (
             "commit_sha",

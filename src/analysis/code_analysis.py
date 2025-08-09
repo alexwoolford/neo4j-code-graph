@@ -1095,12 +1095,15 @@ def create_methods(session, files_data, method_embeddings):
         start_time = perf_counter()
 
         # Use MERGE to handle re-runs and avoid constraint violations
-        # Method has unique constraint on (name, file, line)
         session.run(
             """
             UNWIND $methods AS method
-            MERGE (m:Method {name: method.name, file: method.file, line: method.line})
-            SET m.embedding = method.embedding,
+            // Merge by stable signature to align with uniqueness constraint
+            MERGE (m:Method {method_signature: method.method_signature})
+            SET m.name = method.name,
+                m.file = method.file,
+                m.line = method.line,
+                m.embedding = method.embedding,
                 m.embedding_type = method.embedding_type,
                 m.estimated_lines = method.estimated_lines,
                 m.is_static = method.is_static,
@@ -1109,7 +1112,8 @@ def create_methods(session, files_data, method_embeddings):
                 m.is_private = method.is_private,
                 m.is_public = method.is_public,
                 m.return_type = method.return_type,
-                m.modifiers = method.modifiers
+                m.modifiers = method.modifiers,
+                m.id = coalesce(m.id, method.method_signature)
             """
             + (
                 "SET m.class_name = method.class_name, m.containing_type = method.containing_type"
