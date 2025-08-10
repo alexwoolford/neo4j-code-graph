@@ -280,7 +280,9 @@ def main():
             with driver.session(database=args.database) as session:
                 if args.complete:
                     # Complete database reset
-                    if not args.confirm and not args.dry_run:
+                    if args.confirm or args.dry_run:
+                        response = "RESET"
+                    else:
                         response = input(
                             "⚠️  This will DELETE EVERYTHING in the database. "
                             "Type 'RESET' to confirm: "

@@ -270,6 +270,11 @@ def parse_args():
         action="store_true",
         help="Force reprocessing of all files even if they exist in database",
     )
+    parser.add_argument(
+        "--skip-db",
+        action="store_true",
+        help="Skip database writes (extract + embeddings only) for benchmarking",
+    )
     return parser.parse_args()
 
 
@@ -1716,6 +1721,21 @@ def main():
             logger.info("Phase 2 completed in %.2fs", phase2_time)
 
             # Phase 3: Bulk create everything in Neo4j
+            if getattr(args, "skip_db", False):
+                logger.info("Phase 3: Skipped (--skip-db)")
+                logger.info(
+                    "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
+                    len(files_data),
+                    phase1_time + phase2_time,
+                    len(files_data) / max(phase1_time + phase2_time, 1e-6),
+                )
+                if tmpdir:
+                    import shutil
+
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+                    logger.info("Cleaned up temporary repository clone")
+                return
+
             logger.info("Phase 3: Creating graph in Neo4j...")
             start_phase3 = perf_counter()
 
