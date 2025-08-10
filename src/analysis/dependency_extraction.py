@@ -172,9 +172,10 @@ class EnhancedDependencyExtractor:
                 content = f.read()
 
             # Pattern for standard Gradle dependencies: 'group:artifact:version'
+            # Allow Gradle variable versions like $var or ${var}
             standard_pattern = (
                 r"(?:implementation|api|compile|testImplementation|testCompile|runtime)\s+"
-                r"['\"]([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+)['\"]"
+                r"['\"]([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):([a-zA-Z0-9._\-${}]+)['\"]"
             )  # noqa: E501
 
             # Pattern for map-style dependencies
@@ -184,7 +185,7 @@ class EnhancedDependencyExtractor:
                 r",?\s*version\s*:\s*['\"]([^'\"]+)['\"]"
             )
 
-            # Extract version properties
+            # Extract version properties defined in simple 'name = "value"' style
             version_props = {}
             version_pattern = r"(\w+)\s*=\s*['\"]([^'\"]+)['\"]"
             for match in re.finditer(version_pattern, content):
@@ -196,9 +197,11 @@ class EnhancedDependencyExtractor:
             for match in re.finditer(standard_pattern, content):
                 group_id, artifact_id, version = match.groups()
 
-                # Resolve version variables
+                # Resolve version variables like $var or ${var}
                 if version.startswith("$"):
                     var_name = version[1:]
+                    if var_name.startswith("{") and var_name.endswith("}"):
+                        var_name = var_name[1:-1]
                     version = version_props.get(var_name, version)
 
                 if not version.startswith("$"):

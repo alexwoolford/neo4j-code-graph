@@ -122,7 +122,12 @@ def test_write_imports_and_calls_end_to_end():
             m.get("return_type"),
         )
 
-    with create_neo4j_driver(uri, username, password) as driver:
+    try:
+        driver_ctx = create_neo4j_driver(uri, username, password)
+    except Exception as e:
+        pytest.skip(f"Neo4j not reachable for end-to-end write: {e}")
+
+    with driver_ctx as driver:
         with driver.session(database=database) as session:
             session.run("MATCH (n) DETACH DELETE n").consume()
 
