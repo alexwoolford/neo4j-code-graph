@@ -16,6 +16,8 @@ from tqdm import tqdm
 
 # Collect Java parse errors across threads to summarize later
 PARSE_ERRORS: list[tuple[str, str]] = []
+FALLBACK_ATTEMPTS: int = 0
+FALLBACK_SUCCESSES: int = 0
 
 try:
     # Try absolute import when called from CLI wrapper
@@ -292,6 +294,11 @@ def parse_args():
         "--quiet-parse",
         action="store_true",
         help="Suppress per-file Java parse warnings on console; show only a summary",
+    )
+    parser.add_argument(
+        "--no-java-fallback",
+        action="store_true",
+        help="Disable Tree-sitter fallback to compare baseline javalang behavior",
     )
     return parser.parse_args()
 
@@ -713,27 +720,38 @@ def extract_file_data(file_path, repo_root):
 
     except Exception as e:
         # Fallback: try Tree-sitter-based extractor
-        try:
-            from .java_treesitter import extract_with_treesitter
-        except Exception:
-            extract_with_treesitter = None  # type: ignore
-
-        if extract_with_treesitter is not None:
+        if not getattr(sys.modules.get(__name__), "_NO_JAVA_FALLBACK", False):
             try:
-                ts = extract_with_treesitter(code, rel_path)
-                imports = ts.imports
-                classes = ts.classes
-                interfaces = ts.interfaces
-                methods = ts.methods
-                package_name = ts.package_name
-            except Exception as ts_e:
-                # Record and optionally suppress per-file warnings
+                from .java_treesitter import extract_with_treesitter
+            except Exception:
+                extract_with_treesitter = None  # type: ignore
+
+            if extract_with_treesitter is not None:
                 try:
-                    PARSE_ERRORS.append((rel_path, f"javalang:{e}; treesitter:{ts_e}"))
+                    global FALLBACK_ATTEMPTS, FALLBACK_SUCCESSES
+                    FALLBACK_ATTEMPTS += 1
+                    ts = extract_with_treesitter(code, rel_path)
+                    imports = ts.imports
+                    classes = ts.classes
+                    interfaces = ts.interfaces
+                    methods = ts.methods
+                    package_name = ts.package_name
+                    FALLBACK_SUCCESSES += 1
+                except Exception as ts_e:
+                    # Record and optionally suppress per-file warnings
+                    try:
+                        PARSE_ERRORS.append((rel_path, f"javalang:{e}; treesitter:{ts_e}"))
+                    except Exception:
+                        pass
+                    if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
+                        logger.warning("Failed to parse Java file %s: %s", rel_path, ts_e)
+            else:
+                try:
+                    PARSE_ERRORS.append((rel_path, str(e)))
                 except Exception:
                     pass
                 if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-                    logger.warning("Failed to parse Java file %s: %s", rel_path, ts_e)
+                    logger.warning("Failed to parse Java file %s: %s", rel_path, e)
         else:
             try:
                 PARSE_ERRORS.append((rel_path, str(e)))
@@ -1580,9 +1598,11 @@ def main():
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
-    # Control per-file parse logging noise
+    # Control per-file parse logging noise and fallback behavior
     global _QUIET_PARSE
     _QUIET_PARSE = bool(getattr(args, "quiet_parse", False))
+    global _NO_JAVA_FALLBACK
+    _NO_JAVA_FALLBACK = bool(getattr(args, "no_java_fallback", False))
     with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             # Check if repo_url is a local path or a URL
@@ -1673,7 +1693,7 @@ def main():
                             files_data.append(result)
 
             # After extraction, summarize parse errors
-            if PARSE_ERRORS:
+            if PARSE_ERRORS or FALLBACK_ATTEMPTS:
                 if args.parse_errors_file:
                     from pathlib import Path as _Path
 
@@ -1683,14 +1703,18 @@ def main():
                         "\n".join(f"{p}\t{err}" for p, err in PARSE_ERRORS), encoding="utf-8"
                     )
                     logger.warning(
-                        "Java parse errors: %d files. Details written to %s",
+                        "Java parse: %d errors. Fallback used %d times, recovered %d files. Details: %s",
                         len(PARSE_ERRORS),
+                        FALLBACK_ATTEMPTS,
+                        FALLBACK_SUCCESSES,
                         out_path,
                     )
                 else:
                     logger.warning(
-                        "Java parse errors: %d files. Enable --parse-errors-file to capture details",
+                        "Java parse: %d errors. Fallback used %d times, recovered %d files. Use --parse-errors-file to capture details",
                         len(PARSE_ERRORS),
+                        FALLBACK_ATTEMPTS,
+                        FALLBACK_SUCCESSES,
                     )
 
             phase1_time = perf_counter() - start_phase1
