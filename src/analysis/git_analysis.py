@@ -126,13 +126,9 @@ def extract_git_history(repo_path, branch, max_commits=None):
     total_time = time.time() - start_time
 
     logger.info(
-        "Parsed %d commits and %d file changes in %.2fs",
+        "Parsed %d commits and %d file changes in %.2fs (%.1f commits/sec)",
         commits_processed,
         len(file_changes),
-        total_time,
-    )
-    logger.info(
-        "Total extraction: %.2fs (%.1f commits/sec)",
         total_time,
         commits_processed / total_time if total_time > 0 else 0,
     )
@@ -203,7 +199,7 @@ def bulk_load_to_neo4j(
             # They should be created via run_pipeline.sh Step 0 or standalone schema setup
 
             # Load developers
-            logger.info(f"Loading {len(developers_df)} developers...")
+            logger.info("Loading %d developers...", len(developers_df))
             developers_data = developers_df.to_dict("records")
             session = execute_with_retry(
                 session,
@@ -217,7 +213,7 @@ def bulk_load_to_neo4j(
             )
 
         # Load commits in smaller batches
-        logger.info(f"Loading {len(commits_df)} commits...")
+        logger.info("Loading %d commits...", len(commits_df))
         commits_data = commits_df.to_dict("records")
         for commit in commits_data:
             # Use native datetime objects so Neo4j stores the value as a
@@ -248,7 +244,7 @@ def bulk_load_to_neo4j(
             )
 
         # Load files
-        logger.info(f"Loading {len(files_df)} files...")
+        logger.info("Loading %d files...", len(files_df))
         files_data = files_df.to_dict("records")
         session = execute_with_retry(
             session,
@@ -266,14 +262,16 @@ def bulk_load_to_neo4j(
             return
 
         # Load file changes with sustainable bulk operations
-        logger.info(f"🚀 Loading {len(file_changes_df)} file changes with bulk operations...")
+        logger.info("🚀 Loading %d file changes with bulk operations...", len(file_changes_df))
         file_changes_data = file_changes_df.to_dict("records")
 
         # Use conservative batches to avoid overwhelming the database
         batch_size = 10000  # Conservative size that won't crash the database
         total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
 
-        logger.info(f"📦 Processing in {total_batches} batches of {batch_size:,} records each")
+        logger.info(
+            "📦 Processing in %d batches of %s records each", total_batches, f"{batch_size:,}"
+        )
         logger.info("⚡ Using sustainable 3-step bulk loading approach")
 
         start_time = time.time()
@@ -283,7 +281,10 @@ def bulk_load_to_neo4j(
             batch = file_changes_data[i : i + batch_size]
 
             logger.info(
-                f"🔄 Processing batch {batch_num}/{total_batches} ({len(batch):,} records)..."
+                "🔄 Processing batch %d/%d (%s records)...",
+                batch_num,
+                total_batches,
+                f"{len(batch):,}",
             )
 
             # Single-step approach - create nodes and relationships together
@@ -304,7 +305,9 @@ def bulk_load_to_neo4j(
             )
             step_time = time.time() - step_start
             logger.info(
-                f"  ✅ Created {len(batch):,} FileVer nodes and relationships in {step_time:.1f}s"
+                "  ✅ Created %s FileVer nodes and relationships in %.1fs",
+                f"{len(batch):,}",
+                step_time,
             )
 
             batch_time = time.time() - batch_start
@@ -322,17 +325,13 @@ def bulk_load_to_neo4j(
                 completion_pct = (processed / len(file_changes_data)) * 100
 
             logger.info(
-                (
-                    "📊 Batch %d/%d COMPLETED in %.1fs (%.1f%% done, %.0f records/sec, ETA: %.1fmin)"
-                    % (
-                        batch_num,
-                        total_batches,
-                        batch_time,
-                        completion_pct,
-                        throughput,
-                        eta_minutes,
-                    )
-                )
+                "📊 Batch %d/%d COMPLETED in %.1fs (%.1f%% done, %.0f records/sec, ETA: %.1fmin)",
+                batch_num,
+                total_batches,
+                batch_time,
+                completion_pct,
+                throughput,
+                eta_minutes,
             )
 
             # Memory cleanup
