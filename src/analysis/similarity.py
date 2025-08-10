@@ -7,19 +7,28 @@ import pandas as pd
 from graphdatascience import GraphDataScience
 
 try:
-    # Prefer centralized constants when available
-    from src.constants import (
+    # When 'src' is on sys.path and importing as top-level package
+    from constants import (
         COMMUNITY_PROPERTY,
         EMBEDDING_DIMENSION,
         SIMILARITY_CUTOFF,
         SIMILARITY_TOP_K,
     )
 except Exception:
-    # Fallback to defaults if constants import path differs
-    from ..constants import COMMUNITY_PROPERTY as COMMUNITY_PROPERTY
-    from ..constants import EMBEDDING_DIMENSION as EMBEDDING_DIMENSION
-    from ..constants import SIMILARITY_CUTOFF as SIMILARITY_CUTOFF
-    from ..constants import SIMILARITY_TOP_K as SIMILARITY_TOP_K
+    try:
+        # Package name import
+        from src.constants import (
+            COMMUNITY_PROPERTY,
+            EMBEDDING_DIMENSION,
+            SIMILARITY_CUTOFF,
+            SIMILARITY_TOP_K,
+        )
+    except Exception:
+        # Relative import when used as module inside package
+        from ..constants import COMMUNITY_PROPERTY as COMMUNITY_PROPERTY
+        from ..constants import EMBEDDING_DIMENSION as EMBEDDING_DIMENSION
+        from ..constants import SIMILARITY_CUTOFF as SIMILARITY_CUTOFF
+        from ..constants import SIMILARITY_TOP_K as SIMILARITY_TOP_K
 
 try:
     # Try absolute import when called from CLI wrapper
