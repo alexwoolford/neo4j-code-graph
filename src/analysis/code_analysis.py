@@ -712,13 +712,35 @@ def extract_file_data(file_path, repo_root):
             interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
 
     except Exception as e:
-        # Record and optionally suppress per-file warnings
+        # Fallback: try Tree-sitter-based extractor
         try:
-            PARSE_ERRORS.append((rel_path, str(e)))
+            from .java_treesitter import extract_with_treesitter
         except Exception:
-            pass
-        if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-            logger.warning("Failed to parse Java file %s: %s", rel_path, e)
+            extract_with_treesitter = None  # type: ignore
+
+        if extract_with_treesitter is not None:
+            try:
+                ts = extract_with_treesitter(code, rel_path)
+                imports = ts.imports
+                classes = ts.classes
+                interfaces = ts.interfaces
+                methods = ts.methods
+                package_name = ts.package_name
+            except Exception as ts_e:
+                # Record and optionally suppress per-file warnings
+                try:
+                    PARSE_ERRORS.append((rel_path, f"javalang:{e}; treesitter:{ts_e}"))
+                except Exception:
+                    pass
+                if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
+                    logger.warning("Failed to parse Java file %s: %s", rel_path, ts_e)
+        else:
+            try:
+                PARSE_ERRORS.append((rel_path, str(e)))
+            except Exception:
+                pass
+            if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
+                logger.warning("Failed to parse Java file %s: %s", rel_path, e)
 
     # Calculate file-level metrics using the cached lines
     file_lines = len(source_lines)
