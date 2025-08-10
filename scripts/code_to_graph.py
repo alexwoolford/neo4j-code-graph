@@ -14,10 +14,18 @@ sys.path.insert(0, str(root_dir / "src"))
 # Import and run the main function from the module
 def _entry():
     try:
+        # Preferred when running this script from repo root
         from analysis.code_analysis import main  # when src is on sys.path
     except ImportError:
-        # Fallback to package-style import when executed differently
-        from src.analysis.code_analysis import main  # type: ignore
+        try:
+            # Fallback to importing inside src package
+            from src.analysis.code_analysis import main  # type: ignore
+        except ImportError:
+            # As a last resort, adjust sys.path to include src dynamically
+            src_path = str((root_dir / "src").resolve())
+            if src_path not in sys.path:
+                sys.path.insert(0, src_path)
+            from analysis.code_analysis import main  # type: ignore
     main()
 
 

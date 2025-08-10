@@ -16,7 +16,13 @@ def _entry():
     try:
         from analysis.similarity import main
     except ImportError:
-        from src.analysis.similarity import main  # type: ignore
+        try:
+            from src.analysis.similarity import main  # type: ignore
+        except ImportError:
+            src_path = str((root_dir / "src").resolve())
+            if src_path not in sys.path:
+                sys.path.insert(0, src_path)
+            from analysis.similarity import main  # type: ignore
     main()
 
 
