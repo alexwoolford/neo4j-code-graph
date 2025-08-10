@@ -167,7 +167,11 @@ def _extract_maven_dependencies(pom_file):
 
                 if version and not version.startswith("${"):
                     dependency_versions[package_name] = version
-                    logger.debug(f"Found Maven dependency: {package_name} -> {version}")
+                    # Also store full GAV key to enable precise matching later
+                    dependency_versions[f"{group_id}:{artifact_id}:{version}"] = version
+                    logger.debug(
+                        f"Found Maven dependency: {package_name} -> {version} (GAV {group_id}:{artifact_id}:{version})"
+                    )
 
         # Also check for common groupIds in dependencies
         for dependency in root.findall(".//maven:dependency", namespace):
@@ -225,7 +229,11 @@ def _extract_gradle_dependencies(gradle_file):
                 if not version.startswith("$"):
                     dependency_versions[package_name] = version
                     dependency_versions[group_id] = version  # Also add group for broader matching
-                    logger.debug(f"Found Gradle dependency: {package_name} -> {version}")
+                    # Also store full GAV key to enable precise matching later
+                    dependency_versions[f"{group_id}:{artifact_id}:{version}"] = version
+                    logger.debug(
+                        f"Found Gradle dependency: {package_name} -> {version} (GAV {group_id}:{artifact_id}:{version})"
+                    )
 
         # Also look for version catalogs and properties
         version_props = re.finditer(r"(\w+Version)\s*=\s*['\"]([^'\"]+)['\"]", content)
@@ -1231,7 +1239,7 @@ def create_methods(session, files_data, method_embeddings):
 
     if method_class_rels:
         logger.info("Creating %d method-to-class relationships..." % len(method_class_rels))
-        for i in range(0, len(method_class_rels), batch_size):
+        for i in tqdm(range(0, len(method_class_rels), batch_size), desc="Method->Class rels"):
             batch = method_class_rels[i : i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
@@ -1244,7 +1252,9 @@ def create_methods(session, files_data, method_embeddings):
 
     if method_interface_rels:
         logger.info("Creating %d method-to-interface relationships..." % len(method_interface_rels))
-        for i in range(0, len(method_interface_rels), batch_size):
+        for i in tqdm(
+            range(0, len(method_interface_rels), batch_size), desc="Method->Interface rels"
+        ):
             batch = method_interface_rels[i : i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
@@ -1279,14 +1289,10 @@ def create_imports(session, files_data, dependency_versions=None):
         total_batches = (len(all_imports) + batch_size - 1) // batch_size
         logger.info(f"Creating {len(all_imports)} import nodes in {total_batches} batches...")
 
-        for i in range(0, len(all_imports), batch_size):
-            batch_num = i // batch_size + 1
+        for i in tqdm(
+            range(0, len(all_imports), batch_size), total=total_batches, desc="Import nodes"
+        ):
             batch = all_imports[i : i + batch_size]
-
-            logger.info(
-                f"Creating import batch {batch_num}/{total_batches} ({len(batch)} imports)..."
-            )
-            start_time = perf_counter()
 
             # Use MERGE to handle re-runs and avoid constraint violations
             session.run(
@@ -1300,24 +1306,14 @@ def create_imports(session, files_data, dependency_versions=None):
                 imports=batch,
             )
 
-            batch_time = perf_counter() - start_time
-            logger.info(f"Import batch {batch_num} completed in {batch_time:.1f}s")
-
         logger.info(
             "Creating %d IMPORTS relationships in %d batches..." % (len(all_imports), total_batches)
         )
 
-        for i in range(0, len(all_imports), batch_size):
-            batch_num = i // batch_size + 1
+        for i in tqdm(
+            range(0, len(all_imports), batch_size), total=total_batches, desc="IMPORTS rels"
+        ):
             batch = all_imports[i : i + batch_size]
-
-            logger.info(
-                "Creating IMPORTS relationship batch %d/%d (%d relationships)...",
-                batch_num,
-                total_batches,
-                len(batch),
-            )
-            start_time = perf_counter()
 
             session.run(
                 "UNWIND $imports AS imp "
@@ -1326,9 +1322,6 @@ def create_imports(session, files_data, dependency_versions=None):
                 "MERGE (f)-[:IMPORTS]->(i)",
                 imports=batch,
             )
-
-            batch_time = perf_counter() - start_time
-            logger.info(f"IMPORTS relationship batch {batch_num} completed in {batch_time:.1f}s")
 
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")

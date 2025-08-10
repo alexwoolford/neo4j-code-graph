@@ -40,10 +40,11 @@ def test_gds_empty_projection_similarity():
     try:
         _require_gds(session)
         # Empty in-memory graph projection for similarity-like topology
+        # Use a projection that always yields at least one node to satisfy GDS
         session.run(
             "CALL gds.graph.project.cypher(\n"
             "  $name,\n"
-            "  'MATCH (m:Method) RETURN id(m) AS id LIMIT 0',\n"
+            "  'OPTIONAL MATCH (m:Method) WITH coalesce(id(m), 0) AS id RETURN id LIMIT 1',\n"
             "  'RETURN null AS source, null AS target LIMIT 0'\n"
             ")",
             name="similarityTest",
@@ -64,7 +65,7 @@ def test_gds_empty_projection_centrality():
         session.run(
             "CALL gds.graph.project.cypher(\n"
             "  $name,\n"
-            "  'MATCH (m:Method) RETURN id(m) AS id LIMIT 0',\n"
+            "  'OPTIONAL MATCH (m:Method) WITH coalesce(id(m), 0) AS id RETURN id LIMIT 1',\n"
             "  'RETURN null AS source, null AS target LIMIT 0'\n"
             ")",
             name="centralityTest",

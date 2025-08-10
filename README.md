@@ -218,8 +218,19 @@ NEO4J_DATABASE=neo4j
 NVD_API_KEY=your_nvd_api_key
 
 # Optional similarity defaults (can be overridden by CLI flags)
-SIMILARITY_TOP_K=5   # or use SIM_TOP_K
-SIMILARITY_CUTOFF=0.8 # or use SIM_CUTOFF
+SIMILARITY_TOP_K=5    # or SIM_TOP_K
+SIMILARITY_CUTOFF=0.8 # or SIM_CUTOFF
+
+# Optional batching and parallelism overrides
+# Tune these to your hardware and Neo4j instance size
+DEFAULT_PARALLEL_FILES=8
+DEFAULT_EMBED_BATCH_CPU=32
+DEFAULT_EMBED_BATCH_MPS=256
+DEFAULT_EMBED_BATCH_CUDA_SMALL=128
+DEFAULT_EMBED_BATCH_CUDA_LARGE=256
+DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE=512
+DB_BATCH_WITH_EMBEDDINGS=200
+DB_BATCH_SIMPLE=1000
 ```
 
 > 💡 **Without an NVD API key**, CVE analysis will be much slower (6 seconds per request vs 50 requests/30 seconds with key). Get your free key at: https://nvd.nist.gov/developers/request-an-api-key
@@ -247,6 +258,15 @@ Key guidelines:
 - Method nodes use `method_signature` as the unique identifier.
 - `Method.id` is required for Bloom and tooling compatibility.
 - Constraints and indexes are created by `src/data/schema_management.py` and are invoked automatically in the pipeline.
+
+### Temporal analysis
+
+Use the module entry point for temporal analyses:
+
+```bash
+python -m src.analysis.temporal_analysis coupling --min-support 5 --create-relationships
+python -m src.analysis.temporal_analysis hotspots --days 365 --min-changes 3 --top-n 15
+```
 
 ### Logs and temp files
 

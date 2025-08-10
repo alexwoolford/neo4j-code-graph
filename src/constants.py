@@ -34,17 +34,30 @@ BATCH_SIZE = 1000
 MAX_WORKERS = 4
 
 # Embedding & batching defaults derived from production-sized runs.
+#
+# Environment overrides: You can tune parameters without code changes by exporting
+# environment variables before running the pipeline, e.g.:
+#
+#   export DEFAULT_PARALLEL_FILES=16
+#   export DB_BATCH_WITH_EMBEDDINGS=400
+#   export DB_BATCH_SIMPLE=2000
+#   export SIMILARITY_TOP_K=10
+#   export SIMILARITY_CUTOFF=0.85
+
+import os
+
 # These are defaults; CLI flags and device heuristics still override.
-DEFAULT_PARALLEL_FILES = 8
-DEFAULT_EMBED_BATCH_CPU = 32
-DEFAULT_EMBED_BATCH_MPS = 256
-DEFAULT_EMBED_BATCH_CUDA_SMALL = 128
-DEFAULT_EMBED_BATCH_CUDA_LARGE = 256
-DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = 512
+DEFAULT_PARALLEL_FILES = int(os.getenv("DEFAULT_PARALLEL_FILES", "8"))
+DEFAULT_EMBED_BATCH_CPU = int(os.getenv("DEFAULT_EMBED_BATCH_CPU", "32"))
+DEFAULT_EMBED_BATCH_MPS = int(os.getenv("DEFAULT_EMBED_BATCH_MPS", "256"))
+DEFAULT_EMBED_BATCH_CUDA_SMALL = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_SMALL", "128"))
+DEFAULT_EMBED_BATCH_CUDA_LARGE = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_LARGE", "256"))
+DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE", "512"))
 
 # Neo4j write batching
-DB_BATCH_WITH_EMBEDDINGS = 200
-DB_BATCH_SIMPLE = 1000
+# Allow tuning via env without touching code
+DB_BATCH_WITH_EMBEDDINGS = int(os.getenv("DB_BATCH_WITH_EMBEDDINGS", "200"))
+DB_BATCH_SIMPLE = int(os.getenv("DB_BATCH_SIMPLE", "1000"))
 
 # Graph Analysis
 PAGERANK_ALPHA = 0.85
@@ -54,9 +67,9 @@ SIMILARITY_THRESHOLD = 0.8
 KNN_NEIGHBORS = 5
 COMMUNITY_PROPERTY = "similarityCommunity"
 
-# Similarity defaults
-SIMILARITY_TOP_K = 5
-SIMILARITY_CUTOFF = 0.8
+# Similarity defaults (can be overridden by env)
+SIMILARITY_TOP_K = int(os.getenv("SIMILARITY_TOP_K", os.getenv("SIM_TOP_K", "5")))
+SIMILARITY_CUTOFF = float(os.getenv("SIMILARITY_CUTOFF", os.getenv("SIM_CUTOFF", "0.8")))
 
 # Logging
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
