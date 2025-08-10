@@ -132,10 +132,25 @@ from utils.common import create_neo4j_driver, setup_logging
 - **`git_history_to_graph.py`**: Imports Git commit history and developer data (15-30x faster)
 - **`create_method_similarity.py`**: Creates method similarity relationships using KNN
 - **`cleanup_graph.py`**: Flexible cleanup tool (selective or complete database reset)
-- **`analyze.py`**: Advanced analysis tools (coupling, metrics, hotspots)
+- **`advanced_analysis.py`**: Advanced analysis tools (coupling, hotspots)
 - **`common.py`**: Shared utilities to reduce code duplication
 - **`utils.py`**: Core utility functions (port handling, config)
 - **`run_pipeline.sh`**: Complete pipeline automation script
+
+## Neo4j Aura Compatibility Policy
+
+- **Scope**: All database interactions must be compatible with Neo4j Aura.
+- **Allowed**: Standard Cypher, APOC core procedures, and standard Neo4j GDS library algorithms.
+- **Disallowed**:
+  - APOC extended procedures or functions (e.g., those requiring filesystem or external network access)
+  - Custom plugins, user-defined procedures, unmanaged extensions
+  - Any functionality not supported on Aura
+- **Design rule**: If a proposed approach relies on any Aura-incompatible feature, it will not be adopted. Provide an Aura-compatible alternative (pure Cypher/APOC core/GDS) instead.
+- **Review checklist**:
+  - No usage of APOC extended namespaces
+  - No file or network access within the database context
+  - No custom server plugins required
+  - GDS calls are from supported, standard procedures
 
 ## Testing Strategy
 

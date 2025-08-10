@@ -181,7 +181,8 @@ class PipelineManager:
                 description="Analyzing file change coupling",
                 command="python",
                 args=[
-                    str(script_dir / "analyze.py"),
+                    "-m",
+                    "src.analysis.advanced_analysis",
                     "coupling",
                     "--min-support",
                     "5",
@@ -193,7 +194,8 @@ class PipelineManager:
                 description="Analyzing code hotspots",
                 command="python",
                 args=[
-                    str(script_dir / "analyze.py"),
+                    "-m",
+                    "src.analysis.advanced_analysis",
                     "hotspots",
                     "--days",
                     "365",

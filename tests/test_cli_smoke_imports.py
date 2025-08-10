@@ -37,7 +37,11 @@ def test_wrappers_help_execute_without_import_errors():
 @pytest.mark.unit
 def test_analysis_modules_import_via_runpath_without_main_execution():
     # Ensure module files load and top-level imports resolve without executing main()
-    for module_path in [SRC / "analysis" / "similarity.py", SRC / "analysis" / "centrality.py"]:
+    for module_path in [
+        SRC / "analysis" / "similarity.py",
+        SRC / "analysis" / "centrality.py",
+        SRC / "analysis" / "advanced_analysis.py",
+    ]:
         # Run with a non-__main__ name to avoid executing main()
         runpy.run_path(str(module_path), run_name="smoke_test")
 
