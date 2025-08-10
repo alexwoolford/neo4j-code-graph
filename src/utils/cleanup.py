@@ -40,6 +40,13 @@ def parse_args():
         action="store_true",
         help="Skip confirmation prompt for complete reset (use with --complete)",
     )
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help=(
+            "Remove only code-structure data (Files, Methods, Classes, Interfaces, Imports, ExternalDependency)"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -289,6 +296,27 @@ def main():
                     complete_database_reset(session, args.dry_run)
 
                 else:
+                    if args.fast and not args.complete:
+                        logger.info(
+                            "Fast cleanup: removing code-structure nodes and relationships%s...",
+                            " (DRY RUN)" if args.dry_run else "",
+                        )
+                        statements = [
+                            "MATCH (n:Import) DETACH DELETE n",
+                            "MATCH (n:ExternalDependency) DETACH DELETE n",
+                            "MATCH (n:Method) DETACH DELETE n",
+                            "MATCH (n:Interface) DETACH DELETE n",
+                            "MATCH (n:Class) DETACH DELETE n",
+                            "MATCH (n:File) DETACH DELETE n",
+                            "MATCH (n:Directory) DETACH DELETE n",
+                        ]
+                        if not args.dry_run:
+                            for stmt in statements:
+                                session.run(stmt).consume()
+                        logger.info(
+                            "Fast cleanup completed%s", " (DRY RUN)" if args.dry_run else ""
+                        )
+                        return
                     # Selective cleanup (default behavior)
                     logger.info("Starting cleanup%s...", " (DRY RUN)" if args.dry_run else "")
 
