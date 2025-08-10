@@ -18,6 +18,7 @@ from tqdm import tqdm
 PARSE_ERRORS: list[tuple[str, str]] = []
 FALLBACK_ATTEMPTS: int = 0
 FALLBACK_SUCCESSES: int = 0
+FALLBACK_AVAILABLE: bool = False
 
 try:
     # Try absolute import when called from CLI wrapper
@@ -1603,6 +1604,19 @@ def main():
     _QUIET_PARSE = bool(getattr(args, "quiet_parse", False))
     global _NO_JAVA_FALLBACK
     _NO_JAVA_FALLBACK = bool(getattr(args, "no_java_fallback", False))
+
+    # Detect Tree-sitter availability once and log it
+    global FALLBACK_AVAILABLE
+    try:
+        if not _NO_JAVA_FALLBACK:
+            from .java_treesitter import extract_with_treesitter as _ts_check  # noqa: F401
+
+            FALLBACK_AVAILABLE = True
+    except Exception:
+        FALLBACK_AVAILABLE = False
+    logger.info(
+        "Java fallback parser available: %s (no_fallback=%s)", FALLBACK_AVAILABLE, _NO_JAVA_FALLBACK
+    )
     with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             # Check if repo_url is a local path or a URL
@@ -1693,7 +1707,7 @@ def main():
                             files_data.append(result)
 
             # After extraction, summarize parse errors
-            if PARSE_ERRORS or FALLBACK_ATTEMPTS:
+            if PARSE_ERRORS or FALLBACK_ATTEMPTS or FALLBACK_AVAILABLE:
                 if args.parse_errors_file:
                     from pathlib import Path as _Path
 
@@ -1703,16 +1717,18 @@ def main():
                         "\n".join(f"{p}\t{err}" for p, err in PARSE_ERRORS), encoding="utf-8"
                     )
                     logger.warning(
-                        "Java parse: %d errors. Fallback used %d times, recovered %d files. Details: %s",
+                        "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Details: %s",
                         len(PARSE_ERRORS),
+                        FALLBACK_AVAILABLE,
                         FALLBACK_ATTEMPTS,
                         FALLBACK_SUCCESSES,
                         out_path,
                     )
                 else:
                     logger.warning(
-                        "Java parse: %d errors. Fallback used %d times, recovered %d files. Use --parse-errors-file to capture details",
+                        "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Use --parse-errors-file to capture details",
                         len(PARSE_ERRORS),
+                        FALLBACK_AVAILABLE,
                         FALLBACK_ATTEMPTS,
                         FALLBACK_SUCCESSES,
                     )
