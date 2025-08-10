@@ -4,6 +4,7 @@ import argparse
 import gc
 import logging
 import re
+import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -12,6 +13,9 @@ from time import perf_counter
 
 import javalang
 from tqdm import tqdm
+
+# Collect Java parse errors across threads to summarize later
+PARSE_ERRORS: list[tuple[str, str]] = []
 
 try:
     # Try absolute import when called from CLI wrapper
@@ -279,6 +283,15 @@ def parse_args():
         "--skip-embed",
         action="store_true",
         help="Skip embedding computation (extract only) for benchmarking",
+    )
+    parser.add_argument(
+        "--parse-errors-file",
+        help="If set, write per-file Java parse errors to this path (suppresses console spam)",
+    )
+    parser.add_argument(
+        "--quiet-parse",
+        action="store_true",
+        help="Suppress per-file Java parse warnings on console; show only a summary",
     )
     return parser.parse_args()
 
@@ -699,7 +712,13 @@ def extract_file_data(file_path, repo_root):
             interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
 
     except Exception as e:
-        logger.warning("Failed to parse Java file %s: %s", rel_path, e)
+        # Record and optionally suppress per-file warnings
+        try:
+            PARSE_ERRORS.append((rel_path, str(e)))
+        except Exception:
+            pass
+        if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
+            logger.warning("Failed to parse Java file %s: %s", rel_path, e)
 
     # Calculate file-level metrics using the cached lines
     file_lines = len(source_lines)
@@ -1539,6 +1558,9 @@ def main():
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
+    # Control per-file parse logging noise
+    global _QUIET_PARSE
+    _QUIET_PARSE = bool(getattr(args, "quiet_parse", False))
     with create_neo4j_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:
             # Check if repo_url is a local path or a URL
@@ -1627,6 +1649,27 @@ def main():
                         result = future.result()
                         if result:
                             files_data.append(result)
+
+            # After extraction, summarize parse errors
+            if PARSE_ERRORS:
+                if args.parse_errors_file:
+                    from pathlib import Path as _Path
+
+                    out_path = _Path(args.parse_errors_file)
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    out_path.write_text(
+                        "\n".join(f"{p}\t{err}" for p, err in PARSE_ERRORS), encoding="utf-8"
+                    )
+                    logger.warning(
+                        "Java parse errors: %d files. Details written to %s",
+                        len(PARSE_ERRORS),
+                        out_path,
+                    )
+                else:
+                    logger.warning(
+                        "Java parse errors: %d files. Enable --parse-errors-file to capture details",
+                        len(PARSE_ERRORS),
+                    )
 
             phase1_time = perf_counter() - start_phase1
             logger.info("Phase 1 completed in %.2fs", phase1_time)
