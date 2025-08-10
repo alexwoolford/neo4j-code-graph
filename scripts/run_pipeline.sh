@@ -106,11 +106,11 @@ echo ""
 echo "🔥 Step 7: Running advanced analysis..."
 
 echo "  📊 Analyzing file change coupling..."
-python -m src.analysis.advanced_analysis coupling --min-support 5 --create-relationships
+python -m src.analysis.temporal_analysis coupling --min-support 5 --create-relationships
 echo "  ✅ Change coupling analysis completed"
 
 echo "  🔥 Analyzing code hotspots..."
-python -m src.analysis.advanced_analysis hotspots --days 365 --min-changes 3 --top-n 15
+python -m src.analysis.temporal_analysis hotspots --days 365 --min-changes 3 --top-n 15
 echo "  ✅ Hotspot analysis completed"
 
 # Step 8: Universal CVE Vulnerability Analysis

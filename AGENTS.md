@@ -132,7 +132,7 @@ from utils.common import create_neo4j_driver, setup_logging
 - **`git_history_to_graph.py`**: Imports Git commit history and developer data (15-30x faster)
 - **`create_method_similarity.py`**: Creates method similarity relationships using KNN
 - **`cleanup_graph.py`**: Flexible cleanup tool (selective or complete database reset)
-- **`advanced_analysis.py`**: Advanced analysis tools (coupling, hotspots)
+- **`temporal_analysis.py`**: Temporal analyses (coupling, hotspots)
 - **`common.py`**: Shared utilities to reduce code duplication
 - **`utils.py`**: Core utility functions (port handling, config)
 - **`run_pipeline.sh`**: Complete pipeline automation script

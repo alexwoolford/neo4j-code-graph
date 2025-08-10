@@ -40,7 +40,7 @@ def test_analysis_modules_import_via_runpath_without_main_execution():
     for module_path in [
         SRC / "analysis" / "similarity.py",
         SRC / "analysis" / "centrality.py",
-        SRC / "analysis" / "advanced_analysis.py",
+        SRC / "analysis" / "temporal_analysis.py",
     ]:
         # Run with a non-__main__ name to avoid executing main()
         runpy.run_path(str(module_path), run_name="smoke_test")

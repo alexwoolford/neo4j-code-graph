@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Advanced analyses for the code graph: change coupling and hotspots.
+Temporal codebase analyses: change coupling and hotspots.
 
-Replaces the legacy analyze.py with focused, testable functions.
+Provides focused, testable functions for file co-change coupling and hotspot scoring.
 """
 
 import argparse
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Advanced analyses: change coupling and hotspots")
+    parser = argparse.ArgumentParser(description="Temporal analyses: change coupling and hotspots")
     add_common_args(parser)
 
     subparsers = parser.add_subparsers(dest="command", required=True)

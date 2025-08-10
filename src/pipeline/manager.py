@@ -182,7 +182,7 @@ class PipelineManager:
                 command="python",
                 args=[
                     "-m",
-                    "src.analysis.advanced_analysis",
+                    "src.analysis.temporal_analysis",
                     "coupling",
                     "--min-support",
                     "5",
@@ -195,7 +195,7 @@ class PipelineManager:
                 command="python",
                 args=[
                     "-m",
-                    "src.analysis.advanced_analysis",
+                    "src.analysis.temporal_analysis",
                     "hotspots",
                     "--days",
                     "365",
