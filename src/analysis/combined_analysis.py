@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """
-Unified analysis tool for neo4j-code-graph.
-Consolidates all analysis functions into a single CLI with subcommands.
+Deprecated: unified/legacy analysis entrypoint.
+
+This module is retained temporarily for compatibility but is not used by the
+current pipeline. Prefer dedicated, focused scripts:
+  - scripts/create_method_similarity.py
+  - scripts/centrality_analysis.py
+  - scripts/git_history_to_graph.py
+
+If you need change-coupling or hotspot analysis, extract the minimal queries
+you need into a new focused script rather than reusing this file.
 """
 
 import argparse
@@ -16,10 +24,10 @@ import javalang
 
 try:
     # Try absolute import when called from CLI wrapper
-    from utils.common import add_common_args, create_neo4j_driver, setup_logging
+    from utils.common import add_common_args
 except ImportError:
     # Fallback to relative import when used as module
-    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
+    from ..utils.common import add_common_args
 
 logger = logging.getLogger(__name__)
 
@@ -899,26 +907,12 @@ Examples:
 
 
 def main():
-    """Main entry point."""
+    """Disabled legacy entrypoint."""
     parser = create_parser()
-    args = parser.parse_args()
-
-    if not args.command:
-        parser.print_help()
-        return
-
-    setup_logging(args.log_level, args.log_file)
-
-    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
-        with driver.session(database=args.database) as session:
-            if args.command == "coupling":
-                analyze_change_coupling(session, args)
-            elif args.command == "metrics":
-                add_code_metrics(session, args)
-            elif args.command == "hotspots":
-                analyze_hotspots(session, args)
-            else:
-                logger.error(f"Unknown command: {args.command}")
+    parser.print_help()
+    logger.warning(
+        "combined_analysis is deprecated. Use focused scripts (similarity, centrality, git_history_to_graph)."
+    )
 
 
 if __name__ == "__main__":

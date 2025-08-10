@@ -18,10 +18,16 @@ from time import perf_counter
 from graphdatascience import GraphDataScience
 
 try:
-    from src.constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
+    # When 'src' is on sys.path (top-level import)
+    from constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
 except Exception:
-    from ..constants import PAGERANK_ALPHA as PAGERANK_ALPHA
-    from ..constants import PAGERANK_ANALYSIS_ITERATIONS as PAGERANK_ANALYSIS_ITERATIONS
+    try:
+        # Package name import
+        from src.constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
+    except Exception:
+        # Relative import when used as module inside package
+        from ..constants import PAGERANK_ALPHA as PAGERANK_ALPHA
+        from ..constants import PAGERANK_ANALYSIS_ITERATIONS as PAGERANK_ANALYSIS_ITERATIONS
 
 try:
     # Try absolute import when called from CLI wrapper

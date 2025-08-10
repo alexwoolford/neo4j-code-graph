@@ -1429,7 +1429,8 @@ def create_method_calls(session, files_data):
                 )
 
     if method_call_rels:
-        logger.info(f"Processing {len(method_call_rels)} method call relationships...")
+        total_calls = len(method_call_rels)
+        logger.info("Processing %d method call relationships...", total_calls)
 
         same_class_calls = [r for r in method_call_rels if r["call_type"] in ["same_class", "this"]]
         static_calls = [r for r in method_call_rels if r["call_type"] == "static"]
@@ -1438,7 +1439,7 @@ def create_method_calls(session, files_data):
         ]
 
         if same_class_calls:
-            logger.info(f"Creating {len(same_class_calls)} same-class method calls...")
+            logger.info("Creating %d same-class method calls...", len(same_class_calls))
             for i in range(0, len(same_class_calls), batch_size):
                 batch = same_class_calls[i : i + batch_size]
                 session.run(
@@ -1452,7 +1453,7 @@ def create_method_calls(session, files_data):
                 )
 
         if static_calls:
-            logger.info(f"Creating {len(static_calls)} static method calls...")
+            logger.info("Creating %d static method calls...", len(static_calls))
             for i in range(0, len(static_calls), batch_size):
                 batch = static_calls[i : i + batch_size]
                 session.run(
@@ -1467,7 +1468,7 @@ def create_method_calls(session, files_data):
                 )
 
         if other_calls:
-            logger.info(f"Creating {len(other_calls)} other method calls (best effort)...")
+            logger.info("Creating %d other method calls (best effort)...", len(other_calls))
 
             # Pre-filter to only attempt calls where both caller and callee likely exist
             # This reduces failed attempts significantly
@@ -1480,7 +1481,7 @@ def create_method_calls(session, files_data):
                 logger.info("No valid method calls to process after filtering")
                 return
 
-            logger.info(f"Filtered to {len(filtered_calls)} potentially valid calls")
+            logger.info("Filtered to %d potentially valid calls", len(filtered_calls))
 
             # Use EXISTS clause to reduce failures
             batch_size = 500  # Larger batches for efficiency
@@ -1584,18 +1585,25 @@ def main():
                 java_files = list(repo_root.rglob("*.java"))
                 logger.info("Found %d Java files to process", len(java_files))
 
-            # Extract dependency versions from build files using enhanced extraction
+            # Extract dependency versions using the centralized module, with fallback
             try:
                 from .dependency_extraction import extract_enhanced_dependencies_for_neo4j
-
-                dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
-                logger.info(
-                    f"🚀 Using enhanced dependency extraction: {len(dependency_versions)} dependencies"
-                )
             except ImportError:
-                logger.warning(
-                    "Enhanced dependency extraction not available, falling back to basic extraction"
-                )
+                extract_enhanced_dependencies_for_neo4j = None  # type: ignore
+
+            dependency_versions = {}
+            if extract_enhanced_dependencies_for_neo4j is not None:
+                try:
+                    dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
+                    logger.info(
+                        "🚀 Using enhanced dependency extraction: %d dependencies",
+                        len(dependency_versions),
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Enhanced dependency extraction failed (%s), using basic extraction", e
+                    )
+            if not dependency_versions:
                 dependency_versions = extract_dependency_versions_from_files(repo_root)
 
             # Phase 1: Extract all file data in parallel (with skip-existing logic)
