@@ -275,6 +275,11 @@ def parse_args():
         action="store_true",
         help="Skip database writes (extract + embeddings only) for benchmarking",
     )
+    parser.add_argument(
+        "--skip-embed",
+        action="store_true",
+        help="Skip embedding computation (extract only) for benchmarking",
+    )
     return parser.parse_args()
 
 
@@ -1719,6 +1724,11 @@ def main():
 
             phase2_time = perf_counter() - start_phase2
             logger.info("Phase 2 completed in %.2fs", phase2_time)
+
+            # Optionally skip DB writes or embedding stage for benchmarking
+            if getattr(args, "skip_embed", False):
+                logger.info("Phase 2: Skipped (--skip-embed)")
+                phase2_time = 0.0
 
             # Phase 3: Bulk create everything in Neo4j
             if getattr(args, "skip_db", False):
