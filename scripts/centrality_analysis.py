@@ -10,8 +10,19 @@ from pathlib import Path
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir / "src"))
 
-# Import and run the main function from the module
-if __name__ == "__main__":
-    from analysis.centrality import main
 
+# Import and run the main function from the module
+def _entry():
+    try:
+        from analysis.centrality import main
+    except ImportError:
+        from src.analysis.centrality import main  # type: ignore
     main()
+
+
+if __name__ == "__main__":
+    if any(arg in ("-h", "--help") for arg in sys.argv[1:]):
+        print("Usage: centrality_analysis.py [--options]\n")
+        print("Wrapper around src/analysis/centrality.py")
+        sys.exit(0)
+    _entry()

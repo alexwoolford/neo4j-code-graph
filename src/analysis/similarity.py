@@ -1,9 +1,25 @@
 import argparse
 import logging
+import os
 from time import perf_counter
 
 import pandas as pd
 from graphdatascience import GraphDataScience
+
+try:
+    # Prefer centralized constants when available
+    from src.constants import (
+        COMMUNITY_PROPERTY,
+        EMBEDDING_DIMENSION,
+        SIMILARITY_CUTOFF,
+        SIMILARITY_TOP_K,
+    )
+except Exception:
+    # Fallback to defaults if constants import path differs
+    from ..constants import COMMUNITY_PROPERTY as COMMUNITY_PROPERTY
+    from ..constants import EMBEDDING_DIMENSION as EMBEDDING_DIMENSION
+    from ..constants import SIMILARITY_CUTOFF as SIMILARITY_CUTOFF
+    from ..constants import SIMILARITY_TOP_K as SIMILARITY_TOP_K
 
 try:
     # Try absolute import when called from CLI wrapper
@@ -15,7 +31,7 @@ except ImportError:
 # Connection settings
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
-EMBEDDING_DIM = 768
+EMBEDDING_DIM = EMBEDDING_DIMENSION
 
 
 logger = logging.getLogger(__name__)
@@ -39,8 +55,30 @@ def parse_args():
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
     # Add similarity-specific arguments
-    parser.add_argument("--top-k", type=int, default=5, help="Number of nearest neighbours")
-    parser.add_argument("--cutoff", type=float, default=0.8, help="Similarity cutoff")
+    # Allow environment overrides for defaults while keeping CLI flags authoritative
+    env_top_k = os.getenv("SIMILARITY_TOP_K") or os.getenv("SIM_TOP_K")
+    env_cutoff = os.getenv("SIMILARITY_CUTOFF") or os.getenv("SIM_CUTOFF")
+    try:
+        default_top_k = int(env_top_k) if env_top_k is not None else SIMILARITY_TOP_K
+    except ValueError:
+        default_top_k = SIMILARITY_TOP_K
+    try:
+        default_cutoff = float(env_cutoff) if env_cutoff is not None else SIMILARITY_CUTOFF
+    except ValueError:
+        default_cutoff = SIMILARITY_CUTOFF
+
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=default_top_k,
+        help=f"Number of nearest neighbours (default from env SIMILARITY_TOP_K or SIM_TOP_K, else {SIMILARITY_TOP_K})",
+    )
+    parser.add_argument(
+        "--cutoff",
+        type=float,
+        default=default_cutoff,
+        help=f"Similarity cutoff (default from env SIMILARITY_CUTOFF or SIM_CUTOFF, else {SIMILARITY_CUTOFF})",
+    )
     parser.add_argument(
         "--no-knn",
         action="store_true",
@@ -59,7 +97,7 @@ def parse_args():
     )
     parser.add_argument(
         "--community-property",
-        default="similarityCommunity",
+        default=COMMUNITY_PROPERTY,
         help="Property name for Louvain community label",
     )
 

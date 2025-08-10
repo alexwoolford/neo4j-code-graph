@@ -18,6 +18,12 @@ from time import perf_counter
 from graphdatascience import GraphDataScience
 
 try:
+    from src.constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
+except Exception:
+    from ..constants import PAGERANK_ALPHA as PAGERANK_ALPHA
+    from ..constants import PAGERANK_ANALYSIS_ITERATIONS as PAGERANK_ANALYSIS_ITERATIONS
+
+try:
     # Try absolute import when called from CLI wrapper
     from utils.common import add_common_args, create_neo4j_driver, setup_logging
 except ImportError:
@@ -117,7 +123,10 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
 
     if write_back:
         result = gds.pageRank.write(
-            graph, writeProperty="pagerank_score", maxIterations=20, dampingFactor=0.85
+            graph,
+            writeProperty="pagerank_score",
+            maxIterations=PAGERANK_ANALYSIS_ITERATIONS,
+            dampingFactor=PAGERANK_ALPHA,
         )
 
         # Get top results
@@ -134,7 +143,11 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
         top_results = gds.run_cypher(query, {"top_n": top_n})
 
     else:
-        result = gds.pageRank.stream(graph, maxIterations=20, dampingFactor=0.85).head(top_n)
+        result = gds.pageRank.stream(
+            graph,
+            maxIterations=PAGERANK_ANALYSIS_ITERATIONS,
+            dampingFactor=PAGERANK_ALPHA,
+        ).head(top_n)
 
         # Enrich with method details
         if not result.empty:

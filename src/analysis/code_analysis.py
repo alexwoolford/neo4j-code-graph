@@ -38,8 +38,32 @@ JAVA_KEYWORDS_TO_SKIP = {
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "microsoft/graphcodebert-base"
-EMBEDDING_TYPE = "graphcodebert"
+try:
+    from src.constants import (
+        DB_BATCH_SIMPLE,
+        DB_BATCH_WITH_EMBEDDINGS,
+        DEFAULT_EMBED_BATCH_CPU,
+        DEFAULT_EMBED_BATCH_CUDA_LARGE,
+        DEFAULT_EMBED_BATCH_CUDA_SMALL,
+        DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
+        DEFAULT_EMBED_BATCH_MPS,
+        DEFAULT_PARALLEL_FILES,
+        EMBEDDING_TYPE,
+        MODEL_NAME,
+    )
+except Exception:
+    from ..constants import (
+        DB_BATCH_SIMPLE,
+        DB_BATCH_WITH_EMBEDDINGS,
+        DEFAULT_EMBED_BATCH_CPU,
+        DEFAULT_EMBED_BATCH_CUDA_LARGE,
+        DEFAULT_EMBED_BATCH_CUDA_SMALL,
+        DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
+        DEFAULT_EMBED_BATCH_MPS,
+        DEFAULT_PARALLEL_FILES,
+        EMBEDDING_TYPE,
+        MODEL_NAME,
+    )
 
 
 def extract_dependency_versions_from_files(repo_root):
@@ -213,7 +237,7 @@ def parse_args():
     parser.add_argument(
         "--parallel-files",
         type=int,
-        default=4,
+        default=DEFAULT_PARALLEL_FILES,
         help="Number of files to process in parallel",
     )
     parser.add_argument(
@@ -269,17 +293,16 @@ def get_optimal_batch_size(device):
 
     if device.type == "cuda":
         gpu_memory = torch.cuda.get_device_properties(0).total_memory
-        if gpu_memory > 20 * 1024**3:  # >20GB (RTX 4090, etc.)
-            return 512  # Push even harder
+        if gpu_memory > 20 * 1024**3:  # >20GB
+            return DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE
         elif gpu_memory > 10 * 1024**3:  # >10GB
-            return 256
+            return DEFAULT_EMBED_BATCH_CUDA_LARGE
         else:  # 8GB or less
-            return 128
+            return DEFAULT_EMBED_BATCH_CUDA_SMALL
     elif device.type == "mps":
-        # Apple Silicon unified memory can handle large batches
-        return 256
+        return DEFAULT_EMBED_BATCH_MPS
     else:
-        return 32
+        return DEFAULT_EMBED_BATCH_CPU
 
 
 def build_method_signature(
@@ -321,15 +344,13 @@ def get_database_batch_size(has_embeddings=False, estimated_size_mb=None):
         Optimal batch size for Neo4j operations
     """
     if has_embeddings:
-        # GraphCodeBERT embeddings are ~3KB per vector (768 floats)
-        # Conservative batch size to avoid memory issues
-        return 200
+        return DB_BATCH_WITH_EMBEDDINGS
     elif estimated_size_mb and estimated_size_mb > 1:
         # Large data items - reduce batch size
         return 500
     else:
         # Standard batch size for simple operations
-        return 1000
+        return DB_BATCH_SIMPLE
 
 
 def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):

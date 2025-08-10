@@ -33,11 +33,30 @@ SUPPORTED_JAVA_EXTENSIONS = {".java"}
 BATCH_SIZE = 1000
 MAX_WORKERS = 4
 
+# Embedding & batching defaults derived from production-sized runs.
+# These are defaults; CLI flags and device heuristics still override.
+DEFAULT_PARALLEL_FILES = 8
+DEFAULT_EMBED_BATCH_CPU = 32
+DEFAULT_EMBED_BATCH_MPS = 256
+DEFAULT_EMBED_BATCH_CUDA_SMALL = 128
+DEFAULT_EMBED_BATCH_CUDA_LARGE = 256
+DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = 512
+
+# Neo4j write batching
+DB_BATCH_WITH_EMBEDDINGS = 200
+DB_BATCH_SIMPLE = 1000
+
 # Graph Analysis
 PAGERANK_ALPHA = 0.85
-PAGERANK_MAX_ITERATIONS = 100
+PAGERANK_MAX_ITERATIONS = 100  # canonical default exposed via config/tests
+PAGERANK_ANALYSIS_ITERATIONS = 20  # lighter default used by analysis scripts
 SIMILARITY_THRESHOLD = 0.8
 KNN_NEIGHBORS = 5
+COMMUNITY_PROPERTY = "similarityCommunity"
+
+# Similarity defaults
+SIMILARITY_TOP_K = 5
+SIMILARITY_CUTOFF = 0.8
 
 # Logging
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
