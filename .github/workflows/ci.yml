@@ -105,7 +105,9 @@ jobs:
         files: ./coverage.xml
         flags: py312
         name: codecov-py312
-        fail_ci_if_error: false
+        slug: alexwoolford/neo4j-code-graph
+        fail_ci_if_error: true
+        verbose: true
         root_dir: .
 
   security:
