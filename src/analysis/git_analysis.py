@@ -275,17 +275,16 @@ def bulk_load_to_neo4j(
         logger.info("⚡ Using sustainable 3-step bulk loading approach")
 
         start_time = time.time()
-        for i in range(0, len(file_changes_data), batch_size):
+        from tqdm import tqdm  # local import to avoid dependency when unused
+
+        for i in tqdm(
+            range(0, len(file_changes_data), batch_size),
+            total=total_batches,
+            desc="Git file changes",
+        ):
             batch_start = time.time()
             batch_num = i // batch_size + 1
             batch = file_changes_data[i : i + batch_size]
-
-            logger.info(
-                "🔄 Processing batch %d/%d (%s records)...",
-                batch_num,
-                total_batches,
-                f"{len(batch):,}",
-            )
 
             # Single-step approach - create nodes and relationships together
             # This eliminates the need for expensive MATCH operations on newly created nodes
@@ -304,8 +303,9 @@ def bulk_load_to_neo4j(
                 f"FileVer creation and relationships batch {batch_num}",
             )
             step_time = time.time() - step_start
-            logger.info(
-                "  ✅ Created %s FileVer nodes and relationships in %.1fs",
+            # Keep one concise confirmation per step
+            logger.debug(
+                "Created %s FileVer nodes and relationships in %.1fs",
                 f"{len(batch):,}",
                 step_time,
             )
@@ -324,8 +324,8 @@ def bulk_load_to_neo4j(
                 throughput = processed / elapsed_total
                 completion_pct = (processed / len(file_changes_data)) * 100
 
-            logger.info(
-                "📊 Batch %d/%d COMPLETED in %.1fs (%.1f%% done, %.0f records/sec, ETA: %.1fmin)",
+            logger.debug(
+                "Batch %d/%d in %.1fs (%.1f%% done, %.0f rec/s, ETA: %.1fmin)",
                 batch_num,
                 total_batches,
                 batch_time,

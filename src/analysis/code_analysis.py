@@ -1143,14 +1143,13 @@ def create_methods(session, files_data, method_embeddings):
     total_batches = (len(method_nodes) + batch_size - 1) // batch_size
     logger.info(f"Creating {len(method_nodes)} method nodes in {total_batches} batches...")
 
-    for i in range(0, len(method_nodes), batch_size):
-        batch_num = i // batch_size + 1
+    for i in tqdm(
+        range(0, len(method_nodes), batch_size),
+        total=total_batches,
+        desc="Method nodes",
+    ):
         batch = method_nodes[i : i + batch_size]
 
-        logger.info(f"Creating method batch {batch_num}/{total_batches} ({len(batch)} methods)...")
-        start_time = perf_counter()
-
-        # Use MERGE to handle re-runs and avoid constraint violations
         session.run(
             """
             UNWIND $methods AS method
@@ -1179,9 +1178,6 @@ def create_methods(session, files_data, method_embeddings):
             methods=batch,
         )
 
-        batch_time = perf_counter() - start_time
-        logger.info(f"Batch {batch_num} completed in {batch_time:.1f}s")
-
     method_file_rels = []
     for file_data in files_data:
         for method in file_data["methods"]:
@@ -1199,17 +1195,12 @@ def create_methods(session, files_data, method_embeddings):
         % (len(method_file_rels), total_rel_batches)
     )
 
-    for i in range(0, len(method_file_rels), batch_size):
-        batch_num = i // batch_size + 1
+    for i in tqdm(
+        range(0, len(method_file_rels), batch_size),
+        total=total_rel_batches,
+        desc="Method-File rels",
+    ):
         batch = method_file_rels[i : i + batch_size]
-
-        logger.info(
-            "Creating relationship batch %d/%d (%d relationships)...",
-            batch_num,
-            total_rel_batches,
-            len(batch),
-        )
-        start_time = perf_counter()
 
         session.run(
             "UNWIND $rels AS rel "
@@ -1218,9 +1209,6 @@ def create_methods(session, files_data, method_embeddings):
             "MERGE (f)-[:DECLARES]->(m)",
             rels=batch,
         )
-
-        batch_time = perf_counter() - start_time
-        logger.info(f"Relationship batch {batch_num} completed in {batch_time:.1f}s")
 
     method_class_rels = []
     method_interface_rels = []
@@ -1492,19 +1480,13 @@ def create_method_calls(session, files_data):
             successful_calls = 0
             failed_batches = 0
 
-            for i in range(0, len(filtered_calls), batch_size):
-                batch_num = i // batch_size + 1
+            for i in tqdm(
+                range(0, len(filtered_calls), batch_size),
+                total=total_batches,
+                desc="Other calls",
+            ):
                 batch = filtered_calls[i : i + batch_size]
                 try:
-                    logger.info(
-                        "Processing batch %d/%d (%d calls)...",
-                        batch_num,
-                        total_batches,
-                        len(batch),
-                    )
-                    start_time = perf_counter()
-
-                    # Query using EXISTS clause for better matching
                     result = session.run(
                         """
                         UNWIND $calls AS call
@@ -1524,17 +1506,10 @@ def create_method_calls(session, files_data):
                     )
                     created = result.single()["created"]
                     successful_calls += created
-                    batch_time = perf_counter() - start_time
-                    logger.info(
-                        "Batch %d completed: %d relationships in %.1fs",
-                        batch_num,
-                        created,
-                        batch_time,
-                    )
                 except Exception as e:
                     failed_batches += 1
-                    logger.warning(f"Batch {batch_num} failed (continuing): {e}")
-                    if failed_batches > 5:  # Lower threshold - fail faster
+                    logger.warning(f"Other calls batch failed (continuing): {e}")
+                    if failed_batches > 5:
                         logger.error(
                             "Too many failed batches, stopping other method calls processing"
                         )
