@@ -1663,72 +1663,74 @@ def main():
             file_embeddings = []
             method_embeddings = []
 
-            if files_data:
-                # Initialize model
-                logger.info("Loading GraphCodeBERT model...")
-                from transformers import AutoModel, AutoTokenizer
+            if not getattr(args, "skip_embed", False):
+                if files_data:
+                    # Initialize model
+                    logger.info("Loading GraphCodeBERT model...")
+                    from transformers import AutoModel, AutoTokenizer
 
-                tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-                model = AutoModel.from_pretrained(MODEL_NAME)
-                device = get_device()
+                    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+                    model = AutoModel.from_pretrained(MODEL_NAME)
+                    device = get_device()
 
-                # Optimize for MPS performance
-                if device.type == "mps":
-                    # Enable high memory usage mode for better performance
-                    import os
+                    # Optimize for MPS performance
+                    if device.type == "mps":
+                        # Enable high memory usage mode for better performance
+                        import os
 
-                    os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-                    logger.info("Enabled MPS high performance mode")
+                        os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+                        logger.info("Enabled MPS high performance mode")
 
-                model = model.to(device)
-                logger.info(f"Model loaded on {device}")
+                    model = model.to(device)
+                    logger.info(f"Model loaded on {device}")
 
-                # Compute embeddings with batching
-                batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
-                logger.info(f"Using batch size: {batch_size}")
+                    # Compute embeddings with batching
+                    batch_size = (
+                        args.batch_size if args.batch_size else get_optimal_batch_size(device)
+                    )
+                    logger.info(f"Using batch size: {batch_size}")
 
-                # Collect all code snippets
-                file_snippets = [file_data["code"] for file_data in files_data]
-                method_snippets = []
-                for file_data in files_data:
-                    for method in file_data["methods"]:
-                        method_snippets.append(method["code"])
+                    # Collect all code snippets
+                    file_snippets = [file_data["code"] for file_data in files_data]
+                    method_snippets = []
+                    for file_data in files_data:
+                        for method in file_data["methods"]:
+                            method_snippets.append(method["code"])
 
-                logger.info(
-                    "Computing embeddings for %d files and %d methods",
-                    len(file_snippets),
-                    len(method_snippets),
-                )
+                    logger.info(
+                        "Computing embeddings for %d files and %d methods",
+                        len(file_snippets),
+                        len(method_snippets),
+                    )
 
-                # Compute embeddings
-                file_embeddings = compute_embeddings_bulk(
-                    file_snippets, tokenizer, model, device, batch_size
-                )
-                method_embeddings = compute_embeddings_bulk(
-                    method_snippets, tokenizer, model, device, batch_size
-                )
+                    # Compute embeddings
+                    file_embeddings = compute_embeddings_bulk(
+                        file_snippets, tokenizer, model, device, batch_size
+                    )
+                    method_embeddings = compute_embeddings_bulk(
+                        method_snippets, tokenizer, model, device, batch_size
+                    )
 
-                # Clean up model to free memory
-                del model, tokenizer
-                if device.type == "cuda":
-                    import torch
+                    # Clean up model to free memory
+                    del model, tokenizer
+                    if device.type == "cuda":
+                        import torch
 
-                    torch.cuda.empty_cache()
-                elif device.type == "mps":
-                    import torch
+                        torch.cuda.empty_cache()
+                    elif device.type == "mps":
+                        import torch
 
-                    torch.mps.empty_cache()
-                gc.collect()
+                        torch.mps.empty_cache()
+                    gc.collect()
+                else:
+                    logger.info("No new files - skipping embedding computation")
             else:
-                logger.info("No new files - skipping embedding computation")
-
-            phase2_time = perf_counter() - start_phase2
-            logger.info("Phase 2 completed in %.2fs", phase2_time)
-
-            # Optionally skip DB writes or embedding stage for benchmarking
-            if getattr(args, "skip_embed", False):
                 logger.info("Phase 2: Skipped (--skip-embed)")
-                phase2_time = 0.0
+
+            phase2_time = (
+                0.0 if getattr(args, "skip_embed", False) else (perf_counter() - start_phase2)
+            )
+            logger.info("Phase 2 completed in %.2fs", phase2_time)
 
             # Phase 3: Bulk create everything in Neo4j
             if getattr(args, "skip_db", False):
