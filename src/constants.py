@@ -47,7 +47,7 @@ MAX_WORKERS = 4
 import os
 
 # These are defaults; CLI flags and device heuristics still override.
-DEFAULT_PARALLEL_FILES = int(os.getenv("DEFAULT_PARALLEL_FILES", "16"))
+DEFAULT_PARALLEL_FILES = int(os.getenv("DEFAULT_PARALLEL_FILES", "20"))
 DEFAULT_EMBED_BATCH_CPU = int(os.getenv("DEFAULT_EMBED_BATCH_CPU", "32"))
 DEFAULT_EMBED_BATCH_MPS = int(os.getenv("DEFAULT_EMBED_BATCH_MPS", "256"))
 DEFAULT_EMBED_BATCH_CUDA_SMALL = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_SMALL", "128"))
