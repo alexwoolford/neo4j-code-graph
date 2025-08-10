@@ -39,7 +39,8 @@ JAVA_KEYWORDS_TO_SKIP = {
 logger = logging.getLogger(__name__)
 
 try:
-    from src.constants import (
+    # When 'src' is on sys.path and modules are imported as top-level packages
+    from constants import (
         DB_BATCH_SIMPLE,
         DB_BATCH_WITH_EMBEDDINGS,
         DEFAULT_EMBED_BATCH_CPU,
@@ -52,18 +53,34 @@ try:
         MODEL_NAME,
     )
 except Exception:
-    from ..constants import (
-        DB_BATCH_SIMPLE,
-        DB_BATCH_WITH_EMBEDDINGS,
-        DEFAULT_EMBED_BATCH_CPU,
-        DEFAULT_EMBED_BATCH_CUDA_LARGE,
-        DEFAULT_EMBED_BATCH_CUDA_SMALL,
-        DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
-        DEFAULT_EMBED_BATCH_MPS,
-        DEFAULT_PARALLEL_FILES,
-        EMBEDDING_TYPE,
-        MODEL_NAME,
-    )
+    try:
+        # When importing via package name 'src'
+        from src.constants import (
+            DB_BATCH_SIMPLE,
+            DB_BATCH_WITH_EMBEDDINGS,
+            DEFAULT_EMBED_BATCH_CPU,
+            DEFAULT_EMBED_BATCH_CUDA_LARGE,
+            DEFAULT_EMBED_BATCH_CUDA_SMALL,
+            DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
+            DEFAULT_EMBED_BATCH_MPS,
+            DEFAULT_PARALLEL_FILES,
+            EMBEDDING_TYPE,
+            MODEL_NAME,
+        )
+    except Exception:
+        # When used as a module inside the 'src' package
+        from ..constants import (
+            DB_BATCH_SIMPLE,
+            DB_BATCH_WITH_EMBEDDINGS,
+            DEFAULT_EMBED_BATCH_CPU,
+            DEFAULT_EMBED_BATCH_CUDA_LARGE,
+            DEFAULT_EMBED_BATCH_CUDA_SMALL,
+            DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
+            DEFAULT_EMBED_BATCH_MPS,
+            DEFAULT_PARALLEL_FILES,
+            EMBEDDING_TYPE,
+            MODEL_NAME,
+        )
 
 
 def extract_dependency_versions_from_files(repo_root):
