@@ -418,7 +418,7 @@ def main():
             gds = GraphDataScience(
                 args.uri, auth=(args.username, args.password), database=args.database
             )
-            logger.info(f"Connected to Neo4j GDS at {args.uri}")
+            logger.info("Connected to Neo4j GDS at %s", args.uri)
 
             # Check if we have enough data
             call_count, method_count = check_call_graph_exists(gds)

@@ -141,13 +141,15 @@ export NEO4J_PASSWORD="your_password"
 
 ### 2. Analyze Your Codebase
 ```bash
-# Run complete analysis pipeline
-./scripts/run_pipeline.sh https://github.com/your-org/your-reposh
+# Run complete analysis pipeline (writes logs under .scratch/)
+./scripts/run_pipeline.sh https://github.com/your-org/your-repo
 
 # Or run individual components
 python scripts/code_to_graph.py /path/to/local/repo
+python scripts/create_method_similarity.py --top-k 5 --cutoff 0.8
 python scripts/git_history_to_graph.py /path/to/local/repo
 python scripts/cve_analysis.py
+python scripts/centrality_analysis.py --algorithms pagerank betweenness degree --top-n 20 --write-back
 ```
 
 ### 3. Query Your Data
@@ -214,6 +216,10 @@ NEO4J_DATABASE=neo4j
 # 🔑 IMPORTANT: NVD API key for CVE analysis (highly recommended)
 # Get your free API key: https://nvd.nist.gov/developers/request-an-api-key
 NVD_API_KEY=your_nvd_api_key
+
+# Optional similarity defaults (can be overridden by CLI flags)
+SIMILARITY_TOP_K=5   # or use SIM_TOP_K
+SIMILARITY_CUTOFF=0.8 # or use SIM_CUTOFF
 ```
 
 > 💡 **Without an NVD API key**, CVE analysis will be much slower (6 seconds per request vs 50 requests/30 seconds with key). Get your free key at: https://nvd.nist.gov/developers/request-an-api-key
@@ -235,6 +241,17 @@ Key guidelines:
 - Follow established import patterns
 - Maintain consistent error handling
 - Run pre-commit checks before submitting
+
+### Schema
+
+- Method nodes use `method_signature` as the unique identifier.
+- `Method.id` is required for Bloom and tooling compatibility.
+- Constraints and indexes are created by `src/data/schema_management.py` and are invoked automatically in the pipeline.
+
+### Logs and temp files
+
+- Logs default to console; pass `--log-file .scratch/<name>.log` to persist.
+- The `.scratch/` directory is gitignored for local artifacts.
 
 ### Testing
 
