@@ -61,41 +61,7 @@ jobs:
         python -m coverage report -m || true
         echo "Listing workspace to show coverage.xml presence:" && ls -lah
         exit $TEST_EXIT
-    - name: Locate coverage artifacts (debug)
-      if: always()
-      run: |
-        echo "Searching for coverage files..."
-        find . -maxdepth 4 \( -name "coverage.xml" -o -name ".coverage*" -o -name "*.coverage" \) -print -ls || true
-        if [ -f pytest-report.xml ]; then echo "Found pytest-report.xml"; else echo "pytest-report.xml missing"; fi
-
-    - name: Verify coverage report exists
-      if: always()
-      run: |
-        ls -lh || true
-        if [ ! -f coverage.xml ]; then echo "coverage.xml missing"; exit 1; fi
-        head -n 5 coverage.xml || true
-
-    - name: Upload coverage.xml as artifact (debug)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-xml-${{ matrix.python-version }}
-        path: coverage.xml
-        retention-days: 3
-    - name: Upload pytest JUnit report (debug)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: junit-${{ matrix.python-version }}
-        path: pytest-report.xml
-        retention-days: 3
-    - name: Upload pytest raw output (debug)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: pytest-output-${{ matrix.python-version }}
-        path: pytest-output.txt
-        retention-days: 3
+    # Removed temporary debug artifact uploads
 
     - name: Upload coverage to Codecov (only once on 3.12)
       uses: codecov/codecov-action@v4
@@ -109,6 +75,13 @@ jobs:
         fail_ci_if_error: true
         verbose: true
         root_dir: .
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() && matrix.python-version == '3.12' }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: pytest-report.xml
 
   security:
     runs-on: ubuntu-latest
