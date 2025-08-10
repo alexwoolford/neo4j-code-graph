@@ -47,7 +47,7 @@ MAX_WORKERS = 4
 import os
 
 # These are defaults; CLI flags and device heuristics still override.
-DEFAULT_PARALLEL_FILES = int(os.getenv("DEFAULT_PARALLEL_FILES", "8"))
+DEFAULT_PARALLEL_FILES = int(os.getenv("DEFAULT_PARALLEL_FILES", "16"))
 DEFAULT_EMBED_BATCH_CPU = int(os.getenv("DEFAULT_EMBED_BATCH_CPU", "32"))
 DEFAULT_EMBED_BATCH_MPS = int(os.getenv("DEFAULT_EMBED_BATCH_MPS", "256"))
 DEFAULT_EMBED_BATCH_CUDA_SMALL = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_SMALL", "128"))
@@ -56,8 +56,8 @@ DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_VE
 
 # Neo4j write batching
 # Allow tuning via env without touching code
-DB_BATCH_WITH_EMBEDDINGS = int(os.getenv("DB_BATCH_WITH_EMBEDDINGS", "200"))
-DB_BATCH_SIMPLE = int(os.getenv("DB_BATCH_SIMPLE", "1000"))
+DB_BATCH_WITH_EMBEDDINGS = int(os.getenv("DB_BATCH_WITH_EMBEDDINGS", "300"))
+DB_BATCH_SIMPLE = int(os.getenv("DB_BATCH_SIMPLE", "2000"))
 
 # Graph Analysis
 PAGERANK_ALPHA = 0.85
