@@ -221,16 +221,7 @@ NVD_API_KEY=your_nvd_api_key
 SIMILARITY_TOP_K=5    # or SIM_TOP_K
 SIMILARITY_CUTOFF=0.8 # or SIM_CUTOFF
 
-# Optional batching and parallelism overrides
-# Tune these to your hardware and Neo4j instance size
-DEFAULT_PARALLEL_FILES=8
-DEFAULT_EMBED_BATCH_CPU=32
-DEFAULT_EMBED_BATCH_MPS=256
-DEFAULT_EMBED_BATCH_CUDA_SMALL=128
-DEFAULT_EMBED_BATCH_CUDA_LARGE=256
-DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE=512
-DB_BATCH_WITH_EMBEDDINGS=200
-DB_BATCH_SIMPLE=1000
+# Advanced tuning variables are available for power users; see `src/constants.py`.
 ```
 
 > 💡 **Without an NVD API key**, CVE analysis will be much slower (6 seconds per request vs 50 requests/30 seconds with key). Get your free key at: https://nvd.nist.gov/developers/request-an-api-key
