@@ -101,9 +101,9 @@ echo "🎯 Step 6: Running centrality analysis to identify important methods..."
 python "$SCRIPT_DIR/centrality_analysis.py" --algorithms pagerank betweenness degree --top-n 15 --write-back
 echo "✅ Centrality analysis completed"
 
-# Step 7: Advanced Analysis
+# Step 7: Temporal Analysis
 echo ""
-echo "🔥 Step 7: Running advanced analysis..."
+echo "🔥 Step 7: Running temporal analysis..."
 
 echo "  📊 Analyzing file change coupling..."
 python -m src.analysis.temporal_analysis coupling --min-support 5 --create-relationships
