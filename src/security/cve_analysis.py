@@ -35,6 +35,11 @@ except ImportError:
     from ..utils.neo4j_utils import get_neo4j_config
     from .cve_cache_manager import CVECacheManager
 
+try:
+    from security.types import CleanCVE
+except ImportError:
+    from .types import CleanCVE
+
 # Add project root to path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
@@ -216,7 +221,7 @@ class CVEAnalyzer:
         search_terms: set[str],
         api_key: str | None = None,
         max_concurrency: int | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[CleanCVE]:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
 
@@ -228,7 +233,7 @@ class CVEAnalyzer:
             max_concurrency=max_concurrency,
         )
 
-    def create_vulnerability_graph(self, cve_data: list[dict[str, Any]]) -> int:
+    def create_vulnerability_graph(self, cve_data: list[CleanCVE]) -> int:
         """Create CVE and vulnerability nodes in Neo4j."""
         logger.info("📊 Creating vulnerability graph...")
 
@@ -286,7 +291,7 @@ class CVEAnalyzer:
             return "LOW"
         return "NONE"
 
-    def _link_cves_to_dependencies(self, session: Any, cve_data: list[dict[str, Any]]):
+    def _link_cves_to_dependencies(self, session: Any, cve_data: list[CleanCVE]):
         """Link CVEs to external dependencies using precise GAV matching."""
         logger.info("🔗 Linking CVEs to codebase dependencies using precise GAV matching...")
 

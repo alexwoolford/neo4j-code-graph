@@ -19,12 +19,18 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
 import aiohttp
 from tqdm import tqdm
+
+try:
+    from security.types import CleanCVE
+except Exception:  # pragma: no cover - fallback for module execution context
+    from .types import CleanCVE
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +63,7 @@ class CVECacheManager:
         max_results: int = 1000,
         days_back: int = 365,
         max_concurrency: int | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[CleanCVE]:
         """Fetch CVEs using targeted searches for specific dependencies.
 
         Parameters
@@ -108,7 +114,7 @@ class CVECacheManager:
             headers["apiKey"] = api_key
             logger.info("🔑 Using NVD API key for faster searches")
 
-        all_cves: list[dict[str, Any]] = list(partial_data)
+        all_cves: list[CleanCVE] = list(partial_data)
         completed_terms_set: set[str] = set(completed_terms)
 
         # Convert search terms to more effective search queries
@@ -154,7 +160,7 @@ class CVECacheManager:
 
                     vulnerabilities = cast(list[dict[str, Any]], data.get("vulnerabilities", []))
 
-                    query_cves: list[dict[str, Any]] = []
+                    query_cves: list[CleanCVE] = []
                     for vuln in vulnerabilities:
                         clean_cve = self._extract_clean_cve_data(vuln)
                         if clean_cve and self._is_relevant_to_terms(clean_cve, original_terms):
@@ -304,7 +310,7 @@ class CVECacheManager:
 
         return compounds
 
-    def _is_relevant_to_terms(self, cve: dict[str, Any], terms: set[str]) -> bool:
+    def _is_relevant_to_terms(self, cve: Mapping[str, Any], terms: set[str]) -> bool:
         """Check if a CVE is relevant to the given search terms with precise matching."""
         # Extract text from multiple possible locations
         description_text = ""
@@ -383,10 +389,10 @@ class CVECacheManager:
 
         return False
 
-    def _deduplicate_cves(self, cves: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _deduplicate_cves(self, cves: list[CleanCVE]) -> list[CleanCVE]:
         """Remove duplicate CVEs based on ID."""
         seen_ids: set[str] = set()
-        unique_cves: list[dict[str, Any]] = []
+        unique_cves: list[CleanCVE] = []
 
         for cve in cves:
             cve_id = cve.get("id", "")
@@ -432,7 +438,7 @@ class CVECacheManager:
             self.request_times.append(time.time())
 
     def _save_partial_targeted_cache(
-        self, cache_key: str, cves: list[dict[str, Any]], completed_terms: set[str]
+        self, cache_key: str, cves: list[CleanCVE], completed_terms: set[str]
     ) -> None:
         """Save partial progress for targeted searches."""
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
@@ -453,7 +459,7 @@ class CVECacheManager:
         except Exception as e:
             logger.warning(f"Failed to save partial cache: {e}")
 
-    def load_partial_targeted_cache(self, cache_key: str) -> tuple[list[dict[str, Any]], set[str]]:
+    def load_partial_targeted_cache(self, cache_key: str) -> tuple[list[CleanCVE], set[str]]:
         """Load partial cache for targeted searches."""
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
 
@@ -470,7 +476,7 @@ class CVECacheManager:
                 logger.info("⏰ Partial cache expired, starting fresh")
                 return [], set()
 
-            cves = cast(list[dict[str, Any]], cache_data.get("cves", []))
+            cves = cast(list[CleanCVE], cache_data.get("cves", []))
             completed_terms = set(cast(list[str], cache_data.get("completed_terms", [])))
 
             logger.info(
@@ -534,7 +540,7 @@ class CVECacheManager:
         logger.warning(f"⏰ Rate limited - waiting {wait_time:.1f}s")
         await asyncio.sleep(wait_time)
 
-    def _extract_clean_cve_data(self, vuln_entry: dict[str, Any]) -> dict[str, Any] | None:
+    def _extract_clean_cve_data(self, vuln_entry: dict[str, Any]) -> CleanCVE | None:
         """Extract clean, normalized CVE data."""
         try:
             cve = vuln_entry.get("cve", {})
@@ -583,7 +589,7 @@ class CVECacheManager:
             logger.debug(f"Error extracting CVE data: {e}")
             return None
 
-    def _save_complete_cache(self, cache_key: str, data: list[dict[str, Any]]) -> None:
+    def _save_complete_cache(self, cache_key: str, data: list[CleanCVE]) -> None:
         """Save complete dataset to permanent cache."""
         cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
         try:
@@ -603,7 +609,7 @@ class CVECacheManager:
         except Exception as e:
             logger.error(f"Failed to save complete cache: {e}")
 
-    def load_complete_cache(self, cache_key: str) -> list[dict[str, Any]] | None:
+    def load_complete_cache(self, cache_key: str) -> list[CleanCVE] | None:
         """Load complete cached CVE data."""
         cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
 
@@ -620,7 +626,7 @@ class CVECacheManager:
             with gzip.open(cache_file, "rt", encoding="utf-8") as f:
                 cache_data = json.load(f)
 
-            data = cast(list[dict[str, Any]], cache_data.get("data", []))
+            data = cast(list[CleanCVE], cache_data.get("data", []))
             logger.info(f"📦 Loaded complete cache: {len(data)} CVEs")
             return data
 

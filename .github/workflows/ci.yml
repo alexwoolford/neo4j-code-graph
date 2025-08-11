@@ -53,7 +53,7 @@ jobs:
 
     # Pre-commit already runs in quality; avoid duplicate work here
 
-    - name: Run unit tests with coverage (exclude integration + torch-compat)
+    - name: Run unit tests with coverage (xdist, exclude integration + torch-compat)
       env:
         KMP_DUPLICATE_LIB_OK: "TRUE"
         OMP_NUM_THREADS: "1"
@@ -64,8 +64,8 @@ jobs:
       run: |
         TEST_EXIT=0
         python -m pip install --upgrade pip
-        python -m pip install pytest-cov
-        pytest -m "not integration" \
+        python -m pip install pytest-cov pytest-xdist
+        pytest -m "not integration" -n auto \
                --cov=src --cov-report=xml:coverage.xml \
                --junitxml=junit.xml -o junit_family=legacy \
                -k "not test_pytorch_api_compatibility" --disable-warnings \

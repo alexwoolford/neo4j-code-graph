@@ -10,10 +10,13 @@ This module implements accurate CVE matching using:
 """
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from packaging.version import Version
+
+from .types import CleanCVE
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +133,9 @@ class PreciseGAVMatcher:
             # Add more as needed
         }
 
-    def extract_cpe_from_cve(self, cve_data: dict[str, Any]) -> list[tuple[str, AffectedProduct]]:
+    def extract_cpe_from_cve(
+        self, cve_data: Mapping[str, Any]
+    ) -> list[tuple[str, AffectedProduct]]:
         """Extract CPE matches and version constraints from CVE data."""
         affected_products: list[tuple[str, AffectedProduct]] = []
 
@@ -162,7 +167,7 @@ class PreciseGAVMatcher:
 
         return affected_products
 
-    def match_gav_to_cve(self, gav: GAVCoordinate, cve_data: dict[str, Any]) -> float | None:
+    def match_gav_to_cve(self, gav: GAVCoordinate, cve_data: Mapping[str, Any]) -> float | None:
         """
         Match GAV coordinate to CVE with confidence score.
 
@@ -187,7 +192,7 @@ class PreciseGAVMatcher:
 
         return None
 
-    def _fuzzy_cpe_match(self, gav: GAVCoordinate, cve_data: dict[str, Any]) -> float | None:
+    def _fuzzy_cpe_match(self, gav: GAVCoordinate, cve_data: Mapping[str, Any]) -> float | None:
         """Fuzzy matching for unknown packages - much more conservative."""
         cpe_matches = self.extract_cpe_from_cve(cve_data)
 
@@ -217,7 +222,7 @@ class PreciseGAVMatcher:
         return None
 
     def validate_dependencies_against_cves(
-        self, dependencies: list[GAVCoordinate], cve_list: list[dict[str, Any]]
+        self, dependencies: list[GAVCoordinate], cve_list: list[CleanCVE]
     ) -> list[tuple[GAVCoordinate, CVEVulnerability, float]]:
         """
         Validate list of dependencies against CVE database.
@@ -247,7 +252,7 @@ class PreciseGAVMatcher:
 
         return matches
 
-    def _extract_description(self, cve_data: dict[str, Any]) -> str:
+    def _extract_description(self, cve_data: Mapping[str, Any]) -> str:
         """Extract English description from CVE data."""
         if "descriptions" in cve_data:
             for desc in cve_data["descriptions"]:
@@ -255,7 +260,7 @@ class PreciseGAVMatcher:
                     return desc.get("value", "")
         return cve_data.get("description", "")
 
-    def _extract_cvss_score(self, cve_data: dict[str, Any]) -> float:
+    def _extract_cvss_score(self, cve_data: Mapping[str, Any]) -> float:
         """Extract CVSS score from CVE data."""
         metrics = cve_data.get("metrics", {})
 
@@ -276,7 +281,7 @@ class PreciseGAVMatcher:
 
         return 0.0
 
-    def _extract_severity(self, cve_data: dict[str, Any]) -> str:
+    def _extract_severity(self, cve_data: Mapping[str, Any]) -> str:
         """Extract severity from CVE data."""
         cvss_score = self._extract_cvss_score(cve_data)
 
