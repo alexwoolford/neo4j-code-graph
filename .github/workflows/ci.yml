@@ -33,9 +33,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -76,14 +78,13 @@ jobs:
     # Removed temporary debug artifact uploads
 
     - name: Upload coverage to Codecov (only once on 3.12; skip forks)
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       if: >
         always() &&
         matrix.python-version == '3.12' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./coverage.xml
         flags: py${{ matrix.python-version }}
         name: codecov-py${{ matrix.python-version }}
         slug: alexwoolford/neo4j-code-graph
