@@ -11,14 +11,17 @@ This tool analyzes CVE impact for ANY codebase by:
 NO HARDCODED MAPPINGS - Works with any language, any dependencies, any codebase.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os
 import sys
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from neo4j import Driver, Session
+if TYPE_CHECKING:
+    from neo4j import Driver
 
 # Handle both script and module execution contexts
 try:
@@ -44,12 +47,28 @@ logger = logging.getLogger(__name__)
 class CVEAnalyzer:
     """Language-agnostic CVE analyzer that works with any codebase."""
 
-    def __init__(self, driver: Driver, database: str | None = None):
-        self.driver: Driver = driver
+    def __init__(self, driver: Driver | None = None, database: str | None = None):
+        self.driver: Driver | None = driver
         if database is None:
             _, _, _, database = get_neo4j_config()
         self.database: str = database
         self.cve_manager = CVECacheManager()
+
+    # Internal helper to obtain a session without requiring neo4j imports at runtime in tests
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _session(self):  # type: ignore[no-untyped-def]
+        if self.driver is not None:
+            with self.driver.session(database=self.database) as s:  # type: ignore[reportUnknownMemberType]
+                yield s
+        else:
+            uri, username, password, database = get_neo4j_config()
+            from utils.common import create_neo4j_driver
+
+            with create_neo4j_driver(uri, username, password) as drv:
+                with drv.session(database=database) as s:  # type: ignore[reportUnknownMemberType]
+                    yield s
 
     def load_cve_data(self, file_path: str):
         """Load CVE data from a file."""
@@ -79,7 +98,7 @@ class CVEAnalyzer:
         """Extract all dependencies from any codebase in the graph."""
         logger.info("🔍 Extracting dependencies from codebase...")
 
-        with self.driver.session(database=self.database) as session:
+        with self._session() as session:
             # Get all external dependencies regardless of language
             result = session.run(
                 "MATCH (ed:ExternalDependency) "
@@ -220,7 +239,7 @@ class CVEAnalyzer:
             logger.warning("No CVE data to process")
             return 0
 
-        with self.driver.session(database=self.database) as session:
+        with self._session() as session:
             # The cve_data is already cleaned by the cache manager
             # Create CVE nodes directly from the cleaned data
             cve_nodes = []
@@ -270,7 +289,7 @@ class CVEAnalyzer:
             return "LOW"
         return "NONE"
 
-    def _link_cves_to_dependencies(self, session: Session, cve_data: list[dict[str, Any]]):
+    def _link_cves_to_dependencies(self, session: Any, cve_data: list[dict[str, Any]]):
         """Link CVEs to external dependencies using precise GAV matching."""
         logger.info("🔗 Linking CVEs to codebase dependencies using precise GAV matching...")
 
@@ -506,7 +525,7 @@ class CVEAnalyzer:
         """Create necessary indexes for efficient querying."""
         logger.info("📊 Setting up indexes for CVE analysis...")
 
-        with self.driver.session(database=self.database) as session:
+        with self._session() as session:
             indexes = [
                 # CVE indexes
                 "CREATE INDEX cve_cvss_score IF NOT EXISTS FOR (cve:CVE) ON (cve.cvss_score)",
@@ -533,7 +552,7 @@ class CVEAnalyzer:
         """Analyze the impact of CVEs on the codebase."""
         logger.info("🎯 Analyzing vulnerability impact...")
 
-        with self.driver.session(database=self.database) as session:
+        with self._session() as session:
             # First, let's check if we have any CVE data at all
             cve_count_query = "MATCH (cve:CVE) RETURN count(cve) as total"
             cve_result = session.run(cve_count_query)
