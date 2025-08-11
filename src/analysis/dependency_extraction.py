@@ -92,19 +92,12 @@ class EnhancedDependencyExtractor:
             # Resolve properties first
             properties = self._extract_maven_properties(root, namespace)
 
-            # Extract regular dependencies
-            for dependency in root.findall(".//maven:dependency", namespace):
-                dep_info = self._parse_maven_dependency(
-                    dependency, namespace, properties, str(pom_file), scope="compile"
-                )
-                if dep_info:
-                    dependencies.append(dep_info)
-
-            # Extract dependency management
+            # First pass: collect versions declared in dependencyManagement
+            dm_versions: Dict[str, str] = {}
             for dependency in root.findall(
                 ".//maven:dependencyManagement//maven:dependency", namespace
             ):
-                dep_info = self._parse_maven_dependency(
+                dm = self._parse_maven_dependency(
                     dependency,
                     namespace,
                     properties,
@@ -112,8 +105,35 @@ class EnhancedDependencyExtractor:
                     scope="dependencyManagement",
                     dependency_management=True,
                 )
+                if dm:
+                    dm_versions[dm.gav.package_key] = dm.gav.version
+                    dependencies.append(dm)
+
+            # Second pass: extract regular dependencies, filling version from DM if missing
+            for dependency in root.findall(".//maven:dependency", namespace):
+                dep_info = self._parse_maven_dependency(
+                    dependency, namespace, properties, str(pom_file), scope="compile"
+                )
                 if dep_info:
                     dependencies.append(dep_info)
+                else:
+                    # Try backfill from dependencyManagement when version is omitted
+                    group_id_elem = dependency.find("maven:groupId", namespace)
+                    artifact_id_elem = dependency.find("maven:artifactId", namespace)
+                    if group_id_elem is not None and artifact_id_elem is not None:
+                        key = f"{group_id_elem.text}:{artifact_id_elem.text}"
+                        if key in dm_versions:
+                            gav = GAVCoordinate(
+                                group_id_elem.text, artifact_id_elem.text, dm_versions[key]
+                            )
+                            dependencies.append(
+                                DependencyInfo(
+                                    gav=gav,
+                                    scope="compile",
+                                    source_file=str(pom_file),
+                                    dependency_management=False,
+                                )
+                            )
 
         except ET.ParseError as e:
             logger.debug(f"XML parsing error in {pom_file}: {e}")
