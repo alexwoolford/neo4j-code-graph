@@ -96,6 +96,7 @@ jobs:
         files: ./coverage.xml
         flags: py${{ matrix.python-version }}
         fail_ci_if_error: true
+        verbose: true
 
     - name: Upload test results to Codecov (OIDC)
       if: >
