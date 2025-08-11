@@ -133,7 +133,11 @@ jobs:
 
     - name: Install gitleaks
       run: |
-        curl -sSL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | bash -s -- -b /usr/local/bin
+        set -euo pipefail
+        GL_VERSION=8.18.4
+        curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
+        sudo tar -C /usr/local/bin -xzf /tmp/gitleaks.tgz gitleaks
+        /usr/local/bin/gitleaks version
 
     - name: Gitleaks (scan workspace only)
       run: |
