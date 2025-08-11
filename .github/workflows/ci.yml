@@ -17,6 +17,7 @@ permissions:
   contents: read
   checks: write
   security-events: write
+  id-token: write
 
 env:
   # Fix OpenMP conflicts on macOS-like environments
@@ -85,33 +86,24 @@ jobs:
         echo "GITHUB_REF_NAME=${GITHUB_REF_NAME}"
         echo "GITHUB_RUN_ID=${GITHUB_RUN_ID}"
 
-    - name: Upload coverage to Codecov (only on 3.12; skip forks)
+    - name: Upload coverage to Codecov (only on 3.12; OIDC)
       uses: codecov/codecov-action@v5
       if: >
         always() && matrix.python-version == '3.12' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        use_oidc: true
         files: ./coverage.xml
-        disable_search: true
-        override_commit: ${{ github.sha }}
-        override_branch: ${{ github.ref_name }}
-        override_build: ${{ github.run_id }}
         flags: py${{ matrix.python-version }}
-        name: codecov-py${{ matrix.python-version }}
-        slug: alexwoolford/neo4j-code-graph
         fail_ci_if_error: true
-        verbose: true
-        root_dir: .
 
-    - name: Upload test results to Codecov
+    - name: Upload test results to Codecov (OIDC)
       if: >
         !cancelled() &&
         matrix.python-version == '3.12' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       uses: codecov/test-results-action@v1
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
         files: pytest-report.xml
 
   security:
