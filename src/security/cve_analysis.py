@@ -541,7 +541,8 @@ class CVEAnalyzer:
             # First, let's check if we have any CVE data at all
             cve_count_query = "MATCH (cve:CVE) RETURN count(cve) as total"
             cve_result = session.run(cve_count_query)
-            cve_count = cve_result.single()["total"]
+            cve_single = cve_result.single()
+            cve_count = int(cve_single["total"]) if cve_single and "total" in cve_single else 0
 
             if cve_count == 0:
                 logger.warning("⚠️  No CVE data found in the database. Running CVE fetch first...")
@@ -562,25 +563,19 @@ class CVEAnalyzer:
                     return []
 
             # Simple analysis query - just look for CVEs that might affect our dependencies
-            analysis_query = """
-            MATCH (cve:CVE)
-            WHERE cve.cvss_score >= $risk_threshold
-            OPTIONAL MATCH (ed:ExternalDependency)
-            WITH cve, ed,
-                 CASE WHEN ed.package IS NOT NULL THEN 1 ELSE 0 END AS has_dependency
-            WITH cve, collect(ed.package) AS dependencies, sum(has_dependency) AS dep_count
-            WHERE dep_count > 0
-            RETURN cve.id AS cve_id,
-                   cve.description AS description,
-                   cve.cvss_score AS cvss_score,
-                   cve.severity AS severity,
-                   dependencies AS affected_dependencies,
-                   dep_count AS dependency_count
-            ORDER BY cve.cvss_score DESC
-            LIMIT 50
-            """
+            analysis_query = (
+                "MATCH (cve:CVE) "
+                "WHERE cve.cvss_score >= $risk_threshold "
+                "OPTIONAL MATCH (ed:ExternalDependency) "
+                "WITH cve, ed, CASE WHEN ed.package IS NOT NULL THEN 1 ELSE 0 END AS has_dependency "
+                "WITH cve, collect(ed.package) AS dependencies, sum(has_dependency) AS dep_count "
+                "WHERE dep_count > 0 "
+                "RETURN cve.id AS cve_id, cve.description AS description, cve.cvss_score AS cvss_score, "
+                "cve.severity AS severity, dependencies AS affected_dependencies, dep_count AS dependency_count "
+                "ORDER BY cve.cvss_score DESC LIMIT 50"
+            )
 
-            result = session.run(analysis_query, risk_threshold=risk_threshold)
+            result = session.run(analysis_query, {"risk_threshold": risk_threshold})
             vulnerabilities = [dict(record) for record in result]
 
             logger.info(f"🎯 Found {len(vulnerabilities)} potential vulnerabilities")
