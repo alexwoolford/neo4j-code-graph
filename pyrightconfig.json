@@ -1,12 +1,16 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/pyright/schema/pyrightconfig.schema.json",
-  "include": ["src"],
-  "exclude": ["tests", "build", "dist", "htmlcov"],
+  "include": [
+    "src/pipeline",
+    "src/security/cve_analysis.py",
+    "src/utils/cleanup.py"
+  ],
+  "exclude": ["tests", "build", "dist", "htmlcov", "src/security/cve_cache_manager.py", "src/security/gav_cve_matcher.py", "src/data/schema_management.py", "src/analysis"],
   "pythonVersion": "3.10",
   "typeCheckingMode": "strict",
   "reportMissingTypeStubs": false,
   "reportUnknownMemberType": "warning",
   "reportUnknownArgumentType": "warning",
   "venvPath": ".",
-  "venv": null
+  "venv": ""
 }

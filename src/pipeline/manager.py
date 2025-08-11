@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Neo4j Code Graph Pipeline Manager
 
@@ -9,7 +8,6 @@ with proper error handling, logging, and progress tracking.
 import argparse
 import logging
 import sys
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -32,23 +30,31 @@ class StepStatus(Enum):
     SKIPPED = "skipped"
 
 
-@dataclass
 class PipelineStep:
     """Represents a single pipeline step."""
 
-    name: str
-    description: str
-    command: str
-    args: list[str] = field(default_factory=list)
-    required: bool = True
-    timeout: int | None = None
-    retry_count: int = 0
-    max_retries: int = 2
-    status: StepStatus = StepStatus.PENDING
-    start_time: datetime | None = None
-    end_time: datetime | None = None
-    error_message: str | None = None
-    output: str | None = None
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        command: str,
+        args: list[str] | None = None,
+        required: bool = True,
+        timeout: int | None = None,
+    ) -> None:
+        self.name = name
+        self.description = description
+        self.command = command
+        self.args = args or []
+        self.required = required
+        self.timeout = timeout
+        self.retry_count = 0
+        self.max_retries = 2
+        self.status = StepStatus.PENDING
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
+        self.error_message: str | None = None
+        self.output: str | None = None
 
     @property
     def duration(self) -> float | None:

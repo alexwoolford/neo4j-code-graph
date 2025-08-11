@@ -16,7 +16,7 @@ import logging
 import os
 import sys
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from neo4j import Driver, Session
 
@@ -142,7 +142,7 @@ class CVEAnalyzer:
                     search_terms.add(dep.lower())
 
                 # Extract meaningful parts from different naming conventions
-                parts = []
+                parts: list[str] = []
 
                 # Java/C#: com.vendor.product or org.vendor.product
                 if "." in dep:
@@ -179,7 +179,7 @@ class CVEAnalyzer:
                 # Add meaningful parts (filter out common prefixes AND vendor terms that
                 # have specific deps)
                 for part in parts:
-                    part_lower: str = part.lower()
+                    part_lower: str = str(part).lower()
                     if (
                         part
                         and len(part) > 2
@@ -201,12 +201,15 @@ class CVEAnalyzer:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
 
-        return self.cve_manager.fetch_targeted_cves(
-            api_key=api_key,
-            search_terms=search_terms,
-            max_results=2000,  # Reasonable limit for comprehensive analysis
-            days_back=365,  # One year of CVE data
-            max_concurrency=max_concurrency,
+        return cast(
+            list[dict[str, Any]],
+            self.cve_manager.fetch_targeted_cves(
+                api_key=api_key,
+                search_terms=search_terms,
+                max_results=2000,  # Reasonable limit for comprehensive analysis
+                days_back=365,  # One year of CVE data
+                max_concurrency=max_concurrency,
+            ),
         )
 
     def create_vulnerability_graph(self, cve_data: list[dict[str, Any]]) -> int:
@@ -305,7 +308,7 @@ class CVEAnalyzer:
             matcher = PreciseGAVMatcher()
 
             # Convert dependencies to GAV coordinates for precise matching
-            gav_dependencies = []
+            gav_dependencies: list[tuple[Any, str]] = []
             for dep in dependencies:
                 if (
                     dep["group_id"]
@@ -321,7 +324,7 @@ class CVEAnalyzer:
             )
 
             # Use precise GAV matching for dependencies with full coordinates
-            precise_matches = []
+            precise_matches: list[dict[str, Any]] = []
             if gav_dependencies:
                 for gav, package in gav_dependencies:
                     for cve in cve_data:
@@ -346,7 +349,7 @@ class CVEAnalyzer:
 
         # Fall back to improved text matching only for dependencies without GAV coordinates
         # and only if no precise matches were found
-        text_matches = []
+        text_matches: list[dict[str, Any]] = []
         if len(precise_matches) < 10:  # Only use text matching if we have very few precise matches
             deps_without_gav = [
                 dep
@@ -385,7 +388,7 @@ class CVEAnalyzer:
                                 )
 
         # Combine all matches
-        all_matches = precise_matches + text_matches
+        all_matches: list[dict[str, Any]] = precise_matches + text_matches
 
         # Create relationships
         if all_matches:
@@ -526,7 +529,7 @@ class CVEAnalyzer:
 
     def analyze_vulnerability_impact(
         self, max_hops: int = 4, risk_threshold: float = 7.0, max_concurrency: int | None = None
-    ):
+    ) -> list[dict[str, Any]]:
         """Analyze the impact of CVEs on the codebase."""
         logger.info("🎯 Analyzing vulnerability impact...")
 
@@ -544,8 +547,13 @@ class CVEAnalyzer:
                 search_terms = self.create_universal_component_search_terms(
                     dependencies_by_ecosystem
                 )
-                cve_data = self.cve_manager.fetch_targeted_cves(
-                    api_key=None, search_terms=search_terms, max_concurrency=max_concurrency
+                cve_data = cast(
+                    list[dict[str, Any]],
+                    self.cve_manager.fetch_targeted_cves(
+                        api_key=None,
+                        search_terms=search_terms,
+                        max_concurrency=max_concurrency,
+                    ),
                 )
 
                 if cve_data:
@@ -556,19 +564,25 @@ class CVEAnalyzer:
                     return []
 
             # Simple analysis query - just look for CVEs that might affect our dependencies
-            analysis_query = (
-                "MATCH (cve:CVE) "
-                "WHERE cve.cvss_score >= $risk_threshold "
-                "OPTIONAL MATCH (ed:ExternalDependency) "
-                "WITH cve, ed, CASE WHEN ed.package IS NOT NULL THEN 1 ELSE 0 END AS has_dependency "
-                "WITH cve, collect(ed.package) AS dependencies, sum(has_dependency) AS dep_count "
-                "WHERE dep_count > 0 "
-                "RETURN cve.id AS cve_id, cve.description AS description, cve.cvss_score AS cvss_score, "
-                "cve.severity AS severity, dependencies AS affected_dependencies, dep_count AS dependency_count "
-                "ORDER BY cve.cvss_score DESC LIMIT 50"
+            result = session.run(
+                """
+                MATCH (cve:CVE)
+                WHERE cve.cvss_score >= $risk_threshold
+                OPTIONAL MATCH (ed:ExternalDependency)
+                WITH cve, ed, CASE WHEN ed.package IS NOT NULL THEN 1 ELSE 0 END AS has_dependency
+                WITH cve, collect(ed.package) AS dependencies, sum(has_dependency) AS dep_count
+                WHERE dep_count > 0
+                RETURN cve.id AS cve_id,
+                       cve.description AS description,
+                       cve.cvss_score AS cvss_score,
+                       cve.severity AS severity,
+                       dependencies AS affected_dependencies,
+                       dep_count AS dependency_count
+                ORDER BY cve.cvss_score DESC
+                LIMIT 50
+                """,
+                parameters={"risk_threshold": float(risk_threshold)},
             )
-
-            result = session.run(analysis_query, {"risk_threshold": risk_threshold})
             vulnerabilities = [dict(record) for record in result]
 
             logger.info(f"🎯 Found {len(vulnerabilities)} potential vulnerabilities")

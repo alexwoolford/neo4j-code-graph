@@ -325,18 +325,14 @@ def main():
                             "Fast cleanup: removing code-structure nodes and relationships%s...",
                             " (DRY RUN)" if args.dry_run else "",
                         )
-                        statements = [
-                            "MATCH (n:Import) DETACH DELETE n",
-                            "MATCH (n:ExternalDependency) DETACH DELETE n",
-                            "MATCH (n:Method) DETACH DELETE n",
-                            "MATCH (n:Interface) DETACH DELETE n",
-                            "MATCH (n:Class) DETACH DELETE n",
-                            "MATCH (n:File) DETACH DELETE n",
-                            "MATCH (n:Directory) DETACH DELETE n",
-                        ]
                         if not args.dry_run:
-                            for stmt in statements:
-                                session.run(stmt).consume()
+                            session.run("MATCH (n:Import) DETACH DELETE n").consume()
+                            session.run("MATCH (n:ExternalDependency) DETACH DELETE n").consume()
+                            session.run("MATCH (n:Method) DETACH DELETE n").consume()
+                            session.run("MATCH (n:Interface) DETACH DELETE n").consume()
+                            session.run("MATCH (n:Class) DETACH DELETE n").consume()
+                            session.run("MATCH (n:File) DETACH DELETE n").consume()
+                            session.run("MATCH (n:Directory) DETACH DELETE n").consume()
                         logger.info(
                             "Fast cleanup completed%s", " (DRY RUN)" if args.dry_run else ""
                         )
