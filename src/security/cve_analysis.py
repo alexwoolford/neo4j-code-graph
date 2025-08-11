@@ -132,13 +132,13 @@ class CVEAnalyzer:
         self, dependencies: dict[str, set[str]]
     ) -> set[str]:
         """Create language-agnostic search terms from any dependency structure."""
-        search_terms = set()
-        specific_vendor_terms = set()  # Track specific vendor terms to avoid generic ones
+        search_terms: set[str] = set()
+        specific_vendor_terms: set[str] = set()  # Track specific vendor terms to avoid generic ones
 
-        for ecosystem, deps in dependencies.items():
+        for _ecosystem, deps in dependencies.items():
             for dep in deps:
                 # Universal patterns that work across languages
-                if dep and isinstance(dep, str):  # Filter out None values and non-strings
+                if dep:
                     search_terms.add(dep.lower())
 
                 # Extract meaningful parts from different naming conventions
@@ -179,7 +179,7 @@ class CVEAnalyzer:
                 # Add meaningful parts (filter out common prefixes AND vendor terms that
                 # have specific deps)
                 for part in parts:
-                    part_lower = part.lower()
+                    part_lower: str = part.lower()
                     if (
                         part
                         and len(part) > 2
@@ -197,7 +197,7 @@ class CVEAnalyzer:
         search_terms: set[str],
         api_key: str | None = None,
         max_concurrency: int | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
 

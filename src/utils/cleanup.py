@@ -57,7 +57,8 @@ def cleanup_similarities(session: Session, dry_run: bool = False) -> None:
     """Remove SIMILAR relationships."""
     # Count existing relationships
     result = session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) as count")
-    count = result.single()["count"]
+    single = result.single()
+    count = int(single["count"]) if single and "count" in single else 0
 
     if count == 0:
         logger.info("No SIMILAR relationships found")
@@ -80,7 +81,8 @@ def cleanup_communities(
     result = session.run(
         "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL RETURN count(m) as count"
     )
-    count = result.single()["count"]
+    single = result.single()
+    count = int(single["count"]) if single and "count" in single else 0
 
     if count == 0:
         logger.info("No nodes found with %s property", community_property)
@@ -166,10 +168,12 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
     """Perform complete database reset (delete everything)."""
     # Get initial counts
     result = session.run("MATCH (n) RETURN count(n) as node_count")
-    initial_nodes = result.single()["node_count"]
+    single = result.single()
+    initial_nodes = int(single["node_count"]) if single and "node_count" in single else 0
 
     result = session.run("MATCH ()-[r]->() RETURN count(r) as rel_count")
-    initial_rels = result.single()["rel_count"]
+    single = result.single()
+    initial_rels = int(single["rel_count"]) if single and "rel_count" in single else 0
 
     logger.info("Database contains %d nodes and %d relationships", initial_nodes, initial_rels)
 
@@ -199,7 +203,8 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
                 "MATCH ()-[r]->() WITH r LIMIT $limit DELETE r RETURN count(*) as deleted",
                 {"limit": batch_size},
             )
-            deleted = result.single()["deleted"]
+            single = result.single()
+            deleted = int(single["deleted"]) if single and "deleted" in single else 0
             if deleted == 0:
                 break
             total_rel_deleted += deleted
@@ -218,7 +223,8 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
                 "MATCH (n) WITH n LIMIT $limit DELETE n RETURN count(*) as deleted",
                 {"limit": batch_size},
             )
-            deleted = result.single()["deleted"]
+            single = result.single()
+            deleted = int(single["deleted"]) if single and "deleted" in single else 0
             if deleted == 0:
                 break
             total_nodes_deleted += deleted
@@ -266,10 +272,12 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
 
     # Final verification
     result = session.run("MATCH (n) RETURN count(n) as final_count")
-    final_count = result.single()["final_count"]
+    single = result.single()
+    final_count = int(single["final_count"]) if single and "final_count" in single else 0
 
     result = session.run("MATCH ()-[r]->() RETURN count(r) as final_rels")
-    final_rels = result.single()["final_rels"]
+    single = result.single()
+    final_rels = int(single["final_rels"]) if single and "final_rels" in single else 0
 
     logger.info("🎉 COMPLETE RESET FINISHED!")
     logger.info("  Final state: %d nodes, %d relationships", final_count, final_rels)
