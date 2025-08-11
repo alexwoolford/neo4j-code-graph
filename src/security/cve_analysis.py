@@ -649,6 +649,11 @@ Examples:
 
     parser.add_argument("--api-key", help="NVD API key for faster, more reliable downloads")
     parser.add_argument(
+        "--proceed-without-key",
+        action="store_true",
+        help="Proceed to fetch CVEs even if no NVD API key is provided",
+    )
+    parser.add_argument(
         "--max-results",
         type=int,
         default=2000,
@@ -760,20 +765,15 @@ Examples:
 
         print(f"API key:         {'✅ Yes (fast)' if api_key else '❌ No (slow)'}")
 
-        if not api_key:
+        if not api_key and not args.proceed_without_key:
             print("\n💡 **TIP**: Get an API key for 10x faster downloads!")
             print("   Use --api-key-info for instructions")
             print("   Without API key: ~2-5 CVEs/second")
             print("   With API key:    ~20-50 CVEs/second")
-
-            # In CI environments, proceed without prompting
-            if os.getenv("CI", "").lower() == "true":
-                logger.info("Proceeding without API key (non-interactive mode)")
-            else:
-                proceed = input("\nProceed without API key? (y/N): ")
-                if proceed.lower() != "y":
-                    print("💡 Get an API key first with --api-key-info")
-                    return
+            print(
+                "\nSkipping CVE fetch because no API key was provided and --proceed-without-key was not set."
+            )
+            return
 
         # Fetch CVE data with robust error handling
         print("\n🌐 **FETCHING CVE DATA**")

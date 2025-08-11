@@ -40,8 +40,14 @@ def get_neo4j_config() -> Tuple[str, str, str, str]:
     from dotenv import load_dotenv
 
     load_dotenv(override=True)
-    uri = ensure_port(os.getenv("NEO4J_URI", "bolt://localhost:7687"))
-    username = os.getenv("NEO4J_USERNAME", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "neo4j")
-    database = os.getenv("NEO4J_DATABASE", "neo4j")
+    # Treat empty strings as absent to allow sensible defaults when CI sets blank secrets
+    uri_env = os.getenv("NEO4J_URI")
+    user_env = os.getenv("NEO4J_USERNAME")
+    pass_env = os.getenv("NEO4J_PASSWORD")
+    db_env = os.getenv("NEO4J_DATABASE")
+
+    uri = ensure_port(uri_env or "bolt://localhost:7687")
+    username = user_env or "neo4j"
+    password = pass_env or "neo4j"
+    database = db_env or "neo4j"
     return uri, username, password, database
