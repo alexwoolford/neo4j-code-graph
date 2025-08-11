@@ -78,16 +78,25 @@ jobs:
         exit $TEST_EXIT
     # Removed temporary debug artifact uploads
 
-    - name: Upload coverage to Codecov (only once on 3.12; skip forks)
+    - name: Debug commit association
+      if: always()
+      run: |
+        echo "GITHUB_SHA=${GITHUB_SHA}"
+        echo "GITHUB_REF_NAME=${GITHUB_REF_NAME}"
+        echo "GITHUB_RUN_ID=${GITHUB_RUN_ID}"
+
+    - name: Upload coverage to Codecov (all Python versions; skip forks)
       uses: codecov/codecov-action@v5
       if: >
         always() &&
-        matrix.python-version == '3.12' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
         disable_search: true
+        commit_sha: ${{ github.sha }}
+        branch: ${{ github.ref_name }}
+        build: ${{ github.run_id }}
         flags: py${{ matrix.python-version }}
         name: codecov-py${{ matrix.python-version }}
         slug: alexwoolford/neo4j-code-graph
