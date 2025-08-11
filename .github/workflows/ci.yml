@@ -74,6 +74,7 @@ jobs:
         python -m coverage xml -o coverage.xml || true
         python -m coverage report -m || true
         echo "Listing workspace to show coverage.xml presence:" && ls -lah
+        if [ -f coverage.xml ]; then echo "coverage.xml size:" && wc -c coverage.xml; head -n 5 coverage.xml || true; else echo "coverage.xml missing"; fi
         exit $TEST_EXIT
     # Removed temporary debug artifact uploads
 
@@ -86,6 +87,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
+        disable_search: true
         flags: py${{ matrix.python-version }}
         name: codecov-py${{ matrix.python-version }}
         slug: alexwoolford/neo4j-code-graph
