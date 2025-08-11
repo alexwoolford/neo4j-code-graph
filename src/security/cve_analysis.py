@@ -422,7 +422,7 @@ class CVEAnalyzer:
             return True
 
         # Extract meaningful components (avoid common words)
-        parts = []
+        parts: list[str] = []
         for sep in [".", "/", "-", "_"]:
             if sep in dep_path:
                 parts.extend(
@@ -448,7 +448,7 @@ class CVEAnalyzer:
                 )
 
         # Require at least 2 meaningful parts to match for high confidence
-        matches = [part for part in parts if part in cve_description]
+        matches: list[str] = [part for part in parts if part in cve_description]
         return len(matches) >= 2
 
     def _calculate_match_confidence_improved(self, dep_path: str, cve_description: str) -> float:
@@ -460,7 +460,7 @@ class CVEAnalyzer:
             return 0.95
 
         # Component matching with stricter scoring
-        parts = []
+        parts: list[str] = []
         for sep in [".", "/", "-", "_"]:
             if sep in dep_path:
                 parts.extend(
@@ -488,7 +488,7 @@ class CVEAnalyzer:
         if not parts:
             return 0.0
 
-        matches = [part for part in parts if part in cve_description]
+        matches: list[str] = [part for part in parts if part in cve_description]
         match_ratio = len(matches) / len(parts)
 
         # Require high match ratio for confidence
@@ -574,7 +574,7 @@ class CVEAnalyzer:
             logger.info(f"🎯 Found {len(vulnerabilities)} potential vulnerabilities")
             return vulnerabilities
 
-    def generate_impact_report(self, vulnerabilities):
+    def generate_impact_report(self, vulnerabilities: list[dict[str, Any]]):
         """Generate a comprehensive vulnerability impact report."""
         if not vulnerabilities:
             print("\n🎉 **EXCELLENT NEWS!**")

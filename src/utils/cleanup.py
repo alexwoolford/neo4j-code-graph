@@ -50,7 +50,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def cleanup_similarities(session, dry_run=False):
+from neo4j import Session
+
+
+def cleanup_similarities(session: Session, dry_run: bool = False) -> None:
     """Remove SIMILAR relationships."""
     # Count existing relationships
     result = session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) as count")
@@ -69,7 +72,9 @@ def cleanup_similarities(session, dry_run=False):
         logger.info("Deleted %d SIMILAR relationships", count)
 
 
-def cleanup_communities(session, community_property="similarityCommunity", dry_run=False):
+def cleanup_communities(
+    session: Session, community_property: str = "similarityCommunity", dry_run: bool = False
+) -> None:
     """Remove community properties from Method nodes."""
     # Count nodes with community property (static property name for strict typing)
     result = session.run(
@@ -96,7 +101,7 @@ def cleanup_communities(session, community_property="similarityCommunity", dry_r
         logger.info("Removed %s property from %d Method nodes", community_property, count)
 
 
-def cleanup_graph_projections(session, dry_run=False):
+def cleanup_graph_projections(session: Session, dry_run: bool = False) -> None:
     """Remove any lingering GDS graph projections using proper GDS Python client."""
     try:
         from graphdatascience import GraphDataScience
@@ -133,7 +138,7 @@ def cleanup_graph_projections(session, dry_run=False):
         logger.warning("Could not check GDS graph projections: %s", e)
 
 
-def cleanup_vector_index(session, dry_run=False):
+def cleanup_vector_index(session: Session, dry_run: bool = False) -> None:
     """Check vector index status but don't remove it (embeddings are expensive!)."""
     try:
         result = session.run("SHOW VECTOR INDEXES")
@@ -157,7 +162,7 @@ def cleanup_vector_index(session, dry_run=False):
         logger.warning("Could not check vector indexes: %s", e)
 
 
-def complete_database_reset(session, dry_run=False):
+def complete_database_reset(session: Session, dry_run: bool = False) -> None:
     """Perform complete database reset (delete everything)."""
     # Get initial counts
     result = session.run("MATCH (n) RETURN count(n) as node_count")
