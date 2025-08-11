@@ -94,9 +94,9 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
         disable_search: true
-        commit_sha: ${{ github.sha }}
-        branch: ${{ github.ref_name }}
-        build: ${{ github.run_id }}
+        override_commit: ${{ github.sha }}
+        override_branch: ${{ github.ref_name }}
+        override_build: ${{ github.run_id }}
         flags: py${{ matrix.python-version }}
         name: codecov-py${{ matrix.python-version }}
         slug: alexwoolford/neo4j-code-graph
