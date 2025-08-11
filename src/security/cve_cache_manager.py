@@ -154,7 +154,7 @@ class CVECacheManager:
 
                     vulnerabilities = cast(list[dict[str, Any]], data.get("vulnerabilities", []))
 
-                    query_cves = []
+                    query_cves: list[dict[str, Any]] = []
                     for vuln in vulnerabilities:
                         clean_cve = self._extract_clean_cve_data(vuln)
                         if clean_cve and self._is_relevant_to_terms(clean_cve, original_terms):
@@ -164,13 +164,12 @@ class CVECacheManager:
                         all_cves.extend(query_cves)
                         completed_terms_set.update(original_terms)
                         pbar.update(1)
-                        pbar.set_postfix(
-                            {  # type: ignore[no-untyped-call]
-                                "found": len(query_cves),
-                                "total_cves": len(all_cves),
-                                "completed": len(completed_terms_set),
-                            }
-                        )
+                        postfix: dict[str, object] = {
+                            "found": len(query_cves),
+                            "total_cves": len(all_cves),
+                            "completed": len(completed_terms_set),
+                        }
+                        pbar.set_postfix(postfix)
 
                         if (idx + 1) % 5 == 0:
                             self._save_partial_targeted_cache(
