@@ -239,7 +239,7 @@ class CVEAnalyzer:
         with self._session() as session:
             # The cve_data is already cleaned by the cache manager
             # Create CVE nodes directly from the cleaned data
-            cve_nodes = []
+            cve_nodes: list[dict[str, Any]] = []
             for cve in cve_data:
                 # Use the cleaned data structure from cache manager
                 cve_nodes.append(
