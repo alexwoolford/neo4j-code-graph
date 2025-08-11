@@ -18,7 +18,7 @@ import logging
 import os
 import sys
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from neo4j import Driver
@@ -220,15 +220,12 @@ class CVEAnalyzer:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
 
-        return cast(
-            list[dict[str, Any]],
-            self.cve_manager.fetch_targeted_cves(
-                api_key=api_key,
-                search_terms=search_terms,
-                max_results=2000,  # Reasonable limit for comprehensive analysis
-                days_back=365,  # One year of CVE data
-                max_concurrency=max_concurrency,
-            ),
+        return self.cve_manager.fetch_targeted_cves(
+            api_key=api_key,
+            search_terms=search_terms,
+            max_results=2000,  # Reasonable limit for comprehensive analysis
+            days_back=365,  # One year of CVE data
+            max_concurrency=max_concurrency,
         )
 
     def create_vulnerability_graph(self, cve_data: list[dict[str, Any]]) -> int:
@@ -586,13 +583,10 @@ class CVEAnalyzer:
                 search_terms = self.create_universal_component_search_terms(
                     dependencies_by_ecosystem
                 )
-                cve_data = cast(
-                    list[dict[str, Any]],
-                    self.cve_manager.fetch_targeted_cves(
-                        api_key=None,
-                        search_terms=search_terms,
-                        max_concurrency=max_concurrency,
-                    ),
+                cve_data = self.cve_manager.fetch_targeted_cves(
+                    api_key=None,
+                    search_terms=search_terms,
+                    max_concurrency=max_concurrency,
                 )
 
                 if cve_data:
@@ -829,15 +823,12 @@ Examples:
         print("💾 Progress is saved incrementally - safe to interrupt!")
 
         try:
-            cve_data = cast(
-                list[dict[str, Any]],
-                analyzer.cve_manager.fetch_targeted_cves(
-                    api_key=api_key,
-                    search_terms=search_terms,
-                    max_results=args.max_results,
-                    days_back=args.days_back,
-                    max_concurrency=args.max_concurrency,
-                ),
+            cve_data = analyzer.cve_manager.fetch_targeted_cves(
+                api_key=api_key,
+                search_terms=search_terms,
+                max_results=args.max_results,
+                days_back=args.days_back,
+                max_concurrency=args.max_concurrency,
             )
 
             if not cve_data:
