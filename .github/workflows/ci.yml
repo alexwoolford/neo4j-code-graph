@@ -70,9 +70,8 @@ jobs:
         NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
       run: |
         TEST_EXIT=0
-        python -m coverage erase || true
-        python -m coverage run -m pytest tests/ -q -k "not test_pytorch_api_compatibility" --disable-warnings --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
-        python -m coverage xml -o coverage.xml || true
+        python -m pip install coverage || true
+        pytest --cov=src --cov-report=xml:coverage.xml -k "not test_pytorch_api_compatibility" --disable-warnings --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
         python -m coverage report -m || true
         echo "Listing workspace to show coverage.xml presence:" && ls -lah
         if [ -f coverage.xml ]; then echo "coverage.xml size:" && wc -c coverage.xml; head -n 5 coverage.xml || true; else echo "coverage.xml missing"; fi
