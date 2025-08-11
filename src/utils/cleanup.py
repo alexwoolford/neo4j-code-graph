@@ -14,6 +14,8 @@ import logging
 import sys
 import time
 
+from neo4j import Query
+
 from .common import add_common_args
 
 logger = logging.getLogger(__name__)
@@ -73,7 +75,7 @@ def cleanup_communities(session, community_property="similarityCommunity", dry_r
     """Remove community properties from Method nodes."""
     # Count nodes with community property
     result = session.run(
-        f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL RETURN count(m) as count"
+        Query(f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL RETURN count(m) as count")
     )
     count = result.single()["count"]
 
@@ -91,8 +93,9 @@ def cleanup_communities(session, community_property="similarityCommunity", dry_r
         )
     else:
         session.run(
-            f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL "
-            f"REMOVE m.{community_property}"
+            Query(
+                f"MATCH (m:Method) WHERE m.{community_property} IS NOT NULL REMOVE m.{community_property}"
+            )
         )
         logger.info("Removed %s property from %d Method nodes", community_property, count)
 
@@ -192,7 +195,9 @@ def complete_database_reset(session, dry_run=False):
         logger.info("⏳ Deleting relationships in batches of %d...", batch_size)
         while True:
             result = session.run(
-                f"MATCH ()-[r]->() WITH r LIMIT {batch_size} DELETE r RETURN count(*) as deleted"
+                Query(
+                    f"MATCH ()-[r]->() WITH r LIMIT {batch_size} DELETE r RETURN count(*) as deleted"
+                )
             )
             deleted = result.single()["deleted"]
             if deleted == 0:
@@ -210,7 +215,7 @@ def complete_database_reset(session, dry_run=False):
         logger.info("⏳ Deleting nodes in batches of %d...", batch_size)
         while True:
             result = session.run(
-                f"MATCH (n) WITH n LIMIT {batch_size} DELETE n RETURN count(*) as deleted"
+                Query(f"MATCH (n) WITH n LIMIT {batch_size} DELETE n RETURN count(*) as deleted")
             )
             deleted = result.single()["deleted"]
             if deleted == 0:
@@ -232,7 +237,7 @@ def complete_database_reset(session, dry_run=False):
 
     for query in cleanup_queries:
         try:
-            session.run(query)
+            session.run(Query(query))
             logger.info("  ✅ %s", query)
         except Exception as e:
             logger.warning("  ⚠️  %s: %s", query, e)
@@ -240,21 +245,21 @@ def complete_database_reset(session, dry_run=False):
     # Try to drop vector index (may not exist or may have different syntax)
     try:
         # Try newer syntax first
-        session.run("DROP VECTOR INDEX method_embeddings IF EXISTS")
+        session.run(Query("DROP VECTOR INDEX method_embeddings IF EXISTS"))
         logger.info("  ✅ Dropped vector index method_embeddings")
     except Exception:
         try:
             # Try alternative syntax
-            session.run("DROP INDEX method_embeddings IF EXISTS")
+            session.run(Query("DROP INDEX method_embeddings IF EXISTS"))
             logger.info("  ✅ Dropped index method_embeddings")
         except Exception as e:
             logger.warning("  ⚠️  Could not drop vector index: %s", e)
 
     # Final verification
-    result = session.run("MATCH (n) RETURN count(n) as final_count")
+    result = session.run(Query("MATCH (n) RETURN count(n) as final_count"))
     final_count = result.single()["final_count"]
 
-    result = session.run("MATCH ()-[r]->() RETURN count(r) as final_rels")
+    result = session.run(Query("MATCH ()-[r]->() RETURN count(r) as final_rels"))
     final_rels = result.single()["final_rels"]
 
     logger.info("🎉 COMPLETE RESET FINISHED!")

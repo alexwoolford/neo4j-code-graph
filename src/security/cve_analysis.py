@@ -15,6 +15,10 @@ import argparse
 import logging
 import os
 import sys
+from collections.abc import Mapping
+from typing import Any
+
+from neo4j import Driver, Session
 
 # Handle both script and module execution contexts
 try:
@@ -40,12 +44,11 @@ logger = logging.getLogger(__name__)
 class CVEAnalyzer:
     """Language-agnostic CVE analyzer that works with any codebase."""
 
-    def __init__(self, driver=None, database: str = None):
-        self.driver = driver
-        # Use centralized config if database not specified
+    def __init__(self, driver: Driver, database: str | None = None):
+        self.driver: Driver = driver
         if database is None:
             _, _, _, database = get_neo4j_config()
-        self.database = database
+        self.database: str = database
         self.cve_manager = CVECacheManager()
 
     def load_cve_data(self, file_path: str):
@@ -72,7 +75,7 @@ class CVEAnalyzer:
 
         return stats
 
-    def extract_codebase_dependencies(self) -> tuple:
+    def extract_codebase_dependencies(self) -> tuple[dict[str, set[str]], set[str]]:
         """Extract all dependencies from any codebase in the graph."""
         logger.info("🔍 Extracting dependencies from codebase...")
 
@@ -88,13 +91,15 @@ class CVEAnalyzer:
             """
 
             result = session.run(query)
-            dependencies_by_ecosystem = {}
+            dependencies_by_ecosystem: dict[str, set[str]] = {}
 
             for record in result:
-                dep_path = record["dependency_path"]
-                language = record.get("language", "unknown")
-                ecosystem = record.get("ecosystem", "unknown")
-                version = record.get("version")  # Will be None for now, but we'll fix that
+                rec: Mapping[str, Any] = dict(record)
+                dep_path = str(rec.get("dependency_path", ""))
+                language = str(rec.get("language", "unknown"))
+                ecosystem = str(rec.get("ecosystem", "unknown"))
+                version_val = rec.get("version")
+                version = str(version_val) if version_val is not None else None
 
                 # Group by ecosystem for targeted CVE searching
                 key = f"{language}:{ecosystem}" if language != "unknown" else "unknown"
@@ -118,10 +123,12 @@ class CVEAnalyzer:
             """
 
             result = session.run(query)
-            file_languages = set()
+            file_languages: set[str] = set()
             for record in result:
-                if record["language"]:
-                    file_languages.add(record["language"].lower())
+                rec = dict(record)
+                lang = rec.get("language")
+                if isinstance(lang, str) and lang:
+                    file_languages.add(lang.lower())
 
             logger.info(f"📊 Found dependencies in {len(dependencies_by_ecosystem)} ecosystems")
             logger.info(f"📊 Detected languages: {file_languages}")
@@ -209,7 +216,7 @@ class CVEAnalyzer:
             max_concurrency=max_concurrency,
         )
 
-    def create_vulnerability_graph(self, cve_data: list[dict]) -> int:
+    def create_vulnerability_graph(self, cve_data: list[dict[str, Any]]) -> int:
         """Create CVE and vulnerability nodes in Neo4j."""
         logger.info("📊 Creating vulnerability graph...")
 
@@ -267,7 +274,7 @@ class CVEAnalyzer:
             return "LOW"
         return "NONE"
 
-    def _link_cves_to_dependencies(self, session, cve_data: list[dict]):
+    def _link_cves_to_dependencies(self, session: Session, cve_data: list[dict[str, Any]]):
         """Link CVEs to external dependencies using precise GAV matching."""
         logger.info("🔗 Linking CVEs to codebase dependencies using precise GAV matching...")
 
@@ -280,14 +287,15 @@ class CVEAnalyzer:
                ed.version AS version
         """
         deps_result = session.run(deps_query)
-        dependencies = []
+        dependencies: list[dict[str, Any]] = []
 
         for record in deps_result:
+            rec = dict(record)
             dep_info = {
-                "package": record["import_path"],
-                "group_id": record["group_id"],
-                "artifact_id": record["artifact_id"],
-                "version": record["version"],
+                "package": rec.get("import_path"),
+                "group_id": rec.get("group_id"),
+                "artifact_id": rec.get("artifact_id"),
+                "version": rec.get("version"),
             }
             dependencies.append(dep_info)
 

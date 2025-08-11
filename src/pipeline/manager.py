@@ -386,13 +386,17 @@ class PipelineManager:
 
     def _print_summary(self, completed: int, failed: int):
         """Print pipeline execution summary."""
-        duration = (self.end_time - self.start_time).total_seconds()
+        if self.start_time is not None and self.end_time is not None:
+            duration = (self.end_time - self.start_time).total_seconds()
+            duration_str = f"{duration:.2f} seconds"
+        else:
+            duration_str = "N/A"
 
         self.logger.info("\n" + "=" * 60)
         self.logger.info("🎉 Pipeline Execution Summary")
         self.logger.info("=" * 60)
         self.logger.info(f"📁 Repository: {self.repo_url}")
-        self.logger.info(f"⏱️  Total Duration: {duration:.2f} seconds")
+        self.logger.info(f"⏱️  Total Duration: {duration_str}")
         self.logger.info(f"✅ Completed Steps: {completed}")
         self.logger.info(f"❌ Failed Steps: {failed}")
         self.logger.info(
