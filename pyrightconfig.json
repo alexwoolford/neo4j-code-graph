@@ -3,9 +3,10 @@
   "include": [
     "src/pipeline",
     "src/security/cve_analysis.py",
-    "src/utils/cleanup.py"
+    "src/utils/cleanup.py",
+    "src/security/gav_cve_matcher.py"
   ],
-  "exclude": ["tests", "build", "dist", "htmlcov", "src/security/cve_cache_manager.py", "src/security/gav_cve_matcher.py", "src/data/schema_management.py", "src/analysis"],
+  "exclude": ["tests", "build", "dist", "htmlcov", "src/security/cve_cache_manager.py", "src/data/schema_management.py", "src/analysis"],
   "pythonVersion": "3.10",
   "typeCheckingMode": "strict",
   "reportMissingTypeStubs": false,

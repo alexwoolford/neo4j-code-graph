@@ -526,25 +526,45 @@ class CVEAnalyzer:
         logger.info("📊 Setting up indexes for CVE analysis...")
 
         with self._session() as session:
-            indexes = [
-                # CVE indexes
-                "CREATE INDEX cve_cvss_score IF NOT EXISTS FOR (cve:CVE) ON (cve.cvss_score)",
-                "CREATE INDEX cve_severity IF NOT EXISTS FOR (cve:CVE) ON (cve.severity)",
-                "CREATE INDEX cve_published IF NOT EXISTS FOR (cve:CVE) ON (cve.published)",
-                # Full-text index for CVE descriptions
-                "CREATE FULLTEXT INDEX cve_description_index IF NOT EXISTS "
-                "FOR (cve:CVE) ON EACH [cve.description]",
-            ]
+            try:
+                session.run(
+                    "CREATE INDEX cve_cvss_score IF NOT EXISTS FOR (cve:CVE) ON (cve.cvss_score)"
+                )
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    logger.debug("Index already exists: cve_cvss_score")
+                else:
+                    logger.warning(f"Failed to create index cve_cvss_score: {e}")
 
-            for index_query in indexes:
-                try:
-                    session.run(index_query)
-                    logger.debug(f"✅ Created index: {index_query}")
-                except Exception as e:
-                    if "already exists" in str(e).lower():
-                        logger.debug(f"Index already exists: {index_query}")
-                    else:
-                        logger.warning(f"Failed to create index: {e}")
+            try:
+                session.run(
+                    "CREATE INDEX cve_severity IF NOT EXISTS FOR (cve:CVE) ON (cve.severity)"
+                )
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    logger.debug("Index already exists: cve_severity")
+                else:
+                    logger.warning(f"Failed to create index cve_severity: {e}")
+
+            try:
+                session.run(
+                    "CREATE INDEX cve_published IF NOT EXISTS FOR (cve:CVE) ON (cve.published)"
+                )
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    logger.debug("Index already exists: cve_published")
+                else:
+                    logger.warning(f"Failed to create index cve_published: {e}")
+
+            try:
+                session.run(
+                    "CREATE FULLTEXT INDEX cve_description_index IF NOT EXISTS FOR (cve:CVE) ON EACH [cve.description]"
+                )
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    logger.debug("Index already exists: cve_description_index")
+                else:
+                    logger.warning(f"Failed to create fulltext index: {e}")
 
     def analyze_vulnerability_impact(
         self, max_hops: int = 4, risk_threshold: float = 7.0, max_concurrency: int | None = None
@@ -809,12 +829,15 @@ Examples:
         print("💾 Progress is saved incrementally - safe to interrupt!")
 
         try:
-            cve_data = analyzer.cve_manager.fetch_targeted_cves(
-                api_key=api_key,
-                search_terms=search_terms,
-                max_results=args.max_results,
-                days_back=args.days_back,
-                max_concurrency=args.max_concurrency,
+            cve_data = cast(
+                list[dict[str, Any]],
+                analyzer.cve_manager.fetch_targeted_cves(
+                    api_key=api_key,
+                    search_terms=search_terms,
+                    max_results=args.max_results,
+                    days_back=args.days_back,
+                    max_concurrency=args.max_concurrency,
+                ),
             )
 
             if not cve_data:
