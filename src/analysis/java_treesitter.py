@@ -11,7 +11,6 @@ Aura-compatible: pure Python and standard libraries only.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from tree_sitter import Parser
 from tree_sitter_languages import get_language
@@ -19,11 +18,11 @@ from tree_sitter_languages import get_language
 
 @dataclass
 class JavaExtraction:
-    package_name: Optional[str]
-    imports: List[Dict]
-    classes: List[Dict]
-    interfaces: List[Dict]
-    methods: List[Dict]
+    package_name: str | None
+    imports: list[dict]
+    classes: list[dict]
+    interfaces: list[dict]
+    methods: list[dict]
 
 
 def _node_text(source_bytes: bytes, node) -> str:
@@ -48,11 +47,11 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
     root = tree.root_node
     source_bytes = code.encode("utf-8", errors="ignore")
 
-    package_name: Optional[str] = None
-    imports: List[Dict] = []
-    classes: List[Dict] = []
-    interfaces: List[Dict] = []
-    methods: List[Dict] = []
+    package_name: str | None = None
+    imports: list[dict] = []
+    classes: list[dict] = []
+    interfaces: list[dict] = []
+    methods: list[dict] = []
 
     # Collect package name
     for child in root.children:
@@ -93,8 +92,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             )
 
     # Class and interface declarations
-    def walk(node, ancestors: List):
-
+    def walk(node, ancestors: list):
         if node.type in ("class_declaration", "interface_declaration"):
             identifier = _child_by_type(node, "identifier")
             name = _node_text(source_bytes, identifier) if identifier else ""

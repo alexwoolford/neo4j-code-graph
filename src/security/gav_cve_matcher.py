@@ -11,7 +11,6 @@ This module implements accurate CVE matching using:
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 from packaging.version import Version
 
@@ -59,7 +58,7 @@ class CVEVulnerability:
     cvss_score: float
     severity: str
     published_date: str
-    affected_products: List["AffectedProduct"]
+    affected_products: list["AffectedProduct"]
 
 
 @dataclass
@@ -68,10 +67,10 @@ class AffectedProduct:
 
     vendor: str
     product: str
-    version_start_including: Optional[str] = None
-    version_start_excluding: Optional[str] = None
-    version_end_including: Optional[str] = None
-    version_end_excluding: Optional[str] = None
+    version_start_including: str | None = None
+    version_start_excluding: str | None = None
+    version_end_including: str | None = None
+    version_end_excluding: str | None = None
 
     def matches_version(self, target_version: str) -> bool:
         """Check if target version falls within vulnerable range."""
@@ -109,7 +108,7 @@ class PreciseGAVMatcher:
     def __init__(self):
         self.cpe_patterns = self._load_known_cpe_patterns()
 
-    def _load_known_cpe_patterns(self) -> Dict[str, str]:
+    def _load_known_cpe_patterns(self) -> dict[str, str]:
         """Load known GAV to CPE mappings."""
         return {
             # Apache Commons
@@ -130,7 +129,7 @@ class PreciseGAVMatcher:
             # Add more as needed
         }
 
-    def extract_cpe_from_cve(self, cve_data: Dict) -> List[Tuple[str, AffectedProduct]]:
+    def extract_cpe_from_cve(self, cve_data: dict) -> list[tuple[str, AffectedProduct]]:
         """Extract CPE matches and version constraints from CVE data."""
         affected_products = []
 
@@ -162,7 +161,7 @@ class PreciseGAVMatcher:
 
         return affected_products
 
-    def match_gav_to_cve(self, gav: GAVCoordinate, cve_data: Dict) -> Optional[float]:
+    def match_gav_to_cve(self, gav: GAVCoordinate, cve_data: dict) -> float | None:
         """
         Match GAV coordinate to CVE with confidence score.
 
@@ -187,7 +186,7 @@ class PreciseGAVMatcher:
 
         return None
 
-    def _fuzzy_cpe_match(self, gav: GAVCoordinate, cve_data: Dict) -> Optional[float]:
+    def _fuzzy_cpe_match(self, gav: GAVCoordinate, cve_data: dict) -> float | None:
         """Fuzzy matching for unknown packages - much more conservative."""
         cpe_matches = self.extract_cpe_from_cve(cve_data)
 
@@ -205,7 +204,6 @@ class PreciseGAVMatcher:
                 and artifact_lower in cpe_lower
                 and artifact_lower not in ["core", "common", "utils", "base"]
             ):
-
                 # Additional validation - check if group parts match
                 group_matches = sum(
                     1 for part in group_parts if len(part) > 3 and part in cpe_lower
@@ -218,8 +216,8 @@ class PreciseGAVMatcher:
         return None
 
     def validate_dependencies_against_cves(
-        self, dependencies: List[GAVCoordinate], cve_list: List[Dict]
-    ) -> List[Tuple[GAVCoordinate, CVEVulnerability, float]]:
+        self, dependencies: list[GAVCoordinate], cve_list: list[dict]
+    ) -> list[tuple[GAVCoordinate, CVEVulnerability, float]]:
         """
         Validate list of dependencies against CVE database.
 
@@ -248,7 +246,7 @@ class PreciseGAVMatcher:
 
         return matches
 
-    def _extract_description(self, cve_data: Dict) -> str:
+    def _extract_description(self, cve_data: dict) -> str:
         """Extract English description from CVE data."""
         if "descriptions" in cve_data:
             for desc in cve_data["descriptions"]:
@@ -256,7 +254,7 @@ class PreciseGAVMatcher:
                     return desc.get("value", "")
         return cve_data.get("description", "")
 
-    def _extract_cvss_score(self, cve_data: Dict) -> float:
+    def _extract_cvss_score(self, cve_data: dict) -> float:
         """Extract CVSS score from CVE data."""
         metrics = cve_data.get("metrics", {})
 
@@ -277,7 +275,7 @@ class PreciseGAVMatcher:
 
         return 0.0
 
-    def _extract_severity(self, cve_data: Dict) -> str:
+    def _extract_severity(self, cve_data: dict) -> str:
         """Extract severity from CVE data."""
         cvss_score = self._extract_cvss_score(cve_data)
 
@@ -294,7 +292,7 @@ class PreciseGAVMatcher:
 
 
 # Test data and validation functions
-def create_test_dependencies() -> List[GAVCoordinate]:
+def create_test_dependencies() -> list[GAVCoordinate]:
     """Create test dependencies with known vulnerabilities."""
     return [
         GAVCoordinate("org.apache.logging.log4j", "log4j-core", "2.14.1"),  # Vulnerable

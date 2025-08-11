@@ -58,7 +58,6 @@ class TestPyTorchAPICompatibility(unittest.TestCase):
                 patch("analysis.code_analysis.torch.backends.cudnn"),
                 patch("analysis.code_analysis.torch.device") as mock_device,
             ):
-
                 mock_cuda.is_available.return_value = True
                 mock_cuda.amp = MagicMock()
                 mock_device.return_value = MagicMock(type="cuda")

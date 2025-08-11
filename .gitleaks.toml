@@ -1,0 +1,8 @@
+[allowlist]
+paths = [
+  "tests/fixtures/",
+  "examples/",
+]
+regexes = [
+  'pass(word)?\s*[:=]\s*["\']?(changeme|example|testing)["\']?'
+]

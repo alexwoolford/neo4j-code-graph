@@ -19,7 +19,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 import aiohttp
 from tqdm import tqdm
@@ -50,12 +50,12 @@ class CVECacheManager:
 
     def fetch_targeted_cves(
         self,
-        api_key: Optional[str],
-        search_terms: Set[str],
+        api_key: str | None,
+        search_terms: set[str],
         max_results: int = 1000,
         days_back: int = 365,
-        max_concurrency: Optional[int] = None,
-    ) -> List[Dict]:
+        max_concurrency: int | None = None,
+    ) -> list[dict]:
         """Fetch CVEs using targeted searches for specific dependencies.
 
         Parameters
@@ -122,7 +122,7 @@ class CVECacheManager:
 
             async with aiohttp.ClientSession() as session:
 
-                async def fetch_query(idx: int, query_term: str, original_terms: Set[str]) -> None:
+                async def fetch_query(idx: int, query_term: str, original_terms: set[str]) -> None:
                     if stop_event.is_set():
                         return
                     async with semaphore:
@@ -219,7 +219,7 @@ class CVECacheManager:
 
         return unique_cves
 
-    def _prepare_search_queries(self, search_terms: Set[str]) -> List[Tuple[str, Set[str]]]:
+    def _prepare_search_queries(self, search_terms: set[str]) -> list[tuple[str, set[str]]]:
         """Convert dependency names into effective NVD search queries."""
         queries = []
 
@@ -284,7 +284,7 @@ class CVECacheManager:
 
         return queries[:50]  # Limit to reasonable number of searches
 
-    def _create_compound_searches(self, java_terms: List[str]) -> List[Tuple[str, Set[str]]]:
+    def _create_compound_searches(self, java_terms: list[str]) -> list[tuple[str, set[str]]]:
         """Create compound search terms for better Java library detection."""
         compounds = []
 
@@ -303,7 +303,7 @@ class CVECacheManager:
 
         return compounds
 
-    def _is_relevant_to_terms(self, cve: Dict, terms: Set[str]) -> bool:
+    def _is_relevant_to_terms(self, cve: dict, terms: set[str]) -> bool:
         """Check if a CVE is relevant to the given search terms with precise matching."""
         # Extract text from multiple possible locations
         description_text = ""
@@ -382,7 +382,7 @@ class CVECacheManager:
 
         return False
 
-    def _deduplicate_cves(self, cves: List[Dict]) -> List[Dict]:
+    def _deduplicate_cves(self, cves: list[dict]) -> list[dict]:
         """Remove duplicate CVEs based on ID."""
         seen_ids = set()
         unique_cves = []
@@ -431,7 +431,7 @@ class CVECacheManager:
             self.request_times.append(time.time())
 
     def _save_partial_targeted_cache(
-        self, cache_key: str, cves: List[Dict], completed_terms: Set[str]
+        self, cache_key: str, cves: list[dict], completed_terms: set[str]
     ):
         """Save partial progress for targeted searches."""
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
@@ -452,7 +452,7 @@ class CVECacheManager:
         except Exception as e:
             logger.warning(f"Failed to save partial cache: {e}")
 
-    def load_partial_targeted_cache(self, cache_key: str) -> Tuple[List[Dict], Set[str]]:
+    def load_partial_targeted_cache(self, cache_key: str) -> tuple[list[dict], set[str]]:
         """Load partial cache for targeted searches."""
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
 
@@ -533,7 +533,7 @@ class CVECacheManager:
         logger.warning(f"⏰ Rate limited - waiting {wait_time:.1f}s")
         await asyncio.sleep(wait_time)
 
-    def _extract_clean_cve_data(self, vuln_entry: Dict) -> Optional[Dict]:
+    def _extract_clean_cve_data(self, vuln_entry: dict) -> dict | None:
         """Extract clean, normalized CVE data."""
         try:
             cve = vuln_entry.get("cve", {})
@@ -582,7 +582,7 @@ class CVECacheManager:
             logger.debug(f"Error extracting CVE data: {e}")
             return None
 
-    def _save_complete_cache(self, cache_key: str, data: List[Dict]):
+    def _save_complete_cache(self, cache_key: str, data: list[dict]):
         """Save complete dataset to permanent cache."""
         cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
         try:
@@ -602,7 +602,7 @@ class CVECacheManager:
         except Exception as e:
             logger.error(f"Failed to save complete cache: {e}")
 
-    def load_complete_cache(self, cache_key: str) -> Optional[List[Dict]]:
+    def load_complete_cache(self, cache_key: str) -> list[dict] | None:
         """Load complete cached CVE data."""
         cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
 
@@ -627,7 +627,7 @@ class CVECacheManager:
             logger.warning(f"Failed to load complete cache: {e}")
             return None
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get comprehensive cache statistics."""
         cache_files = list(self.cache_dir.glob("*_complete.json.gz"))
         partial_files = list(self.cache_dir.glob("*_partial.json.gz"))
@@ -677,7 +677,7 @@ class CVECacheManager:
                     logger.warning(f"Failed to delete {cache_file}: {e}")
             logger.info(f"🗑️  Cleared {len(cache_files)} cache files")
 
-    def is_cve_relevant(self, cve: Dict, components: Set[str]) -> bool:
+    def is_cve_relevant(self, cve: dict, components: set[str]) -> bool:
         """Check if a CVE is relevant to the given components."""
         return self._is_relevant_to_terms(cve, components)
 

@@ -401,7 +401,7 @@ def test_cve_schema_constraints():
         os.path.dirname(__file__), "..", "src", "data", "schema_management.py"
     )
 
-    with open(schema_file, "r") as f:
+    with open(schema_file) as f:
         content = f.read()
 
         # Check for CVE constraint

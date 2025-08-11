@@ -1,4 +1,3 @@
-from typing import Tuple
 from urllib.parse import urlparse, urlunparse
 
 
@@ -29,7 +28,7 @@ def ensure_port(uri: str, default: int = 7687) -> str:
     return uri
 
 
-def get_neo4j_config() -> Tuple[str, str, str, str]:
+def get_neo4j_config() -> tuple[str, str, str, str]:
     """Return connection settings after loading environment variables.
 
     Returns:

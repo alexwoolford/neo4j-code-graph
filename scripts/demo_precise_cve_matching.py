@@ -111,12 +111,12 @@ def demonstrate_old_vs_new_matching():
         print(f"\n📦 {dep.full_coordinate}")
 
         if log4j_confidence:
-            print("   ✅ MATCHES CVE-2021-44228 (confidence: {})".format(log4j_confidence))
+            print(f"   ✅ MATCHES CVE-2021-44228 (confidence: {log4j_confidence})")
         else:
             print("   ⚪ No match for CVE-2021-44228")
 
         if collections_confidence:
-            print("   ✅ MATCHES CVE-2015-6420 (confidence: {})".format(collections_confidence))
+            print(f"   ✅ MATCHES CVE-2015-6420 (confidence: {collections_confidence})")
         else:
             print("   ⚪ No match for CVE-2015-6420")
 

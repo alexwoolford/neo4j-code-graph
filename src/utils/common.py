@@ -6,7 +6,6 @@ Common utilities shared across neo4j-code-graph scripts.
 import argparse
 import logging
 import sys
-from typing import Optional, Union
 
 from neo4j import Driver, GraphDatabase
 
@@ -15,7 +14,7 @@ from .neo4j_utils import ensure_port, get_neo4j_config
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
 
-def setup_logging(log_level: Union[str, int] = "INFO", log_file: Optional[str] = None) -> None:
+def setup_logging(log_level: str | int = "INFO", log_file: str | None = None) -> None:
     """Setup logging configuration consistently across scripts.
 
     Args:

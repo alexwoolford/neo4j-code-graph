@@ -2,7 +2,7 @@
 import os
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from neo4j import GraphDatabase
 
@@ -24,9 +24,7 @@ def get_db_config() -> DbConfig:
     )
 
 
-def explain(
-    session, query: str, params: Optional[Dict[str, Any]] = None
-) -> Tuple[bool, Optional[str]]:
+def explain(session, query: str, params: dict[str, Any] | None = None) -> tuple[bool, str | None]:
     try:
         session.run("EXPLAIN " + query, **(params or {})).consume()
         return True, None
@@ -34,11 +32,11 @@ def explain(
         return False, str(e)
 
 
-def run_validation(session) -> List[Tuple[str, bool, Optional[str]]]:
-    results: List[Tuple[str, bool, Optional[str]]] = []
+def run_validation(session) -> list[tuple[str, bool, str | None]]:
+    results: list[tuple[str, bool, str | None]] = []
 
     # Basic sanity queries
-    sanity_queries: List[Tuple[str, str, Dict[str, Any]]] = [
+    sanity_queries: list[tuple[str, str, dict[str, Any]]] = [
         ("simple_param", "RETURN $x AS v", {"x": 1}),
         ("unwind_list", "UNWIND $list AS x RETURN x", {"list": [1, 2, 3]}),
     ]
@@ -48,7 +46,7 @@ def run_validation(session) -> List[Tuple[str, bool, Optional[str]]]:
         results.append((name, ok, err))
 
     # Representative write-pattern queries from codebase (EXPLAIN only)
-    tests: List[Tuple[str, str, Dict[str, Any]]] = [
+    tests: list[tuple[str, str, dict[str, Any]]] = [
         (
             "create_directories",
             "UNWIND $directories AS dir_path MERGE (:Directory {path: dir_path})",
@@ -209,7 +207,7 @@ def run_validation(session) -> List[Tuple[str, bool, Optional[str]]]:
 def main() -> int:
     cfg = get_db_config()
     driver = GraphDatabase.driver(cfg.uri, auth=(cfg.username, cfg.password))
-    failed: List[Tuple[str, str]] = []
+    failed: list[tuple[str, str]] = []
 
     with driver.session(database=cfg.database) as session:
         # Connectivity sanity check

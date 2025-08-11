@@ -42,13 +42,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+    # setup-python caches pip; drop extra cache step to save time
 
     - name: Install dependencies
       run: |
@@ -56,9 +50,7 @@ jobs:
         pip install -e .[dev]
         pip install -r requirements.txt
 
-    - name: Run pre-commit hooks
-      run: |
-        pre-commit run --all-files
+    # Pre-commit already runs in quality; avoid duplicate work here
 
     - name: Run unit tests with coverage (exclude integration + torch-compat)
       env:
@@ -120,9 +112,11 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
+        cache: pip
+        cache-dependency-path: pyproject.toml
 
     - name: Install dependencies
       run: |
@@ -136,6 +130,11 @@ jobs:
     - name: Run dependency vulnerability check
       run: |
         safety check --json --output safety-report.json || true
+
+    - name: Gitleaks (scan workspace only)
+      uses: gitleaks/gitleaks-action@v2
+      with:
+        args: detect --no-git --redact --verbose -c .gitleaks.toml || true
 
     - name: Upload security reports
       uses: actions/upload-artifact@v4
@@ -151,9 +150,11 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
+        cache: pip
+        cache-dependency-path: pyproject.toml
 
     - name: Install dependencies
       run: |
@@ -161,5 +162,4 @@ jobs:
         pip install -e .[dev]
 
     - name: Run all quality checks with pre-commit
-      run: |
-        pre-commit run --all-files
+      uses: pre-commit/action@v3.0.1

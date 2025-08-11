@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.common import setup_logging
 
@@ -39,19 +39,19 @@ class PipelineStep:
     name: str
     description: str
     command: str
-    args: List[str] = field(default_factory=list)
+    args: list[str] = field(default_factory=list)
     required: bool = True
-    timeout: Optional[int] = None
+    timeout: int | None = None
     retry_count: int = 0
     max_retries: int = 2
     status: StepStatus = StepStatus.PENDING
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    error_message: Optional[str] = None
-    output: Optional[str] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    error_message: str | None = None
+    output: str | None = None
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float | None:
         """Get step duration in seconds."""
         if self.start_time and self.end_time:
             return (self.end_time - self.start_time).total_seconds()
@@ -84,7 +84,7 @@ class PipelineManager:
         >>> success = pipeline.run()
     """
 
-    def __init__(self, repo_url: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, repo_url: str, config: dict[str, Any] | None = None):
         """Initialize the pipeline manager.
 
         Args:
@@ -94,9 +94,9 @@ class PipelineManager:
         self.repo_url = repo_url
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
-        self.steps: List[PipelineStep] = []
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
+        self.steps: list[PipelineStep] = []
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
 
         # Pipeline configuration
         self.dry_run = self.config.get("dry_run", False)
@@ -424,7 +424,7 @@ class PipelineManager:
             self.logger.warning(f"\n⚠️  Pipeline completed with {failed} failed steps")
             self.logger.warning("📊 Check the logs above for error details")
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current pipeline status."""
         return {
             "repo_url": self.repo_url,

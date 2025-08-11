@@ -5,14 +5,14 @@ we fail fast during unit tests and in dry-run pipelines, without requiring
 Neo4j to surface null-property errors at MERGE time.
 """
 
-from typing import Dict, Iterable
+from collections.abc import Iterable
 
 
 class PayloadValidationError(ValueError):
     pass
 
 
-def validate_methods_payload(methods: Iterable[Dict]) -> None:
+def validate_methods_payload(methods: Iterable[dict]) -> None:
     """Ensure methods have required fields prior to writing.
 
     Required fields:
@@ -30,7 +30,7 @@ def validate_methods_payload(methods: Iterable[Dict]) -> None:
             raise PayloadValidationError(f"Method at index {idx} missing class_name")
 
 
-def validate_calls_payload(calls: Iterable[Dict]) -> None:
+def validate_calls_payload(calls: Iterable[dict]) -> None:
     """Ensure CALLS relationships have required fields.
 
     Required fields:

@@ -6,7 +6,6 @@ Tests graph analysis algorithms, data processing, and edge cases
 while mocking GraphDataScience dependencies appropriately.
 """
 
-
 import sys
 import types
 from unittest.mock import MagicMock, patch

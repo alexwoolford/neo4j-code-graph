@@ -159,3 +159,36 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
+
+# Ruff linter configuration (complements flake8 initially; can replace later)
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = ["E", "F", "I", "UP", "B"]
+ignore = [
+  "E501",  # Black handles line length
+  "E402",  # allow module import order exceptions (matches flake8 extend-ignore)
+  "B007",  # unused loop control variable (to be fixed later)
+  "B011",  # assert False in tests (to be refactored later)
+  "B017",  # pytest.raises(Exception) (to be refactored later)
+  "UP036", # outdated version check blocks; to be cleaned incrementally
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "S101"]
+
+# codespell settings
+[tool.codespell]
+skip = "poetry.lock,*.lock,*.min.js,*.svg"
+ignore-words-list = "ND,te,crate"
+
+# interrogate (docstring coverage)
+[tool.interrogate]
+fail-under = 20
+exclude = ["tests", "build", "dist"]
+ignore-init-method = true
+ignore-private = true
+ignore-magic = true
+verbose = 1

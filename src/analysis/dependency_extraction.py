@@ -11,7 +11,6 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from src.security.gav_cve_matcher import GAVCoordinate
 
@@ -27,7 +26,7 @@ class DependencyInfo:
     source_file: str = ""
     dependency_management: bool = False
 
-    def to_neo4j_node(self) -> Dict:
+    def to_neo4j_node(self) -> dict:
         """Convert to Neo4j node properties."""
         return {
             "package": self.gav.full_coordinate,
@@ -48,7 +47,7 @@ class EnhancedDependencyExtractor:
     def __init__(self):
         self.property_resolver = PropertyResolver()
 
-    def extract_all_dependencies(self, repo_root: Path) -> List[DependencyInfo]:
+    def extract_all_dependencies(self, repo_root: Path) -> list[DependencyInfo]:
         """Extract all dependencies from repository with proper GAV coordinates."""
         logger.info("🔍 Enhanced dependency extraction starting...")
 
@@ -78,7 +77,7 @@ class EnhancedDependencyExtractor:
         logger.info(f"✅ Extracted {len(unique_dependencies)} unique dependencies")
         return unique_dependencies
 
-    def _extract_maven_dependencies_enhanced(self, pom_file: Path) -> List[DependencyInfo]:
+    def _extract_maven_dependencies_enhanced(self, pom_file: Path) -> list[DependencyInfo]:
         """Extract dependencies from Maven pom.xml with full GAV coordinates."""
         dependencies = []
 
@@ -93,7 +92,7 @@ class EnhancedDependencyExtractor:
             properties = self._extract_maven_properties(root, namespace)
 
             # First pass: collect versions declared in dependencyManagement
-            dm_versions: Dict[str, str] = {}
+            dm_versions: dict[str, str] = {}
             for dependency in root.findall(
                 ".//maven:dependencyManagement//maven:dependency", namespace
             ):
@@ -145,12 +144,12 @@ class EnhancedDependencyExtractor:
     def _parse_maven_dependency(
         self,
         dependency,
-        namespace: Dict,
-        properties: Dict[str, str],
+        namespace: dict,
+        properties: dict[str, str],
         source_file: str,
         scope: str = "compile",
         dependency_management: bool = False,
-    ) -> Optional[DependencyInfo]:
+    ) -> DependencyInfo | None:
         """Parse a single Maven dependency element."""
         group_id_elem = dependency.find("maven:groupId", namespace)
         artifact_id_elem = dependency.find("maven:artifactId", namespace)
@@ -183,12 +182,12 @@ class EnhancedDependencyExtractor:
 
         return None
 
-    def _extract_gradle_dependencies_enhanced(self, gradle_file: Path) -> List[DependencyInfo]:
+    def _extract_gradle_dependencies_enhanced(self, gradle_file: Path) -> list[DependencyInfo]:
         """Extract dependencies from Gradle build files with GAV coordinates."""
         dependencies = []
 
         try:
-            with open(gradle_file, "r", encoding="utf-8") as f:
+            with open(gradle_file, encoding="utf-8") as f:
                 content = f.read()
 
             # Pattern for standard Gradle dependencies: 'group:artifact:version'
@@ -214,7 +213,7 @@ class EnhancedDependencyExtractor:
                     version_props[prop_name] = version
 
             # Resolve nested property references in ext {} (e.g., apiVersion = "$coreVersion")
-            def _resolve_chain(v: str, props: Dict[str, str]) -> str:
+            def _resolve_chain(v: str, props: dict[str, str]) -> str:
                 seen = set()
                 current = v
                 # Follow $var or ${var} chains up to a small bound
@@ -285,7 +284,7 @@ class EnhancedDependencyExtractor:
         else:
             return "compile"
 
-    def _get_maven_namespace(self, root) -> Dict[str, str]:
+    def _get_maven_namespace(self, root) -> dict[str, str]:
         """Get Maven namespace from root element."""
         namespace = {"maven": "http://maven.apache.org/POM/4.0.0"}
         if root.tag.startswith("{"):
@@ -293,7 +292,7 @@ class EnhancedDependencyExtractor:
             namespace = {"maven": ns}
         return namespace
 
-    def _extract_maven_properties(self, root, namespace: Dict[str, str]) -> Dict[str, str]:
+    def _extract_maven_properties(self, root, namespace: dict[str, str]) -> dict[str, str]:
         """Extract Maven properties for version resolution."""
         properties = {}
 
@@ -314,7 +313,7 @@ class EnhancedDependencyExtractor:
 
         return properties
 
-    def _deduplicate_dependencies(self, dependencies: List[DependencyInfo]) -> List[DependencyInfo]:
+    def _deduplicate_dependencies(self, dependencies: list[DependencyInfo]) -> list[DependencyInfo]:
         """Remove duplicate dependencies, keeping the one with highest scope priority."""
         scope_priority = {"compile": 3, "runtime": 2, "test": 1, "dependencyManagement": 0}
 
@@ -337,7 +336,7 @@ class EnhancedDependencyExtractor:
 class PropertyResolver:
     """Resolves Maven/Gradle property references."""
 
-    def resolve_version(self, version: str, properties: Dict[str, str]) -> str:
+    def resolve_version(self, version: str, properties: dict[str, str]) -> str:
         """Resolve version property references."""
         if not version or not version.startswith("${"):
             return version
@@ -351,7 +350,7 @@ class PropertyResolver:
 
 
 # Integration function to replace old dependency extraction
-def extract_enhanced_dependencies_for_neo4j(repo_root: Path) -> Dict[str, str]:
+def extract_enhanced_dependencies_for_neo4j(repo_root: Path) -> dict[str, str]:
     """
     Extract dependencies and return in format compatible with existing Neo4j code.
 

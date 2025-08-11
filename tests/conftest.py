@@ -39,7 +39,7 @@ import inspect
 from typing import Any, Optional  # noqa: F401 (imported for potential future use)
 
 
-def pytest_pyfunc_call(pyfuncitem) -> Optional[bool]:  # type: ignore[override]
+def pytest_pyfunc_call(pyfuncitem) -> bool | None:  # type: ignore[override]
     test_function = pyfuncitem.obj
     if inspect.iscoroutinefunction(test_function):
         loop = asyncio.new_event_loop()

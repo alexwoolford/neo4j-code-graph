@@ -110,7 +110,9 @@ def create_call_graph_projection(gds, graph_name="method_call_graph"):
     start_time = perf_counter()
 
     G, result = gds.graph.project(
-        graph_name, ["Method"], {"CALLS": {"orientation": "NATURAL"}}  # Directed graph
+        graph_name,
+        ["Method"],
+        {"CALLS": {"orientation": "NATURAL"}},  # Directed graph
     )
 
     creation_time = perf_counter() - start_time

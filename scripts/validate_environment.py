@@ -11,7 +11,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -31,8 +30,8 @@ class EnvironmentValidator:
     """Validates the development and runtime environment."""
 
     def __init__(self):
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
         self.checks_passed = 0
         self.checks_total = 0
 

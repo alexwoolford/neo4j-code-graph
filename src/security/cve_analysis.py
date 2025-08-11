@@ -15,7 +15,6 @@ import argparse
 import logging
 import os
 import sys
-from typing import Dict, List, Optional, Set
 
 # Handle both script and module execution contexts
 try:
@@ -53,7 +52,7 @@ class CVEAnalyzer:
         """Load CVE data from a file."""
         import json
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             return json.load(f)
 
     def get_cache_status(self):
@@ -130,8 +129,8 @@ class CVEAnalyzer:
             return dependencies_by_ecosystem, file_languages
 
     def create_universal_component_search_terms(
-        self, dependencies: Dict[str, Set[str]]
-    ) -> Set[str]:
+        self, dependencies: dict[str, set[str]]
+    ) -> set[str]:
         """Create language-agnostic search terms from any dependency structure."""
         search_terms = set()
         specific_vendor_terms = set()  # Track specific vendor terms to avoid generic ones
@@ -195,10 +194,10 @@ class CVEAnalyzer:
 
     def fetch_relevant_cves(
         self,
-        search_terms: Set[str],
-        api_key: Optional[str] = None,
-        max_concurrency: Optional[int] = None,
-    ) -> List[Dict]:
+        search_terms: set[str],
+        api_key: str | None = None,
+        max_concurrency: int | None = None,
+    ) -> list[dict]:
         """Fetch CVEs relevant to the extracted dependencies."""
         logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
 
@@ -210,7 +209,7 @@ class CVEAnalyzer:
             max_concurrency=max_concurrency,
         )
 
-    def create_vulnerability_graph(self, cve_data: List[Dict]) -> int:
+    def create_vulnerability_graph(self, cve_data: list[dict]) -> int:
         """Create CVE and vulnerability nodes in Neo4j."""
         logger.info("📊 Creating vulnerability graph...")
 
@@ -268,7 +267,7 @@ class CVEAnalyzer:
             return "LOW"
         return "NONE"
 
-    def _link_cves_to_dependencies(self, session, cve_data: List[Dict]):
+    def _link_cves_to_dependencies(self, session, cve_data: list[dict]):
         """Link CVEs to external dependencies using precise GAV matching."""
         logger.info("🔗 Linking CVEs to codebase dependencies using precise GAV matching...")
 
@@ -525,7 +524,7 @@ class CVEAnalyzer:
                         logger.warning(f"Failed to create index: {e}")
 
     def analyze_vulnerability_impact(
-        self, max_hops: int = 4, risk_threshold: float = 7.0, max_concurrency: Optional[int] = None
+        self, max_hops: int = 4, risk_threshold: float = 7.0, max_concurrency: int | None = None
     ):
         """Analyze the impact of CVEs on the codebase."""
         logger.info("🎯 Analyzing vulnerability impact...")

@@ -206,7 +206,7 @@ def _extract_gradle_dependencies(gradle_file):
     dependency_versions = {}
 
     try:
-        with open(gradle_file, "r", encoding="utf-8") as f:
+        with open(gradle_file, encoding="utf-8") as f:
             content = f.read()
 
         # Regex patterns capturing groupId, artifactId and version
@@ -520,7 +520,7 @@ def extract_file_data(file_path, repo_root):
 
     try:
         # Read file
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             code = f.read()
     except Exception as e:
         logger.error("Error reading file %s: %s", file_path, e)
