@@ -8,7 +8,7 @@
     "src/data/schema_management.py",
     "src/security/cve_cache_manager.py"
   ],
-  "exclude": ["tests", "build", "dist", "htmlcov", "src/analysis"],
+  "exclude": ["tests", "build", "dist", "htmlcov"],
   "pythonVersion": "3.10",
   "typeCheckingMode": "strict",
   "reportMissingTypeStubs": false,
