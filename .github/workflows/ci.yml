@@ -35,7 +35,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 2
+        fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -77,14 +77,6 @@ jobs:
         echo "Listing workspace to show coverage.xml presence:" && ls -lah
         if [ -f coverage.xml ]; then echo "coverage.xml size:" && wc -c coverage.xml; head -n 5 coverage.xml || true; else echo "coverage.xml missing"; fi
         exit $TEST_EXIT
-    # Removed temporary debug artifact uploads
-
-    - name: Debug commit association
-      if: always()
-      run: |
-        echo "GITHUB_SHA=${GITHUB_SHA}"
-        echo "GITHUB_REF_NAME=${GITHUB_REF_NAME}"
-        echo "GITHUB_RUN_ID=${GITHUB_RUN_ID}"
 
     - name: Upload coverage to Codecov (only on 3.12; OIDC)
       uses: codecov/codecov-action@v5
@@ -100,12 +92,13 @@ jobs:
 
     - name: Upload test results to Codecov (OIDC)
       if: >
-        !cancelled() &&
-        matrix.python-version == '3.12' &&
+        always() && matrix.python-version == '3.12' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       uses: codecov/test-results-action@v1
       with:
+        use_oidc: true
         files: pytest-report.xml
+        fail_ci_if_error: true
 
   security:
     runs-on: ubuntu-latest

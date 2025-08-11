@@ -1,8 +1,7 @@
 codecov:
-  require_ci_to_pass: false
+  branch: main
   notify:
     after_n_builds: 1
-    wait_for_ci: false
 
 coverage:
   status:
