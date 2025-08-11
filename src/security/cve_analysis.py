@@ -81,16 +81,12 @@ class CVEAnalyzer:
 
         with self.driver.session(database=self.database) as session:
             # Get all external dependencies regardless of language
-            query = """
-            MATCH (ed:ExternalDependency)
-            RETURN DISTINCT ed.package AS dependency_path,
-                   ed.language AS language,
-                   ed.ecosystem AS ecosystem,
-                   ed.version AS version
-            ORDER BY dependency_path
-            """
-
-            result = session.run(query)
+            result = session.run(
+                "MATCH (ed:ExternalDependency) "
+                "RETURN DISTINCT ed.package AS dependency_path, ed.language AS language, "
+                "ed.ecosystem AS ecosystem, ed.version AS version "
+                "ORDER BY dependency_path"
+            )
             dependencies_by_ecosystem: dict[str, set[str]] = {}
 
             for record in result:
@@ -114,15 +110,12 @@ class CVEAnalyzer:
                 dependencies_by_ecosystem[key].add(dep_info)
 
             # Also extract from file analysis for languages without explicit dependency tracking
-            query = """
-            MATCH (f:File)
-            WHERE f.path =~ '.*\\.(py|js|ts|go|rs|cpp|c|h|java|cs|php|rb)$'
-            RETURN DISTINCT f.path AS file_path,
-                   f.language AS language
-            LIMIT 1000
-            """
-
-            result = session.run(query)
+            result = session.run(
+                "MATCH (f:File) "
+                "WHERE f.path =~ '.*\\.(py|js|ts|go|rs|cpp|c|h|java|cs|php|rb)$' "
+                "RETURN DISTINCT f.path AS file_path, f.language AS language "
+                "LIMIT 1000"
+            )
             file_languages: set[str] = set()
             for record in result:
                 rec = dict(record)

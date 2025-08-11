@@ -3,7 +3,7 @@
   "include": ["src"],
   "exclude": ["tests", "build", "dist", "htmlcov"],
   "pythonVersion": "3.10",
-  "typeCheckingMode": "basic",
+  "typeCheckingMode": "strict",
   "reportMissingTypeStubs": false,
   "reportUnknownMemberType": "warning",
   "reportUnknownArgumentType": "warning",
