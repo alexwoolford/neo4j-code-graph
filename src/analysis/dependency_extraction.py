@@ -193,16 +193,39 @@ class EnhancedDependencyExtractor:
                 if "version" in prop_name.lower():
                     version_props[prop_name] = version
 
+            # Resolve nested property references in ext {} (e.g., apiVersion = "$coreVersion")
+            def _resolve_chain(v: str, props: Dict[str, str]) -> str:
+                seen = set()
+                current = v
+                # Follow $var or ${var} chains up to a small bound
+                for _ in range(10):
+                    if not current.startswith("$"):
+                        return current
+                    name = current[1:]
+                    if name.startswith("{") and name.endswith("}"):
+                        name = name[1:-1]
+                    if name in seen:
+                        return current
+                    seen.add(name)
+                    next_val = props.get(name)
+                    if not next_val:
+                        return current
+                    current = next_val
+                return current
+
+            for k, v in list(version_props.items()):
+                version_props[k] = _resolve_chain(v, version_props)
+
             # Process standard format dependencies
             for match in re.finditer(standard_pattern, content):
                 group_id, artifact_id, version = match.groups()
 
-                # Resolve version variables like $var or ${var}
+                # Resolve version variables like $var or ${var} including nested chains
                 if version.startswith("$"):
                     var_name = version[1:]
                     if var_name.startswith("{") and var_name.endswith("}"):
                         var_name = var_name[1:-1]
-                    version = version_props.get(var_name, version)
+                    version = _resolve_chain(version_props.get(var_name, version), version_props)
 
                 if not version.startswith("$"):
                     gav = GAVCoordinate(group_id, artifact_id, version)
