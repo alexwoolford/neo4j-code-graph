@@ -85,6 +85,7 @@ jobs:
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
         flags: py${{ matrix.python-version }}
         name: codecov-py${{ matrix.python-version }}
         slug: alexwoolford/neo4j-code-graph
