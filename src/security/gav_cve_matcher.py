@@ -355,14 +355,3 @@ def run_validation_tests():
             )
         else:
             logger.info(f"⚪ NO MATCH: {dep.full_coordinate}")
-
-
-if __name__ == "__main__":
-    # Handle both script and module execution
-    try:
-        from utils.common import setup_logging
-    except ImportError:
-        from ..utils.common import setup_logging
-
-    setup_logging("INFO")
-    run_validation_tests()

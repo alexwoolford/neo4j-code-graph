@@ -372,27 +372,3 @@ def extract_enhanced_dependencies_for_neo4j(repo_root: Path) -> Dict[str, str]:
 
     logger.info(f"✅ Enhanced extraction found {len(dependencies)} dependencies")
     return dependency_versions
-
-
-if __name__ == "__main__":
-    # Test the enhanced extraction
-    import sys
-
-    # Handle both script and module execution
-    try:
-        from utils.common import setup_logging
-    except ImportError:
-        from ..utils.common import setup_logging
-
-    setup_logging("INFO")
-
-    if len(sys.argv) > 1:
-        repo_path = Path(sys.argv[1])
-        extractor = EnhancedDependencyExtractor()
-        deps = extractor.extract_all_dependencies(repo_path)
-
-        print(f"\nFound {len(deps)} dependencies:")
-        for dep in deps:
-            print(f"  {dep.gav.full_coordinate} (scope: {dep.scope})")
-    else:
-        print("Usage: python dependency_extraction.py <repo_path>")
