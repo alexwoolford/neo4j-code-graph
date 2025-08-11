@@ -70,9 +70,14 @@ jobs:
         NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
       run: |
         TEST_EXIT=0
-        python -m pip install coverage || true
-        pytest --cov=src --cov-report=xml:coverage.xml -k "not test_pytorch_api_compatibility" --disable-warnings --junitxml=pytest-report.xml | tee pytest-output.txt || TEST_EXIT=$?
-        python -m coverage report -m || true
+        python -m pip install --upgrade pip
+        python -m pip install pytest-cov
+        pytest -m "not integration" \
+               --cov=src --cov-report=xml:coverage.xml \
+               --junitxml=junit.xml -o junit_family=legacy \
+               -k "not test_pytorch_api_compatibility" --disable-warnings \
+               | tee pytest-output.txt || TEST_EXIT=$?
+        echo "JUnit testcases: $(grep -c '<testcase' junit.xml || true)"
         echo "Listing workspace to show coverage.xml presence:" && ls -lah
         if [ -f coverage.xml ]; then echo "coverage.xml size:" && wc -c coverage.xml; head -n 5 coverage.xml || true; else echo "coverage.xml missing"; fi
         exit $TEST_EXIT
@@ -85,6 +90,7 @@ jobs:
       with:
         use_oidc: true
         files: ./coverage.xml
+        disable_search: true
         flags: py${{ matrix.python-version }}
         fail_ci_if_error: true
         verbose: true
@@ -96,8 +102,17 @@ jobs:
       uses: codecov/test-results-action@v1
       with:
         use_oidc: true
-        files: pytest-report.xml
+        files: ./junit.xml
+        disable_search: true
+        os: linux
+        flags: py${{ matrix.python-version }}
         fail_ci_if_error: true
+
+    - name: Publish test summary in GitHub
+      if: always() && matrix.python-version == '3.12'
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      with:
+        files: junit.xml
 
   security:
     runs-on: ubuntu-latest
