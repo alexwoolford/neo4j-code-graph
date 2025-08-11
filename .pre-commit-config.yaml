@@ -53,3 +53,5 @@ repos:
     hooks:
       - id: interrogate
         args: ["-c", "pyproject.toml"]
+
+  # Note: Pyright runs in CI as an advisory job; not in pre-commit to avoid false failures
