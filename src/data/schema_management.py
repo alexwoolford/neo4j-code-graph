@@ -7,11 +7,12 @@ based on their natural keys. This ensures data integrity and performance.
 """
 
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def create_schema_constraints_and_indexes(session):
+def create_schema_constraints_and_indexes(session: Any) -> None:
     """
     Create all necessary unique constraints and indexes for natural keys.
 
@@ -27,7 +28,7 @@ def create_schema_constraints_and_indexes(session):
     # UNIQUE CONSTRAINTS (enforce natural key uniqueness)
     # =============================================================================
 
-    constraints = [
+    constraints: list[tuple[str, str, str, str]] = [
         # Directory: unique by path
         (
             "directory_path",
@@ -152,7 +153,7 @@ def create_schema_constraints_and_indexes(session):
     # PERFORMANCE INDEXES (for commonly queried properties)
     # =============================================================================
 
-    indexes = [
+    indexes: list[tuple[str, str, str]] = [
         # Performance indexes for code analysis
         (
             "class_estimated_lines",
@@ -250,7 +251,7 @@ def create_schema_constraints_and_indexes(session):
     logger.info("Schema setup completed")
 
 
-def verify_schema_constraints(session):
+def verify_schema_constraints(session: Any) -> list[dict[str, Any]]:
     """
     Verify that all expected constraints exist in the database.
     Returns a report of existing constraints.
@@ -260,15 +261,16 @@ def verify_schema_constraints(session):
 
     # Get all constraints
     result = session.run("SHOW CONSTRAINTS")
-    existing_constraints = []
+    existing_constraints: list[dict[str, Any]] = []
 
     for record in result:
-        constraint_info = {
-            "name": record.get("name", "Unknown"),
-            "type": record.get("type", "Unknown"),
-            "entityType": record.get("entityType", "Unknown"),
-            "labelsOrTypes": record.get("labelsOrTypes", []),
-            "properties": record.get("properties", []),
+        rec: dict[str, Any] = dict(record)
+        constraint_info: dict[str, Any] = {
+            "name": rec.get("name", "Unknown"),
+            "type": rec.get("type", "Unknown"),
+            "entityType": rec.get("entityType", "Unknown"),
+            "labelsOrTypes": rec.get("labelsOrTypes", []),
+            "properties": rec.get("properties", []),
         }
         existing_constraints.append(constraint_info)
 
@@ -281,7 +283,7 @@ def verify_schema_constraints(session):
     return existing_constraints
 
 
-def verify_schema_indexes(session):
+def verify_schema_indexes(session: Any) -> list[dict[str, Any]]:
     """
     Verify that all expected indexes exist in the database.
     Returns a report of existing indexes.
@@ -291,16 +293,17 @@ def verify_schema_indexes(session):
 
     # Get all indexes
     result = session.run("SHOW INDEXES")
-    existing_indexes = []
+    existing_indexes: list[dict[str, Any]] = []
 
     for record in result:
-        index_info = {
-            "name": record.get("name", "Unknown"),
-            "type": record.get("type", "Unknown"),
-            "entityType": record.get("entityType", "Unknown"),
-            "labelsOrTypes": record.get("labelsOrTypes", []),
-            "properties": record.get("properties", []),
-            "state": record.get("state", "Unknown"),
+        rec: dict[str, Any] = dict(record)
+        index_info: dict[str, Any] = {
+            "name": rec.get("name", "Unknown"),
+            "type": rec.get("type", "Unknown"),
+            "entityType": rec.get("entityType", "Unknown"),
+            "labelsOrTypes": rec.get("labelsOrTypes", []),
+            "properties": rec.get("properties", []),
+            "state": rec.get("state", "Unknown"),
         }
         existing_indexes.append(index_info)
 
@@ -313,15 +316,15 @@ def verify_schema_indexes(session):
     return existing_indexes
 
 
-def validate_schema_consistency(session):
+def validate_schema_consistency(session: Any) -> dict[str, list[str]]:
     """
     Validate schema consistency and check for potential issues.
     Returns a report of findings and recommendations.
     """
     logger.info("🔍 Validating schema consistency...")
 
-    issues = []
-    recommendations = []
+    issues: list[str] = []
+    recommendations: list[str] = []
 
     # Check for reserved word usage in property names
     # Note: 'class' is a reserved word that should be avoided in property names
@@ -329,7 +332,8 @@ def validate_schema_consistency(session):
     # Check Method.class property usage
     try:
         result = session.run("MATCH (m:Method) WHERE m.class IS NOT NULL RETURN count(m) as count")
-        count = result.single()["count"]
+        single = result.single()
+        count = int(single["count"]) if single and "count" in single else 0
         if count > 0:
             issues.append(f"⚠️  Found {count} Method nodes using reserved 'class' property")
             recommendations.append(
@@ -342,7 +346,8 @@ def validate_schema_consistency(session):
     try:
         result = session.run("SHOW INDEXES")
         for record in result:
-            index_name = record.get("name", "")
+            rec = dict(record)
+            index_name = rec.get("name", "")
             if "is_abstract" in index_name or "is_private" in index_name:
                 recommendations.append(f"Consider removing unused boolean index: {index_name}")
     except Exception as e:
@@ -378,7 +383,7 @@ def validate_schema_consistency(session):
     return {"issues": issues, "recommendations": recommendations}
 
 
-def setup_complete_schema(session):
+def setup_complete_schema(session: Any) -> dict[str, list[dict[str, Any]]]:
     """
     Complete schema setup: constraints + indexes + verification.
     This is the main function to call for schema management.
