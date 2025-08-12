@@ -46,14 +46,15 @@ def test_knn_and_louvain_live():
         ).consume()
         session.run("CALL db.awaitIndex('method_embeddings')").consume()
 
-        # Project in-memory graph via Cypher using GDS
+        # Project in-memory graph with node property 'embedding' using native projection
         session.run("CALL gds.graph.drop('simGraph', false)").consume()
         session.run(
             """
-            CALL gds.graph.project.cypher(
+            CALL gds.graph.project(
               'simGraph',
-              'MATCH (m:Method) RETURN id(m) AS id, m.embedding AS embedding',
-              'RETURN null AS source, null AS target'
+              ['Method'],
+              {},
+              { nodeProperties: ['embedding'] }
             )
             """
         ).consume()
@@ -62,7 +63,7 @@ def test_knn_and_louvain_live():
         session.run(
             """
             CALL gds.knn.write('simGraph', {
-              nodeProperties:'embedding', topK:1, similarityCutoff:0.0,
+              nodeProperties:['embedding'], topK:1, similarityCutoff:0.0,
               writeRelationshipType:'SIMILAR', writeProperty:'score'
             })
             """
