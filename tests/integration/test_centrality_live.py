@@ -30,7 +30,8 @@ def test_pagerank_via_cypher_live():
             "CREATE (a)-[:CALLS]->(b), (a)-[:CALLS]->(c), (b)-[:CALLS]->(c)"
         ).consume()
 
-        # Project and run PageRank using Cypher GDS
+        # Ensure GDS is present then project and run PageRank using Cypher GDS
+        session.run("CALL gds.version()").consume()
         session.run("CALL gds.graph.drop('live_pr_graph', false)").consume()
         session.run(
             "CALL gds.graph.project('live_pr_graph', ['Method'], {CALLS: {orientation: 'NATURAL'}})"

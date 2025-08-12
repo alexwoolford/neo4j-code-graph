@@ -55,7 +55,7 @@ export NEO4J_DATABASE="neo4j"
 echo "Waiting for GDS and APOC procedures to be available..."
 plugins_ready=0
 for i in {1..240}; do
-  if docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL gds.version() YIELD version RETURN version" >/dev/null 2>&1 \
+  if docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL gds.version()" >/dev/null 2>&1 \
      && docker exec "$NAME" cypher-shell -u neo4j -p testtest "RETURN apoc.version() AS v" >/dev/null 2>&1; then
     echo "GDS and APOC are available."
     plugins_ready=1
@@ -63,7 +63,7 @@ for i in {1..240}; do
   fi
   if (( i % 30 == 0 )); then
     echo "Still waiting for plugins... ($i)"
-    docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL dbms.procedures() YIELD name WHERE name STARTS WITH 'gds.' OR name STARTS WITH 'apoc.' RETURN count(*) AS c" || true
+    docker exec "$NAME" cypher-shell -u neo4j -p testtest "SHOW PROCEDURES YIELD name WHERE name STARTS WITH 'gds.' OR name STARTS WITH 'apoc.' RETURN count(*) AS c" || true
   fi
   sleep 2
 done
@@ -101,7 +101,7 @@ if [ "$status" -ne 0 ]; then
   echo "Tests failed with status $status. Dumping recent container logs and procedure availability..."
   docker logs --tail=300 "$NAME" || true
   docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL dbms.components() YIELD name, versions RETURN name, versions" || true
-  docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL gds.version() YIELD version RETURN version" || true
+  docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL gds.version()" || true
   docker exec "$NAME" cypher-shell -u neo4j -p testtest "RETURN apoc.version() AS v" || true
   exit "$status"
 fi
