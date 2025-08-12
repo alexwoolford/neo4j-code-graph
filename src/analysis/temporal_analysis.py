@@ -56,7 +56,7 @@ def run_coupling(
     min_support: int = 5,
     confidence_threshold: float = 0.0,
     write: bool = False,
-):
+) -> None:
     logger.info(
         "Analyzing file change coupling (min_support=%d, confidence>=%.2f, write=%s)",
         min_support,
@@ -134,7 +134,7 @@ def run_hotspots(
     min_changes: int = 3,
     top_n: int = 15,
     write_back: bool = False,
-):
+) -> None:
     logger.info(
         "Analyzing hotspots (days=%d, min_changes=%d, top_n=%d, write=%s)",
         days,
@@ -194,7 +194,7 @@ def run_hotspots(
         )
 
 
-def main():
+def main() -> None:
     args = parse_args()
     setup_logging(args.log_level, args.log_file)
     with create_neo4j_driver(args.uri, args.username, args.password) as driver:
