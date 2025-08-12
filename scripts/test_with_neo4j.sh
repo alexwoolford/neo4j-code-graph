@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Config
 NAME="neo4j-test"
-IMAGE="neo4j:5.18"
+IMAGE="neo4j:5.26"
 AUTH="neo4j/test"
 URI="bolt://localhost:7687"
 
