@@ -46,7 +46,7 @@ EMBEDDING_DIM = EMBEDDING_DIMENSION
 logger = logging.getLogger(__name__)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description=(
@@ -113,7 +113,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_index(gds):
+def create_index(gds: GraphDataScience) -> None:
     logger.info("Ensuring vector index exists")
     gds.run_cypher(
         """
@@ -129,7 +129,7 @@ def create_index(gds):
     gds.run_cypher("CALL db.awaitIndex('method_embeddings')")
 
 
-def run_knn(gds, top_k=5, cutoff=0.8):
+def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     """Run the KNN algorithm and create SIMILAR relationships."""
     base_config = {
         "nodeProperties": "embedding",
@@ -183,7 +183,9 @@ def run_knn(gds, top_k=5, cutoff=0.8):
     graph.drop()
 
 
-def run_louvain(gds, threshold=0.8, community_property="similarityCommunity"):
+def run_louvain(
+    gds: GraphDataScience, threshold: float = 0.8, community_property: str = "similarityCommunity"
+) -> None:
     """Run Louvain on SIMILAR relationships and write communities."""
     graph_name = "similarityGraph"
 
@@ -227,7 +229,7 @@ def run_louvain(gds, threshold=0.8, community_property="similarityCommunity"):
     graph.drop()
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     # Use consistent logging helper - handle both script and module execution

@@ -6,9 +6,17 @@ from __future__ import annotations
 
 import argparse
 import logging
-from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import Any
+
+# Module-scope type aliases for Pyright
+Embedding = list[float]
+from collections.abc import Callable as _Callable
+from collections.abc import Sequence as _Sequence
+
+ComputeFn = _Callable[[_Sequence[str], Any, Any, Any, int], list[Embedding]]
+ExtractFileDataFn = _Callable[[Path, Path], dict[str, Any] | None]
+ExtractDepsFn = _Callable[[Path], dict[str, str]]
 
 from ..analysis.code_analysis import (
     compute_embeddings_bulk,
@@ -64,7 +72,6 @@ def process_remaining_files(
     files_data: list[dict[str, Any]] = []
     for java_file in files_to_process:
         logger.info("Extracting data from %s", java_file)
-        ExtractFileDataFn: TypeAlias = Callable[[Path, Path], dict[str, Any] | None]
         extract_file: ExtractFileDataFn = extract_file_data
         file_data = extract_file(java_file, repo_root)
         if file_data:
@@ -87,8 +94,6 @@ def process_remaining_files(
         len(method_snippets),
     )
 
-    Embedding: TypeAlias = list[float]
-    ComputeFn: TypeAlias = Callable[[Sequence[str], Any, Any, Any, int], list[Embedding]]
     compute_embeddings: ComputeFn = compute_embeddings_bulk
     file_embeddings: list[Embedding] = compute_embeddings(
         file_snippets, tokenizer, model, device, batch_size
@@ -185,7 +190,6 @@ def main() -> None:
             # Files needing processing
             files_to_process = get_files_needing_embeddings(session, repo_root)
             if files_to_process:
-                ExtractDepsFn: TypeAlias = Callable[[Path], dict[str, str]]
                 extract_deps: ExtractDepsFn = extract_dependency_versions_from_files
                 dependency_versions: dict[str, str] = extract_deps(repo_root)
                 process_remaining_files(session, files_to_process, repo_root, dependency_versions)
