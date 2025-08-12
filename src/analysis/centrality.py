@@ -14,6 +14,7 @@ Based on Neo4j Graph Data Science algorithms to highlight structurally important
 import argparse
 import logging
 from time import perf_counter
+from typing import Any
 
 from graphdatascience import GraphDataScience
 
@@ -76,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def check_call_graph_exists(gds):
+def check_call_graph_exists(gds: GraphDataScience) -> tuple[int, int]:
     """Check if we have method calls to analyze."""
     query = """
     MATCH ()-[r:CALLS]->()
@@ -95,7 +96,9 @@ def check_call_graph_exists(gds):
     return call_count, method_count
 
 
-def create_call_graph_projection(gds, graph_name="method_call_graph"):
+def create_call_graph_projection(
+    gds: GraphDataScience, graph_name: str = "method_call_graph"
+) -> Any:
     """Create or recreate the call graph projection for analysis."""
 
     # Drop existing projection if it exists
@@ -124,7 +127,9 @@ def create_call_graph_projection(gds, graph_name="method_call_graph"):
     return G
 
 
-def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
+def run_pagerank_analysis(
+    gds: GraphDataScience, graph: Any, top_n: int = 20, write_back: bool = False
+):
     """Run PageRank to find methods central in the call ecosystem."""
     logger.info("🔍 Running PageRank analysis...")
     start_time = perf_counter()
@@ -189,7 +194,9 @@ def run_pagerank_analysis(gds, graph, top_n=20, write_back=False):
     return top_results
 
 
-def run_betweenness_analysis(gds, graph, top_n=20, write_back=False):
+def run_betweenness_analysis(
+    gds: GraphDataScience, graph: Any, top_n: int = 20, write_back: bool = False
+):
     """Run Betweenness Centrality to find critical connectors and bottlenecks."""
     logger.info("🔍 Running Betweenness Centrality analysis...")
     start_time = perf_counter()
@@ -241,7 +248,9 @@ def run_betweenness_analysis(gds, graph, top_n=20, write_back=False):
     return top_results
 
 
-def run_degree_analysis(gds, graph, top_n=20, write_back=False):
+def run_degree_analysis(
+    gds: GraphDataScience, graph: Any, top_n: int = 20, write_back: bool = False
+):
     """Run Degree Centrality to find hub methods and authority methods."""
     logger.info("🔍 Running Degree Centrality analysis...")
     start_time = perf_counter()
@@ -292,7 +301,7 @@ def run_degree_analysis(gds, graph, top_n=20, write_back=False):
     return result
 
 
-def run_hits_analysis(gds, graph, top_n=20, write_back=False):
+def run_hits_analysis(gds: GraphDataScience, graph: Any, top_n: int = 20, write_back: bool = False):
     """Run HITS algorithm to distinguish hubs (orchestrators) vs authorities (utilities)."""
     logger.info("🔍 Running HITS analysis...")
     start_time = perf_counter()
@@ -408,7 +417,7 @@ def summarize_analysis(
     print("  • Protect critical connector methods with extra testing")
 
 
-def main():
+def main() -> None:
     """Main analysis function."""
     args = parse_args()
 

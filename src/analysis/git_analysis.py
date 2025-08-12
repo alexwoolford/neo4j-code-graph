@@ -27,7 +27,7 @@ NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 logger = logging.getLogger(__name__)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Load git history into Neo4j")
 
@@ -57,7 +57,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def extract_git_history(repo_path, branch, max_commits=None):
+def extract_git_history(
+    repo_path: str | Path, branch: str, max_commits: int | None = None
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     """Extract git history using git log commands."""
     logger.info("🚀 Extracting git history...")
 
@@ -87,10 +89,14 @@ def extract_git_history(repo_path, branch, max_commits=None):
         bufsize=1,
     )
 
-    commits = []
-    file_changes = []
-    current_commit = None
-    commits_processed = 0
+    commits: list[dict[str, str]] = []
+    file_changes: list[dict[str, str]] = []
+    current_commit: dict[str, str] | None = None
+    commits_processed: int = 0
+
+    # Ensure pipes are present for type checkers
+    assert process.stdout is not None
+    assert process.stderr is not None
 
     # Process stdout line by line as it arrives
     for line in process.stdout:
@@ -136,7 +142,9 @@ def extract_git_history(repo_path, branch, max_commits=None):
     return commits, file_changes
 
 
-def create_dataframes(commits, file_changes):
+def create_dataframes(
+    commits: list[dict[str, str]], file_changes: list[dict[str, str]]
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Convert extracted data to pandas DataFrames for efficient processing."""
     logger.info("Creating pandas DataFrames...")
 
@@ -164,19 +172,21 @@ def create_dataframes(commits, file_changes):
 
 
 def bulk_load_to_neo4j(
-    commits_df,
-    developers_df,
-    files_df,
-    file_changes_df,
+    commits_df: pd.DataFrame,
+    developers_df: pd.DataFrame,
+    files_df: pd.DataFrame,
+    file_changes_df: pd.DataFrame,
     driver,
-    database,
-    skip_file_changes=False,
-    file_changes_only=False,
-):
+    database: str,
+    skip_file_changes: bool = False,
+    file_changes_only: bool = False,
+) -> None:
     """Load data to Neo4j using efficient bulk operations with resilience."""
     logger.info("💾 Loading data to Neo4j using bulk operations...")
 
-    def execute_with_retry(session, query, params, description, max_retries=3):
+    def execute_with_retry(
+        session, query: str, params: dict, description: str, max_retries: int = 3
+    ):
         """Execute query with retry logic and refresh the session on failure."""
         for attempt in range(max_retries):
             try:
@@ -347,7 +357,13 @@ def bulk_load_to_neo4j(
         session.close()
 
 
-def export_to_csv(commits_df, developers_df, files_df, file_changes_df, output_dir):
+def export_to_csv(
+    commits_df: pd.DataFrame,
+    developers_df: pd.DataFrame,
+    files_df: pd.DataFrame,
+    file_changes_df: pd.DataFrame,
+    output_dir: str | Path,
+) -> None:
     """Export DataFrames to CSV files."""
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
@@ -363,17 +379,17 @@ def export_to_csv(commits_df, developers_df, files_df, file_changes_df, output_d
 
 
 def load_history(
-    repo_url,
-    branch,
-    uri,
-    username,
-    password,
-    database=None,
-    csv_export=None,
-    max_commits=None,
-    skip_file_changes=False,
-    file_changes_only=False,
-):
+    repo_url: str,
+    branch: str,
+    uri: str,
+    username: str,
+    password: str,
+    database: str | None = None,
+    csv_export: str | Path | None = None,
+    max_commits: int | None = None,
+    skip_file_changes: bool = False,
+    file_changes_only: bool = False,
+) -> None:
     """Load git history using optimized approach."""
     # Check if repo_url is a local path or a URL
     repo_path = Path(repo_url)
@@ -460,7 +476,7 @@ def load_history(
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     # Setup logging using consistent helper

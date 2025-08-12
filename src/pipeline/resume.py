@@ -24,6 +24,11 @@ from ..analysis.code_analysis import (
     extract_file_data,
     load_model_and_tokenizer,
 )
+
+try:
+    from ..analysis.types import FileData
+except Exception:
+    FileData = dict  # type: ignore[misc,assignment]
 from ..utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
 
 logger = logging.getLogger(__name__)
@@ -69,7 +74,7 @@ def process_remaining_files(
     tokenizer, model, device, batch_size = load_model_and_tokenizer()
 
     # Extract data from remaining files
-    files_data: list[dict[str, Any]] = []
+    files_data: list[FileData] = []
     for java_file in files_to_process:
         logger.info("Extracting data from %s", java_file)
         extract_file: ExtractFileDataFn = extract_file_data
@@ -82,7 +87,7 @@ def process_remaining_files(
         return
 
     # Prepare embeddings
-    file_snippets: list[str] = [str(fd.get("content", "")) for fd in files_data]
+    file_snippets: list[str] = [file_data["code"] for file_data in files_data]
     method_snippets: list[str] = []
     for file_data in files_data:
         for method in file_data["methods"]:
@@ -118,11 +123,11 @@ def process_remaining_files(
             path=file_data["path"],
             embedding=file_embeddings[i],
             embedding_type="sentence-transformers/all-MiniLM-L6-v2",
-            total_lines=file_data.get("total_lines", 0),
-            code_lines=file_data.get("code_lines", 0),
-            method_count=file_data.get("method_count", 0),
-            class_count=file_data.get("class_count", 0),
-            interface_count=file_data.get("interface_count", 0),
+            total_lines=int(file_data["total_lines"]),
+            code_lines=int(file_data["code_lines"]),
+            method_count=int(file_data["method_count"]),
+            class_count=int(file_data["class_count"]),
+            interface_count=int(file_data["interface_count"]),
         )
 
     # Update methods with embeddings
