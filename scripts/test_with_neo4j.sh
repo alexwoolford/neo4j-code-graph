@@ -23,11 +23,12 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Waiting for Bolt to be available at $URI..."
-for i in {1..60}; do
-  if echo > /dev/tcp/localhost/7687 2>/dev/null; then
+for i in {1..90}; do
+  if docker exec "$NAME" cypher-shell -u neo4j -p test "RETURN 1" >/dev/null 2>&1; then
+    echo "Neo4j is ready."
     break
   fi
-  sleep 1
+  sleep 2
 done
 
 export NEO4J_URI="$URI"
