@@ -7,9 +7,11 @@ import re
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import perf_counter
+from typing import Any
 
 import javalang
 from tqdm import tqdm
@@ -90,7 +92,7 @@ except Exception:
         )
 
 
-def extract_dependency_versions_from_files(repo_root):
+def extract_dependency_versions_from_files(repo_root: Path) -> dict[str, str]:
     """Extract dependency versions from pom.xml, build.gradle, and other dependency files.
 
     Scans the repository for dependency management files (Maven, Gradle, SBT) and extracts
@@ -108,7 +110,7 @@ def extract_dependency_versions_from_files(repo_root):
         {'org.apache.commons:commons-lang3': '3.12.0', 'junit:junit': '4.13.2'}
     """
     logger.info("🔍 Scanning for dependency management files...")
-    dependency_versions = {}
+    dependency_versions: dict[str, str] = {}
 
     # Find Maven pom.xml files
     for pom_file in repo_root.rglob("pom.xml"):
@@ -132,9 +134,9 @@ def extract_dependency_versions_from_files(repo_root):
     return dependency_versions
 
 
-def _extract_maven_dependencies(pom_file):
+def _extract_maven_dependencies(pom_file: Path) -> dict[str, str]:
     """Extract dependency versions from Maven pom.xml file."""
-    dependency_versions = {}
+    dependency_versions: dict[str, str] = {}
 
     try:
         tree = ET.parse(pom_file)
@@ -201,9 +203,9 @@ def _extract_maven_dependencies(pom_file):
     return dependency_versions
 
 
-def _extract_gradle_dependencies(gradle_file):
+def _extract_gradle_dependencies(gradle_file: Path) -> dict[str, str]:
     """Extract dependency versions from Gradle build files."""
-    dependency_versions = {}
+    dependency_versions: dict[str, str] = {}
 
     try:
         with open(gradle_file, encoding="utf-8") as f:
@@ -260,7 +262,7 @@ def _extract_gradle_dependencies(gradle_file):
     return dependency_versions
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Java code structure and embeddings loader")
     add_common_args(parser)
@@ -304,7 +306,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_device():
+def get_device() -> Any:
     """Get the appropriate device for PyTorch computations."""
     import torch
 
@@ -316,7 +318,7 @@ def get_device():
         return torch.device("cpu")
 
 
-def load_model_and_tokenizer():
+def load_model_and_tokenizer() -> tuple[Any, Any, Any, int]:
     """Load the GraphCodeBERT model and tokenizer for embedding computation."""
     from transformers import AutoModel, AutoTokenizer
 
@@ -343,7 +345,7 @@ def load_model_and_tokenizer():
     return tokenizer, model, device, batch_size
 
 
-def get_optimal_batch_size(device):
+def get_optimal_batch_size(device: Any) -> int:
     """Determine optimal batch size based on device and available memory."""
     import torch
 
@@ -388,7 +390,9 @@ def build_method_signature(
     return f"{pkg}{method_name}({params_str}):{ret}"
 
 
-def get_database_batch_size(has_embeddings=False, estimated_size_mb=None):
+def get_database_batch_size(
+    has_embeddings: bool = False, estimated_size_mb: int | None = None
+) -> int:
     """
     Determine optimal batch size for database operations.
 
@@ -409,7 +413,13 @@ def get_database_batch_size(has_embeddings=False, estimated_size_mb=None):
         return DB_BATCH_SIMPLE
 
 
-def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
+def compute_embeddings_bulk(
+    snippets: Sequence[str],
+    tokenizer: Any,
+    model: Any,
+    device: Any,
+    batch_size: int,
+) -> list[list[float]]:
     """Compute embeddings for all snippets using batching with memory management."""
     import torch
 
@@ -514,7 +524,7 @@ def compute_embeddings_bulk(snippets, tokenizer, model, device, batch_size):
     return all_embeddings
 
 
-def extract_file_data(file_path, repo_root):
+def extract_file_data(file_path: Path, repo_root: Path):
     """Extract all data from a single Java file including classes, interfaces, and inheritance."""
     rel_path = str(file_path.relative_to(repo_root))
 

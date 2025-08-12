@@ -8,7 +8,7 @@ import argparse
 import logging
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypeAlias
 
 from ..analysis.code_analysis import (
     compute_embeddings_bulk,
@@ -59,17 +59,13 @@ def process_remaining_files(
 
     # Load model for embeddings
     tokenizer, model, device, batch_size = load_model_and_tokenizer()
-    tokenizer = cast(Any, tokenizer)
-    model = cast(Any, model)
-    device = cast(Any, device)
-    batch_size = cast(int, batch_size)
 
     # Extract data from remaining files
     files_data: list[dict[str, Any]] = []
     for java_file in files_to_process:
         logger.info("Extracting data from %s", java_file)
-        ExtractFileDataFn = Callable[[Path, Path], dict[str, Any] | None]
-        extract_file = cast(ExtractFileDataFn, extract_file_data)
+        ExtractFileDataFn: TypeAlias = Callable[[Path, Path], dict[str, Any] | None]
+        extract_file: ExtractFileDataFn = extract_file_data
         file_data = extract_file(java_file, repo_root)
         if file_data:
             files_data.append(file_data)
@@ -91,9 +87,9 @@ def process_remaining_files(
         len(method_snippets),
     )
 
-    Embedding = list[float]
-    ComputeFn = Callable[[Sequence[str], Any, Any, Any, int], list[Embedding]]
-    compute_embeddings = cast(ComputeFn, compute_embeddings_bulk)
+    Embedding: TypeAlias = list[float]
+    ComputeFn: TypeAlias = Callable[[Sequence[str], Any, Any, Any, int], list[Embedding]]
+    compute_embeddings: ComputeFn = compute_embeddings_bulk
     file_embeddings: list[Embedding] = compute_embeddings(
         file_snippets, tokenizer, model, device, batch_size
     )
@@ -189,8 +185,8 @@ def main() -> None:
             # Files needing processing
             files_to_process = get_files_needing_embeddings(session, repo_root)
             if files_to_process:
-                ExtractDepsFn = Callable[[Path], dict[str, str]]
-                extract_deps = cast(ExtractDepsFn, extract_dependency_versions_from_files)
+                ExtractDepsFn: TypeAlias = Callable[[Path], dict[str, str]]
+                extract_deps: ExtractDepsFn = extract_dependency_versions_from_files
                 dependency_versions: dict[str, str] = extract_deps(repo_root)
                 process_remaining_files(session, files_to_process, repo_root, dependency_versions)
 
