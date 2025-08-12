@@ -4,7 +4,7 @@ set -x
 
 # Config
 NAME="neo4j-test"
-IMAGE="neo4j:5.26"
+IMAGE="neo4j:5.26-enterprise"
 # Use 8+ char password to satisfy Neo4j policy
 AUTH="neo4j/testtest"
 URI="bolt://127.0.0.1:7687"
@@ -19,6 +19,9 @@ docker run -d --rm \
   -e NEO4J_ACCEPT_LICENSE_AGREEMENT='yes' \
   -e NEO4J_dbms_security_procedures_unrestricted='apoc.*,gds.*' \
   -e NEO4J_dbms_security_procedures_allowlist='apoc.*,gds.*' \
+  -e NEO4J_dbms_memory_heap_initial__size=512m \
+  -e NEO4J_dbms_memory_heap_max__size=1g \
+  -e NEO4J_dbms_memory_pagecache_size=256m \
   "$IMAGE" >/dev/null
 
 cleanup() {
