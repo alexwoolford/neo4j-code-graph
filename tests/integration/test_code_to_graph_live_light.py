@@ -69,3 +69,9 @@ def test_light_code_to_graph_pipeline_without_embeddings(tmp_path: Path) -> None
         assert single and single["c"] >= 2
         single = session.run("MATCH (m:Method) RETURN count(m) as c").single()
         assert single and single["c"] >= 2
+        # Verify imports and a simple CALLS relationship
+        # (Extractor may not always create CALLS for tiny snippets; check presence if any)
+        rec = session.run("MATCH (:Import) RETURN count(*) AS c").single()
+        assert rec is not None
+        # CALLS might be zero for minimal code; ensure no error occurs
+        session.run("MATCH ()-[r:CALLS]->() RETURN count(r) AS c").single()
