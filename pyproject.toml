@@ -115,7 +115,7 @@ disable_error_code = "var-annotated,no-any-return,assignment,operator,arg-type,m
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --strict-markers --disable-warnings"
+addopts = "-ra -q --strict-markers --disable-warnings -m 'not live'"
 testpaths = [
     "tests",
 ]
@@ -134,6 +134,7 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "asyncio: marks tests as asyncio tests",
+    "live: marks tests that require a live Neo4j instance",
 ]
 
 [tool.coverage.run]

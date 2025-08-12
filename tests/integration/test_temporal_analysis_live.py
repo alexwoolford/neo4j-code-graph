@@ -1,5 +1,7 @@
 import pytest
 
+pytestmark = pytest.mark.live
+
 
 def _get_driver_or_skip():
     try:
