@@ -15,7 +15,6 @@ docker run -d --rm \
   -p 7474:7474 -p 7687:7687 \
   -e NEO4J_AUTH="$AUTH" \
   -e NEO4J_PLUGINS='["apoc","graph-data-science"]' \
-  -e NEO4JLABS_PLUGINS='["apoc","graph-data-science"]' \
   -e NEO4J_ACCEPT_LICENSE_AGREEMENT='yes' \
   -e NEO4J_dbms_security_procedures_unrestricted='apoc.*,gds.*' \
   -e NEO4J_dbms_security_procedures_allowlist='apoc.*,gds.*' \

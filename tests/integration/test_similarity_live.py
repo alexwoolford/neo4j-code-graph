@@ -53,10 +53,10 @@ def test_knn_and_louvain_live():
         session.run("CALL gds.graph.drop('simGraph', false)").consume()
         session.run(
             """
-            CALL gds.graph.project(
+            CALL gds.graph.project.cypher(
               'simGraph',
-              ['Method'],
-              {},
+              'MATCH (m:Method) RETURN id(m) AS id',
+              'MATCH (a)-[r:__NONE__]->(b) RETURN id(a) AS source, id(b) AS target',
               { nodeProperties: ['embedding'] }
             )
             """
