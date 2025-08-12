@@ -144,12 +144,14 @@ export NEO4J_PASSWORD="your_password"
 # Run complete analysis pipeline (writes logs under .scratch/)
 ./scripts/run_pipeline.sh https://github.com/your-org/your-repo
 
-# Or run individual components
-python scripts/code_to_graph.py /path/to/local/repo
-python scripts/create_method_similarity.py --top-k 5 --cutoff 0.8
-python scripts/git_history_to_graph.py /path/to/local/repo
-python scripts/cve_analysis.py
-python scripts/centrality_analysis.py --algorithms pagerank betweenness degree --top-n 20 --write-back
+# Or run installed CLIs (after `pip install -e .`)
+code-graph-code-to-graph /path/to/local/repo
+code-graph-git-history /path/to/local/repo
+code-graph-similarity --top-k 5 --cutoff 0.8
+code-graph-centrality --algorithms pagerank betweenness degree --top-n 20 --write-back
+code-graph-cve --risk-threshold 7.0 --max-hops 4
+code-graph-progress
+code-graph-resume /path/to/local/repo
 ```
 
 ### 3. Query Your Data

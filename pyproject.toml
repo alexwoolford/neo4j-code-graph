@@ -191,7 +191,7 @@ ignore-words-list = "ND,te,crate"
 
 # interrogate (docstring coverage)
 [tool.interrogate]
-fail-under = 20
+fail-under = 30
 exclude = ["tests", "build", "dist"]
 ignore-init-method = true
 ignore-private = true
