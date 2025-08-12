@@ -69,6 +69,8 @@ code-graph-cleanup = "utils.cleanup:main"
 code-graph-schema = "data.schema_management:main"
 code-graph-cve = "security.cve_analysis:main"
 code-graph-pipeline = "pipeline.manager:main"
+code-graph-progress = "pipeline.progress:main"
+code-graph-resume = "pipeline.resume:main"
 
 [tool.black]
 line-length = 100
