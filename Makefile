@@ -104,3 +104,7 @@ test-integration-only: ## Run integration tests only (requires Neo4j env)
 test-ci: ## Run unit tests; if Neo4j env present, run integration tests too
 	pytest tests/ -v --cov=src --cov-report=term-missing -k "not integration"
 	@if [ -n "$(NEO4J_URI)" ]; then echo "Running integration tests..."; pytest tests/ -v -m "integration"; else echo "Skipping integration tests (NEO4J_URI not set)"; fi
+
+.PHONY: test-live
+test-live: ## Start a Neo4j container with APOC+GDS and run all tests
+	bash scripts/test_with_neo4j.sh
