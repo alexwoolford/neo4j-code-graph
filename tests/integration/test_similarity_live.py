@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+import pytest
+
+pytestmark = pytest.mark.live
+
+
+def _get_driver_or_skip():
+    try:
+        from src.utils.common import create_neo4j_driver, get_neo4j_config
+    except Exception:
+        pytest.skip("Utilities not available")
+    uri, user, pwd, db = get_neo4j_config()
+    try:
+        driver = create_neo4j_driver(uri, user, pwd)
+        return driver, db
+    except Exception:
+        pytest.skip("Neo4j is not available for live tests (set NEO4J_* env vars)")
+
+
+def test_knn_and_louvain_live():
+    driver, database = _get_driver_or_skip()
+    with driver.session(database=database) as session:
+        # Clean slate
+        session.run("MATCH (n) DETACH DELETE n").consume()
+
+        # Create a few Method nodes with tiny embeddings
+        session.run(
+            """
+            CREATE (:Method {name:'M1', embedding:[0.9, 0.1]}),
+                   (:Method {name:'M2', embedding:[0.85, 0.15]}),
+                   (:Method {name:'M3', embedding:[0.1, 0.9]})
+            """
+        ).consume()
+
+        # Create vector index for embeddings
+        session.run(
+            """
+            CREATE VECTOR INDEX method_embeddings IF NOT EXISTS
+            FOR (m:Method) ON (m.embedding)
+            OPTIONS {indexConfig: {
+              `vector.dimensions`: 2,
+              `vector.similarity_function`: 'cosine'
+            }}
+            """
+        ).consume()
+        session.run("CALL db.awaitIndex('method_embeddings')").consume()
+
+        # Project in-memory graph via Cypher using GDS
+        session.run("CALL gds.graph.drop('simGraph', false)").consume()
+        session.run(
+            """
+            CALL gds.graph.project.cypher(
+              'simGraph',
+              'MATCH (m:Method) RETURN id(m) AS id, m.embedding AS embedding',
+              'RETURN null AS source, null AS target'
+            )
+            """
+        ).consume()
+
+        # Run kNN write using embedding property
+        session.run(
+            """
+            CALL gds.knn.write('simGraph', {
+              nodeProperties:'embedding', topK:1, similarityCutoff:0.0,
+              writeRelationshipType:'SIMILAR', writeProperty:'score'
+            })
+            """
+        ).consume()
+
+        # Verify SIMILAR relationships exist
+        rec = session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) AS c").single()
+        assert rec and int(rec["c"]) >= 1
+
+        # Build a similarity graph and run Louvain via GDS
+        session.run("CALL gds.graph.drop('simComm', false)").consume()
+        session.run(
+            """
+            CALL gds.graph.project.cypher(
+              'simComm',
+              'MATCH (m:Method) RETURN id(m) AS id',
+              'MATCH (m1:Method)-[s:SIMILAR]->(m2:Method) RETURN id(m1) AS source, id(m2) AS target, s.score AS score'
+            )
+            """
+        ).consume()
+
+        session.run(
+            "CALL gds.louvain.write('simComm', {writeProperty:'similarityCommunity'})"
+        ).consume()
+
+        # Verify at least one community assignment
+        rec = session.run(
+            "MATCH (m:Method) WHERE exists(m.similarityCommunity) RETURN count(m) AS c"
+        ).single()
+        assert rec and int(rec["c"]) >= 1
+
+        # Cleanup in-memory graphs
+        session.run("CALL gds.graph.drop('simGraph', false)").consume()
+        session.run("CALL gds.graph.drop('simComm', false)").consume()
