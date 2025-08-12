@@ -27,9 +27,9 @@ def test_knn_and_louvain_live():
         # Create a few Method nodes with tiny embeddings
         session.run(
             """
-            CREATE (:Method {name:'M1', embedding:[0.9, 0.1]}),
-                   (:Method {name:'M2', embedding:[0.85, 0.15]}),
-                   (:Method {name:'M3', embedding:[0.1, 0.9]})
+            CREATE (:Method {id:'m1', name:'M1', method_signature:'p.A#a()', embedding:[0.9, 0.1]}),
+                   (:Method {id:'m2', name:'M2', method_signature:'p.B#b()', embedding:[0.85, 0.15]}),
+                   (:Method {id:'m3', name:'M3', method_signature:'p.C#c()', embedding:[0.1, 0.9]})
             """
         ).consume()
 

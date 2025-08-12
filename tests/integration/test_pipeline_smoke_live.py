@@ -84,7 +84,7 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
             CALL gds.graph.project(
               'pipeGraph',
               ['Method'],
-              {},
+              { DUMMY: { type: 'SIMILAR', orientation: 'UNDIRECTED' } },
               { nodeProperties: ['embedding'] }
             )
             """
