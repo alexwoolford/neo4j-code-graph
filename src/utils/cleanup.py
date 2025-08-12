@@ -53,24 +53,36 @@ def parse_args():
 from neo4j import Session
 
 
-def cleanup_similarities(session: Session, dry_run: bool = False) -> None:
-    """Remove SIMILAR relationships."""
-    # Count existing relationships
-    result = session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) as count")
+def cleanup_similarities(session: Session, dry_run: bool = False) -> int:
+    """Remove SIMILAR relationships.
+
+    Returns the number of relationships found before deletion (0 for dry run).
+    """
+    # Count existing relationships (undirected to be robust)
+    result = session.run("MATCH ()-[r:SIMILAR]-() RETURN count(r) as count")
     single = result.single()
     count = int(single["count"]) if single and "count" in single else 0
 
     if count == 0:
         logger.info("No SIMILAR relationships found")
-        return
+        return 0
 
     logger.info("Found %d SIMILAR relationships", count)
 
     if dry_run:
         logger.info("[DRY RUN] Would delete %d SIMILAR relationships", count)
+        return 0
     else:
-        session.run("MATCH ()-[r:SIMILAR]->() DELETE r")
-        logger.info("Deleted %d SIMILAR relationships", count)
+
+        def _delete_all(tx) -> None:
+            # Directed first
+            tx.run("MATCH ()-[r:SIMILAR]->() DELETE r").consume()
+            # Undirected sweep
+            tx.run("MATCH ()-[r:SIMILAR]-() DELETE r").consume()
+
+        session.execute_write(_delete_all)
+        logger.info("Deleted SIMILAR relationships")
+        return count
 
 
 def cleanup_communities(
@@ -97,9 +109,13 @@ def cleanup_communities(
             count,
         )
     else:
-        session.run(
-            "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL REMOVE m.similarityCommunity"
-        )
+
+        def _remove_prop(tx):
+            tx.run(
+                "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL REMOVE m.similarityCommunity"
+            ).consume()
+
+        session.execute_write(_remove_prop)
         logger.info("Removed %s property from %d Method nodes", community_property, count)
 
 

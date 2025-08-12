@@ -735,28 +735,28 @@ def extract_file_data(file_path: Path, repo_root: Path):
             interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
 
     except Exception as e:
-        # Fallback: try Tree-sitter-based extractor
+        # Fallback: try our lightweight extractor
         if not getattr(sys.modules.get(__name__), "_NO_JAVA_FALLBACK", False):
             try:
-                from .java_treesitter import extract_with_treesitter
+                from . import java_treesitter as _jt  # type: ignore
             except Exception:
-                extract_with_treesitter = None  # type: ignore
+                _jt = None  # type: ignore
 
-            if extract_with_treesitter is not None:
+            if _jt is not None and hasattr(_jt, "extract_file_data"):
                 try:
                     global FALLBACK_ATTEMPTS, FALLBACK_SUCCESSES
                     FALLBACK_ATTEMPTS += 1
-                    ts = extract_with_treesitter(code, rel_path)
-                    imports = ts.imports
-                    classes = ts.classes
-                    interfaces = ts.interfaces
-                    methods = ts.methods
-                    package_name = ts.package_name
+                    ts = _jt.extract_file_data(Path(rel_path), Path(repo_root))  # type: ignore[attr-defined]
+                    imports = ts.get("imports", [])
+                    classes = ts.get("classes", [])
+                    interfaces = ts.get("interfaces", [])
+                    methods = ts.get("methods", [])
+                    package_name = ts.get("package")
                     FALLBACK_SUCCESSES += 1
                 except Exception as ts_e:
                     # Record and optionally suppress per-file warnings
                     try:
-                        PARSE_ERRORS.append((rel_path, f"javalang:{e}; treesitter:{ts_e}"))
+                        PARSE_ERRORS.append((rel_path, f"javalang:{e}; fallback:{ts_e}"))
                     except Exception:
                         pass
                     if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):

@@ -16,6 +16,9 @@ sys.modules.setdefault("pyarrow.flight", types.ModuleType("pyarrow.flight"))
 
 from src.analysis.similarity import run_louvain
 
+# Remove stub so other tests (that need real GDS) are unaffected
+sys.modules.pop("graphdatascience", None)
+
 
 def test_run_louvain_creates_projection_and_runs():
     gds = MagicMock()

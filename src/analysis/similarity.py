@@ -2,9 +2,14 @@ import argparse
 import logging
 import os
 from time import perf_counter
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-from graphdatascience import GraphDataScience
+
+if TYPE_CHECKING:  # don't import heavy deps at module import time
+    from graphdatascience import GraphDataScience
+else:
+    GraphDataScience = Any  # type: ignore
 
 try:
     # When 'src' is on sys.path and importing as top-level package
@@ -240,7 +245,9 @@ def main() -> None:
 
     setup_logging(args.log_level, args.log_file)
 
-    gds = GraphDataScience(
+    from graphdatascience import GraphDataScience as _GDS  # local import
+
+    gds = _GDS(
         ensure_port(args.uri),
         auth=(args.username, args.password),
         database=args.database,

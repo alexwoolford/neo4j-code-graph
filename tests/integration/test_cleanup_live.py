@@ -47,8 +47,10 @@ def test_cleanup_similarities_and_communities_live():
 
         # Actual delete
         cleanup_similarities(session, dry_run=False)
-        single = session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) as c").single()
-        assert single and single["c"] == 0
+        # Verify with a fresh session
+        with driver.session(database=database) as s2:
+            single = s2.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) as c").single()
+            assert single and single["c"] == 0
 
         cleanup_communities(session, "similarityCommunity", dry_run=False)
         single = session.run(

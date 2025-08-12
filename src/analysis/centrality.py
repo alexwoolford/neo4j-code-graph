@@ -14,9 +14,18 @@ Based on Neo4j Graph Data Science algorithms to highlight structurally important
 import argparse
 import logging
 from time import perf_counter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from graphdatascience import GraphDataScience
+# Provide a patchable symbol and avoid failing import in environments without pyarrow.flight
+try:  # Attempt real import; safe-fallback on failure
+    from graphdatascience import GraphDataScience as _RealGDS  # type: ignore
+except Exception:  # pragma: no cover - optional dependency path
+    _RealGDS = None  # type: ignore
+
+if TYPE_CHECKING:
+    from graphdatascience import GraphDataScience  # for type checkers only
+else:
+    GraphDataScience = Any  # type: ignore
 
 try:
     # When 'src' is on sys.path (top-level import)
@@ -425,27 +434,38 @@ def main() -> None:
 
     with create_neo4j_driver(args.uri, args.username, args.password) as _:
         try:
-            # Initialize GDS
-            gds = GraphDataScience(
-                args.uri, auth=(args.username, args.password), database=args.database
-            )
+            # Prefer patched symbol in tests; otherwise use real client
+            try:
+                GDSClass = GraphDataScience  # type: ignore[assignment]
+                gds = GDSClass(
+                    args.uri, auth=(args.username, args.password), database=args.database
+                )
+            except Exception:
+                from graphdatascience import GraphDataScience as _GDS
+
+                gds = _GDS(args.uri, auth=(args.username, args.password), database=args.database)
+
             logger.info("Connected to Neo4j GDS at %s", args.uri)
 
             # Check if we have enough data
             call_count, method_count = check_call_graph_exists(gds)
-            logger.info(f"Found {method_count:,} methods with {call_count:,} call relationships")
+            logger.info(
+                "Found %s methods with %s call relationships",
+                f"{method_count:,}",
+                f"{call_count:,}",
+            )
 
             if method_count < args.min_methods:
                 logger.error(
-                    "Insufficient methods for analysis. "
-                    f"Found {method_count}, need at least {args.min_methods}"
+                    "Insufficient methods for analysis. Found %s, need at least %s",
+                    method_count,
+                    args.min_methods,
                 )
                 return
 
             if call_count == 0:
                 logger.error(
-                    "No CALLS relationships found. "
-                    "Run code_to_graph.py first to extract method calls."
+                    "No CALLS relationships found. Run code_to_graph.py first to extract method calls."
                 )
                 return
 
@@ -489,7 +509,7 @@ def main() -> None:
             logger.info("Analysis completed successfully")
 
         except Exception as e:
-            logger.error(f"Analysis failed: {e}")
+            logger.error("Analysis failed: %s", e)
             raise
 
 

@@ -4,7 +4,8 @@ set -euo pipefail
 # Config
 NAME="neo4j-test"
 IMAGE="neo4j:5.26"
-AUTH="neo4j/test"
+# Use 8+ char password to satisfy Neo4j policy
+AUTH="neo4j/testtest"
 URI="bolt://127.0.0.1:7687"
 
 echo "Starting Neo4j test container..."
@@ -23,17 +24,24 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Waiting for Bolt to be available at $URI..."
-for i in {1..90}; do
-  if docker exec "$NAME" cypher-shell -u neo4j -p test "RETURN 1" >/dev/null 2>&1; then
+ready=0
+for i in {1..120}; do
+  if docker exec "$NAME" cypher-shell -u neo4j -p testtest "RETURN 1" >/dev/null 2>&1; then
     echo "Neo4j is ready."
+    ready=1
     break
   fi
   sleep 2
 done
+if [ "$ready" -ne 1 ]; then
+  echo "Neo4j did not become ready in time. Showing last logs:"
+  docker logs --tail=200 "$NAME" || true
+  exit 1
+fi
 
 export NEO4J_URI="$URI"
 export NEO4J_USERNAME="neo4j"
-export NEO4J_PASSWORD="test"
+export NEO4J_PASSWORD="testtest"
 export NEO4J_DATABASE="neo4j"
 
 echo "Running tests..."
@@ -50,5 +58,6 @@ if [ -n "${PYTEST_ARGS:-}" ]; then
   echo "pytest ${PYTEST_ARGS}"
   pytest ${PYTEST_ARGS}
 else
-  pytest -q
+  # By default, run only live tests against the running Neo4j instance
+  pytest -q -m live
 fi

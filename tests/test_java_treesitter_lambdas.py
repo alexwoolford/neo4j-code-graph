@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def add_src_to_path() -> None:
-    root = Path(__file__).parent
+    root = Path(__file__).parent.parent
     src = root / "src"
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))
@@ -45,6 +45,7 @@ def test_lambda_and_method_refs(tmp_path):
         """.strip(),
         encoding="utf-8",
     )
+    assert ts_extract is not None
     data = ts_extract(java_file, tmp_path)
     # Basic sanity: one class, one method
     assert data["class_count"] >= 1

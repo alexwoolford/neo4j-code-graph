@@ -28,10 +28,16 @@ def test_pagerank_smoke_projection_and_stream():
     if not uri or not username or not password:
         pytest.skip("NEO4J connection not configured for integration test")
 
+    # Support both old and new GDS Python client signatures
     try:
         gds = GraphDataScience(uri, auth=(username, password), database=database)
     except TypeError:
-        pytest.skip("GDS client incompatible version for this test")
+        gds = GraphDataScience(uri, auth=(username, password))
+        try:
+            # Older clients use set_database
+            gds.set_database(database)  # type: ignore[attr-defined]
+        except Exception:
+            pass
 
     # Create a tiny graph: A->B, A->C, B->C
     try:
@@ -48,7 +54,7 @@ def test_pagerank_smoke_projection_and_stream():
     )
 
     # Project and run PageRank
-    G, meta = gds.graph.project("test_pr_graph", ["Method"], {"CALLS": {"orientation": "NATURAL"}})
+    G, _meta = gds.graph.project("test_pr_graph", ["Method"], {"CALLS": {"orientation": "NATURAL"}})
     try:
         df = gds.pageRank.stream(G)
         assert not df.empty
