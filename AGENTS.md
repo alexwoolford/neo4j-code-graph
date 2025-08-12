@@ -249,6 +249,38 @@ Tests use mocked database connections for execution without requiring a running 
 
 **Rationale**: Terms like "optimized" become meaningless over time - everything could be argued to be "optimized" making the term completely useless for understanding actual changes.
 
+### Neo4j connection hygiene (Driver/Session usage)
+
+Always close Neo4j connections explicitly. Use context managers for both `Driver` and `Session`. Do not rely on destructors/GC to close connections.
+
+Bad:
+```python
+from neo4j import GraphDatabase
+
+driver = GraphDatabase.driver(uri, auth=(user, pwd))
+session = driver.session(database=db)
+session.run("RETURN 1").consume()
+# driver and session leak if exceptions occur; deprecation warning in driver
+```
+
+Good:
+```python
+from neo4j import GraphDatabase
+
+with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
+    with driver.session(database=db) as session:
+        session.run("RETURN 1").consume()
+```
+
+Also acceptable if you need a helper:
+```python
+from src.utils.common import create_neo4j_driver
+
+with create_neo4j_driver(uri, user, pwd) as driver:
+    with driver.session(database=db) as session:
+        ...
+```
+
 ## 🔧 AUTOMATED TOOLS SUMMARY
 
 ### 1. **Safe Commit Script** (RECOMMENDED)
