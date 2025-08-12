@@ -13,6 +13,11 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+try:
+    from .types import FileData
+except Exception:
+    FileData = dict  # type: ignore[misc,assignment]
+
 import javalang
 from tqdm import tqdm
 
@@ -866,7 +871,7 @@ def _determine_call_target(qualifier, containing_class):
         return qualifier, "instance"  # We'll resolve the type later if possible
 
 
-def create_directories(session, files_data):
+def create_directories(session: Any, files_data: list[FileData]) -> None:
     """Create Directory nodes and relationships."""
     batch_size = 1000
 
@@ -914,7 +919,9 @@ def create_directories(session, files_data):
             )
 
 
-def create_files(session, files_data, file_embeddings):
+def create_files(
+    session: Any, files_data: list[FileData], file_embeddings: list[list[float]]
+) -> None:
     """Create File nodes and CONTAINS relationships."""
     # Use intelligent batch sizing for embedding operations
     batch_size = get_database_batch_size(has_embeddings=True)
@@ -989,7 +996,7 @@ def create_files(session, files_data, file_embeddings):
             )
 
 
-def create_classes(session, files_data):
+def create_classes(session: Any, files_data: list[FileData]) -> None:
     """Create Class and Interface nodes with relationships."""
     batch_size = 1000
 
@@ -1178,7 +1185,9 @@ def create_classes(session, files_data):
             )
 
 
-def create_methods(session, files_data, method_embeddings):
+def create_methods(
+    session: Any, files_data: list[FileData], method_embeddings: list[list[float]]
+) -> None:
     """Create Method nodes and related relationships."""
     method_nodes = []
     method_idx = 0
@@ -1334,7 +1343,9 @@ def create_methods(session, files_data, method_embeddings):
             )
 
 
-def create_imports(session, files_data, dependency_versions=None):
+def create_imports(
+    session: Any, files_data: list[FileData], dependency_versions: dict[str, str] | None = None
+) -> None:
     """Create Import nodes, IMPORTS relationships and external dependencies."""
     all_imports = []
     external_dependencies = set()
@@ -1468,7 +1479,7 @@ def create_imports(session, files_data, dependency_versions=None):
         )
 
 
-def create_method_calls(session, files_data):
+def create_method_calls(session: Any, files_data: list[FileData]) -> None:
     """Create CALLS relationships between methods."""
     batch_size = 1000
     method_call_rels = []
@@ -1592,8 +1603,12 @@ def create_method_calls(session, files_data):
 
 
 def bulk_create_nodes_and_relationships(
-    session, files_data, file_embeddings, method_embeddings, dependency_versions=None
-):
+    session: Any,
+    files_data: list[FileData],
+    file_embeddings: list[list[float]],
+    method_embeddings: list[list[float]],
+    dependency_versions: dict[str, str] | None = None,
+) -> None:
     """Create all nodes and relationships using bulk operations."""
     create_directories(session, files_data)
     create_files(session, files_data, file_embeddings)
