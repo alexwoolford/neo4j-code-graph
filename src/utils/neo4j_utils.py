@@ -38,7 +38,8 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
 
     from dotenv import load_dotenv
 
-    load_dotenv(override=True)
+    # Use .env as a fallback; real environment variables win
+    load_dotenv(override=False)
     # Treat empty strings as absent to allow sensible defaults when CI sets blank secrets
     uri_env = os.getenv("NEO4J_URI")
     user_env = os.getenv("NEO4J_USERNAME")
