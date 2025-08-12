@@ -5,7 +5,7 @@ set -euo pipefail
 NAME="neo4j-test"
 IMAGE="neo4j:5.26"
 AUTH="neo4j/test"
-URI="bolt://localhost:7687"
+URI="bolt://127.0.0.1:7687"
 
 echo "Starting Neo4j test container..."
 docker run -d --rm \
@@ -37,6 +37,15 @@ export NEO4J_PASSWORD="test"
 export NEO4J_DATABASE="neo4j"
 
 echo "Running tests..."
+# Sanity check connectivity from Python first
+python - <<'PY'
+from src.utils.common import create_neo4j_driver, get_neo4j_config
+uri, user, pwd, db = get_neo4j_config()
+with create_neo4j_driver(uri, user, pwd) as d:
+    with d.session(database=db) as s:
+        assert s.run("RETURN 1 as x").single()["x"] == 1
+print("Connectivity OK:", uri)
+PY
 if [ -n "${PYTEST_ARGS:-}" ]; then
   echo "pytest ${PYTEST_ARGS}"
   pytest ${PYTEST_ARGS}
