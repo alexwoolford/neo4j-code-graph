@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x
 
 # Config
 NAME="neo4j-test"
@@ -44,6 +45,24 @@ export NEO4J_USERNAME="neo4j"
 export NEO4J_PASSWORD="testtest"
 export NEO4J_DATABASE="neo4j"
 
+# Ensure plugins (GDS/APOC) are fully loaded before running tests
+echo "Waiting for GDS and APOC procedures to be available..."
+plugins_ready=0
+for i in {1..90}; do
+  if docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL gds.version() YIELD version RETURN version" >/dev/null 2>&1 \
+     && docker exec "$NAME" cypher-shell -u neo4j -p testtest "RETURN apoc.version() AS v" >/dev/null 2>&1; then
+    echo "GDS and APOC are available."
+    plugins_ready=1
+    break
+  fi
+  sleep 2
+done
+if [ "$plugins_ready" -ne 1 ]; then
+  echo "GDS/APOC did not become available in time. Showing last logs:"
+  docker logs --tail=200 "$NAME" || true
+  exit 1
+fi
+
 echo "Running tests..."
 # Sanity check connectivity from Python first
 python - <<'PY'
@@ -56,8 +75,23 @@ print("Connectivity OK:", uri)
 PY
 if [ -n "${PYTEST_ARGS:-}" ]; then
   echo "pytest ${PYTEST_ARGS}"
+  set +e
   pytest ${PYTEST_ARGS}
+  status=$?
+  set -e
 else
   # By default, run only live tests against the running Neo4j instance
+  set +e
   pytest -q -m live
+  status=$?
+  set -e
+fi
+
+if [ "$status" -ne 0 ]; then
+  echo "Tests failed with status $status. Dumping recent container logs and procedure availability..."
+  docker logs --tail=300 "$NAME" || true
+  docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL dbms.components() YIELD name, versions RETURN name, versions" || true
+  docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL gds.version() YIELD version RETURN version" || true
+  docker exec "$NAME" cypher-shell -u neo4j -p testtest "RETURN apoc.version() AS v" || true
+  exit "$status"
 fi
