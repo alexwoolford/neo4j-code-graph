@@ -44,6 +44,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage-live.xml
 junit.xml
 pytest-report.xml
 pytest-output.txt
