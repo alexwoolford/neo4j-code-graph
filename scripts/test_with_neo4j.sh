@@ -15,7 +15,10 @@ docker run -d --rm \
   -p 7474:7474 -p 7687:7687 \
   -e NEO4J_AUTH="$AUTH" \
   -e NEO4J_PLUGINS='["apoc","graph-data-science"]' \
-  -e NEO4J_dbms_security_procedures_unrestricted='apoc.*' \
+  -e NEO4JLABS_PLUGINS='["apoc","graph-data-science"]' \
+  -e NEO4J_ACCEPT_LICENSE_AGREEMENT='yes' \
+  -e NEO4J_dbms_security_procedures_unrestricted='apoc.*,gds.*' \
+  -e NEO4J_dbms_security_procedures_allowlist='apoc.*,gds.*' \
   "$IMAGE" >/dev/null
 
 cleanup() {
@@ -48,12 +51,16 @@ export NEO4J_DATABASE="neo4j"
 # Ensure plugins (GDS/APOC) are fully loaded before running tests
 echo "Waiting for GDS and APOC procedures to be available..."
 plugins_ready=0
-for i in {1..90}; do
+for i in {1..240}; do
   if docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL gds.version() YIELD version RETURN version" >/dev/null 2>&1 \
      && docker exec "$NAME" cypher-shell -u neo4j -p testtest "RETURN apoc.version() AS v" >/dev/null 2>&1; then
     echo "GDS and APOC are available."
     plugins_ready=1
     break
+  fi
+  if (( i % 30 == 0 )); then
+    echo "Still waiting for plugins... ($i)"
+    docker exec "$NAME" cypher-shell -u neo4j -p testtest "CALL dbms.procedures() YIELD name WHERE name STARTS WITH 'gds.' OR name STARTS WITH 'apoc.' RETURN count(*) AS c" || true
   fi
   sleep 2
 done

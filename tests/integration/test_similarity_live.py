@@ -46,6 +46,9 @@ def test_knn_and_louvain_live():
         ).consume()
         session.run("CALL db.awaitIndex('method_embeddings')").consume()
 
+        # Ensure GDS is available (emit version)
+        session.run("CALL gds.version() YIELD version RETURN version").consume()
+
         # Project in-memory graph with node property 'embedding' using native projection
         session.run("CALL gds.graph.drop('simGraph', false)").consume()
         session.run(
