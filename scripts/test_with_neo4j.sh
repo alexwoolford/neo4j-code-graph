@@ -36,4 +36,9 @@ export NEO4J_PASSWORD="test"
 export NEO4J_DATABASE="neo4j"
 
 echo "Running tests..."
-pytest -q
+if [ -n "${PYTEST_ARGS:-}" ]; then
+  echo "pytest ${PYTEST_ARGS}"
+  pytest ${PYTEST_ARGS}
+else
+  pytest -q
+fi
