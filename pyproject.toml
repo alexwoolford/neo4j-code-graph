@@ -58,6 +58,18 @@ Homepage = "https://github.com/your-org/neo4j-code-graph"
 Repository = "https://github.com/your-org/neo4j-code-graph"
 Issues = "https://github.com/your-org/neo4j-code-graph/issues"
 
+[project.scripts]
+# CLI entry points to run installed commands directly
+code-graph-code-to-graph = "analysis.code_analysis:main"
+code-graph-git-history = "analysis.git_analysis:main"
+code-graph-centrality = "analysis.centrality:main"
+code-graph-similarity = "analysis.similarity:main"
+code-graph-temporal = "analysis.temporal_analysis:main"
+code-graph-cleanup = "utils.cleanup:main"
+code-graph-schema = "data.schema_management:main"
+code-graph-cve = "security.cve_analysis:main"
+code-graph-pipeline = "pipeline.manager:main"
+
 [tool.black]
 line-length = 100
 target-version = ['py310']
