@@ -577,10 +577,7 @@ class CVEAnalyzer:
             cve_count = int(cve_single["total"]) if cve_single and "total" in cve_single else 0
 
             if cve_count == 0:
-                # Be precise and avoid redundant fetching here; CVE fetch is handled earlier.
-                logger.info(
-                    "ℹ️  No CVE nodes present; skipping impact analysis (fetch step not executed)."
-                )
+                logger.info("ℹ️  No CVE nodes present; skipping impact analysis.")
                 return []
 
             # Simple analysis query - just look for CVEs that might affect our dependencies

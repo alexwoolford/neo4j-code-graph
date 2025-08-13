@@ -158,7 +158,7 @@ def embed_files_task(repo_path: str, artifacts_dir: str) -> str:
     logger = get_run_logger()
     logger.info("Computing file embeddings for %s", repo_path)
     in_files = str(Path(artifacts_dir) / "files_data.json")
-    out_file_emb = str(Path(artifacts_dir) / "file_embeddings.npz")
+    out_file_emb = str(Path(artifacts_dir) / "file_embeddings.npy")
     base = [
         "prog",
         repo_path,
@@ -186,7 +186,7 @@ def embed_methods_task(repo_path: str, artifacts_dir: str) -> str:
     logger = get_run_logger()
     logger.info("Computing method embeddings for %s", repo_path)
     in_files = str(Path(artifacts_dir) / "files_data.json")
-    out_method_emb = str(Path(artifacts_dir) / "method_embeddings.npz")
+    out_method_emb = str(Path(artifacts_dir) / "method_embeddings.npy")
     base = [
         "prog",
         repo_path,
@@ -222,8 +222,8 @@ def write_graph_task(
     logger.info("Writing extracted data and embeddings to Neo4j from %s", artifacts_dir)
     in_files = str(Path(artifacts_dir) / "files_data.json")
     in_deps = str(Path(artifacts_dir) / "dependencies.json")
-    in_file_emb = str(Path(artifacts_dir) / "file_embeddings.npz")
-    in_method_emb = str(Path(artifacts_dir) / "method_embeddings.npz")
+    in_file_emb = str(Path(artifacts_dir) / "file_embeddings.npy")
+    in_method_emb = str(Path(artifacts_dir) / "method_embeddings.npy")
 
     base = [
         "prog",
