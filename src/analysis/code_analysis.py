@@ -948,13 +948,29 @@ def create_files(
     batch_size = get_database_batch_size(has_embeddings=True)
 
     file_nodes = []
+    zero_embedding: list[float] = [0.0] * 768
+    warned_short = False
     for i, file_data in enumerate(files_data):
         file_path_str = file_data["path"]
         file_name_only = Path(file_path_str).name if file_path_str else file_path_str
+        embedding_vec = (
+            file_embeddings[i]
+            if i < len(file_embeddings)
+            else (
+                zero_embedding if (warned_short or not (warned_short := True)) else zero_embedding
+            )
+        )
+        if warned_short:
+            logger.warning(
+                "File embeddings shorter than files_data (%d < %d); filling missing with zeros",
+                len(file_embeddings),
+                len(files_data),
+            )
+            warned_short = False  # log once
         file_node = {
             "path": file_path_str,
             "name": file_name_only,
-            "embedding": file_embeddings[i],
+            "embedding": embedding_vec,
             "embedding_type": EMBEDDING_TYPE,
             "language": file_data.get("language", "java"),
             "ecosystem": file_data.get("ecosystem", "maven"),
@@ -1212,14 +1228,32 @@ def create_methods(
     """Create Method nodes and related relationships."""
     method_nodes = []
     method_idx = 0
+    zero_embedding: list[float] = [0.0] * 768
+    warned_short = False
 
     for file_data in files_data:
         for method in file_data["methods"]:
+            embedding_vec = (
+                method_embeddings[method_idx]
+                if method_idx < len(method_embeddings)
+                else (
+                    zero_embedding
+                    if (warned_short or not (warned_short := True))
+                    else zero_embedding
+                )
+            )
+            if warned_short:
+                logger.warning(
+                    "Method embeddings shorter than methods (%d < %d); filling missing with zeros",
+                    len(method_embeddings),
+                    sum(len(f.get("methods", [])) for f in files_data),
+                )
+                warned_short = False
             method_node = {
                 "name": method["name"],
                 "file": method["file"],
                 "line": method["line"],
-                "embedding": method_embeddings[method_idx],
+                "embedding": embedding_vec,
                 "embedding_type": EMBEDDING_TYPE,
                 "estimated_lines": method.get("estimated_lines", 0),
                 "is_static": method.get("is_static", False),
