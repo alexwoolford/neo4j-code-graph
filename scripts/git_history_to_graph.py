@@ -1,17 +1,10 @@
 #!/usr/bin/env python
 """
-CLI wrapper for git history analysis functionality.
+Thin CLI wrapper for git history analysis.
+Use the console script entry point (see pyproject.toml) where possible.
 """
 
-import sys
-from pathlib import Path
+from src.analysis.git_analysis import main
 
-# Add src to path
-root_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(root_dir / "src"))
-
-# Import and run the main function from the module
 if __name__ == "__main__":
-    from analysis.git_analysis import main
-
     main()

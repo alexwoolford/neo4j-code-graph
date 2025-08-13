@@ -71,6 +71,9 @@ code-graph-cve = "security.cve_analysis:main"
 code-graph-pipeline = "pipeline.manager:main"
 code-graph-progress = "pipeline.progress:main"
 code-graph-resume = "pipeline.resume:main"
+code-graph-validate-cypher = "scripts.validate_cypher:main"
+code-graph-validate-env = "scripts.validate_environment:main"
+code-graph-create-db = "scripts.create_database:main"
 
 [tool.black]
 line-length = 100

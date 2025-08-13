@@ -15,23 +15,12 @@ def main() -> int:
         return 2
     db_name = sys.argv[1]
 
-    # Lazy import to avoid path issues when used as a module
-    try:
-        from src.utils.neo4j_utils import get_neo4j_config
-    except Exception:
-        import sys as _sys
-        from pathlib import Path
-
-        root = Path(__file__).parent.parent / "src"
-        if str(root) not in _sys.path:
-            _sys.path.insert(0, str(root))
-        from utils.neo4j_utils import get_neo4j_config  # type: ignore
-
     from neo4j import GraphDatabase
 
+    from src.utils.neo4j_utils import get_neo4j_config
+
     uri, username, password, _ = get_neo4j_config()
-    driver = GraphDatabase.driver(uri, auth=(username, password))
-    try:
+    with GraphDatabase.driver(uri, auth=(username, password)) as driver:
         with driver.session() as session:
             try:
                 session.run(f"CREATE DATABASE {db_name}").consume()
@@ -40,8 +29,6 @@ def main() -> int:
                 # If DB already exists or multi-db not supported
                 print(f"⚠️  Could not create database '{db_name}': {e}")
                 return 1
-    finally:
-        driver.close()
     return 0
 
 

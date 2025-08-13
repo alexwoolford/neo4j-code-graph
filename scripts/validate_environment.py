@@ -12,10 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from constants import ENV_VARS, STATUS_ICONS
+from src.constants import ENV_VARS, STATUS_ICONS
 
 # Setup logging
 logging.basicConfig(
