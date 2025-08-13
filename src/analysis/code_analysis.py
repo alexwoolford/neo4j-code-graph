@@ -1913,7 +1913,10 @@ def main():
 
     logger.info("Phase 3: Creating graph in Neo4j...")
     start_phase3 = perf_counter()
-    from ..utils.common import create_neo4j_driver as _create_driver  # deferred import
+    try:
+        from utils.common import create_neo4j_driver as _create_driver  # type: ignore
+    except Exception:
+        from ..utils.common import create_neo4j_driver as _create_driver  # type: ignore
 
     with _create_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:  # type: ignore[reportUnknownMemberType]
