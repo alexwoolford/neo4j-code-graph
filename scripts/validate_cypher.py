@@ -206,14 +206,14 @@ def run_validation(session) -> list[tuple[str, bool, str | None]]:
 
 def main() -> int:
     cfg = get_db_config()
-    driver = GraphDatabase.driver(cfg.uri, auth=(cfg.username, cfg.password))
     failed: list[tuple[str, str]] = []
 
-    with driver.session(database=cfg.database) as session:
-        # Connectivity sanity check
-        session.run("RETURN 1").consume()
+    with GraphDatabase.driver(cfg.uri, auth=(cfg.username, cfg.password)) as driver:
+        with driver.session(database=cfg.database) as session:
+            # Connectivity sanity check
+            session.run("RETURN 1").consume()
 
-        results = run_validation(session)
+            results = run_validation(session)
 
     for name, ok, err in results:
         status = "PASS" if ok else "FAIL"

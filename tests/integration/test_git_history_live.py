@@ -51,26 +51,27 @@ def test_git_history_live(tmp_path: Path):
     commits_df, devs_df, files_df, file_changes_df = create_dataframes(commits, file_changes)
 
     driver, database = _get_driver_or_skip()
-    with driver.session(database=database) as session:
-        session.run("MATCH (n) DETACH DELETE n").consume()
-        bulk_load_to_neo4j(
-            commits_df,
-            devs_df,
-            files_df,
-            file_changes_df,
-            driver,
-            database,
-            skip_file_changes=False,
-            file_changes_only=False,
-        )
-        # Assertions: basic counts > 0
-        rec = session.run("MATCH (:Commit) RETURN count(*) AS c").single()
-        assert rec and int(rec["c"]) >= 2
-        rec = session.run("MATCH (:Developer) RETURN count(*) AS c").single()
-        assert rec and int(rec["c"]) >= 1
-        rec = session.run("MATCH (:File) RETURN count(*) AS c").single()
-        assert rec and int(rec["c"]) >= 2
-        rec = session.run(
-            "MATCH (:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(:File) RETURN count(*) AS c"
-        ).single()
-        assert rec and int(rec["c"]) >= 1
+    with driver:
+        with driver.session(database=database) as session:
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            bulk_load_to_neo4j(
+                commits_df,
+                devs_df,
+                files_df,
+                file_changes_df,
+                driver,
+                database,
+                skip_file_changes=False,
+                file_changes_only=False,
+            )
+            # Assertions: basic counts > 0
+            rec = session.run("MATCH (:Commit) RETURN count(*) AS c").single()
+            assert rec and int(rec["c"]) >= 2
+            rec = session.run("MATCH (:Developer) RETURN count(*) AS c").single()
+            assert rec and int(rec["c"]) >= 1
+            rec = session.run("MATCH (:File) RETURN count(*) AS c").single()
+            assert rec and int(rec["c"]) >= 2
+            rec = session.run(
+                "MATCH (:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(:File) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) >= 1
