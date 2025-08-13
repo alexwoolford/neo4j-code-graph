@@ -42,6 +42,7 @@ done
 if [ "$ready" -ne 1 ]; then
   echo "Neo4j did not become ready in time. Showing last logs:"
   docker logs --tail=200 "$NAME" || true
+  echo "Checking container status:" && docker ps -a | grep "$NAME" || true
   exit 1
 fi
 
@@ -73,6 +74,8 @@ if [ "$plugins_ready" -ne 1 ]; then
 fi
 
 echo "Running tests..."
+# Extra diagnostics to help CI when failures occur
+docker exec "$NAME" cypher-shell -u neo4j -p testtest "SHOW DATABASES" || true
 # Sanity check connectivity from Python first
 PYTHONPATH="$(cd "$(dirname "$0")/.." && pwd)":"$PYTHONPATH" python - <<'PY'
 from src.utils.common import create_neo4j_driver, get_neo4j_config

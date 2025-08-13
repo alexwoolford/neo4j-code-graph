@@ -5,29 +5,13 @@ Fail loudly if pipeline scripts reference non-existent files or modules.
 
 from pathlib import Path
 
-import pytest
 
-
-@pytest.mark.parametrize(
-    "script",
-    [
-        "run_pipeline.sh",
-    ],
-)
-def test_scripts_do_not_reference_deleted_files(script):
+def test_no_legacy_pipeline_scripts_present():
     scripts_dir = Path(__file__).parent.parent / "scripts"
-    script_path = scripts_dir / script
-    assert script_path.exists(), f"Missing script: {script_path}"
-
-    content = script_path.read_text(encoding="utf-8")
-
-    # Disallow legacy references that caused pipeline breaks
-    forbidden = [
-        "scripts/analyze.py",
-        "advanced_analysis.py",
-    ]
-    for needle in forbidden:
-        assert needle not in content, f"Forbidden reference found in {script}: {needle}"
+    # Ensure legacy shell pipeline is not present
+    assert not (
+        scripts_dir / "run_pipeline.sh"
+    ).exists(), "Legacy run_pipeline.sh should be removed"
 
 
 def test_temporal_analysis_module_exists():

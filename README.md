@@ -164,10 +164,7 @@ code-graph-centrality --algorithms pagerank betweenness degree --top-n 20 --writ
 code-graph-cve --risk-threshold 7.0 --max-hops 4
 ```
 
-Optional legacy shell script:
-```bash
-./scripts/run_pipeline.sh https://github.com/your-org/your-repo
-```
+
 
 ### 3. Query Your Data
 Open Neo4j Browser or Bloom and run the business queries above. Copy/paste any query and modify for your needs.
