@@ -131,27 +131,42 @@ ORDER BY recent_changes DESC
 ```bash
 git clone https://github.com/alexwoolford/neo4j-code-graph
 cd neo4j-code-graph
-pip install -r requirements.txt
+
+# Install the package with development tools (note the quotes for zsh)
+pip install -e '.[dev]'
 
 # Set up Neo4j connection
 export NEO4J_URI="bolt://localhost:7687"
 export NEO4J_USERNAME="neo4j"
 export NEO4J_PASSWORD="your_password"
+
+# Optional but strongly recommended for faster CVE analysis
+export NVD_API_KEY="your_nvd_api_key"
 ```
 
 ### 2. Analyze Your Codebase
-```bash
-# Run complete analysis pipeline (writes logs under .scratch/)
-./scripts/run_pipeline.sh https://github.com/your-org/your-repo
 
-# Or run installed CLIs (after `pip install -e .`)
+Run the pipeline with Prefect (recommended):
+```bash
+# Option A: using the installed console script
+code-graph-pipeline-prefect --repo-url https://github.com/your-org/your-repo
+
+# Option B: run directly without installation
+python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo
+```
+
+Or run individual steps via installed CLIs:
+```bash
 code-graph-code-to-graph /path/to/local/repo
 code-graph-git-history /path/to/local/repo
 code-graph-similarity --top-k 5 --cutoff 0.8
 code-graph-centrality --algorithms pagerank betweenness degree --top-n 20 --write-back
 code-graph-cve --risk-threshold 7.0 --max-hops 4
-code-graph-progress
-code-graph-resume /path/to/local/repo
+```
+
+Optional legacy shell script:
+```bash
+./scripts/run_pipeline.sh https://github.com/your-org/your-repo
 ```
 
 ### 3. Query Your Data
@@ -196,7 +211,7 @@ neo4j-code-graph/
 │   ├── data/              # Schema and data management
 │   └── utils/             # Common utilities
 ├── scripts/               # CLI tools
-│   ├── run_pipeline.sh           # Main pipeline script
+│   ├── run_pipeline.sh           # Legacy pipeline script (prefer Prefect flow)
 │   ├── code_to_graph.py          # Code structure analysis
 │   ├── git_history_to_graph.py   # Git history analysis
 │   ├── cve_analysis.py           # Security analysis
@@ -226,12 +241,23 @@ SIMILARITY_CUTOFF=0.8 # or SIM_CUTOFF
 # Advanced tuning variables are available for power users; see `src/constants.py`.
 ```
 
-> 💡 **Without an NVD API key**, CVE analysis will be much slower (6 seconds per request vs 50 requests/30 seconds with key). Get your free key at: https://nvd.nist.gov/developers/request-an-api-key
+> 💡 Without an NVD API key, CVE analysis will be slower (strict public rate limits). Get a free key at: https://nvd.nist.gov/developers/request-an-api-key
+
+### Prefect UI (optional)
+
+For a visual DAG and history, run a local Prefect server in another terminal:
+```bash
+prefect server start
+```
+Then run the flow as above. If you ever need to reset the ephemeral SQLite backing store:
+```bash
+prefect server reset-data
+```
 
 ## Requirements
 
 - Python 3.10+
-- Neo4j 4.0+ (Community or Enterprise)
+- Neo4j 5.26+ (Community or Enterprise). For live tests we use 5.26-enterprise with APOC core and GDS.
 - Git (for repository analysis)
 
 ## Development
@@ -275,10 +301,17 @@ pytest
 # Run with coverage
 pytest --cov=src tests/
 
+# Live integration tests against Neo4j 5.26 with APOC core and GDS
+./scripts/test_with_neo4j.sh  # spins up a temp container and runs: pytest -m live
+
 # Run specific test categories
 pytest tests/security/
 pytest tests/integration/
 ```
+
+Notes:
+- The Prefect pipeline is idempotent. You can re-run on different repositories and load them into the same graph. Only `SIMILAR` relationships are cleaned prior to similarity calculations to avoid duplicates.
+- APOC extended procedures are not used; only APOC core and standard GDS to maintain Aura compatibility.
 
 ## License
 
