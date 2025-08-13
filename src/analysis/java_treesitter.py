@@ -11,6 +11,7 @@ Aura-compatible: pure Python and standard libraries only.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from tree_sitter import Parser
 from tree_sitter_languages import get_language
@@ -169,3 +170,28 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
         interfaces=interfaces,
         methods=methods,
     )
+
+
+def extract_file_data(java_file: Path, project_root: Path) -> dict:
+    """
+    Heuristic extractor API compatible with tests expecting extract_file_data.
+    Returns a dict with counts and methods/interfaces/classes similar to javalang path.
+    """
+    code = java_file.read_text(encoding="utf-8")
+    rel_path = str(java_file.relative_to(project_root))
+    extraction = extract_with_treesitter(code, rel_path)
+    return {
+        "path": rel_path,
+        "code": code,
+        "imports": extraction.imports,
+        "classes": extraction.classes,
+        "interfaces": extraction.interfaces,
+        "methods": extraction.methods,
+        "language": "java",
+        "ecosystem": "maven",
+        "total_lines": len(code.splitlines()),
+        "code_lines": len([line for line in code.splitlines() if line.strip()]),
+        "method_count": len(extraction.methods),
+        "class_count": len(extraction.classes),
+        "interface_count": len(extraction.interfaces),
+    }

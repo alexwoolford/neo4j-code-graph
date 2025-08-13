@@ -1,17 +1,5 @@
-import sys
-from pathlib import Path
-
-
-def add_src_to_path() -> None:
-    root = Path(__file__).parent.parent
-    src = root / "src"
-    if str(src) not in sys.path:
-        sys.path.insert(0, str(src))
-
-
 def test_degree_query_shape():
-    add_src_to_path()
-    from analysis.centrality import run_degree_analysis
+    from src.analysis.centrality import run_degree_analysis
 
     class FakeGDS:
         def run_cypher(self, query, params=None):  # minimal shape
