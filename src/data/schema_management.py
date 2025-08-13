@@ -408,13 +408,8 @@ def main():
     Main entry point for schema management CLI.
     """
     import argparse
-    import sys
-    from pathlib import Path
 
-    # Add src to path for imports when called from CLI wrapper
-    root_dir = Path(__file__).parent.parent.parent
-    if str(root_dir / "src") not in sys.path:
-        sys.path.insert(0, str(root_dir / "src"))
+    # Imports below support both installed package and repo run contexts
 
     # Handle both script and module execution contexts
     try:

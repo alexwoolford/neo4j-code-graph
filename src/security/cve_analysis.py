@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
-import sys
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
@@ -40,10 +38,7 @@ try:
 except ImportError:
     from .types import CleanCVE
 
-# Add project root to path
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+# Avoid sys.path hacks; modules should be importable via package installation or repo context
 
 
 logger = logging.getLogger(__name__)
@@ -644,13 +639,8 @@ class CVEAnalyzer:
 
 def main():
     """Main entry point for CVE analysis."""
-    import os
-    import sys
 
-    # Add project root to path
-    ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    if ROOT not in sys.path:
-        sys.path.insert(0, ROOT)
+    # Avoid sys.path hacks; prefer installed package or repo execution
 
     parser = argparse.ArgumentParser(
         description="CVE Analysis",

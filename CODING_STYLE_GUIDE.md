@@ -132,14 +132,8 @@ from ..utils.common import setup_logging, create_neo4j_driver
 from ..utils.neo4j_utils import get_neo4j_config
 ```
 
-**For Pure Scripts (scripts/**):**
-```python
-# ✅ For scripts (scripts/**)
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from utils.common import setup_logging
-```
+**For Pure Scripts (scripts/**):** Prefer using the installed console scripts from `pyproject.toml`.
+If a thin wrapper is needed, keep it minimal and avoid `sys.path` hacks.
 
 ### ❌ **NEVER USE: Relative Imports Inside Functions**
 
