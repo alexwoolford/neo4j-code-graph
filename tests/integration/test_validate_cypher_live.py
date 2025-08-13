@@ -20,8 +20,9 @@ def _get_driver_or_skip():
 
 def test_validate_cypher_queries_live() -> None:
     # Validate a representative set of project Cypher patterns against a real DB
+    import importlib
+
     from src.data.schema_management import setup_complete_schema
-    from src.scripts.validate_cypher import run_validation  # type: ignore[import-not-found]
 
     driver, database = _get_driver_or_skip()
     with driver:
@@ -30,6 +31,8 @@ def test_validate_cypher_queries_live() -> None:
             session.run("MATCH (n) DETACH DELETE n").consume()
             setup_complete_schema(session)
 
+            mod = importlib.import_module("scripts.validate_cypher")
+            run_validation = mod.run_validation  # type: ignore[no-untyped-call]
             results = run_validation(session)
             # All validations should pass (EXPLAIN-phase only)
             assert results, "Expected validation results"
