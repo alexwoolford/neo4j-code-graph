@@ -29,10 +29,10 @@ FALLBACK_AVAILABLE: bool = False
 
 try:
     # Try absolute import when called from CLI wrapper
-    from utils.common import add_common_args, create_neo4j_driver, setup_logging
+    from utils.common import add_common_args, setup_logging
 except ImportError:
     # Fallback to relative import when used as module
-    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
+    from ..utils.common import add_common_args, setup_logging
 
 # Constants for method call parsing
 JAVA_KEYWORDS_TO_SKIP = {
@@ -294,6 +294,27 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip embedding computation (extract only) for benchmarking",
     )
+    parser.add_argument(
+        "--embed-target",
+        choices=["files", "methods", "both"],
+        default="both",
+        help="Which embeddings to compute (default: both)",
+    )
+    # Artifact inputs/outputs to enable granular pipeline tasks
+    parser.add_argument("--out-files-data", help="Write extracted files data JSON to this path")
+    parser.add_argument("--in-files-data", help="Read extracted files data JSON from this path")
+    parser.add_argument("--out-file-embeddings", help="Write file embeddings (NPZ) to this path")
+    parser.add_argument(
+        "--out-method-embeddings", help="Write method embeddings (NPZ) to this path"
+    )
+    parser.add_argument("--in-file-embeddings", help="Read file embeddings (NPZ) from this path")
+    parser.add_argument(
+        "--in-method-embeddings", help="Read method embeddings (NPZ) from this path"
+    )
+    parser.add_argument(
+        "--out-dependencies", help="Write extracted dependency versions JSON to this path"
+    )
+    parser.add_argument("--in-dependencies", help="Read dependency versions JSON from this path")
     parser.add_argument(
         "--parse-errors-file",
         help="If set, write per-file Java parse errors to this path (suppresses console spam)",
@@ -1621,6 +1642,9 @@ def bulk_create_nodes_and_relationships(
 
 def main():
     """Main function."""
+    import json
+    from pathlib import Path as _Path
+
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
@@ -1642,255 +1666,286 @@ def main():
     logger.info(
         "Java fallback parser available: %s (no_fallback=%s)", FALLBACK_AVAILABLE, _NO_JAVA_FALLBACK
     )
-    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
-        with driver.session(database=args.database) as session:
-            # Check if repo_url is a local path or a URL
-            repo_path = Path(args.repo_url)
-            if repo_path.exists() and repo_path.is_dir():
-                # Local path - use directly
-                logger.info("Using local repository: %s", args.repo_url)
-                repo_root = repo_path
-                tmpdir = None
 
-                java_files = list(repo_root.rglob("*.java"))
-                logger.info("Found %d Java files to process", len(java_files))
-            else:
-                # URL - clone to temporary directory
-                tmpdir = tempfile.mkdtemp()
-                logger.info("Cloning %s...", args.repo_url)
-                import git
+    # Resolve repository path (clone if URL)
+    repo_path = Path(args.repo_url)
+    if repo_path.exists() and repo_path.is_dir():
+        logger.info("Using local repository: %s", args.repo_url)
+        repo_root = repo_path
+        tmpdir = None
+    else:
+        tmpdir = tempfile.mkdtemp()
+        logger.info("Cloning %s...", args.repo_url)
+        import git
 
-                git.Repo.clone_from(args.repo_url, tmpdir)
+        git.Repo.clone_from(args.repo_url, tmpdir)
+        repo_root = Path(tmpdir)
 
-                repo_root = Path(tmpdir)
-                java_files = list(repo_root.rglob("*.java"))
-                logger.info("Found %d Java files to process", len(java_files))
+    java_files = list(repo_root.rglob("*.java"))
+    logger.info("Found %d Java files to process", len(java_files))
 
-            # Extract dependency versions using the centralized module, with fallback
+    # Dependency extraction (allow artifact in/out)
+    dependency_versions: dict[str, str] = {}
+    if (
+        getattr(args, "in_dependencies", None)
+        and args.in_dependencies
+        and _Path(args.in_dependencies).exists()
+    ):
+        logger.info("Reading dependencies from %s", args.in_dependencies)
+        dependency_versions = json.loads(_Path(args.in_dependencies).read_text(encoding="utf-8"))
+    else:
+        try:
+            from .dependency_extraction import extract_enhanced_dependencies_for_neo4j
+        except ImportError:
+            extract_enhanced_dependencies_for_neo4j = None  # type: ignore
+
+        if extract_enhanced_dependencies_for_neo4j is not None:
             try:
-                from .dependency_extraction import extract_enhanced_dependencies_for_neo4j
-            except ImportError:
-                extract_enhanced_dependencies_for_neo4j = None  # type: ignore
-
-            dependency_versions = {}
-            if extract_enhanced_dependencies_for_neo4j is not None:
-                try:
-                    dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
-                    logger.info(
-                        "🚀 Using enhanced dependency extraction: %d dependencies",
-                        len(dependency_versions),
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Enhanced dependency extraction failed (%s), using basic extraction", e
-                    )
-            if not dependency_versions:
-                dependency_versions = extract_dependency_versions_from_files(repo_root)
-
-            # Phase 1: Extract all file data in parallel (with skip-existing logic)
-            logger.info("Phase 1: Extracting file data...")
-            start_phase1 = perf_counter()
-
-            # Check which files already exist in the database to skip processing
-            existing_files = set()
-            if not args.force_reprocess:
-                try:
-                    result = session.run("MATCH (f:File) RETURN f.path as path")
-                    existing_files = {record["path"] for record in result}
-                    if existing_files:
-                        logger.info(
-                            f"Found {len(existing_files)} files already in database - will skip processing"
-                        )
-                except Exception as e:
-                    logger.debug(f"Could not check existing files (continuing): {e}")
-
-            # Filter out files that already exist (unless force reprocessing)
-            files_to_process = []
-            for file_path in java_files:
-                rel_path = str(file_path.relative_to(repo_root))
-                if rel_path not in existing_files:
-                    files_to_process.append(file_path)
-
-            skipped_count = len(java_files) - len(files_to_process)
-            logger.info(f"Processing {len(files_to_process)} files ({skipped_count} skipped)")
-
-            files_data = []
-            if files_to_process:
-                with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
-                    future_to_file = {
-                        executor.submit(extract_file_data, file_path, repo_root): file_path
-                        for file_path in files_to_process
-                    }
-
-                    for future in tqdm(
-                        as_completed(future_to_file),
-                        total=len(files_to_process),
-                        desc="Extracting files",
-                    ):
-                        result = future.result()
-                        if result:
-                            files_data.append(result)
-
-            # After extraction, summarize parse errors
-            if PARSE_ERRORS or FALLBACK_ATTEMPTS or FALLBACK_AVAILABLE:
-                if args.parse_errors_file:
-                    from pathlib import Path as _Path
-
-                    out_path = _Path(args.parse_errors_file)
-                    out_path.parent.mkdir(parents=True, exist_ok=True)
-                    out_path.write_text(
-                        "\n".join(f"{p}\t{err}" for p, err in PARSE_ERRORS), encoding="utf-8"
-                    )
-                    logger.warning(
-                        "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Details: %s",
-                        len(PARSE_ERRORS),
-                        FALLBACK_AVAILABLE,
-                        FALLBACK_ATTEMPTS,
-                        FALLBACK_SUCCESSES,
-                        out_path,
-                    )
-                else:
-                    logger.warning(
-                        "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Use --parse-errors-file to capture details",
-                        len(PARSE_ERRORS),
-                        FALLBACK_AVAILABLE,
-                        FALLBACK_ATTEMPTS,
-                        FALLBACK_SUCCESSES,
-                    )
-
-            phase1_time = perf_counter() - start_phase1
-            logger.info("Phase 1 completed in %.2fs", phase1_time)
-
-            # Phase 2: Compute all embeddings in bulk
-            logger.info("Phase 2: Computing embeddings...")
-            start_phase2 = perf_counter()
-
-            file_embeddings = []
-            method_embeddings = []
-
-            if not getattr(args, "skip_embed", False):
-                if files_data:
-                    # Initialize model
-                    logger.info("Loading GraphCodeBERT model...")
-                    from transformers import AutoModel, AutoTokenizer
-
-                    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-                    model = AutoModel.from_pretrained(MODEL_NAME)
-                    device = get_device()
-
-                    # Optimize for MPS performance
-                    if device.type == "mps":
-                        # Enable high memory usage mode for better performance
-                        import os
-
-                        os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-                        logger.info("Enabled MPS high performance mode")
-
-                    model = model.to(device)
-                    logger.info(f"Model loaded on {device}")
-
-                    # Compute embeddings with batching
-                    batch_size = (
-                        args.batch_size if args.batch_size else get_optimal_batch_size(device)
-                    )
-                    logger.info(f"Using batch size: {batch_size}")
-
-                    # Collect all code snippets
-                    file_snippets = [file_data["code"] for file_data in files_data]
-                    method_snippets = []
-                    for file_data in files_data:
-                        for method in file_data["methods"]:
-                            method_snippets.append(method["code"])
-
-                    logger.info(
-                        "Computing embeddings for %d files and %d methods",
-                        len(file_snippets),
-                        len(method_snippets),
-                    )
-
-                    # Compute embeddings
-                    file_embeddings = compute_embeddings_bulk(
-                        file_snippets, tokenizer, model, device, batch_size
-                    )
-                    method_embeddings = compute_embeddings_bulk(
-                        method_snippets, tokenizer, model, device, batch_size
-                    )
-
-                    # Clean up model to free memory
-                    del model, tokenizer
-                    if device.type == "cuda":
-                        import torch
-
-                        torch.cuda.empty_cache()
-                    elif device.type == "mps":
-                        import torch
-
-                        torch.mps.empty_cache()
-                    gc.collect()
-                else:
-                    logger.info("No new files - skipping embedding computation")
-            else:
-                logger.info("Phase 2: Skipped (--skip-embed)")
-
-            phase2_time = (
-                0.0 if getattr(args, "skip_embed", False) else (perf_counter() - start_phase2)
-            )
-            logger.info("Phase 2 completed in %.2fs", phase2_time)
-
-            # Phase 3: Bulk create everything in Neo4j
-            if getattr(args, "skip_db", False):
-                logger.info("Phase 3: Skipped (--skip-db)")
+                dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
                 logger.info(
-                    "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
-                    len(files_data),
-                    phase1_time + phase2_time,
-                    len(files_data) / max(phase1_time + phase2_time, 1e-6),
+                    "🚀 Using enhanced dependency extraction: %d dependencies",
+                    len(dependency_versions),
                 )
-                if tmpdir:
-                    import shutil
+            except Exception as e:
+                logger.warning(
+                    "Enhanced dependency extraction failed (%s), using basic extraction", e
+                )
+        if not dependency_versions:
+            dependency_versions = extract_dependency_versions_from_files(repo_root)
+        if getattr(args, "out_dependencies", None) and args.out_dependencies:
+            _Path(args.out_dependencies).parent.mkdir(parents=True, exist_ok=True)
+            _Path(args.out_dependencies).write_text(
+                json.dumps(dependency_versions, ensure_ascii=False), encoding="utf-8"
+            )
 
-                    shutil.rmtree(tmpdir, ignore_errors=True)
-                    logger.info("Cleaned up temporary repository clone")
-                return
+    # Phase 1: Extract file data (allow artifact in/out)
+    logger.info("Phase 1: Extracting file data...")
+    start_phase1 = perf_counter()
 
-            logger.info("Phase 3: Creating graph in Neo4j...")
-            start_phase3 = perf_counter()
+    files_data: list[FileData] = []  # type: ignore[assignment]
+    if (
+        getattr(args, "in_files_data", None)
+        and args.in_files_data
+        and _Path(args.in_files_data).exists()
+    ):
+        logger.info("Reading files data from %s", args.in_files_data)
+        files_data = json.loads(_Path(args.in_files_data).read_text(encoding="utf-8"))
+    else:
+        # Skip DB lookup to avoid coupling extract-only runs to Neo4j
+        files_to_process = list(java_files)
+        logger.info("Processing %d files", len(files_to_process))
+        if files_to_process:
+            with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
+                future_to_file = {
+                    executor.submit(extract_file_data, file_path, repo_root): file_path
+                    for file_path in files_to_process
+                }
+                for future in tqdm(
+                    as_completed(future_to_file),
+                    total=len(files_to_process),
+                    desc="Extracting files",
+                ):
+                    result = future.result()
+                    if result:
+                        files_data.append(result)  # type: ignore[arg-type]
 
-            # Skip bulk creation if no new files to process
+        # Persist parse errors summary if requested
+        if PARSE_ERRORS or FALLBACK_ATTEMPTS or FALLBACK_AVAILABLE:
+            if args.parse_errors_file:
+                out_path = _Path(args.parse_errors_file)
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                out_path.write_text(
+                    "\n".join(f"{p}\t{err}" for p, err in PARSE_ERRORS), encoding="utf-8"
+                )
+                logger.warning(
+                    "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Details: %s",
+                    len(PARSE_ERRORS),
+                    FALLBACK_AVAILABLE,
+                    FALLBACK_ATTEMPTS,
+                    FALLBACK_SUCCESSES,
+                    out_path,
+                )
+            else:
+                logger.warning(
+                    "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Use --parse-errors-file to capture details",
+                    len(PARSE_ERRORS),
+                    FALLBACK_AVAILABLE,
+                    FALLBACK_ATTEMPTS,
+                    FALLBACK_SUCCESSES,
+                )
+
+        if getattr(args, "out_files_data", None) and args.out_files_data:
+            _Path(args.out_files_data).parent.mkdir(parents=True, exist_ok=True)
+            _Path(args.out_files_data).write_text(
+                json.dumps(files_data, ensure_ascii=False), encoding="utf-8"
+            )
+
+    phase1_time = perf_counter() - start_phase1
+    logger.info("Phase 1 completed in %.2fs", phase1_time)
+
+    # Phase 2: Compute embeddings (allow artifact in/out and target selection)
+    logger.info("Phase 2: Computing embeddings...")
+    start_phase2 = perf_counter()
+
+    file_embeddings: list[list[float]] = []
+    method_embeddings: list[list[float]] = []
+
+    def _np():  # lazy numpy import
+        import numpy as _numpy  # type: ignore
+
+        return _numpy
+
+    if not getattr(args, "skip_embed", False):
+        # Attempt to read provided embeddings
+        files_loaded = False
+        methods_loaded = False
+        if (
+            getattr(args, "in_file_embeddings", None)
+            and args.in_file_embeddings
+            and _Path(args.in_file_embeddings).exists()
+        ):
+            try:
+                file_embeddings = _np().load(args.in_file_embeddings, allow_pickle=True).tolist()
+                files_loaded = True
+                logger.info("Loaded file embeddings from %s", args.in_file_embeddings)
+            except Exception:
+                files_loaded = False
+        if (
+            getattr(args, "in_method_embeddings", None)
+            and args.in_method_embeddings
+            and _Path(args.in_method_embeddings).exists()
+        ):
+            try:
+                method_embeddings = (
+                    _np().load(args.in_method_embeddings, allow_pickle=True).tolist()
+                )
+                methods_loaded = True
+                logger.info("Loaded method embeddings from %s", args.in_method_embeddings)
+            except Exception:
+                methods_loaded = False
+
+        need_files = args.embed_target in ("files", "both") and not files_loaded
+        need_methods = args.embed_target in ("methods", "both") and not methods_loaded
+
+        if (need_files or need_methods) and files_data:
+            from transformers import AutoModel, AutoTokenizer
+
+            logger.info("Loading GraphCodeBERT model...")
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+            model = AutoModel.from_pretrained(MODEL_NAME)
+            device = get_device()
+
+            if device.type == "mps":
+                import os as _os
+
+                _os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+                logger.info("Enabled MPS high performance mode")
+
+            model = model.to(device)
+            logger.info(f"Model loaded on {device}")
+
+            batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
+            logger.info(f"Using batch size: {batch_size}")
+
+            if need_files:
+                file_snippets = [file_data["code"] for file_data in files_data]
+                file_embeddings = compute_embeddings_bulk(
+                    file_snippets, tokenizer, model, device, batch_size
+                )
+            if need_methods:
+                method_snippets = [
+                    method["code"] for file_data in files_data for method in file_data["methods"]
+                ]
+                method_embeddings = compute_embeddings_bulk(
+                    method_snippets, tokenizer, model, device, batch_size
+                )
+
+            del model, tokenizer
+            try:
+                import torch as _torch  # type: ignore
+
+                if device.type == "cuda":
+                    _torch.cuda.empty_cache()
+                elif device.type == "mps":
+                    _torch.mps.empty_cache()
+            except Exception:
+                pass
+            gc.collect()
+
+        # Persist artifacts if requested
+        if (
+            getattr(args, "out_file_embeddings", None)
+            and args.out_file_embeddings
+            and file_embeddings
+        ):
+            _Path(args.out_file_embeddings).parent.mkdir(parents=True, exist_ok=True)
+            _np().save(args.out_file_embeddings, _np().array(file_embeddings, dtype="float32"))
+            logger.info("Wrote file embeddings to %s", args.out_file_embeddings)
+        if (
+            getattr(args, "out_method_embeddings", None)
+            and args.out_method_embeddings
+            and method_embeddings
+        ):
+            _Path(args.out_method_embeddings).parent.mkdir(parents=True, exist_ok=True)
+            _np().save(args.out_method_embeddings, _np().array(method_embeddings, dtype="float32"))
+            logger.info("Wrote method embeddings to %s", args.out_method_embeddings)
+    else:
+        logger.info("Phase 2: Skipped (--skip-embed)")
+
+    phase2_time = 0.0 if getattr(args, "skip_embed", False) else (perf_counter() - start_phase2)
+    logger.info("Phase 2 completed in %.2fs", phase2_time)
+
+    # Phase 3: Write to Neo4j
+    if getattr(args, "skip_db", False):
+        logger.info("Phase 3: Skipped (--skip-db)")
+        logger.info(
+            "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
+            len(files_data),
+            phase1_time + phase2_time,
+            len(files_data) / max(phase1_time + phase2_time, 1e-6),
+        )
+        if tmpdir:
+            import shutil as _shutil
+
+            _shutil.rmtree(tmpdir, ignore_errors=True)
+            logger.info("Cleaned up temporary repository clone")
+        return
+
+    logger.info("Phase 3: Creating graph in Neo4j...")
+    start_phase3 = perf_counter()
+    from ..utils.common import create_neo4j_driver as _create_driver  # deferred import
+
+    with _create_driver(args.uri, args.username, args.password) as driver:
+        with driver.session(database=args.database) as session:  # type: ignore[reportUnknownMemberType]
             if files_data:
                 bulk_create_nodes_and_relationships(
-                    session,
-                    files_data,
-                    file_embeddings,
-                    method_embeddings,
-                    dependency_versions,
+                    session, files_data, file_embeddings, method_embeddings, dependency_versions
                 )
             else:
                 logger.info("No new files to process - skipping bulk creation")
 
-            phase3_time = perf_counter() - start_phase3
-            logger.info("Phase 3 completed in %.2fs", phase3_time)
+    phase3_time = perf_counter() - start_phase3
+    logger.info("Phase 3 completed in %.2fs", phase3_time)
 
-            total_time = phase1_time + phase2_time + phase3_time
-            logger.info(
-                "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
-                len(files_data),
-                total_time,
-                len(files_data) / total_time,
-            )
-            logger.info(
-                "Phase breakdown: Extract=%.1fs, Embeddings=%.1fs, Database=%.1fs",
-                phase1_time,
-                phase2_time,
-                phase3_time,
-            )
+    total_time = phase1_time + phase2_time + phase3_time
+    logger.info(
+        "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
+        len(files_data),
+        total_time,
+        len(files_data) / max(total_time, 1e-6),
+    )
+    logger.info(
+        "Phase breakdown: Extract=%.1fs, Embeddings=%.1fs, Database=%.1fs",
+        phase1_time,
+        phase2_time,
+        phase3_time,
+    )
 
-            # Clean up temporary directory if we created one
-            if tmpdir:
-                import shutil
+    if tmpdir:
+        import shutil as _shutil
 
-                shutil.rmtree(tmpdir, ignore_errors=True)
-                logger.info("Cleaned up temporary repository clone")
+        _shutil.rmtree(tmpdir, ignore_errors=True)
+        logger.info("Cleaned up temporary repository clone")
 
 
 if __name__ == "__main__":

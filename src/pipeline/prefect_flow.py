@@ -127,17 +127,117 @@ def clone_repo_task(repo_url: str) -> str:
 
 
 @task(retries=1)
-def code_to_graph_task(
+def extract_code_task(repo_path: str, out_dir: str) -> str:
+    logger = get_run_logger()
+    logger.info("Extracting code structure from %s", repo_path)
+    out_files = str(Path(out_dir) / "files_data.json")
+    out_deps = str(Path(out_dir) / "dependencies.json")
+    base = [
+        "prog",
+        repo_path,
+        "--skip-embed",
+        "--skip-db",
+        "--out-files-data",
+        out_files,
+        "--out-dependencies",
+        out_deps,
+    ]
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = base
+        code_to_graph_main()
+    finally:
+        sys.argv = old_argv
+    return out_dir
+
+
+@task(retries=1)
+def embed_files_task(repo_path: str, artifacts_dir: str) -> str:
+    logger = get_run_logger()
+    logger.info("Computing file embeddings for %s", repo_path)
+    in_files = str(Path(artifacts_dir) / "files_data.json")
+    out_file_emb = str(Path(artifacts_dir) / "file_embeddings.npz")
+    base = [
+        "prog",
+        repo_path,
+        "--skip-db",
+        "--embed-target",
+        "files",
+        "--in-files-data",
+        in_files,
+        "--out-file-embeddings",
+        out_file_emb,
+    ]
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = base
+        code_to_graph_main()
+    finally:
+        sys.argv = old_argv
+    return artifacts_dir
+
+
+@task(retries=1)
+def embed_methods_task(repo_path: str, artifacts_dir: str) -> str:
+    logger = get_run_logger()
+    logger.info("Computing method embeddings for %s", repo_path)
+    in_files = str(Path(artifacts_dir) / "files_data.json")
+    out_method_emb = str(Path(artifacts_dir) / "method_embeddings.npz")
+    base = [
+        "prog",
+        repo_path,
+        "--skip-db",
+        "--embed-target",
+        "methods",
+        "--in-files-data",
+        in_files,
+        "--out-method-embeddings",
+        out_method_emb,
+    ]
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = base
+        code_to_graph_main()
+    finally:
+        sys.argv = old_argv
+    return artifacts_dir
+
+
+@task(retries=1)
+def write_graph_task(
     repo_path: str,
+    artifacts_dir: str,
     uri: str | None,
     username: str | None,
     password: str | None,
     database: str | None,
 ) -> None:
     logger = get_run_logger()
-    logger.info("Loading code structure + embeddings from %s", repo_path)
-    # Build argv for the existing main
-    base = ["prog", repo_path]
+    logger.info("Writing extracted data and embeddings to Neo4j from %s", artifacts_dir)
+    in_files = str(Path(artifacts_dir) / "files_data.json")
+    in_deps = str(Path(artifacts_dir) / "dependencies.json")
+    in_file_emb = str(Path(artifacts_dir) / "file_embeddings.npz")
+    in_method_emb = str(Path(artifacts_dir) / "method_embeddings.npz")
+
+    base = [
+        "prog",
+        repo_path,
+        "--skip-embed",
+        "--in-files-data",
+        in_files,
+        "--in-dependencies",
+        in_deps,
+        "--in-file-embeddings",
+        in_file_emb,
+        "--in-method-embeddings",
+        in_method_emb,
+    ]
     overrides: dict[str, str] = {}
     if uri:
         overrides["--uri"] = uri
@@ -147,7 +247,6 @@ def code_to_graph_task(
         overrides["--password"] = password
     if database:
         overrides["--database"] = database
-
     import sys
 
     old_argv = sys.argv
@@ -330,8 +429,14 @@ def code_graph_flow(
     else:
         repo_path = clone_repo_task.submit(repo_url).result()
 
-    # Run code structure and git history in sequence (both require repo)
-    code_to_graph_task(repo_path, uri, username, password, database)
+    # Run code structure in granular steps with artifacts
+    artifacts_dir = str(Path(tempfile.mkdtemp(prefix="cg_artifacts_")))
+    extract_code_task(repo_path, artifacts_dir)
+    embed_files_task(repo_path, artifacts_dir)
+    embed_methods_task(repo_path, artifacts_dir)
+    write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
+
+    # Then run git history
     git_history_task(repo_path, uri, username, password, database)
 
     # Before similarity, clear existing SIMILAR relationships to avoid duplicates
