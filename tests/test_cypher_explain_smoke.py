@@ -32,35 +32,38 @@ def _get_driver_or_skip():
 @pytest.mark.integration
 def test_explain_code_analysis_queries():
     driver, database = _get_driver_or_skip()
-    with driver.session(database=database) as s:
-        # Representative UNWIND/MERGE for File nodes
-        q = (
-            "EXPLAIN UNWIND $files AS file "
-            "MERGE (f:File {path: file.path}) "
-            "SET f.language = file.language"
-        )
-        s.run(q, files=[{"path": "src/Main.java", "language": "java"}]).consume()
+    with driver:
+        with driver.session(database=database) as s:
+            # Representative UNWIND/MERGE for File nodes
+            q = (
+                "EXPLAIN UNWIND $files AS file "
+                "MERGE (f:File {path: file.path}) "
+                "SET f.language = file.language"
+            )
+            s.run(q, files=[{"path": "src/Main.java", "language": "java"}]).consume()
 
-        # Representative relationship creation
-        q2 = (
-            "EXPLAIN UNWIND $rels AS rel "
-            "MATCH (f:File {path: rel.file}) MATCH (i:Import {import_path: rel.import}) "
-            "MERGE (f)-[:IMPORTS]->(i)"
-        )
-        s.run(q2, rels=[{"file": "src/Main.java", "import": "org.example.Util"}]).consume()
+            # Representative relationship creation
+            q2 = (
+                "EXPLAIN UNWIND $rels AS rel "
+                "MATCH (f:File {path: rel.file}) MATCH (i:Import {import_path: rel.import}) "
+                "MERGE (f)-[:IMPORTS]->(i)"
+            )
+            s.run(q2, rels=[{"file": "src/Main.java", "import": "org.example.Util"}]).consume()
 
 
 @pytest.mark.integration
 def test_explain_cve_analysis_queries():
     driver, database = _get_driver_or_skip()
-    with driver.session(database=database) as s:
-        q = "EXPLAIN MATCH (cve:CVE) WHERE cve.cvss_score >= $t " "RETURN cve LIMIT 1"
-        s.run(q, t=7.0).consume()
+    with driver:
+        with driver.session(database=database) as s:
+            q = "EXPLAIN MATCH (cve:CVE) WHERE cve.cvss_score >= $t RETURN cve LIMIT 1"
+            s.run(q, t=7.0).consume()
 
 
 @pytest.mark.integration
 def test_explain_cleanup_show_indexes():
     driver, database = _get_driver_or_skip()
-    with driver.session(database=database) as s:
-        s.run("EXPLAIN SHOW INDEXES").consume()
-        s.run("EXPLAIN SHOW CONSTRAINTS").consume()
+    with driver:
+        with driver.session(database=database) as s:
+            s.run("EXPLAIN SHOW INDEXES").consume()
+            s.run("EXPLAIN SHOW CONSTRAINTS").consume()
