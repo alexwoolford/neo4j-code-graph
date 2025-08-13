@@ -1,1 +1,73 @@
-# NVD API Setup Guide ## Getting an NVD API Key The National Vulnerability Database (NVD) requires API keys for reliable access. Without an API key, you'll face severe rate limits (1 request per 6 seconds). ### 1. Request an API Key 1. Go to: https://nvd.nist.gov/developers/request-an-api-key 2. Fill out the form with: - **Name**: Your name - **Email**: Your email address - **Organization**: Your company/organization - **Intended Use**: "Security vulnerability analysis for code dependency management" 3. Submit the request ### 2. API Key Approval - **Approval time**: Usually 2-5 business days - **You'll receive**: Email with your API key - **Rate limits with key**: 50 requests per 30 seconds (much !) ### 3. Using Your API Key Once you have your API key, use it with the CVE analysis tool: ```bash # Method 1: Command line argument python cve_analysis.py --nvd-api-key YOUR_API_KEY_HERE # Method 2: Environment variable (recommended) export NVD_API_KEY=your_api_key_here python cve_analysis.py ``` ### 4. Environment Variable Setup Add to your shell profile (`.bashrc`, `.zshrc`, etc.): ```bash # NVD API Key for CVE analysis export NVD_API_KEY="your_actual_api_key_here" ``` ## Rate Limits | API Key Status | Rate Limit | Recommended Use | |----------------|------------|-----------------| | **No API Key** | 1 request/6 seconds | Development/testing only | | **With API Key** | 50 requests/30 seconds | Production use | ## Troubleshooting ### Common Issues 1. **404 Error**: API endpoint changed - Solution: Update script or try alternative endpoints 2. **403 Forbidden**: API key required/invalid - Solution: Provide valid API key or wait for approval 3. **429 Rate Limited**: Too many requests - Solution: The script handles this automatically with retries ### Testing Your Setup ```bash # Test CVE fetching with your API key python cve_analysis.py \ --nvd-api-key YOUR_KEY \ --component-mapping examples/component_mapping.json ``` ## Alternative: Using CVE Data Files If you can't get an API key immediately, you can download CVE data manually: 1. **Download**: Go to https://nvd.nist.gov/vuln/data-feeds 2. **Convert**: Use NVD's JSON feeds 3. **Load**: Use `--cve-data path/to/file.json` ```bash # Using pre-downloaded CVE data python cve_analysis.py --cve-data nvd_cve_data_2024.json ``` ## API Documentation Full NVD API documentation: https://nvd.nist.gov/developers/vulnerabilities Key endpoints: - **CVE Search**: `https://services.nvd.nist.gov/rest/json/cves/2.0` - **Parameters**: `cvssV3Severity`, `pubStartDate`, `pubEndDate` - **Response**: JSON with vulnerability details
+# NVD API Setup Guide
+
+## When to use the NVD API
+
+The project performs targeted CVE lookups against NVD using specific dependency-derived search terms. An API key is optional but recommended for faster and more reliable requests.
+
+## Getting an NVD API Key
+
+The National Vulnerability Database (NVD) issues API keys to raise rate limits.
+
+### 1. Request an API Key
+1. Go to: https://nvd.nist.gov/developers/request-an-api-key
+2. Fill out the form with:
+   - Name, Email, Organization
+   - Intended Use: "Targeted CVE lookups for dependency analysis"
+3. Submit the request
+
+### 2. API Key Approval
+- Approval time: usually 2–5 business days
+- You’ll receive an API key via email
+
+### 3. Using Your API Key
+
+Prefer the console script entry point and the standard flag names used by the tool:
+
+```bash
+# Method 1: CLI flag (recommended)
+code-graph-cve --api-key YOUR_API_KEY
+
+# Method 2: Environment variable
+export NVD_API_KEY=YOUR_API_KEY
+code-graph-cve
+```
+
+### 4. Environment Variable Setup
+
+Add to your shell profile (`.bashrc`, `.zshrc`, etc.):
+
+```bash
+# NVD API Key for CVE analysis
+export NVD_API_KEY="your_actual_api_key_here"
+```
+
+## Rate Limits (reference)
+
+| API Key Status | Effective Rate Limit               | Recommended Use            |
+|----------------|------------------------------------|----------------------------|
+| No API Key     | ~5 requests / 30 seconds           | Dev/test or small queries  |
+| With API Key   | ~50 requests / 30 seconds          | Production / larger scans  |
+
+The tool enforces rate limits and retries gracefully.
+
+## Troubleshooting
+
+1. 404 error (endpoint changes): use the CVE search endpoint shown below and update if needed
+2. 403 Forbidden: supply a valid API key; check `NVD_API_KEY`
+3. 429 Rate Limited: the tool will back off automatically; consider supplying an API key
+
+## Testing Your Setup
+
+```bash
+# Quick connectivity with your key
+code-graph-cve --api-key YOUR_KEY --cache-status
+```
+
+## API Documentation
+
+Official docs: https://nvd.nist.gov/developers/vulnerabilities
+
+Key endpoints used by this project:
+- CVE Search: `https://services.nvd.nist.gov/rest/json/cves/2.0`
+- Parameters: targeted keyword searches prepared by the tool
+- Response: JSON with vulnerability details
