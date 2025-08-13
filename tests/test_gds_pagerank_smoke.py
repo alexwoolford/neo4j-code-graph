@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -20,13 +19,11 @@ def test_pagerank_smoke_projection_and_stream():
     except Exception:
         pytest.skip("GDS client not available")
 
-    uri = os.getenv("NEO4J_URI")
-    username = os.getenv("NEO4J_USERNAME")
-    password = os.getenv("NEO4J_PASSWORD")
-    database = os.getenv("NEO4J_DATABASE", "neo4j")
-
-    if not uri or not username or not password:
-        pytest.skip("NEO4J connection not configured for integration test")
+    try:
+        from src.utils.neo4j_utils import get_neo4j_config
+    except Exception:
+        pytest.skip("Utilities not available")
+    uri, username, password, database = get_neo4j_config()
 
     # Support both old and new GDS Python client signatures
     try:

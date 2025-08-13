@@ -1,24 +1,19 @@
-import os
-
 import pytest
 
 
 @pytest.mark.live
 def test_pagerank_via_cypher_live():
     try:
-        from neo4j import GraphDatabase
+        from src.utils.common import create_neo4j_driver, get_neo4j_config
     except Exception:
-        pytest.skip("Neo4j driver not available")
+        pytest.skip("Utilities not available")
 
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USERNAME")
-    pwd = os.getenv("NEO4J_PASSWORD")
-    db = os.getenv("NEO4J_DATABASE", "neo4j")
+    uri, user, pwd, db = get_neo4j_config()
+    try:
+        driver = create_neo4j_driver(uri, user, pwd)
+    except Exception:
+        pytest.skip("Neo4j is not available for live tests (set NEO4J_* env vars)")
 
-    if not (uri and user and pwd):
-        pytest.skip("NEO4J connection not configured for live test")
-
-    driver = GraphDatabase.driver(uri, auth=(user, pwd))
     with driver:
         with driver.session(database=db) as session:
             # Clear and create a tiny graph
