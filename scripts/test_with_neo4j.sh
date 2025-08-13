@@ -74,7 +74,7 @@ fi
 
 echo "Running tests..."
 # Sanity check connectivity from Python first
-python - <<'PY'
+PYTHONPATH="$(cd "$(dirname "$0")/.." && pwd)":"$PYTHONPATH" python - <<'PY'
 from src.utils.common import create_neo4j_driver, get_neo4j_config
 uri, user, pwd, db = get_neo4j_config()
 with create_neo4j_driver(uri, user, pwd) as d:

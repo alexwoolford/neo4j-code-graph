@@ -8,20 +8,17 @@ that would occur with the old text-based matching approach.
 
 import logging
 import sys
-from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
+from src.security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
+from src.utils.common import setup_logging
 
 logger = logging.getLogger(__name__)
 
 
 def demonstrate_old_vs_new_matching():
     """Demonstrate the difference between old loose matching and new precise matching."""
-    print("🔍 CVE Matching Accuracy Demonstration")
-    print("=" * 60)
+    logger.info("🔍 CVE Matching Accuracy Demonstration")
+    logger.info("%s", "=" * 60)
 
     # Create test dependencies
     test_dependencies = [
@@ -98,8 +95,8 @@ def demonstrate_old_vs_new_matching():
     }
 
     # Test with enhanced matcher
-    print("\n🎯 Enhanced Precise GAV Matching Results:")
-    print("-" * 40)
+    logger.info("\n🎯 Enhanced Precise GAV Matching Results:")
+    logger.info("%s", "-" * 40)
 
     matcher = PreciseGAVMatcher()
 
@@ -108,22 +105,22 @@ def demonstrate_old_vs_new_matching():
         log4j_confidence = matcher.match_gav_to_cve(dep, log4j_cve)
         collections_confidence = matcher.match_gav_to_cve(dep, apache_cve_different)
 
-        print(f"\n📦 {dep.full_coordinate}")
+        logger.info("\n📦 %s", dep.full_coordinate)
 
         if log4j_confidence:
-            print(f"   ✅ MATCHES CVE-2021-44228 (confidence: {log4j_confidence})")
+            logger.info("   ✅ MATCHES CVE-2021-44228 (confidence: %s)", log4j_confidence)
         else:
-            print("   ⚪ No match for CVE-2021-44228")
+            logger.info("   ⚪ No match for CVE-2021-44228")
 
         if collections_confidence:
-            print(f"   ✅ MATCHES CVE-2015-6420 (confidence: {collections_confidence})")
+            logger.info("   ✅ MATCHES CVE-2015-6420 (confidence: %s)", collections_confidence)
         else:
-            print("   ⚪ No match for CVE-2015-6420")
+            logger.info("   ⚪ No match for CVE-2015-6420")
 
     # Simulate old loose matching
-    print("\n" + "=" * 60)
-    print("🚨 Old Loose Text Matching (PROBLEMATIC):")
-    print("-" * 40)
+    logger.info("\n%s", "=" * 60)
+    logger.info("🚨 Old Loose Text Matching (PROBLEMATIC):")
+    logger.info("%s", "-" * 40)
 
     def simulate_old_matching(dep_name: str, cve_description: str) -> bool:
         """Simulate the old problematic text matching approach."""
@@ -148,13 +145,13 @@ def demonstrate_old_vs_new_matching():
             dep.full_coordinate, apache_cve_different["descriptions"][0]["value"]
         )
 
-        print(f"\n📦 {dep.full_coordinate}")
+        logger.info("\n📦 %s", dep.full_coordinate)
 
         if log4j_match:
             status = "❌ FALSE POSITIVE" if dep.artifact_id != "log4j-core" else "✅ Correct match"
-            print(f"   {status} - matches CVE-2021-44228")
+            logger.info("   %s - matches CVE-2021-44228", status)
         else:
-            print("   ⚪ No match for CVE-2021-44228")
+            logger.info("   ⚪ No match for CVE-2021-44228")
 
         if collections_match:
             status = (
@@ -162,30 +159,30 @@ def demonstrate_old_vs_new_matching():
                 if "commons-collections" not in dep.artifact_id
                 else "✅ Correct match"
             )
-            print(f"   {status} - matches CVE-2015-6420")
+            logger.info("   %s - matches CVE-2015-6420", status)
         else:
-            print("   ⚪ No match for CVE-2015-6420")
+            logger.info("   ⚪ No match for CVE-2015-6420")
 
-    print("\n" + "=" * 60)
-    print("📊 Summary of Improvements:")
-    print("-" * 40)
-    print("✅ Enhanced matching uses:")
-    print("   • Exact GAV coordinate matching")
-    print("   • CPE (Common Platform Enumeration) data")
-    print("   • Precise version range checking")
-    print("   • Conservative fuzzy matching with validation")
-    print()
-    print("❌ Old matching problems:")
-    print("   • Simple text substring matching")
-    print("   • No version awareness")
-    print("   • High false positive rate")
-    print("   • Matches unrelated Apache projects")
+    logger.info("\n%s", "=" * 60)
+    logger.info("📊 Summary of Improvements:")
+    logger.info("%s", "-" * 40)
+    logger.info("✅ Enhanced matching uses:")
+    logger.info("   • Exact GAV coordinate matching")
+    logger.info("   • CPE (Common Platform Enumeration) data")
+    logger.info("   • Precise version range checking")
+    logger.info("   • Conservative fuzzy matching with validation")
+    logger.info("")
+    logger.info("❌ Old matching problems:")
+    logger.info("   • Simple text substring matching")
+    logger.info("   • No version awareness")
+    logger.info("   • High false positive rate")
+    logger.info("   • Matches unrelated Apache projects")
 
 
 def test_version_precision():
     """Test precision of version range matching."""
-    print("\n🎯 Version Range Precision Test:")
-    print("-" * 40)
+    logger.info("\n🎯 Version Range Precision Test:")
+    logger.info("%s", "-" * 40)
 
     # Test CVE with specific version range
     version_cve = {
@@ -226,33 +223,26 @@ def test_version_precision():
         else:
             result = "✅ SAFE"
 
-        print(f"   log4j-core:{version} -> {result} ({expected})")
+        logger.info("   log4j-core:%s -> %s (%s)", version, result, expected)
 
 
 def main():
     """Main demonstration function."""
-    import os
-    import sys
-
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-    from utils.common import setup_logging
-
     setup_logging("INFO")
-
-    print("🔬 Neo4j Code Graph - CVE Matching Accuracy Demo")
-    print("This demo shows why precise GAV matching is critical for security analysis")
+    logger.info("🔬 Neo4j Code Graph - CVE Matching Accuracy Demo")
+    logger.info("This demo shows why precise GAV matching is critical for security analysis")
 
     try:
         demonstrate_old_vs_new_matching()
         test_version_precision()
 
-        print("\n" + "=" * 60)
-        print("🎉 Demo completed!")
-        print()
-        print("📝 Next Steps:")
-        print("1. Run tests: pytest tests/security/test_precise_gav_matching.py -v")
-        print("2. Integrate enhanced matching into CVE analysis pipeline")
-        print("3. Update dependency extraction to use proper GAV coordinates")
+        logger.info("\n%s", "=" * 60)
+        logger.info("🎉 Demo completed!")
+        logger.info("")
+        logger.info("📝 Next Steps:")
+        logger.info("1. Run tests: pytest tests/security/test_precise_gav_matching.py -v")
+        logger.info("2. Integrate enhanced matching into CVE analysis pipeline")
+        logger.info("3. Update dependency extraction to use proper GAV coordinates")
 
     except Exception as e:
         logger.error(f"Demo failed: {e}")

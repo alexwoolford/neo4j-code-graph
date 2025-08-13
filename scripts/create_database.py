@@ -12,7 +12,10 @@ import sys
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("Usage: create_database.py <database_name>")
+        from src.utils.common import setup_logging
+
+        setup_logging("INFO")
+        logging.getLogger(__name__).error("Usage: create_database.py <database_name>")
         return 2
     db_name = sys.argv[1]
 
