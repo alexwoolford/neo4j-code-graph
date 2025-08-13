@@ -59,19 +59,14 @@ setup-dev: install-dev ## Setup development environment
 	@echo "Run 'make help' to see available commands"
 
 # Pipeline shortcuts
-pipeline: ## Run the complete analysis pipeline (requires repo URL)
+pipeline: ## Run the complete analysis pipeline with Prefect (requires repo URL)
 ifndef REPO_URL
 	@echo "Usage: make pipeline REPO_URL=https://github.com/user/repo"
 else
-	python scripts/run_pipeline.py $(REPO_URL)
+	python -m src.pipeline.prefect_flow --repo-url $(REPO_URL)
 endif
 
-pipeline-shell: ## Run the shell-based pipeline (legacy)
-ifndef REPO_URL
-	@echo "Usage: make pipeline-shell REPO_URL=https://github.com/user/repo"
-else
-	./scripts/run_pipeline.sh $(REPO_URL)
-endif
+
 
 analyze: ## Run analysis on a repository (requires REPO_URL)
 ifndef REPO_URL

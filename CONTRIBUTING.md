@@ -11,10 +11,7 @@ Thank you for your interest in contributing to Neo4j Code Graph! This document p
 git clone https://github.com/your-org/neo4j-code-graph.git
 cd neo4j-code-graph
 
-# Run the automated setup script
-python scripts/dev_setup.py
-
-# Or set up manually
+# Set up the development environment
 make setup-dev
 ```
 
