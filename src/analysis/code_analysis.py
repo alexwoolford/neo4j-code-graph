@@ -947,30 +947,23 @@ def create_files(
     # Use intelligent batch sizing for embedding operations
     batch_size = get_database_batch_size(has_embeddings=True)
 
-    file_nodes = []
-    zero_embedding: list[float] = [0.0] * 768
+    file_nodes: list[dict[str, Any]] = []
     warned_short = False
     for i, file_data in enumerate(files_data):
         file_path_str = file_data["path"]
         file_name_only = Path(file_path_str).name if file_path_str else file_path_str
-        embedding_vec = (
-            file_embeddings[i]
-            if i < len(file_embeddings)
-            else (
-                zero_embedding if (warned_short or not (warned_short := True)) else zero_embedding
-            )
-        )
-        if warned_short:
+        has_embedding = i < len(file_embeddings)
+        if not has_embedding and not warned_short:
             logger.warning(
-                "File embeddings shorter than files_data (%d < %d); filling missing with zeros",
+                "Missing file embedding(s) (%d embeddings for %d files); leaving embedding unset",
                 len(file_embeddings),
                 len(files_data),
             )
-            warned_short = False  # log once
+            warned_short = True
         file_node = {
             "path": file_path_str,
             "name": file_name_only,
-            "embedding": embedding_vec,
+            **({"embedding": file_embeddings[i]} if has_embedding else {}),
             "embedding_type": EMBEDDING_TYPE,
             "language": file_data.get("language", "java"),
             "ecosystem": file_data.get("ecosystem", "maven"),
@@ -994,16 +987,16 @@ def create_files(
                 """
                 UNWIND $files AS file
                 MERGE (f:File {path: file.path})
-                SET f.embedding = file.embedding,
-                    f.embedding_type = file.embedding_type,
-                    f.language = file.language,
+                SET f.language = file.language,
                     f.ecosystem = file.ecosystem,
                     f.name = file.name,
                     f.total_lines = file.total_lines,
                     f.code_lines = file.code_lines,
                     f.method_count = file.method_count,
                     f.class_count = file.class_count,
-                    f.interface_count = file.interface_count
+                    f.interface_count = file.interface_count,
+                    f.embedding = CASE WHEN file.embedding IS NOT NULL THEN file.embedding ELSE f.embedding END,
+                    f.embedding_type = CASE WHEN file.embedding IS NOT NULL THEN file.embedding_type ELSE f.embedding_type END
                 """,
                 files=batch,
             )
@@ -1226,34 +1219,26 @@ def create_methods(
     session: Any, files_data: list[FileData], method_embeddings: list[list[float]]
 ) -> None:
     """Create Method nodes and related relationships."""
-    method_nodes = []
+    method_nodes: list[dict[str, Any]] = []
     method_idx = 0
-    zero_embedding: list[float] = [0.0] * 768
     warned_short = False
 
     for file_data in files_data:
         for method in file_data["methods"]:
-            embedding_vec = (
-                method_embeddings[method_idx]
-                if method_idx < len(method_embeddings)
-                else (
-                    zero_embedding
-                    if (warned_short or not (warned_short := True))
-                    else zero_embedding
-                )
-            )
-            if warned_short:
+            has_embedding = method_idx < len(method_embeddings)
+            if not has_embedding and not warned_short:
+                total_methods = sum(len(f.get("methods", [])) for f in files_data)
                 logger.warning(
-                    "Method embeddings shorter than methods (%d < %d); filling missing with zeros",
+                    "Missing method embedding(s) (%d embeddings for %d methods); leaving embedding unset",
                     len(method_embeddings),
-                    sum(len(f.get("methods", [])) for f in files_data),
+                    total_methods,
                 )
-                warned_short = False
+                warned_short = True
             method_node = {
                 "name": method["name"],
                 "file": method["file"],
                 "line": method["line"],
-                "embedding": embedding_vec,
+                **({"embedding": method_embeddings[method_idx]} if has_embedding else {}),
                 "embedding_type": EMBEDDING_TYPE,
                 "estimated_lines": method.get("estimated_lines", 0),
                 "is_static": method.get("is_static", False),
@@ -1292,8 +1277,8 @@ def create_methods(
             SET m.name = method.name,
                 m.file = method.file,
                 m.line = method.line,
-                m.embedding = method.embedding,
-                m.embedding_type = method.embedding_type,
+                m.embedding = CASE WHEN method.embedding IS NOT NULL THEN method.embedding ELSE m.embedding END,
+                m.embedding_type = CASE WHEN method.embedding IS NOT NULL THEN method.embedding_type ELSE m.embedding_type END,
                 m.estimated_lines = method.estimated_lines,
                 m.is_static = method.is_static,
                 m.is_abstract = method.is_abstract,
