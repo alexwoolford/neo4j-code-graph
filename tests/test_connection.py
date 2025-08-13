@@ -64,7 +64,7 @@ def test_neo4j_connection():
                     print("✅ Code analysis data found - ready for CVE analysis!")
                 else:
                     print("⚠️  No code analysis data found")
-                    print("   Run: ./run_pipeline.sh <your-repo-url> first")
+                    print("   Run: code-graph-pipeline-prefect --repo-url <your-repo-url> first")
             else:
                 print("📊 Database is empty - run the pipeline first")
 

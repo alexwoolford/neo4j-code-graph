@@ -132,7 +132,7 @@ from utils.common import create_neo4j_driver, setup_logging
 - **`temporal_analysis.py`**: Temporal analyses (coupling, hotspots)
 - **`common.py`**: Shared utilities to reduce code duplication
 - **`utils.py`**: Core utility functions (port handling, config)
-- **`run_pipeline.sh`**: Complete pipeline automation script
+
 
 ## Neo4j Aura Compatibility Policy
 

@@ -206,7 +206,7 @@ def bulk_load_to_neo4j(
     try:
         if not file_changes_only:
             # Note: Schema constraints and indexes are now managed centrally by schema_management.py
-            # They should be created via run_pipeline.sh Step 0 or standalone schema setup
+            # They should be created via the schema setup step of the pipeline
 
             # Load developers
             logger.info("Loading %d developers...", len(developers_df))

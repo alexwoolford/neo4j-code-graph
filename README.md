@@ -208,7 +208,6 @@ neo4j-code-graph/
 │   ├── data/              # Schema and data management
 │   └── utils/             # Common utilities
 ├── scripts/               # CLI tools
-│   ├── run_pipeline.sh           # Legacy pipeline script (prefer Prefect flow)
 │   ├── code_to_graph.py          # Code structure analysis
 │   ├── git_history_to_graph.py   # Git history analysis
 │   ├── cve_analysis.py           # Security analysis

@@ -1,7 +1,7 @@
 """
 Prefect-based orchestration for the neo4j-code-graph pipeline.
 
-This module exposes a Prefect flow that mirrors the steps in scripts/run_pipeline.sh,
+This module exposes a Prefect flow that mirrors the end-to-end pipeline,
 with opportunities for parallel execution and better observability.
 
 Usage examples:
