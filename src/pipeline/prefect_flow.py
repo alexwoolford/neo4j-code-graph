@@ -19,14 +19,25 @@ from pathlib import Path
 from prefect import flow, get_run_logger, task
 from prefect.tasks import task_input_hash
 
-from src.analysis.centrality import main as centrality_main
-from src.analysis.code_analysis import main as code_to_graph_main
-from src.analysis.git_analysis import main as git_history_main
-from src.analysis.similarity import main as similarity_main
-from src.data.schema_management import main as schema_main
-from src.security.cve_analysis import main as cve_main
-from src.utils.cleanup import main as cleanup_main
-from src.utils.common import setup_logging
+# Import sibling packages in both contexts: installed package (top-level) and repo run (with 'src.')
+try:
+    from analysis.centrality import main as centrality_main
+    from analysis.code_analysis import main as code_to_graph_main
+    from analysis.git_analysis import main as git_history_main
+    from analysis.similarity import main as similarity_main
+    from data.schema_management import main as schema_main
+    from security.cve_analysis import main as cve_main
+    from utils.cleanup import main as cleanup_main
+    from utils.common import setup_logging
+except Exception:  # pragma: no cover - fallback path for direct repo execution
+    from src.analysis.centrality import main as centrality_main  # type: ignore
+    from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
+    from src.analysis.git_analysis import main as git_history_main  # type: ignore
+    from src.analysis.similarity import main as similarity_main  # type: ignore
+    from src.data.schema_management import main as schema_main  # type: ignore
+    from src.security.cve_analysis import main as cve_main  # type: ignore
+    from src.utils.cleanup import main as cleanup_main  # type: ignore
+    from src.utils.common import setup_logging  # type: ignore
 
 
 def _build_args(
@@ -295,13 +306,21 @@ def code_graph_flow(
 
 def parse_cli_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the neo4j-code-graph pipeline via Prefect")
-    parser.add_argument("repo_url", help="Repository URL or local path")
+    # Accept both optional flag and positional for repo URL for convenience
+    parser.add_argument("--repo-url", dest="repo_url", help="Repository URL or local path")
+    parser.add_argument("pos_repo_url", nargs="?", help="Repository URL or local path")
     parser.add_argument("--uri", help="Neo4j URI")
     parser.add_argument("--username", help="Neo4j username")
     parser.add_argument("--password", help="Neo4j password")
     parser.add_argument("--database", default="neo4j", help="Neo4j database")
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup stage")
-    return parser.parse_args()
+    args = parser.parse_args()
+    # Normalize: prefer flag, fallback to positional
+    if not (args.repo_url or args.pos_repo_url):
+        parser.error("repo_url is required (use --repo-url or positional)")
+    # attach normalized field for downstream use
+    args.repo_url = args.repo_url or args.pos_repo_url
+    return args
 
 
 def main() -> None:

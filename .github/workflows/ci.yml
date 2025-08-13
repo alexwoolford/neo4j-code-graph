@@ -217,10 +217,16 @@ jobs:
           PYTEST_ARGS: -q -m live --cov=src --cov-report=xml:coverage-live.xml
         run: |
           bash scripts/test_with_neo4j.sh
+      - name: Verify live coverage artifact
+        if: always()
+        run: |
+          echo "Workspace contents after live tests:" && ls -lah
+          if [ -f coverage-live.xml ]; then echo "Found coverage-live.xml" && head -n 5 coverage-live.xml; else echo "coverage-live.xml missing"; fi
       - name: Upload live coverage to Codecov (OIDC)
         uses: codecov/codecov-action@v5
         if: >
-          always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule')
+          always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule') &&
+          hashFiles('coverage-live.xml') != ''
         with:
           use_oidc: true
           files: ./coverage-live.xml
