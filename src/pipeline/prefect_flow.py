@@ -1,0 +1,320 @@
+"""
+Prefect-based orchestration for the neo4j-code-graph pipeline.
+
+This module exposes a Prefect flow that mirrors the steps in scripts/run_pipeline.sh,
+with opportunities for parallel execution and better observability.
+
+Usage examples:
+  - Local ad-hoc run:  python -m src.pipeline.prefect_flow --repo-url https://github.com/neo4j/graph-data-science
+  - Via entrypoint:    code-graph-pipeline (to be wired) or `prefect run -p ...`
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import tempfile
+from pathlib import Path
+
+from prefect import flow, get_run_logger, task
+from prefect.tasks import task_input_hash
+
+from src.analysis.centrality import main as centrality_main
+from src.analysis.code_analysis import main as code_to_graph_main
+from src.analysis.git_analysis import main as git_history_main
+from src.analysis.similarity import main as similarity_main
+from src.data.schema_management import main as schema_main
+from src.security.cve_analysis import main as cve_main
+from src.utils.cleanup import main as cleanup_main
+from src.utils.common import setup_logging
+
+
+def _build_args(
+    base: list[str], overrides: dict[str, str | int | float | bool] | None = None
+) -> list[str]:
+    args = list(base)
+    if overrides:
+        for key, value in overrides.items():
+            if isinstance(value, bool):
+                if value:
+                    args.append(str(key))
+            else:
+                args.extend([str(key), str(value)])
+    return args
+
+
+@task(retries=1, retry_delay_seconds=5, cache_key_fn=task_input_hash)
+def setup_schema_task() -> None:
+    logger = get_run_logger()
+    logger.info("Setting up database schema...")
+    os.environ.setdefault("PYTHONUNBUFFERED", "1")
+    schema_main()
+
+
+@task(retries=0)
+def cleanup_task(confirm: bool = True) -> None:
+    logger = get_run_logger()
+    logger.info("Cleaning up previous analysis (confirm=%s)...", confirm)
+    # cleanup_main reads args via argparse; simulate non-interactive confirm
+    overrides = {"--log-level": "INFO"}
+    if confirm:
+        overrides["--yes"] = True  # if supported; otherwise cleanup is idempotent
+    cleanup_main()
+
+
+@task(retries=1, retry_delay_seconds=5)
+def clone_repo_task(repo_url: str) -> str:
+    logger = get_run_logger()
+    temp_dir = tempfile.mkdtemp()
+    logger.info("Cloning %s into %s", repo_url, temp_dir)
+    import git
+
+    git.Repo.clone_from(repo_url, temp_dir)
+    return temp_dir
+
+
+@task(retries=1)
+def code_to_graph_task(
+    repo_path: str,
+    uri: str | None,
+    username: str | None,
+    password: str | None,
+    database: str | None,
+) -> None:
+    logger = get_run_logger()
+    logger.info("Loading code structure + embeddings from %s", repo_path)
+    # Build argv for the existing main
+    base = ["prog", repo_path]
+    overrides: dict[str, str] = {}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        code_to_graph_main()
+    finally:
+        sys.argv = old_argv
+
+
+@task(retries=1)
+def git_history_task(
+    repo_path: str,
+    uri: str | None,
+    username: str | None,
+    password: str | None,
+    database: str | None,
+) -> None:
+    logger = get_run_logger()
+    logger.info("Loading git history from %s", repo_path)
+    base = ["prog", repo_path]
+    overrides: dict[str, str] = {}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        git_history_main()
+    finally:
+        sys.argv = old_argv
+
+
+@task(retries=1)
+def similarity_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
+    logger = get_run_logger()
+    logger.info("Running similarity (kNN + optional Louvain)")
+    base = ["prog"]
+    overrides: dict[str, str | int | float] = {"--top-k": 5, "--cutoff": 0.8}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        similarity_main()
+    finally:
+        sys.argv = old_argv
+
+
+@task(retries=1)
+def louvain_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
+    logger = get_run_logger()
+    logger.info("Running community detection (Louvain)")
+    base = ["prog"]
+    overrides: dict[str, str | bool | float] = {"--no-knn": True, "--community-threshold": 0.8}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        similarity_main()
+    finally:
+        sys.argv = old_argv
+
+
+@task(retries=1)
+def centrality_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
+    logger = get_run_logger()
+    logger.info("Running centrality analysis")
+    base = [
+        "prog",
+        "--algorithms",
+        "pagerank",
+        "betweenness",
+        "degree",
+        "--top-n",
+        15,
+        "--write-back",
+    ]
+    overrides: dict[str, str] = {}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        centrality_main()
+    finally:
+        sys.argv = old_argv
+
+
+@task(retries=0)
+def cve_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
+    logger = get_run_logger()
+    logger.info("Running CVE analysis (optional if NVD_API_KEY is present)")
+    if not os.getenv("NVD_API_KEY"):
+        logger.warning("NVD_API_KEY not set; skipping CVE analysis")
+        return
+    base = ["prog", "--risk-threshold", 7.0, "--max-hops", 4]
+    overrides: dict[str, str] = {}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        cve_main()
+    finally:
+        sys.argv = old_argv
+
+
+@flow(name="neo4j-code-graph-pipeline")
+def code_graph_flow(
+    repo_url: str,
+    uri: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    database: str | None = None,
+    cleanup: bool = True,
+) -> None:
+    """End-to-end pipeline as a Prefect flow."""
+    setup_logging("INFO")
+    logger = get_run_logger()
+    logger.info("Starting flow for repo: %s", repo_url)
+
+    setup_schema_task()
+    if cleanup:
+        cleanup_task()
+
+    # Clone or reuse a local path
+    repo_path: str
+    p = Path(repo_url)
+    if p.exists() and p.is_dir():
+        repo_path = str(p)
+    else:
+        repo_path = clone_repo_task.submit(repo_url).result()
+
+    # Run code structure and git history in sequence (both require repo)
+    code_to_graph_task(repo_path, uri, username, password, database)
+    git_history_task(repo_path, uri, username, password, database)
+
+    # Run similarity and centrality; Louvain can run after similarity
+    similarity_task(repo_url=None, uri=uri, username=username, password=password, database=database)  # type: ignore[arg-type]
+    louvain_task.wait_for(similarity_task)
+    louvain_task(uri, username, password, database)
+    centrality_task(uri, username, password, database)
+
+    # Optional CVE stage
+    cve_task(uri, username, password, database)
+
+    logger.info("Flow complete")
+
+
+def parse_cli_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the neo4j-code-graph pipeline via Prefect")
+    parser.add_argument("repo_url", help="Repository URL or local path")
+    parser.add_argument("--uri", help="Neo4j URI")
+    parser.add_argument("--username", help="Neo4j username")
+    parser.add_argument("--password", help="Neo4j password")
+    parser.add_argument("--database", default="neo4j", help="Neo4j database")
+    parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup stage")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_cli_args()
+    code_graph_flow(
+        repo_url=args.repo_url,
+        uri=args.uri,
+        username=args.username,
+        password=args.password,
+        database=args.database,
+        cleanup=not args.no_cleanup,
+    )
+
+
+if __name__ == "__main__":
+    main()

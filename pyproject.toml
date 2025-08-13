@@ -38,6 +38,7 @@ dependencies = [
     "python-dotenv>=0.20.0",
     "graphdatascience>=1.5.0",
     "packaging>=21.0",
+  "prefect>=2.16.0",
 ]
 
 [project.optional-dependencies]
@@ -69,6 +70,7 @@ code-graph-cleanup = "utils.cleanup:main"
 code-graph-schema = "data.schema_management:main"
 code-graph-cve = "security.cve_analysis:main"
 code-graph-pipeline = "pipeline.manager:main"
+code-graph-pipeline-prefect = "pipeline.prefect_flow:main"
 code-graph-progress = "pipeline.progress:main"
 code-graph-resume = "pipeline.resume:main"
 code-graph-validate-cypher = "scripts.validate_cypher:main"
