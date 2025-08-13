@@ -9,12 +9,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+from src.utils.common import setup_logging
+
 # Setup logging for the dev setup script
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+setup_logging("INFO")
 logger = logging.getLogger(__name__)
 
 

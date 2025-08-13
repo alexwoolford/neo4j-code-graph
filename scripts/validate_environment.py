@@ -14,12 +14,9 @@ from pathlib import Path
 
 from src.constants import ENV_VARS, STATUS_ICONS
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+from src.utils.common import setup_logging
+
+setup_logging("INFO")
 logger = logging.getLogger(__name__)
 
 

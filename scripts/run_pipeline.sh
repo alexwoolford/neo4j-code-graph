@@ -5,6 +5,11 @@
 
 set -e  # Exit on any error
 
+# Resolve script and project root; ensure Python can import 'src' package
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+
 # Fix OpenMP library conflict on macOS
 export KMP_DUPLICATE_LIB_OK=TRUE
 
@@ -21,7 +26,6 @@ if [ $# -eq 0 ]; then
 fi
 
 REPO_URL=$1
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "🚀 Starting Neo4j Code Graph Analysis Pipeline"
 echo "=============================================="
@@ -30,21 +34,21 @@ echo ""
 
 # Step 0: Setup database schema and cleanup
 echo "🏗️  Step 0: Setting up database schema..."
-python "$SCRIPT_DIR/schema_management.py"
+python -m src.data.schema_management
 echo "✅ Schema setup completed"
 
 echo ""
 echo "🧹 Cleaning up previous analysis (if any)..."
 # Auto-confirm cleanup in CI/non-interactive mode
 if [ -n "$CI" ] || [ ! -t 0 ]; then
-  python "$SCRIPT_DIR/cleanup_graph.py"
+  python -m src.utils.cleanup
   echo "✅ Cleanup completed (non-interactive)"
 else
-  python "$SCRIPT_DIR/cleanup_graph.py" --dry-run
+  python -m src.utils.cleanup --dry-run
   read -p "Proceed with cleanup? (y/n): " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
-      python "$SCRIPT_DIR/cleanup_graph.py"
+      python -m src.utils.cleanup
       echo "✅ Cleanup completed"
   else
       echo "⚠️  Skipping cleanup - you may have duplicate data"
@@ -74,31 +78,31 @@ trap cleanup_repo EXIT
 echo ""
 echo "📝 Step 2: Loading Java code structure with embeddings..."
 echo "⏰ This step may take a while for large repositories..."
-python "$SCRIPT_DIR/code_to_graph.py" "$TEMP_REPO_DIR"
+python -m src.analysis.code_analysis "$TEMP_REPO_DIR"
 echo "✅ Code structure loaded"
 
 # Step 3: Load Git History (commits and developer data)
 echo ""
 echo "📚 Step 3: Loading Git commit history..."
-python "$SCRIPT_DIR/git_history_to_graph.py" "$TEMP_REPO_DIR"
+python -m src.analysis.git_analysis "$TEMP_REPO_DIR"
 echo "✅ Git history loaded"
 
 # Step 4: Create Method Similarities
 echo ""
 echo "🔗 Step 4: Creating method similarities using KNN..."
-python "$SCRIPT_DIR/create_method_similarity.py" --top-k 5 --cutoff 0.8
+python -m src.analysis.similarity --top-k 5 --cutoff 0.8
 echo "✅ Method similarities created"
 
 # Step 5: Detect Communities
 echo ""
 echo "🏘️  Step 5: Detecting communities using Louvain..."
-python "$SCRIPT_DIR/create_method_similarity.py" --no-knn --community-threshold 0.8
+python -m src.analysis.similarity --no-knn --community-threshold 0.8
 echo "✅ Communities detected"
 
 # Step 6: Run Centrality Analysis
 echo ""
 echo "🎯 Step 6: Running centrality analysis to identify important methods..."
-python "$SCRIPT_DIR/centrality_analysis.py" --algorithms pagerank betweenness degree --top-n 15 --write-back
+python -m src.analysis.centrality --algorithms pagerank betweenness degree --top-n 15 --write-back
 echo "✅ Centrality analysis completed"
 
 # Step 7: Temporal Analysis
@@ -125,7 +129,7 @@ if [ -f ".env" ]; then
 fi
 if [ -n "${NVD_API_KEY}" ]; then
     echo "  🔍 Analyzing vulnerability impact using dynamic dependency extraction..."
-    python "$SCRIPT_DIR/cve_analysis.py" --risk-threshold 7.0 --max-hops 4
+    python -m src.security.cve_analysis --risk-threshold 7.0 --max-hops 4
     echo "  ✅ CVE analysis completed"
 else
     echo "  ⚠️  NVD_API_KEY not found - skipping CVE analysis"
