@@ -81,12 +81,12 @@ def test_knn_and_louvain_live():
             session.run("CALL gds.graph.drop('simComm', false)").consume()
             session.run(
                 """
-            CALL gds.graph.project.cypher(
-              'simComm',
-              'MATCH (m:Method) RETURN id(m) AS id',
-              'MATCH (m1:Method)-[s:SIMILAR]->(m2:Method) RETURN id(m1) AS source, id(m2) AS target, s.score AS score'
-            )
-            """
+                CALL gds.graph.project(
+                  'simComm',
+                  ['Method'],
+                  { SIMILAR: { type: 'SIMILAR', orientation: 'UNDIRECTED' } }
+                )
+                """
             ).consume()
 
             session.run(
