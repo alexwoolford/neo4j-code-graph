@@ -582,24 +582,11 @@ class CVEAnalyzer:
             cve_count = int(cve_single["total"]) if cve_single and "total" in cve_single else 0
 
             if cve_count == 0:
-                logger.warning("⚠️  No CVE data found in the database. Running CVE fetch first...")
-                # Fetch CVE data
-                dependencies_by_ecosystem, _ = self.extract_codebase_dependencies()
-                search_terms = self.create_universal_component_search_terms(
-                    dependencies_by_ecosystem
+                # Be precise and avoid redundant fetching here; CVE fetch is handled earlier.
+                logger.info(
+                    "ℹ️  No CVE nodes present; skipping impact analysis (fetch step not executed)."
                 )
-                cve_data = self.cve_manager.fetch_targeted_cves(
-                    api_key=None,
-                    search_terms=search_terms,
-                    max_concurrency=max_concurrency,
-                )
-
-                if cve_data:
-                    self.create_vulnerability_graph(cve_data)
-                    logger.info(f"✅ Fetched and stored {len(cve_data)} CVEs")
-                else:
-                    logger.warning("⚠️  No relevant CVEs found")
-                    return []
+                return []
 
             # Simple analysis query - just look for CVEs that might affect our dependencies
             result = session.run(

@@ -195,7 +195,7 @@ def similarity_task(
     logger = get_run_logger()
     logger.info("Running similarity (kNN + optional Louvain)")
     base = ["prog"]
-    overrides: dict[str, str | int | float] = {"--top-k": 5, "--cutoff": 0.8}
+    overrides: dict[str, str] = {"--top-k": "5", "--cutoff": "0.8"}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -253,7 +253,7 @@ def centrality_task(
         "betweenness",
         "degree",
         "--top-n",
-        15,
+        "15",
         "--write-back",
     ]
     overrides: dict[str, str] = {}
@@ -284,7 +284,7 @@ def cve_task(
     if not os.getenv("NVD_API_KEY"):
         logger.warning("NVD_API_KEY not set; skipping CVE analysis")
         return
-    base = ["prog", "--risk-threshold", 7.0, "--max-hops", 4]
+    base = ["prog", "--risk-threshold", "7.0", "--max-hops", "4"]
     overrides: dict[str, str] = {}
     if uri:
         overrides["--uri"] = uri
@@ -350,14 +350,20 @@ def code_graph_flow(
     except Exception:
         pass
 
-    # Run similarity then Louvain (explicit dependency)
+    # Run similarity then Louvain (explicit dependency). Capture futures and block at the end
+    # to ensure the flow does not finish before downstream tasks complete.
     sim_state = similarity_task.submit(uri, username, password, database)
-    louvain_task.submit(uri, username, password, database, wait_for=[sim_state])
-    centrality_task(uri, username, password, database)
+    louv_state = louvain_task.submit(uri, username, password, database, wait_for=[sim_state])
+    cent_state = centrality_task.submit(uri, username, password, database, wait_for=[louv_state])
 
-    # Optional CVE stage
-    cve_task(uri, username, password, database)
-
+    # Optional CVE stage, after centrality
+    cve_state = cve_task.submit(uri, username, password, database, wait_for=[cent_state])
+    # Explicitly wait for the final task to complete to avoid early flow completion in some runners
+    try:
+        cve_state.result()
+    except Exception:
+        # The task/flow state will capture the exception; avoid masking it here
+        raise
     logger.info("Flow complete")
 
 
