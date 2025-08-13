@@ -296,8 +296,7 @@ def bulk_load_to_neo4j(
             batch_num = i // batch_size + 1
             batch = file_changes_data[i : i + batch_size]
 
-            # Single-step approach - create nodes and relationships together
-            # This eliminates the need for expensive MATCH operations on newly created nodes
+            # Single-step approach - idempotent creation of nodes and relationships
             step_start = time.time()
             session = execute_with_retry(
                 session,
@@ -305,9 +304,9 @@ def bulk_load_to_neo4j(
                 UNWIND $changes AS change
                 MATCH (c:Commit {sha: change.sha})
                 MATCH (f:File {path: change.file_path})
-                CREATE (fv:FileVer {sha: change.sha, path: change.file_path})
-                CREATE (c)-[:CHANGED]->(fv)
-                CREATE (fv)-[:OF_FILE]->(f)
+                MERGE (fv:FileVer {sha: change.sha, path: change.file_path})
+                MERGE (c)-[:CHANGED]->(fv)
+                MERGE (fv)-[:OF_FILE]->(f)
                 """,
                 {"changes": batch},
                 f"FileVer creation and relationships batch {batch_num}",

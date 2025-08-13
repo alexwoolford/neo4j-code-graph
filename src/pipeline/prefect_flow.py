@@ -55,22 +55,64 @@ def _build_args(
 
 
 @task(retries=1, retry_delay_seconds=5, cache_key_fn=task_input_hash)
-def setup_schema_task() -> None:
+def setup_schema_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
     logger = get_run_logger()
     logger.info("Setting up database schema...")
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
-    schema_main()
+    # Call CLI-style main with a sanitized argv
+    base = ["prog"]
+    overrides: dict[str, str] = {}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        schema_main()
+    finally:
+        sys.argv = old_argv
 
 
 @task(retries=0)
-def cleanup_task(confirm: bool = True) -> None:
+def cleanup_task(
+    confirm: bool,
+    uri: str | None,
+    username: str | None,
+    password: str | None,
+    database: str | None,
+) -> None:
     logger = get_run_logger()
     logger.info("Cleaning up previous analysis (confirm=%s)...", confirm)
-    # cleanup_main reads args via argparse; simulate non-interactive confirm
-    overrides = {"--log-level": "INFO"}
+    # cleanup_main reads args via argparse; simulate non-interactive execution
+    base = ["prog"]
+    overrides: dict[str, str | bool] = {"--log-level": "INFO"}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
     if confirm:
-        overrides["--yes"] = True  # if supported; otherwise cleanup is idempotent
-    cleanup_main()
+        overrides["--confirm"] = True
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        cleanup_main()
+    finally:
+        sys.argv = old_argv
 
 
 @task(retries=1, retry_delay_seconds=5)
@@ -276,9 +318,9 @@ def code_graph_flow(
     logger = get_run_logger()
     logger.info("Starting flow for repo: %s", repo_url)
 
-    setup_schema_task()
+    setup_schema_task(uri, username, password, database)
     if cleanup:
-        cleanup_task()
+        cleanup_task(cleanup, uri, username, password, database)
 
     # Clone or reuse a local path
     repo_path: str
@@ -292,10 +334,25 @@ def code_graph_flow(
     code_to_graph_task(repo_path, uri, username, password, database)
     git_history_task(repo_path, uri, username, password, database)
 
-    # Run similarity and centrality; Louvain can run after similarity
-    similarity_task(repo_url=None, uri=uri, username=username, password=password, database=database)  # type: ignore[arg-type]
-    louvain_task.wait_for(similarity_task)
-    louvain_task(uri, username, password, database)
+    # Before similarity, clear existing SIMILAR relationships to avoid duplicates
+    # Do it quickly with a small Cypher call via GDS client to ensure a clean slate
+    try:
+        from graphdatascience import GraphDataScience as _GDS  # local import
+
+        gds = _GDS(
+            uri if uri else "bolt://localhost:7687",
+            auth=(username or "neo4j", password or "neo4j"),
+            database=database or "neo4j",
+            arrow=False,
+        )
+        gds.run_cypher("MATCH ()-[r:SIMILAR]-() DELETE r")
+        gds.close()
+    except Exception:
+        pass
+
+    # Run similarity then Louvain (explicit dependency)
+    sim_state = similarity_task.submit(uri, username, password, database)
+    louvain_task.submit(uri, username, password, database, wait_for=[sim_state])
     centrality_task(uri, username, password, database)
 
     # Optional CVE stage
