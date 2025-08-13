@@ -9,6 +9,9 @@ IMAGE="neo4j:5.26-enterprise"
 AUTH="neo4j/testtest"
 URI="bolt://127.0.0.1:7687"
 
+echo "Pulling Neo4j image $IMAGE (to avoid pull-timeouts during run)..."
+docker pull "$IMAGE"
+
 echo "Starting Neo4j test container..."
 docker run -d --rm \
   --name "$NAME" \
@@ -29,13 +32,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
+echo "Container started. Listing containers:"
+docker ps -a | cat || true
+
 echo "Waiting for Bolt to be available at $URI..."
 ready=0
-for i in {1..120}; do
+for i in {1..180}; do
   if docker exec "$NAME" cypher-shell -u neo4j -p testtest "RETURN 1" >/dev/null 2>&1; then
     echo "Neo4j is ready."
     ready=1
     break
+  fi
+  if (( i % 30 == 0 )); then
+    echo "Still waiting for database... ($i). Recent logs:"
+    docker logs --tail=100 "$NAME" || true
   fi
   sleep 2
 done
@@ -64,6 +74,7 @@ for i in {1..240}; do
   if (( i % 30 == 0 )); then
     echo "Still waiting for plugins... ($i)"
     docker exec "$NAME" cypher-shell -u neo4j -p testtest "SHOW PROCEDURES YIELD name WHERE name STARTS WITH 'gds.' OR name STARTS WITH 'apoc.' RETURN count(*) AS c" || true
+    docker logs --tail=100 "$NAME" || true
   fi
   sleep 2
 done
