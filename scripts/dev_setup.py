@@ -35,39 +35,39 @@ def run_command(cmd, check=True, shell=False):
 
 def check_python_version():
     """Check if Python version is compatible."""
-    print("🐍 Checking Python version...")
+    logger.info("🐍 Checking Python version...")
 
     if sys.version_info < (3, 10):
-        print("❌ Python 3.10 or higher is required")
+        logger.error("❌ Python 3.10 or higher is required")
         sys.exit(1)
 
-    print(f"✅ Python {sys.version_info.major}.{sys.version_info.minor} detected")
+    logger.info("✅ Python %s.%s detected", sys.version_info.major, sys.version_info.minor)
 
 
 def check_git():
     """Check if git is available."""
-    print("📡 Checking Git availability...")
+    logger.info("📡 Checking Git availability...")
 
     try:
         result = run_command("git --version")
-        print(f"✅ {result.stdout.strip()}")
+        logger.info("✅ %s", result.stdout.strip())
     except FileNotFoundError:
-        print("❌ Git is not installed or not in PATH")
+        logger.error("❌ Git is not installed or not in PATH")
         sys.exit(1)
 
 
 def setup_virtual_environment():
     """Create and activate virtual environment if needed."""
-    print("🏠 Setting up virtual environment...")
+    logger.info("🏠 Setting up virtual environment...")
 
     venv_path = Path(".venv")
 
     if not venv_path.exists():
-        print("Creating virtual environment...")
+        logger.info("Creating virtual environment...")
         run_command([sys.executable, "-m", "venv", ".venv"])
-        print("✅ Virtual environment created")
+        logger.info("✅ Virtual environment created")
     else:
-        print("✅ Virtual environment already exists")
+        logger.info("✅ Virtual environment already exists")
 
     # Provide activation instructions
     if os.name == "nt":  # Windows
@@ -75,14 +75,14 @@ def setup_virtual_environment():
     else:  # Unix/Linux/MacOS
         activate_cmd = "source .venv/bin/activate"
 
-    print(f"💡 To activate: {activate_cmd}")
+    logger.info("💡 To activate: %s", activate_cmd)
 
     return venv_path
 
 
 def install_dependencies():
     """Install project dependencies."""
-    print("📦 Installing dependencies...")
+    logger.info("📦 Installing dependencies...")
 
     # Install the package in development mode
     run_command([sys.executable, "-m", "pip", "install", "-e", ".[dev]"])
@@ -91,23 +91,23 @@ def install_dependencies():
     if Path("config/requirements.txt").exists():
         run_command([sys.executable, "-m", "pip", "install", "-r", "config/requirements.txt"])
 
-    print("✅ Dependencies installed")
+    logger.info("✅ Dependencies installed")
 
 
 def setup_pre_commit():
     """Setup pre-commit hooks."""
-    print("🎣 Setting up pre-commit hooks...")
+    logger.info("🎣 Setting up pre-commit hooks...")
 
     try:
         run_command([sys.executable, "-m", "pre_commit", "install"])
-        print("✅ Pre-commit hooks installed")
+        logger.info("✅ Pre-commit hooks installed")
     except subprocess.CalledProcessError:
-        print("⚠️  Pre-commit setup failed (this is optional)")
+        logger.warning("⚠️  Pre-commit setup failed (this is optional)")
 
 
 def create_env_file():
     """Create .env file if it doesn't exist."""
-    print("⚙️  Setting up environment configuration...")
+    logger.info("⚙️  Setting up environment configuration...")
 
     env_file = Path(".env")
     env_example = Path(".env.example")
@@ -116,7 +116,7 @@ def create_env_file():
         if env_example.exists():
             # Copy from example
             env_file.write_text(env_example.read_text())
-            print("✅ Created .env from .env.example")
+            logger.info("✅ Created .env from .env.example")
         else:
             # Create basic .env
             env_content = """# Neo4j Connection Settings
@@ -130,50 +130,50 @@ NEO4J_DATABASE=neo4j
 # NVD_API_KEY=your_api_key_here
 """
             env_file.write_text(env_content)
-            print("✅ Created basic .env file")
+            logger.info("✅ Created basic .env file")
 
-        print("💡 Please update .env with your Neo4j credentials")
+        logger.info("💡 Please update .env with your Neo4j credentials")
     else:
-        print("✅ .env file already exists")
+        logger.info("✅ .env file already exists")
 
 
 def run_basic_tests():
     """Run a quick test to verify setup."""
-    print("🧪 Running basic tests...")
+    logger.info("🧪 Running basic tests...")
 
     try:
         result = run_command([sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short", "-x"])
         if "passed" in result.stdout:
-            print("✅ Basic tests passed")
+            logger.info("✅ Basic tests passed")
         else:
-            print("⚠️  Some tests failed (this might be expected without Neo4j)")
+            logger.warning("⚠️  Some tests failed (this might be expected without Neo4j)")
     except subprocess.CalledProcessError:
-        print("⚠️  Tests failed (this might be expected without Neo4j)")
+        logger.warning("⚠️  Tests failed (this might be expected without Neo4j)")
 
 
 def print_next_steps():
     """Print helpful next steps."""
-    print("\n🎉 Development environment setup complete!")
-    print("\n📋 Next steps:")
-    print("  1. Update .env with your Neo4j credentials")
-    print("  2. Start Neo4j database")
-    print("  3. Run: make schema  (to setup database schema)")
-    print("  4. Run: make test    (to verify everything works)")
-    print("  5. Run: make pipeline REPO_URL=<your-repo>  (to analyze a repository)")
-    print("\n🔧 Available commands:")
-    print("  make help        - Show all available commands")
-    print("  make test        - Run tests with coverage")
-    print("  make lint        - Run code quality checks")
-    print("  make format      - Format code with black/isort")
-    print("  make pre-commit  - Run all pre-commit hooks")
-    print("\n📚 Documentation:")
-    print("  README.md        - Project overview and usage")
-    print("  docs/            - Additional documentation")
+    logger.info("\n🎉 Development environment setup complete!")
+    logger.info("\n📋 Next steps:")
+    logger.info("  1. Update .env with your Neo4j credentials")
+    logger.info("  2. Start Neo4j database")
+    logger.info("  3. Run: make schema  (to setup database schema)")
+    logger.info("  4. Run: make test    (to verify everything works)")
+    logger.info("  5. Run: make pipeline REPO_URL=<your-repo>  (to analyze a repository)")
+    logger.info("\n🔧 Available commands:")
+    logger.info("  make help        - Show all available commands")
+    logger.info("  make test        - Run tests with coverage")
+    logger.info("  make lint        - Run code quality checks")
+    logger.info("  make format      - Format code with black/isort")
+    logger.info("  make pre-commit  - Run all pre-commit hooks")
+    logger.info("\n📚 Documentation:")
+    logger.info("  README.md        - Project overview and usage")
+    logger.info("  docs/            - Additional documentation")
 
 
 def main():
     """Main setup function."""
-    print("🚀 Setting up neo4j-code-graph development environment...\n")
+    logger.info("🚀 Setting up neo4j-code-graph development environment...\n")
 
     # Change to project root directory
     script_dir = Path(__file__).parent.parent
@@ -190,10 +190,10 @@ def main():
         print_next_steps()
 
     except KeyboardInterrupt:
-        print("\n❌ Setup interrupted by user")
+        logger.error("\n❌ Setup interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Setup failed: {e}")
+        logger.error("\n❌ Setup failed: %s", e)
         sys.exit(1)
 
 
