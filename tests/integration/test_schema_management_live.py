@@ -20,18 +20,19 @@ def test_setup_complete_schema_creates_constraints_and_indexes():
     from src.data.schema_management import setup_complete_schema
 
     driver, database = _get_driver_or_skip()
-    with driver.session(database=database) as session:
-        report = setup_complete_schema(session)
+    with driver:
+        with driver.session(database=database) as session:
+            report = setup_complete_schema(session)
 
-        constraints = report.get("constraints", [])
-        indexes = report.get("indexes", [])
+            constraints = report.get("constraints", [])
+            indexes = report.get("indexes", [])
 
-        # Should have created at least a few core schema items
-        def _labels(o):
-            x = o.get("labelsOrTypes", [])
-            if isinstance(x, list):
-                return ",".join(str(v) for v in x)
-            return str(x)
+            # Should have created at least a few core schema items
+            def _labels(o):
+                x = o.get("labelsOrTypes", [])
+                if isinstance(x, list):
+                    return ",".join(str(v) for v in x)
+                return str(x)
 
-        assert any("Method" in _labels(c) for c in constraints)
-        assert any("Method" in _labels(i) for i in indexes)
+            assert any("Method" in _labels(c) for c in constraints)
+            assert any("Method" in _labels(i) for i in indexes)
