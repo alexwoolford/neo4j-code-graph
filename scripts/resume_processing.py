@@ -13,15 +13,13 @@ import logging
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "src")
-
-from analysis.code_analysis import (
+from src.analysis.code_analysis import (
     compute_embeddings_bulk,
     extract_dependency_versions_from_files,
     extract_file_data,
     load_model_and_tokenizer,
 )
-from utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
+from src.utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
 
 logger = logging.getLogger(__name__)
 
