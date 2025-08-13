@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 
 from src.constants import ENV_VARS, STATUS_ICONS
-
 from src.utils.common import setup_logging
 
 setup_logging("INFO")

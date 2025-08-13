@@ -5,15 +5,17 @@ Useful for resuming after crashes or understanding pipeline progress.
 """
 
 import argparse
+import logging
 
-from src.utils.common import create_neo4j_driver, get_neo4j_config
+from src.utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
 
 
 def check_database_state(driver, database):
     """Check what data exists in the database."""
+    logger = logging.getLogger(__name__)
     with driver.session(database=database) as session:
-        print("🔍 NEO4J DATABASE STATE CHECK")
-        print("=" * 50)
+        logger.info("🔍 NEO4J DATABASE STATE CHECK")
+        logger.info("%s", "=" * 50)
 
         # Get basic node counts
         result = session.run(
@@ -27,7 +29,7 @@ def check_database_state(driver, database):
         """
         )
 
-        print("\n📊 NODE COUNTS BY TYPE:")
+        logger.info("\n📊 NODE COUNTS BY TYPE:")
         total_nodes = 0
         node_types = {}
         for record in result:
@@ -35,12 +37,12 @@ def check_database_state(driver, database):
             label = record["label"]
             node_types[label] = count
             total_nodes += count
-            print(f"  {label}: {count:,}")
+            logger.info("  %s: %s", label, f"{count:,}")
 
-        print(f"\n📈 TOTAL NODES: {total_nodes:,}")
+        logger.info("\n📈 TOTAL NODES: %s", f"{total_nodes:,}")
 
         # Check relationships
-        print("\n🔗 RELATIONSHIP COUNTS:")
+        logger.info("\n🔗 RELATIONSHIP COUNTS:")
         result = session.run(
             """
             CALL db.relationshipTypes() YIELD relationshipType
@@ -61,12 +63,12 @@ def check_database_state(driver, database):
             rel_type = record["relationshipType"]
             rel_types[rel_type] = count
             total_rels += count
-            print(f"  {rel_type}: {count:,}")
+            logger.info("  %s: %s", rel_type, f"{count:,}")
 
-        print(f"\n📈 TOTAL RELATIONSHIPS: {total_rels:,}")
+        logger.info("\n📈 TOTAL RELATIONSHIPS: %s", f"{total_rels:,}")
 
         # Check specific progress indicators
-        print("\n🎯 PROCESSING PROGRESS:")
+        logger.info("\n🎯 PROCESSING PROGRESS:")
 
         # Files with embeddings
         result = session.run(
@@ -74,7 +76,11 @@ def check_database_state(driver, database):
         )
         files_with_embeddings = result.single()["count"]
         total_files = node_types.get("File", 0)
-        print(f"  Files with embeddings: {files_with_embeddings:,} / {total_files:,}")
+        logger.info(
+            "  Files with embeddings: %s / %s",
+            f"{files_with_embeddings:,}",
+            f"{total_files:,}",
+        )
 
         # Methods with embeddings
         result = session.run(
@@ -82,42 +88,52 @@ def check_database_state(driver, database):
         )
         methods_with_embeddings = result.single()["count"]
         total_methods = node_types.get("Method", 0)
-        print(f"  Methods with embeddings: {methods_with_embeddings:,} / {total_methods:,}")
+        logger.info(
+            "  Methods with embeddings: %s / %s",
+            f"{methods_with_embeddings:,}",
+            f"{total_methods:,}",
+        )
 
         # Import relationships
         imports_count = rel_types.get("IMPORTS", 0)
-        print(f"  Import relationships: {imports_count:,}")
+        logger.info("  Import relationships: %s", f"{imports_count:,}")
 
         # Method calls
         calls_count = rel_types.get("CALLS", 0)
-        print(f"  Method call relationships: {calls_count:,}")
+        logger.info("  Method call relationships: %s", f"{calls_count:,}")
 
         # Check if processing looks complete
-        print("\n✅ STATUS ASSESSMENT:")
+        logger.info("\n✅ STATUS ASSESSMENT:")
 
         if total_files > 0 and files_with_embeddings == total_files:
-            print("  ✅ File processing: COMPLETE")
+            logger.info("  ✅ File processing: COMPLETE")
         elif total_files > 0:
-            print(f"  ⚠️  File processing: PARTIAL ({files_with_embeddings}/{total_files})")
+            logger.warning(
+                "  ⚠️  File processing: PARTIAL (%s/%s)", files_with_embeddings, total_files
+            )
         else:
-            print("  ❌ File processing: NOT STARTED")
+            logger.warning("  ❌ File processing: NOT STARTED")
 
         if total_methods > 0 and methods_with_embeddings == total_methods:
-            print("  ✅ Method processing: COMPLETE")
+            logger.info("  ✅ Method processing: COMPLETE")
         elif total_methods > 0:
-            print(f"  ⚠️  Method processing: PARTIAL ({methods_with_embeddings}/{total_methods})")
+            logger.warning(
+                "  ⚠️  Method processing: PARTIAL (%s/%s)",
+                methods_with_embeddings,
+                total_methods,
+            )
         else:
-            print("  ❌ Method processing: NOT STARTED")
+            logger.warning("  ❌ Method processing: NOT STARTED")
 
         if imports_count > 0:
-            print("  ✅ Import processing: COMPLETE")
+            logger.info("  ✅ Import processing: COMPLETE")
         else:
-            print("  ❌ Import processing: NOT STARTED")
+            logger.warning("  ❌ Import processing: NOT STARTED")
 
         if calls_count > 0:
-            print(f"  ⚠️  Method calls: PARTIAL ({calls_count:,} created)")
+            logger.warning("  ⚠️  Method calls: PARTIAL (%s created)", f"{calls_count:,}")
         else:
-            print("  ❌ Method calls: NOT STARTED")
+            logger.warning("  ❌ Method calls: NOT STARTED")
 
         return {
             "node_types": node_types,
@@ -137,6 +153,7 @@ def main():
     parser.add_argument("--username", help="Neo4j username")
     parser.add_argument("--password", help="Neo4j password")
     parser.add_argument("--database", default="neo4j", help="Neo4j database")
+    parser.add_argument("--log-level", default="INFO", help="Logging level")
     args = parser.parse_args()
 
     # Get config
@@ -145,17 +162,20 @@ def main():
     else:
         config = get_neo4j_config()
 
+    setup_logging(args.log_level)
+    logger = logging.getLogger(__name__)
+
     with create_neo4j_driver(config[0], config[1], config[2]) as driver:
         state = check_database_state(driver, config[3])
 
-        print("\n💡 RECOMMENDATIONS:")
+        logger.info("\n💡 RECOMMENDATIONS:")
         if state["files_complete"] and state["methods_complete"] and state["imports_complete"]:
             if state["calls_partial"]:
-                print("  🔄 Resume with: python scripts/fix_method_calls.py")
+                logger.info("  🔄 Resume with: python scripts/fix_method_calls.py")
             else:
-                print("  🚀 Ready for: similarity analysis, CVE analysis, etc.")
+                logger.info("  🚀 Ready for: similarity analysis, CVE analysis, etc.")
         else:
-            print("  ⚠️  Consider re-running: python scripts/code_to_graph.py <repo-url>")
+            logger.info("  ⚠️  Consider re-running: python scripts/code_to_graph.py <repo-url>")
 
 
 if __name__ == "__main__":

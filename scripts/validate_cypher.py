@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ try:
 except Exception:
     get_neo4j_config = None  # type: ignore
 
+from src.utils.common import setup_logging
 from src.utils.cypher_validation import run_validation
 
 
@@ -39,6 +41,8 @@ def get_db_config() -> DbConfig:
 
 
 def main() -> int:
+    setup_logging("INFO")
+    logger = logging.getLogger(__name__)
     cfg = get_db_config()
     failed: list[tuple[str, str]] = []
 
@@ -51,15 +55,18 @@ def main() -> int:
 
     for name, ok, err in results:
         status = "PASS" if ok else "FAIL"
-        print(f"[{status}] {name}")
+        if ok:
+            logger.info("[%s] %s", status, name)
+        else:
+            logger.error("[%s] %s", status, name)
         if err:
-            print(f"  -> {err}")
+            logger.error("  -> %s", err)
         if not ok:
             failed.append((name, err or "Unknown error"))
 
-    print(
-        f"\nSummary: {len([r for r in results if r[1]])} passed, {len([r for r in results if not r[1]])} failed"
-    )
+    passed_count = len([r for r in results if r[1]])
+    failed_count = len([r for r in results if not r[1]])
+    logger.info("Summary: %d passed, %d failed", passed_count, failed_count)
 
     return 1 if failed else 0
 
