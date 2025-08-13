@@ -159,10 +159,7 @@ def main() -> None:
 
         print("\n💡 RECOMMENDATIONS:")
         if state["files_complete"] and state["methods_complete"] and state["imports_complete"]:
-            if state["calls_partial"]:
-                print("  🔄 Resume with: code-graph-resume <repo-path> --files-only")
-            else:
-                print("  🚀 Ready for: similarity analysis, CVE analysis, etc.")
+            print("  🚀 Ready for: similarity analysis, CVE analysis, etc.")
         else:
             print("  ⚠️  Consider re-running: code-graph-code-to-graph <repo-path>")
 
