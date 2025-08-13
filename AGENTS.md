@@ -4,17 +4,14 @@
 
 **🔥 SYSTEMIC FIX: Automatic pre-commit validation is now ENFORCED**
 
-### ⚡ AUTOMATED SOLUTION (Recommended)
+### ⚡ Commit Safely (Recommended)
 
 ```bash
-# Use the safe commit script that automatically validates everything:
-./scripts/safe_commit.sh "Your commit message"
+# Always validate before committing
+pre-commit run --all-files
 
-# This script:
-# ✅ Auto-fixes formatting/imports (black, isort)
-# ✅ Runs ALL pre-commit checks automatically
-# ✅ Only commits if EVERYTHING passes
-# ✅ Guarantees CI will pass
+# Commit only when all checks pass
+git add -A && git commit -m "your message"
 ```
 
 ### 🛡️ AUTOMATIC GIT HOOK (Already Installed)
@@ -297,7 +294,7 @@ git commit -m "message"
 # ✅ Blocks commits that would fail CI
 ```
 
-### 3. **Manual Quality Checks** (LEGACY)
+### 3. **Manual Quality Checks**
 
 ```bash
 # 🚨 MANDATORY: The only command you need before committing:
