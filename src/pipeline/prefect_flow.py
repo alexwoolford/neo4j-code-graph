@@ -457,12 +457,21 @@ def code_graph_flow(
     try:
         from graphdatascience import GraphDataScience as _GDS  # local import
 
-        gds = _GDS(
-            uri if uri else "bolt://localhost:7687",
-            auth=(username or "neo4j", password or "neo4j"),
-            database=database,
-            arrow=False,
-        )
+        # Resolve connection consistently: prefer explicit args, otherwise .env via get_neo4j_config
+        try:
+            from utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
+        except Exception:  # pragma: no cover - fallback when running as module
+            from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
+
+        if uri and username and password:
+            _uri, _user, _pwd, _db = uri, username, password, database
+        else:
+            _uri, _user, _pwd, _db = _get_cfg()
+            # Allow explicit database override if provided
+            if database:
+                _db = database
+
+        gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
         gds.run_cypher("MATCH ()-[r:SIMILAR]-() DELETE r")
         gds.close()
     except Exception:
