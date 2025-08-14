@@ -25,6 +25,7 @@ try:
     from analysis.code_analysis import main as code_to_graph_main
     from analysis.git_analysis import main as git_history_main
     from analysis.similarity import main as similarity_main
+    from analysis.temporal_analysis import main as temporal_main
     from data.schema_management import main as schema_main
     from security.cve_analysis import main as cve_main
     from utils.cleanup import main as cleanup_main
@@ -34,6 +35,7 @@ except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
     from src.analysis.git_analysis import main as git_history_main  # type: ignore
     from src.analysis.similarity import main as similarity_main  # type: ignore
+    from src.analysis.temporal_analysis import main as temporal_main  # type: ignore
     from src.data.schema_management import main as schema_main  # type: ignore
     from src.security.cve_analysis import main as cve_main  # type: ignore
     from src.utils.cleanup import main as cleanup_main  # type: ignore
@@ -385,6 +387,49 @@ def centrality_task(
 
 
 @task(retries=0)
+def coupling_task(
+    uri: str | None,
+    username: str | None,
+    password: str | None,
+    database: str | None,
+    min_support: int = 5,
+    confidence_threshold: float = 0.6,
+) -> None:
+    logger = get_run_logger()
+    logger.info(
+        "Running change coupling (min_support=%d, confidence>=%.2f)",
+        min_support,
+        confidence_threshold,
+    )
+    base = [
+        "prog",
+        "coupling",
+        "--create-relationships",
+        "--min-support",
+        str(min_support),
+        "--confidence-threshold",
+        str(confidence_threshold),
+    ]
+    overrides: dict[str, object] = {}
+    if uri:
+        overrides["--uri"] = uri
+    if username:
+        overrides["--username"] = username
+    if password:
+        overrides["--password"] = password
+    if database:
+        overrides["--database"] = database
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = _build_args(base, overrides)
+        temporal_main()
+    finally:
+        sys.argv = old_argv
+
+
+@task(retries=0)
 def cve_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> None:
@@ -451,6 +496,9 @@ def code_graph_flow(
 
     # Then run git history
     git_history_task(repo_path, uri, username, password, database)
+
+    # Create CO_CHANGED relationships from commit history before similarity
+    coupling_task(uri, username, password, database)
 
     # Before similarity, clear existing SIMILAR relationships to avoid duplicates
     # Do it quickly with a small Cypher call via GDS client to ensure a clean slate

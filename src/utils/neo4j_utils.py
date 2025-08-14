@@ -54,6 +54,8 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
     pass_env = os.getenv("NEO4J_PASSWORD")
     db_env = os.getenv("NEO4J_DATABASE")
 
+    # Do not silently default to localhost in production paths; prefer explicit config.
+    # Fall back to localhost only if absolutely nothing provided (e.g., developer convenience).
     uri = ensure_port(uri_env or "bolt://localhost:7687")
     username = user_env or "neo4j"
     password = pass_env or "neo4j"

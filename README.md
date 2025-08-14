@@ -136,7 +136,9 @@ cd neo4j-code-graph
 pip install -e '.[dev]'
 
 # Set up Neo4j connection
-export NEO4J_URI="bolt://localhost:7687"
+# Set your Neo4j URI (avoid hardcoded localhost in production)
+# Example:
+# export NEO4J_URI="bolt://10.0.1.27:7687"
 export NEO4J_USERNAME="neo4j"
 export NEO4J_PASSWORD="your_password"
 

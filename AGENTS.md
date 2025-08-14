@@ -151,6 +151,15 @@ from utils.common import create_neo4j_driver, setup_logging
 
 ## Testing Strategy
 ## Schema Enforcement Policy
+## Connection Configuration Policy
+
+- Single source of truth for Neo4j connection is `.env` loaded via `src/utils/neo4j_utils.get_neo4j_config()`.
+- All stages (CLI, Prefect tasks, GDS helpers) must use either:
+  - Explicit CLI args passed through the flow, or
+  - `get_neo4j_config()`; never hardcode fallbacks like `bolt://localhost:7687`.
+- If args and `.env` disagree, args win. Never silently swap to localhost.
+- Action item: avoid any default `localhost` strings in code; use `ensure_port()` on provided URI.
+
 
 - All writes MUST run only after core schema constraints exist.
 - The pipeline performs a fail-fast check at the start of each write stage. If constraints are missing, it will attempt to create the schema; if still missing, it aborts the run.
