@@ -56,7 +56,7 @@ DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_VE
 
 # Neo4j write batching
 # Allow tuning via env without touching code
-DB_BATCH_WITH_EMBEDDINGS = int(os.getenv("DB_BATCH_WITH_EMBEDDINGS", "300"))
+DB_BATCH_WITH_EMBEDDINGS = int(os.getenv("DB_BATCH_WITH_EMBEDDINGS", "600"))
 DB_BATCH_SIMPLE = int(os.getenv("DB_BATCH_SIMPLE", "2000"))
 
 # Graph Analysis

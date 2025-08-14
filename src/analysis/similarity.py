@@ -152,6 +152,8 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     if missing:
         logger.warning("Ignoring %d Method nodes without embeddings", missing)
 
+    # Proceed even if there are no embedding vectors; upstream steps should have created them.
+
     graph_name = "methodGraph"
     exists_result = gds.graph.exists(graph_name)
     exists = False

@@ -403,6 +403,50 @@ def setup_complete_schema(session: Any) -> dict[str, list[dict[str, Any]]]:
     return {"constraints": constraints, "indexes": indexes}
 
 
+def ensure_constraints_exist_or_fail(session: Any) -> None:
+    """
+    Fail-fast guard: ensure core constraints exist before any data load.
+
+    - If required constraints are missing, attempt to create the full schema
+      (constraints + indexes) and re-verify.
+    - If still missing, raise an error to abort the load.
+    """
+
+    required_constraint_names = {
+        "directory_path",
+        "file_path",
+        "class_name_file",
+        "interface_name_file",
+        "method_signature_unique",
+        "commit_sha",
+        "developer_email",
+        "file_ver_sha_path",
+        "import_path",
+        "cve_id_unique",
+    }
+
+    existing = verify_schema_constraints(session)
+    existing_names = {c.get("name", "") for c in existing}
+    missing = required_constraint_names - existing_names
+
+    if not missing:
+        return
+
+    logger.warning(
+        "Required constraints missing (%s). Attempting to create complete schema...",
+        ", ".join(sorted(missing)),
+    )
+    create_schema_constraints_and_indexes(session)
+    # Re-verify
+    existing_after = verify_schema_constraints(session)
+    existing_after_names = {c.get("name", "") for c in existing_after}
+    still_missing = required_constraint_names - existing_after_names
+    if still_missing:
+        raise RuntimeError(
+            "Schema constraints missing after setup: " + ", ".join(sorted(still_missing))
+        )
+
+
 def main():
     """
     Main entry point for schema management CLI.

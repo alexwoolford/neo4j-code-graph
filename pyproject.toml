@@ -70,8 +70,7 @@ code-graph-cleanup = "utils.cleanup:main"
 code-graph-schema = "data.schema_management:main"
 code-graph-cve = "security.cve_analysis:main"
 code-graph-pipeline-prefect = "pipeline.prefect_flow:main"
-code-graph-validate-cypher = "scripts.validate_cypher:main"
-code-graph-validate-env = "scripts.validate_environment:main"
+# Removed non-critical scripts to keep the codebase minimal
 code-graph-create-db = "scripts.create_database:main"
 
 [tool.black]

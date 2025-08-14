@@ -298,7 +298,7 @@ pytest
 pytest --cov=src tests/
 
 # Live integration tests against Neo4j 5.26 with APOC core and GDS
-./scripts/test_with_neo4j.sh  # spins up a temp container and runs: pytest -m live
+Use `pytest -m live` with a configured Neo4j to run live tests.
 
 # Run specific test categories
 pytest tests/security/

@@ -36,10 +36,18 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
     """
     import os
 
-    from dotenv import load_dotenv
+    from dotenv import find_dotenv, load_dotenv
 
-    # Use .env as a fallback; real environment variables win
-    load_dotenv(override=False)
+    # Load .env first, but allow real environment variables to override values from file
+    # Use find_dotenv so execution from non-project CWD still picks up the repo .env
+    try:
+        env_path = find_dotenv(usecwd=True) or find_dotenv()
+    except Exception:
+        env_path = ""
+    load_dotenv(dotenv_path=env_path if env_path else None, override=False)
+    # Reload with override=True if explicitly requested via env flag (rare)
+    if os.getenv("CODEGRAPH_ENV_OVERRIDE", "").lower() in {"1", "true", "yes"}:
+        load_dotenv(override=True)
     # Treat empty strings as absent to allow sensible defaults when CI sets blank secrets
     uri_env = os.getenv("NEO4J_URI")
     user_env = os.getenv("NEO4J_USERNAME")
@@ -50,4 +58,14 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
     username = user_env or "neo4j"
     password = pass_env or "neo4j"
     database = db_env or "neo4j"
+    # Optional diagnostic if database is defaulting
+    if not db_env:
+        try:
+            import logging as _logging  # local import to avoid module-time side effects
+
+            _logging.getLogger(__name__).info(
+                "[config] NEO4J_DATABASE not set; defaulting to 'neo4j' (set it in .env)"
+            )
+        except Exception:
+            pass
     return uri, username, password, database

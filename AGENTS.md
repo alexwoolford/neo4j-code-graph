@@ -150,6 +150,14 @@ from utils.common import create_neo4j_driver, setup_logging
   - GDS calls are from supported, standard procedures
 
 ## Testing Strategy
+## Schema Enforcement Policy
+
+- All writes MUST run only after core schema constraints exist.
+- The pipeline performs a fail-fast check at the start of each write stage. If constraints are missing, it will attempt to create the schema; if still missing, it aborts the run.
+- Manual schema setup (optional):
+  - Run: `python -m src.data.schema_management --verify-only` to inspect
+  - Run: `python -m src.data.schema_management` to create constraints and indexes
+
 
 Tests use mocked database connections for execution without requiring a running Neo4j instance. For integration testing:
 

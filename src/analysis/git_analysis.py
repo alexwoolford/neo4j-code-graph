@@ -454,6 +454,15 @@ def load_history(
                 from ..utils.common import create_neo4j_driver
 
             with create_neo4j_driver(uri, username, password) as driver:
+                # Fail-fast: ensure constraints before writing
+                try:
+                    from data.schema_management import ensure_constraints_exist_or_fail as _ensure
+                except Exception:
+                    from ..data.schema_management import (  # type: ignore
+                        ensure_constraints_exist_or_fail as _ensure,
+                    )
+                with driver.session(database=database) as _session:  # type: ignore[reportUnknownMemberType]
+                    _ensure(_session)
                 bulk_load_to_neo4j(
                     commits_df,
                     developers_df,

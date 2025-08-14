@@ -180,7 +180,10 @@ class TestCVEAnalyzer:
 
     def test_load_cve_data_from_file(self, sample_cve_data):
         """Test loading CVE data from file."""
-        with patch.dict(sys.modules, HEAVY_MODULES):
+        # Ensure dotenv stubs include both load_dotenv and find_dotenv used by get_neo4j_config
+        dotenv_stub = _stub_module("dotenv", ["load_dotenv", "find_dotenv"])  # type: ignore[list-item]
+        dotenv_stub.find_dotenv = lambda *args, **kwargs: ""  # type: ignore[attr-defined]
+        with patch.dict(sys.modules, HEAVY_MODULES | {"dotenv": dotenv_stub}):
             from src.security.cve_analysis import CVEAnalyzer
 
             analyzer = CVEAnalyzer()

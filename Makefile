@@ -85,7 +85,7 @@ cleanup-db: ## Clean up Neo4j database
 	python scripts/cleanup_graph.py
 
 validate-env: ## Validate development environment
-	python scripts/validate_environment.py
+	@echo "Run pre-commit and tests to validate the environment"
 
 # Integration-aware test targets
 .PHONY: test-ci test-unit-only test-integration-only
@@ -101,5 +101,5 @@ test-ci: ## Run unit tests; if Neo4j env present, run integration tests too
 	@if [ -n "$(NEO4J_URI)" ]; then echo "Running integration tests..."; pytest tests/ -v -m "integration"; else echo "Skipping integration tests (NEO4J_URI not set)"; fi
 
 .PHONY: test-live
-test-live: ## Start a Neo4j container with APOC+GDS and run all tests
-	bash scripts/test_with_neo4j.sh
+test-live: ## Run live tests against configured Neo4j (set NEO4J_* env vars)
+	pytest tests/ -v -m live

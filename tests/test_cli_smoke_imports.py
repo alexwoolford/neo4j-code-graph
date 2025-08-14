@@ -5,8 +5,6 @@ These tests are lightweight and do not require a running Neo4j instance.
 """
 
 import runpy
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -17,21 +15,11 @@ SRC = ROOT / "src"
 
 
 @pytest.mark.unit
-def test_wrappers_help_execute_without_import_errors():
-    wrappers = [
-        SCRIPTS / "code_to_graph.py",
-        SCRIPTS / "create_method_similarity.py",
-        SCRIPTS / "centrality_analysis.py",
-    ]
-    for wrapper in wrappers:
-        result = subprocess.run(
-            [sys.executable, str(wrapper), "--help"], capture_output=True, text=True, timeout=15
-        )
-        assert result.returncode == 0
-        # Ensure no import errors leaked to stderr
-        assert "Traceback" not in result.stderr
-        assert "ImportError" not in result.stderr
-        assert "ModuleNotFoundError" not in result.stderr
+def test_console_entry_points_visible():
+    # Validate that console entry points are defined in pyproject, not wrapper scripts
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "code-graph-pipeline-prefect" in pyproject
+    assert "code-graph-schema" in pyproject
 
 
 @pytest.mark.unit

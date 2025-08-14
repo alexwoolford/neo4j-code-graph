@@ -8,7 +8,7 @@ import pandas as pd
 sys.modules.setdefault("graphdatascience", types.ModuleType("graphdatascience"))
 sys.modules["graphdatascience"].GraphDataScience = object  # type: ignore[attr-defined]
 sys.modules.setdefault("dotenv", types.ModuleType("dotenv"))
-sys.modules["dotenv"].load_dotenv = lambda override=True: None  # type: ignore[attr-defined]
+sys.modules["dotenv"].load_dotenv = lambda *args, **kwargs: None  # type: ignore[attr-defined]
 
 # Mock pyarrow dependencies
 sys.modules.setdefault("pyarrow", types.ModuleType("pyarrow"))

@@ -14,10 +14,10 @@ from __future__ import annotations
 import argparse
 import os
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 from prefect import flow, get_run_logger, task
-from prefect.tasks import task_input_hash
 
 # Import sibling packages in both contexts: installed package (top-level) and repo run (with 'src.')
 try:
@@ -40,9 +40,7 @@ except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.utils.common import setup_logging  # type: ignore
 
 
-def _build_args(
-    base: list[str], overrides: dict[str, str | int | float | bool] | None = None
-) -> list[str]:
+def _build_args(base: list[str], overrides: Mapping[str, object] | None = None) -> list[str]:
     args = list(base)
     if overrides:
         for key, value in overrides.items():
@@ -54,7 +52,7 @@ def _build_args(
     return args
 
 
-@task(retries=1, retry_delay_seconds=5, cache_key_fn=task_input_hash)
+@task(retries=1, retry_delay_seconds=5)
 def setup_schema_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> None:
@@ -63,7 +61,7 @@ def setup_schema_task(
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     # Call CLI-style main with a sanitized argv
     base = ["prog"]
-    overrides: dict[str, str] = {}
+    overrides: dict[str, object] = {}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -94,7 +92,7 @@ def cleanup_task(
     logger.info("Cleaning up previous analysis (confirm=%s)...", confirm)
     # cleanup_main reads args via argparse; simulate non-interactive execution
     base = ["prog"]
-    overrides: dict[str, str | bool] = {"--log-level": "INFO"}
+    overrides: dict[str, object] = {"--log-level": "INFO"}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -238,7 +236,7 @@ def write_graph_task(
         "--in-method-embeddings",
         in_method_emb,
     ]
-    overrides: dict[str, str] = {}
+    overrides: dict[str, object] = {}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -257,6 +255,18 @@ def write_graph_task(
         sys.argv = old_argv
 
 
+@task(retries=0)
+def cleanup_artifacts_task(artifacts_dir: str) -> None:
+    logger = get_run_logger()
+    try:
+        import shutil
+
+        shutil.rmtree(artifacts_dir, ignore_errors=True)
+        logger.info("Cleaned up artifacts directory: %s", artifacts_dir)
+    except Exception as e:
+        logger.warning("Failed to remove artifacts directory %s: %s", artifacts_dir, e)
+
+
 @task(retries=1)
 def git_history_task(
     repo_path: str,
@@ -268,7 +278,7 @@ def git_history_task(
     logger = get_run_logger()
     logger.info("Loading git history from %s", repo_path)
     base = ["prog", repo_path]
-    overrides: dict[str, str] = {}
+    overrides: dict[str, object] = {}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -355,7 +365,7 @@ def centrality_task(
         "15",
         "--write-back",
     ]
-    overrides: dict[str, str] = {}
+    overrides: dict[str, object] = {}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -414,6 +424,8 @@ def code_graph_flow(
 ) -> None:
     """End-to-end pipeline as a Prefect flow."""
     setup_logging("INFO")
+    # Silence HF tokenizers fork warnings in child tasks
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     logger = get_run_logger()
     logger.info("Starting flow for repo: %s", repo_url)
 
@@ -435,6 +447,7 @@ def code_graph_flow(
     embed_files_task(repo_path, artifacts_dir)
     embed_methods_task(repo_path, artifacts_dir)
     write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
+    cleanup_artifacts_task(artifacts_dir)
 
     # Then run git history
     git_history_task(repo_path, uri, username, password, database)
@@ -447,7 +460,7 @@ def code_graph_flow(
         gds = _GDS(
             uri if uri else "bolt://localhost:7687",
             auth=(username or "neo4j", password or "neo4j"),
-            database=database or "neo4j",
+            database=database,
             arrow=False,
         )
         gds.run_cypher("MATCH ()-[r:SIMILAR]-() DELETE r")
@@ -458,11 +471,11 @@ def code_graph_flow(
     # Run similarity then Louvain (explicit dependency). Capture futures and block at the end
     # to ensure the flow does not finish before downstream tasks complete.
     sim_state = similarity_task.submit(uri, username, password, database)
-    louv_state = louvain_task.submit(uri, username, password, database, wait_for=[sim_state])
-    cent_state = centrality_task.submit(uri, username, password, database, wait_for=[louv_state])
+    louv_state = louvain_task.submit(uri, username, password, database, wait_for=sim_state)
+    cent_state = centrality_task.submit(uri, username, password, database, wait_for=louv_state)
 
     # Optional CVE stage, after centrality
-    cve_state = cve_task.submit(uri, username, password, database, wait_for=[cent_state])
+    cve_state = cve_task.submit(uri, username, password, database, wait_for=cent_state)
     # Explicitly wait for the final task to complete to avoid early flow completion in some runners
     try:
         cve_state.result()
@@ -480,7 +493,8 @@ def parse_cli_args() -> argparse.Namespace:
     parser.add_argument("--uri", help="Neo4j URI")
     parser.add_argument("--username", help="Neo4j username")
     parser.add_argument("--password", help="Neo4j password")
-    parser.add_argument("--database", default="neo4j", help="Neo4j database")
+    # Do not default database here; let tooling read from .env / env via add_common_args
+    parser.add_argument("--database", help="Neo4j database (overrides .env if set)")
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup stage")
     args = parser.parse_args()
     # Normalize: prefer flag, fallback to positional

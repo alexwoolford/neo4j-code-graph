@@ -373,6 +373,8 @@ def load_model_and_tokenizer() -> tuple[Any, Any, Any, int]:
 
 def get_optimal_batch_size(device: Any) -> int:
     """Determine optimal batch size based on device and available memory."""
+    import os
+
     import torch
 
     if device.type == "cuda":
@@ -384,8 +386,21 @@ def get_optimal_batch_size(device: Any) -> int:
         else:  # 8GB or less
             return DEFAULT_EMBED_BATCH_CUDA_SMALL
     elif device.type == "mps":
+        # Allow override for Apple MPS batch size via env if desired
+        try:
+            override = int(os.getenv("EMBED_BATCH_MPS", ""))
+            if override > 0:
+                return override
+        except Exception:
+            pass
         return DEFAULT_EMBED_BATCH_MPS
     else:
+        try:
+            override = int(os.getenv("EMBED_BATCH_CPU", ""))
+            if override > 0:
+                return override
+        except Exception:
+            pass
         return DEFAULT_EMBED_BATCH_CPU
 
 
@@ -457,7 +472,7 @@ def compute_embeddings_bulk(
     all_embeddings = []
     use_amp = device.type == "cuda" and hasattr(torch.cuda, "amp")
 
-    # Pre-allocate tensor for better memory efficiency
+    # Upper bound for sequence length (applied only when sequences exceed this)
     max_length = 512
 
     # Set model to eval mode and enable optimizations
@@ -486,15 +501,39 @@ def compute_embeddings_bulk(
             all_embeddings.extend([zero_embedding] * len(batch_snippets))
             continue
 
-            # Tokenize batch
+            # Tokenize batch with dynamic padding to minimize compute (large speedup for short code)
+        import os as _os
+
+        prev_tok_parallel = _os.environ.get("TOKENIZERS_PARALLELISM")
+        prev_rayon = _os.environ.get("RAYON_NUM_THREADS")
+        try:
+            _os.environ["TOKENIZERS_PARALLELISM"] = "true"
+            if prev_rayon is None:
+                # Let tokenizer use all available CPU threads for pre-processing
+                _os.environ["RAYON_NUM_THREADS"] = str(_os.cpu_count() or 4)
+        except Exception:
+            pass
+
         tokens = tokenizer(
             valid_snippets,
-            padding="max_length",  # More efficient than dynamic padding
+            padding=True,  # pad to longest in this batch
             truncation=True,
             max_length=max_length,
             return_tensors="pt",
             add_special_tokens=True,
         )
+        # Restore env
+        try:
+            if prev_tok_parallel is not None:
+                _os.environ["TOKENIZERS_PARALLELISM"] = prev_tok_parallel
+            else:
+                del _os.environ["TOKENIZERS_PARALLELISM"]
+            if prev_rayon is not None:
+                _os.environ["RAYON_NUM_THREADS"] = prev_rayon
+            else:
+                del _os.environ["RAYON_NUM_THREADS"]
+        except Exception:
+            pass
 
         # Move to device efficiently with pinned memory
         if device.type == "cuda":
@@ -503,7 +542,7 @@ def compute_embeddings_bulk(
             tokens = {k: v.to(device) for k, v in tokens.items()}
 
             # Compute embeddings
-        with torch.no_grad():
+        with torch.inference_mode():
             if use_amp:
                 with torch.amp.autocast("cuda", dtype=torch.float16):
                     outputs = model(**tokens)
@@ -949,6 +988,8 @@ def create_files(
 
     file_nodes: list[dict[str, Any]] = []
     warned_short = False
+    import numpy as _np  # local import to type-check and use numpy arrays efficiently
+
     for i, file_data in enumerate(files_data):
         file_path_str = file_data["path"]
         file_name_only = Path(file_path_str).name if file_path_str else file_path_str
@@ -960,10 +1001,20 @@ def create_files(
                 len(files_data),
             )
             warned_short = True
+        # Avoid converting the whole embedding array; convert per-item only when needed
+        emb_value = None
+        if has_embedding:
+            try:
+                emb = file_embeddings[i]
+                # If numpy array, convert once here; otherwise assume list-like already
+                emb_value = emb.tolist() if isinstance(emb, _np.ndarray) else emb  # type: ignore[arg-type]
+            except Exception:
+                emb_value = None
+
         file_node = {
             "path": file_path_str,
             "name": file_name_only,
-            **({"embedding": file_embeddings[i]} if has_embedding else {}),
+            **({"embedding": emb_value} if has_embedding and emb_value is not None else {}),
             "embedding_type": EMBEDDING_TYPE,
             "language": file_data.get("language", "java"),
             "ecosystem": file_data.get("ecosystem", "maven"),
@@ -1234,11 +1285,21 @@ def create_methods(
                     total_methods,
                 )
                 warned_short = True
+            # Avoid converting the whole embedding array; convert per-item only when needed
+            emb_value = None
+            if has_embedding:
+                try:
+                    emb = method_embeddings[method_idx]
+                    # Avoid importing numpy at top; check shape via duck-typing
+                    emb_value = emb.tolist() if hasattr(emb, "tolist") else emb  # type: ignore[arg-type]
+                except Exception:
+                    emb_value = None
+
             method_node = {
                 "name": method["name"],
                 "file": method["file"],
                 "line": method["line"],
-                **({"embedding": method_embeddings[method_idx]} if has_embedding else {}),
+                **({"embedding": emb_value} if has_embedding and emb_value is not None else {}),
                 "embedding_type": EMBEDDING_TYPE,
                 "estimated_lines": method.get("estimated_lines", 0),
                 "is_static": method.get("is_static", False),
@@ -1814,102 +1875,97 @@ def main():
 
         return _numpy
 
-    if not getattr(args, "skip_embed", False):
-        # Attempt to read provided embeddings
-        files_loaded = False
-        methods_loaded = False
-        if (
-            getattr(args, "in_file_embeddings", None)
-            and args.in_file_embeddings
-            and _Path(args.in_file_embeddings).exists()
-        ):
-            try:
-                file_embeddings = _np().load(args.in_file_embeddings, allow_pickle=True).tolist()
-                files_loaded = True
-                logger.info("Loaded file embeddings from %s", args.in_file_embeddings)
-            except Exception:
-                files_loaded = False
-        if (
-            getattr(args, "in_method_embeddings", None)
-            and args.in_method_embeddings
-            and _Path(args.in_method_embeddings).exists()
-        ):
-            try:
-                method_embeddings = (
-                    _np().load(args.in_method_embeddings, allow_pickle=True).tolist()
-                )
-                methods_loaded = True
-                logger.info("Loaded method embeddings from %s", args.in_method_embeddings)
-            except Exception:
-                methods_loaded = False
+    # Always attempt to read provided embeddings artifacts first
+    files_loaded = False
+    methods_loaded = False
+    if (
+        getattr(args, "in_file_embeddings", None)
+        and args.in_file_embeddings
+        and _Path(args.in_file_embeddings).exists()
+    ):
+        try:
+            # Keep as numpy array to avoid expensive upfront Python list conversion
+            file_embeddings = _np().load(args.in_file_embeddings, allow_pickle=False)
+            files_loaded = True
+            logger.info("Loaded file embeddings from %s", args.in_file_embeddings)
+        except Exception:
+            files_loaded = False
+    if (
+        getattr(args, "in_method_embeddings", None)
+        and args.in_method_embeddings
+        and _Path(args.in_method_embeddings).exists()
+    ):
+        try:
+            # Keep as numpy array to avoid expensive upfront Python list conversion
+            method_embeddings = _np().load(args.in_method_embeddings, allow_pickle=False)
+            methods_loaded = True
+            logger.info("Loaded method embeddings from %s", args.in_method_embeddings)
+        except Exception:
+            methods_loaded = False
 
-        need_files = args.embed_target in ("files", "both") and not files_loaded
-        need_methods = args.embed_target in ("methods", "both") and not methods_loaded
+    need_files = args.embed_target in ("files", "both") and not files_loaded
+    need_methods = args.embed_target in ("methods", "both") and not methods_loaded
 
-        if (need_files or need_methods) and files_data:
-            from transformers import AutoModel, AutoTokenizer
+    # Only compute if not skipping embed and there is work to do
+    if not getattr(args, "skip_embed", False) and (need_files or need_methods) and files_data:
+        from transformers import AutoModel, AutoTokenizer
 
-            logger.info("Loading GraphCodeBERT model...")
-            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-            model = AutoModel.from_pretrained(MODEL_NAME)
-            device = get_device()
+        logger.info("Loading GraphCodeBERT model...")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        model = AutoModel.from_pretrained(MODEL_NAME)
+        device = get_device()
 
-            if device.type == "mps":
-                import os as _os
+        if device.type == "mps":
+            import os as _os
 
-                _os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-                logger.info("Enabled MPS high performance mode")
+            _os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+            logger.info("Enabled MPS high performance mode")
 
-            model = model.to(device)
-            logger.info(f"Model loaded on {device}")
+        model = model.to(device)
+        logger.info(f"Model loaded on {device}")
 
-            batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
-            logger.info(f"Using batch size: {batch_size}")
+        batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
+        logger.info(f"Using batch size: {batch_size}")
 
-            if need_files:
-                file_snippets = [file_data["code"] for file_data in files_data]
-                file_embeddings = compute_embeddings_bulk(
-                    file_snippets, tokenizer, model, device, batch_size
-                )
-            if need_methods:
-                method_snippets = [
-                    method["code"] for file_data in files_data for method in file_data["methods"]
-                ]
-                method_embeddings = compute_embeddings_bulk(
-                    method_snippets, tokenizer, model, device, batch_size
-                )
+        if need_files:
+            file_snippets = [file_data["code"] for file_data in files_data]
+            file_embeddings = compute_embeddings_bulk(
+                file_snippets, tokenizer, model, device, batch_size
+            )
+        if need_methods:
+            # Single pass over all methods to avoid confusing nested batch logs
+            method_snippets = [
+                method["code"] for file_data in files_data for method in file_data["methods"]
+            ]
+            method_embeddings = compute_embeddings_bulk(
+                method_snippets, tokenizer, model, device, batch_size
+            )
 
-            del model, tokenizer
-            try:
-                import torch as _torch  # type: ignore
+        del model, tokenizer
+        try:
+            import torch as _torch  # type: ignore
 
-                if device.type == "cuda":
-                    _torch.cuda.empty_cache()
-                elif device.type == "mps":
-                    _torch.mps.empty_cache()
-            except Exception:
-                pass
-            gc.collect()
+            if device.type == "cuda":
+                _torch.cuda.empty_cache()
+            elif device.type == "mps":
+                _torch.mps.empty_cache()
+        except Exception:
+            pass
+        gc.collect()
 
-        # Persist artifacts if requested
-        if (
-            getattr(args, "out_file_embeddings", None)
-            and args.out_file_embeddings
-            and file_embeddings
-        ):
-            _Path(args.out_file_embeddings).parent.mkdir(parents=True, exist_ok=True)
-            _np().save(args.out_file_embeddings, _np().array(file_embeddings, dtype="float32"))
-            logger.info("Wrote file embeddings to %s", args.out_file_embeddings)
-        if (
-            getattr(args, "out_method_embeddings", None)
-            and args.out_method_embeddings
-            and method_embeddings
-        ):
-            _Path(args.out_method_embeddings).parent.mkdir(parents=True, exist_ok=True)
-            _np().save(args.out_method_embeddings, _np().array(method_embeddings, dtype="float32"))
-            logger.info("Wrote method embeddings to %s", args.out_method_embeddings)
-    else:
-        logger.info("Phase 2: Skipped (--skip-embed)")
+    # Persist artifacts if requested
+    if getattr(args, "out_file_embeddings", None) and args.out_file_embeddings and file_embeddings:
+        _Path(args.out_file_embeddings).parent.mkdir(parents=True, exist_ok=True)
+        _np().save(args.out_file_embeddings, _np().array(file_embeddings, dtype="float32"))
+        logger.info("Wrote file embeddings to %s", args.out_file_embeddings)
+    if (
+        getattr(args, "out_method_embeddings", None)
+        and args.out_method_embeddings
+        and method_embeddings
+    ):
+        _Path(args.out_method_embeddings).parent.mkdir(parents=True, exist_ok=True)
+        _np().save(args.out_method_embeddings, _np().array(method_embeddings, dtype="float32"))
+        logger.info("Wrote method embeddings to %s", args.out_method_embeddings)
 
     phase2_time = 0.0 if getattr(args, "skip_embed", False) else (perf_counter() - start_phase2)
     logger.info("Phase 2 completed in %.2fs", phase2_time)
@@ -1939,6 +1995,18 @@ def main():
 
     with _create_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:  # type: ignore[reportUnknownMemberType]
+            try:
+                # Ensure required constraints exist before any writes
+                try:
+                    from data.schema_management import ensure_constraints_exist_or_fail as _ensure
+                except Exception:
+                    from ..data.schema_management import (  # type: ignore
+                        ensure_constraints_exist_or_fail as _ensure,
+                    )
+                _ensure(session)
+            except Exception as _e:
+                logger.error("Constraints check failed: %s", _e)
+                raise
             if files_data:
                 bulk_create_nodes_and_relationships(
                     session, files_data, file_embeddings, method_embeddings, dependency_versions
