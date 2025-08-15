@@ -1,5 +1,5 @@
 name: neo4j-code-graph
 title: Docs
-version: '0.1'
+version: 'latest'
 navigation:
   - modules/ROOT/nav.adoc
