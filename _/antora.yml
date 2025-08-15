@@ -1,4 +1,2 @@
 name: neo4j-code-graph-ui
 version: '1.0'
-static_files:
-  - styles/cypher.css
