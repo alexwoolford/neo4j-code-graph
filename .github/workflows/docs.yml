@@ -28,12 +28,12 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-          # Pre-fetch UI bundle locally to avoid CDN failures
-          mkdir -p .antora
-          curl -fsSL https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable -o .antora/ui-bundle.zip || true
-          if [ ! -s .antora/ui-bundle.zip ]; then
+          # Pre-fetch UI bundle locally to avoid CDN failures (place next to preview.yml)
+          mkdir -p docs/.antora
+          curl -fsSL https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable -o docs/.antora/ui-bundle.zip || true
+          if [ ! -s docs/.antora/ui-bundle.zip ]; then
             npm i -D @antora/ui-default@3.1.7
-            cp node_modules/@antora/ui-default/ui-bundle.zip .antora/ui-bundle.zip
+            cp node_modules/@antora/ui-default/ui-bundle.zip docs/.antora/ui-bundle.zip
           fi
           npm run build
           echo '<!doctype html><meta http-equiv="refresh" content="0; url=neo4j-code-graph/0.1/index.html">' > build/site/index.html
