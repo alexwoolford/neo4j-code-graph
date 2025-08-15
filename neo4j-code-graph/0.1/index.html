@@ -86,14 +86,11 @@
 <div class="footer"><div class="container"><p>Neo4j Code Graph Docs</p></div></div>
 <script id="site-script" src="../../_/js/site.js" data-ui-root-path="../../_"></script>
 <script src="../../_/js/vendor/highlight.bundle.js"></script>
-<script src="https://unpkg.com/highlightjs-cypher@1.2.0/dist/cypher.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/cypher.min.js"></script>
 <script>
 (function(){
   try {
-    var register = window.hljsCypher || window.hljsDefineCypher;
-    if (window.hljs && typeof register === 'function' && !window.hljs.listLanguages().includes('cypher')) {
-      window.hljs.registerLanguage('cypher', register);
-    }
+    // cdnjs language module auto-registers with hljs; just re-highlight
     if (window.hljs) {
       document.querySelectorAll('pre code.language-cypher').forEach(function(el){
         el.classList.remove('hljs');
