@@ -24,8 +24,7 @@ The full documentation lives on the site.
 
 For full docs, visit the site above. Quick links:
 
-- Getting started: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/getting-started.html
-- Configuration: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/configuration.html
-- Queries: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/queries/index.html
-- Architecture: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/architecture.html
-- Development: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/development.html
+- Guide: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/guide.html
+- Queries: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/queries/index.html
+- Architecture: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/architecture.html
+- Development: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/development.html
