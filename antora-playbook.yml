@@ -8,7 +8,7 @@ content:
       start_path: docs
 ui:
   bundle:
-    url: ./.antora/ui-bundle.zip
+    url: ./docs/.antora/ui-bundle.zip
     snapshot: true
   supplemental_files: ./docs/supplemental-ui
 asciidoc:
