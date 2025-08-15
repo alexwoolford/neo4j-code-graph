@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Neo4j Code Graph :: Neo4j Code Graph Docs</title>
     <meta name="generator" content="Antora 3.1.7">
-    <link rel="stylesheet" href="../../_/css/site.css">
+<style>
+  /* Slight spacing fix for top navbar link overlap */
+  .navbar { margin-bottom: 0.5rem; }
+  pre code.language-cypher { line-height: 1.4; }
+</style>
   </head>
   <body class="article">
 <nav class="navbar">
@@ -66,11 +70,20 @@
   </div>
 </main>
 </div>
-<footer class="footer">
-  <p>This page was built using the Antora default UI.</p>
-  <p>The source code for this UI is licensed under the terms of the MPL-2.0 license.</p>
-</footer>
-<script id="site-script" src="../../_/js/site.js" data-ui-root-path="../../_"></script>
-<script async src="../../_/js/vendor/highlight.js"></script>
+<div class="footer">
+  <div class="container">
+    <p>Neo4j Code Graph Docs</p>
+  </div>
+</div>
+<script src="https://unpkg.com/highlightjs-cypher/dist/cypher.min.js"></script>
+<script>
+  (function () {
+    if (window.hljs && window.hljsCypher) {
+      window.hljs.registerLanguage('cypher', window.hljsCypher);
+      document.querySelectorAll('pre code.language-cypher')
+        .forEach(function (el) { window.hljs.highlightElement(el); });
+    }
+  })();
+</script>
   </body>
 </html>
