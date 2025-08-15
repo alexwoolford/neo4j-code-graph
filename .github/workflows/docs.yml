@@ -14,8 +14,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Show Antora version
-        run: npx -y antora@3.1.7 --version
+      - name: Setup Node deps (Antora via npm)
+        run: npm ci || npm i
       - name: List docs tree
         run: |
           echo "Working directory: $(pwd)"
@@ -28,23 +28,7 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-          set -e
-          mkdir -p .antora
-          # Fetch Antora default UI from official GitLab artifact (HEAD)
-          UI_BUNDLE=.antora/ui-bundle.zip
-          echo "Attempting to download Antora UI bundle from GitLab artifact (HEAD)..."
-          curl -fsSL "https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable" -o "$UI_BUNDLE" || true
-          if [[ ! -s "$UI_BUNDLE" ]]; then
-            echo "Artifact not available or download failed; building UI from source (GitLab default branch)..."
-            UI_DIR=.antora/ui-default
-            git clone --depth 1 https://gitlab.com/antora/antora-ui-default.git "$UI_DIR"
-            (cd "$UI_DIR" && npm ci --no-audit --no-fund)
-            (cd "$UI_DIR" && npx gulp bundle)
-            cp "$UI_DIR/build/ui-bundle.zip" "$UI_BUNDLE"
-          fi
-          test -s "$UI_BUNDLE" || { echo "UI bundle not produced"; exit 1; }
-          npx -y antora@3.1.7 generate antora-playbook.yml --stacktrace --fetch --log-level debug
-          # Add a friendly root redirect to the component/version start page
+          npm run build
           echo '<!doctype html><meta http-equiv="refresh" content="0; url=neo4j-code-graph/0.1/index.html">' > build/site/index.html
           cp build/site/index.html build/site/404.html || true
       - name: Validate Cypher snippets (EXPLAIN)
