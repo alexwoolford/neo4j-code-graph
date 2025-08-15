@@ -4,7 +4,6 @@
 <script>
 (function(){
   try {
-    // cdnjs language module auto-registers with hljs; just re-highlight
     if (window.hljs) {
       document.querySelectorAll('pre code.language-cypher').forEach(function(el){
         el.classList.remove('hljs');

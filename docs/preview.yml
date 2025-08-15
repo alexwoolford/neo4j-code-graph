@@ -1,6 +1,4 @@
 asciidoc:
-  extensions:
-    - asciidoctor-shiki
 site:
   title: Neo4j Code Graph Docs
   start_page: neo4j-code-graph:ROOT:index.adoc
@@ -19,6 +17,4 @@ ui:
       contents: ./supplemental-ui/partials/footer-scripts.hbs
   attributes:
     page-origin-private: false
-    source-highlighter: shiki
-    shiki-theme: github-light
-    shiki-languages: '[{"id":"cypher","scopeName":"source.cypher","path":"./tools/grammars/cypher.tmLanguage.json"}]'
+    source-highlighter: highlight.js

@@ -12,10 +12,6 @@ ui:
     snapshot: true
   supplemental_files: ./docs/supplemental-ui
 asciidoc:
-  extensions:
-    - asciidoctor-shiki
   attributes:
     page-origin-private: false
-    source-highlighter: shiki
-    shiki-theme: github-light
-    shiki-languages: '[{"id":"cypher","scopeName":"source.cypher","path":"./docs/tools/grammars/cypher.tmLanguage.json"}]'
+    source-highlighter: highlight.js
