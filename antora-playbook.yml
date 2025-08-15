@@ -1,11 +1,3 @@
-antora:
-  extensions:
-    - require: asciidoctor-shiki
-      themes: [ github-light ]
-      languages:
-        - id: cypher
-          scopeName: source.cypher
-          grammarPath: ./docs/tools/grammars/cypher.tmLanguage.json
 site:
   title: Neo4j Code Graph Docs
   start_page: neo4j-code-graph:ROOT:index.adoc
@@ -20,6 +12,10 @@ ui:
     snapshot: true
   supplemental_files: ./docs/supplemental-ui
 asciidoc:
+  extensions:
+    - asciidoctor-shiki
   attributes:
     page-origin-private: false
     source-highlighter: shiki
+    shiki-theme: github-light
+    shiki-languages: '[{"id":"cypher","scopeName":"source.cypher","path":"./docs/tools/grammars/cypher.tmLanguage.json"}]'

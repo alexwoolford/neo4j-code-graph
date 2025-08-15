@@ -1,11 +1,6 @@
-antora:
+asciidoc:
   extensions:
-    - require: asciidoctor-shiki
-      themes: [ github-light ]
-      languages:
-        - id: cypher
-          scopeName: source.cypher
-          grammarPath: ./tools/grammars/cypher.tmLanguage.json
+    - asciidoctor-shiki
 site:
   title: Neo4j Code Graph Docs
   start_page: neo4j-code-graph:ROOT:index.adoc
@@ -22,7 +17,8 @@ ui:
       contents: ./supplemental-ui/partials/head-styles.hbs
     - path: partials/footer-scripts.hbs
       contents: ./supplemental-ui/partials/footer-scripts.hbs
-asciidoc:
   attributes:
     page-origin-private: false
     source-highlighter: shiki
+    shiki-theme: github-light
+    shiki-languages: '[{"id":"cypher","scopeName":"source.cypher","path":"./tools/grammars/cypher.tmLanguage.json"}]'
