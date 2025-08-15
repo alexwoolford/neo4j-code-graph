@@ -3,7 +3,7 @@ site:
   start_page: neo4j-code-graph:ROOT:index.adoc
 content:
   sources:
-    - url: .
+    - url: ..
       branches: HEAD
       start_path: docs
 ui:
