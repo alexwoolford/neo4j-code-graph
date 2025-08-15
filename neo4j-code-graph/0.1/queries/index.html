@@ -78,7 +78,7 @@ pre code.hljs .hljs-keyword, pre code.hljs .hljs-built_in, pre code.hljs .hljs-l
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f1:File)-[cc:CO_CHANGED]-&gt;(f2:File)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (f1:File)-[cc:CO_CHANGED]-&gt;(f2:File)
 WHERE cc.support &gt;= coalesce($min_support, 5) AND cc.confidence &gt;= coalesce($min_confidence, 0.6)
 RETURN f1.path AS f1, f2.path AS f2, cc.support AS support, cc.confidence AS confidence
 ORDER BY confidence DESC
@@ -94,7 +94,7 @@ LIMIT 25</code></pre>
 <h3 id="_customer_facing_apis_using_vulnerable_dependencies"><a class="anchor" href="#_customer_facing_apis_using_vulnerable_dependencies"></a>Customer-facing APIs using vulnerable dependencies</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (cve:CVE)-[:AFFECTS]-&gt;(dep:ExternalDependency)&lt;-[:DEPENDS_ON]-(i:Import)&lt;-[:IMPORTS]-(f:File)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (cve:CVE)-[:AFFECTS]-&gt;(dep:ExternalDependency)&lt;-[:DEPENDS_ON]-(i:Import)&lt;-[:IMPORTS]-(f:File)
 MATCH (f)-[:DECLARES]-&gt;(m:Method)
 WHERE m.is_public = true AND cve.cvss_score &gt;= 7.0
 RETURN f.path, m.class_name, m.name, cve.id, cve.cvss_score
@@ -106,7 +106,7 @@ ORDER BY cve.cvss_score DESC</code></pre>
 <h3 id="_dependency_risk_summary"><a class="anchor" href="#_dependency_risk_summary"></a>Dependency risk summary</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (dep:ExternalDependency)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (dep:ExternalDependency)
 OPTIONAL MATCH (dep)&lt;-[:AFFECTS]-(cve:CVE)
 OPTIONAL MATCH (dep)&lt;-[:DEPENDS_ON]-(i:Import)&lt;-[:IMPORTS]-(f:File)
 RETURN dep.package, dep.version,
@@ -126,7 +126,7 @@ ORDER BY vulnerabilities DESC, files_using_it DESC</code></pre>
 <h3 id="_refactor_candidates"><a class="anchor" href="#_refactor_candidates"></a>Refactor candidates</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f:File)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (f:File)
 WHERE f.total_lines &gt; 500 AND f.method_count &gt; 20
 OPTIONAL MATCH (f)-[:IMPORTS]-&gt;(i:Import)-[:DEPENDS_ON]-&gt;(dep:ExternalDependency)&lt;-[:AFFECTS]-(cve:CVE)
 WHERE cve.cvss_score &gt;= 7.0
@@ -142,7 +142,7 @@ LIMIT 25</code></pre>
 <h3 id="_architectural_bottlenecks"><a class="anchor" href="#_architectural_bottlenecks"></a>Architectural bottlenecks</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (m:Method)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (m:Method)
 WHERE m.pagerank_score IS NOT NULL AND m.pagerank_score &gt; 0.001
 MATCH (m)&lt;-[:DECLARES]-(f:File)
 RETURN f.path, m.class_name, m.name,
@@ -162,7 +162,7 @@ LIMIT 20</code></pre>
 <h3 id="_experts_for_a_module"><a class="anchor" href="#_experts_for_a_module"></a>Experts for a module</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (dev:Developer)-[:AUTHORED]-&gt;(commit:Commit)-[:CHANGED]-&gt;(fv:FileVer)-[:OF_FILE]-&gt;(f:File)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (dev:Developer)-[:AUTHORED]-&gt;(commit:Commit)-[:CHANGED]-&gt;(fv:FileVer)-[:OF_FILE]-&gt;(f:File)
 WHERE f.path CONTAINS $module
 WITH dev, f, count(DISTINCT commit) as commits_to_file
 WHERE commits_to_file &gt;= 3
@@ -178,7 +178,7 @@ LIMIT 10</code></pre>
 <h3 id="_frequently_co_changed_files_simple"><a class="anchor" href="#_frequently_co_changed_files_simple"></a>Frequently co-changed files (simple)</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f1:File)-[cc:CO_CHANGED]-&gt;(f2:File)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (f1:File)-[cc:CO_CHANGED]-&gt;(f2:File)
 WHERE cc.support &gt; 5 AND cc.confidence &gt; 0.6
 RETURN f1.path, f2.path, cc.support, cc.confidence
 ORDER BY cc.confidence DESC
@@ -195,7 +195,7 @@ LIMIT 25</code></pre>
 <h3 id="_technical_health_summary"><a class="anchor" href="#_technical_health_summary"></a>Technical health summary</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f:File)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (f:File)
 OPTIONAL MATCH (f)-[:DECLARES]-&gt;(m:Method)
 WITH count(DISTINCT f) as total_files,
      sum(f.total_lines) as total_lines_of_code,
@@ -215,7 +215,7 @@ RETURN total_files, total_lines_of_code, total_methods, complex_methods,
 <h3 id="_release_risk_assessment"><a class="anchor" href="#_release_risk_assessment"></a>Release risk assessment</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f:File)&lt;-[:OF_FILE]-(fv:FileVer)&lt;-[:CHANGED]-(c:Commit)
+<pre class="highlight"><code class="language-cypher" data-lang="cypher">MATCH (f:File)&lt;-[:OF_FILE]-(fv:FileVer)&lt;-[:CHANGED]-(c:Commit)
 WHERE c.date &gt; datetime() - duration('P7D')
 WITH f, count(c) as recent_changes
 WHERE recent_changes &gt; 0
