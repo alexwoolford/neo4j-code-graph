@@ -14,3 +14,4 @@ ui:
 asciidoc:
   attributes:
     page-origin-private: false
+    source-highlighter: highlight.js
