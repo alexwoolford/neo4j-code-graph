@@ -35,7 +35,9 @@ jobs:
             npm i -D @antora/ui-default@3.1.7
             cp node_modules/@antora/ui-default/ui-bundle.zip docs/.antora/ui-bundle.zip
           fi
-          npm run build
+          echo "Listing docs/.antora contents:" && ls -la docs/.antora || true
+          echo "Inspect UI bundle:" && unzip -l docs/.antora/ui-bundle.zip | head -n 20 || true
+          npx -y antora@3.1.7 antora-playbook.yml --stacktrace --fetch --log-level debug
           echo '<!doctype html><meta http-equiv="refresh" content="0; url=neo4j-code-graph/0.1/index.html">' > build/site/index.html
           cp build/site/index.html build/site/404.html || true
       - name: Validate Cypher snippets (EXPLAIN)
