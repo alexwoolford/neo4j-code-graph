@@ -1,4 +1,3 @@
-exclude: ^(node_modules|build|htmlcov|docs/\.antora|test_cache|coverage.*|package-lock\.json)(/|$)
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -44,6 +43,5 @@ repos:
     hooks:
       - id: interrogate
         args: ["-c", "pyproject.toml"]
-        exclude: ^node_modules/
 
   # Note: Pyright runs in CI as an advisory job; not in pre-commit to avoid false failures
