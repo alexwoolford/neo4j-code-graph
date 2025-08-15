@@ -10,6 +10,8 @@
 
 Turn your codebase into a queryable knowledge graph. Find security vulnerabilities, architectural bottlenecks, technical debt hotspots, and team coordination issues with simple Cypher queries.
 
+👉 Full documentation: https://alexwoolford.github.io/neo4j-code-graph/
+
 ## Business Queries - What Can You Find?
 
 ### 🚨 Security & Risk
