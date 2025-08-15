@@ -65,7 +65,7 @@ jobs:
         TEST_EXIT=0
         python -m pip install --upgrade pip
         python -m pip install pytest-cov pytest-xdist
-        pytest -m "not integration" -n auto \
+        pytest -m "not integration and not live" -n auto \
                --cov=src --cov-report=xml:coverage.xml \
                --junitxml=junit.xml -o junit_family=legacy \
                -k "not test_pytorch_api_compatibility" --disable-warnings \
