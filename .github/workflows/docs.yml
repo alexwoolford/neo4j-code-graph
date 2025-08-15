@@ -44,6 +44,9 @@ jobs:
           fi
           test -s "$UI_BUNDLE" || { echo "UI bundle not produced"; exit 1; }
           npx -y antora@3.1.7 generate antora-playbook.yml --stacktrace --fetch --log-level debug
+          # Add a friendly root redirect to the component/version start page
+          echo '<!doctype html><meta http-equiv="refresh" content="0; url=neo4j-code-graph/0.1/index.html">' > build/site/index.html
+          cp build/site/index.html build/site/404.html || true
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
