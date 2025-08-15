@@ -1,0 +1,5 @@
+/* Slightly enhance code block readability */
+pre code.language-cypher {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
