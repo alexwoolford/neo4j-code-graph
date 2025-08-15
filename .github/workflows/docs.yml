@@ -48,15 +48,22 @@ jobs:
           echo '<!doctype html><meta http-equiv="refresh" content="0; url=neo4j-code-graph/0.1/index.html">' > build/site/index.html
           cp build/site/index.html build/site/404.html || true
       - name: Validate Cypher snippets (EXPLAIN)
-        env:
-          NEO4J_URI: ${{ secrets.DOCS_NEO4J_URI }}
-          NEO4J_USERNAME: ${{ secrets.DOCS_NEO4J_USERNAME }}
-          NEO4J_PASSWORD: ${{ secrets.DOCS_NEO4J_PASSWORD }}
-          NEO4J_DATABASE: ${{ secrets.DOCS_NEO4J_DATABASE }}
         run: |
           python -m pip install --upgrade pip
           pip install neo4j==5.25.0
+          # Start a temporary Neo4j for snippet validation
+          docker run -d --rm --name neo4j-docs -p 7687:7687 -p 7474:7474 -e NEO4J_AUTH=neo4j/neo4j12345 neo4j:5.26
+          # Wait for bolt and http
+          for i in {1..120}; do nc -z 127.0.0.1 7687 && nc -z 127.0.0.1 7474 && break || sleep 2; done
+          # Seed minimal dataset via cypher-shell
+          docker cp docs/seed/neo4j_seed.cypher neo4j-docs:/var/lib/neo4j/import/neo4j_seed.cypher
+          docker exec neo4j-docs bash -lc "/var/lib/neo4j/bin/cypher-shell -u neo4j -p neo4j12345 -a bolt://localhost:7687 --non-interactive < /var/lib/neo4j/import/neo4j_seed.cypher"
+          # Validate snippets against local Neo4j
+          export NEO4J_URI=bolt://127.0.0.1:7687
+          export NEO4J_USERNAME=neo4j
+          export NEO4J_PASSWORD=neo4j12345
           python scripts/validate_cypher_snippets.py docs/modules/ROOT/examples/queries
+          docker stop neo4j-docs
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
