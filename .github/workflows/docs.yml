@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: '20'
       - name: Setup Node deps (Antora via npm)
-        run: npm ci || npm i
+        run: npm i
       - name: List docs tree
         run: |
           echo "Working directory: $(pwd)"

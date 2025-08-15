@@ -8,6 +8,6 @@
   },
   "devDependencies": {
     "antora": "3.1.7",
-    "antora-shiki-extension": "0.5.4"
+    "asciidoctor-shiki": "latest"
   }
 }
