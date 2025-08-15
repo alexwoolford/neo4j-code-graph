@@ -3,8 +3,8 @@ site:
   start_page: neo4j-code-graph:ROOT:index.adoc
 content:
   sources:
-    - url: ..
-      branches: HEAD
+    - url: https://github.com/alexwoolford/neo4j-code-graph.git
+      branches: main
       start_path: docs
 ui:
   bundle:
