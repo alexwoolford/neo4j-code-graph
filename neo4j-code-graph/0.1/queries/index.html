@@ -6,9 +6,11 @@
     <title>Queries Catalog :: Neo4j Code Graph Docs</title>
     <meta name="generator" content="Antora 3.1.7">
 <style>
-  /* Slight spacing fix for top navbar link overlap */
-  .navbar { margin-bottom: 0.5rem; }
+  /* Keep tweaks minimal to avoid overriding default UI */
   pre code.language-cypher { line-height: 1.4; }
+  .doc { overflow-wrap: anywhere; }
+  .navbar { margin-bottom: .5rem; }
+  .content pre { overflow-x: auto; }
 </style>
   </head>
   <body class="article">
@@ -245,10 +247,16 @@ ORDER BY recent_changes DESC</code></pre>
 <script src="https://unpkg.com/highlightjs-cypher/dist/cypher.min.js"></script>
 <script>
   (function () {
-    if (window.hljs && window.hljsCypher) {
-      window.hljs.registerLanguage('cypher', window.hljsCypher);
-      document.querySelectorAll('pre code.language-cypher')
-        .forEach(function (el) { window.hljs.highlightElement(el); });
+    var lang = window.hljsCypher || window.hljsDefineCypher;
+    if (window.hljs && typeof lang === 'function') {
+      window.hljs.registerLanguage('cypher', lang);
+      // Re-run highlighter to colorize newly registered language blocks
+      if (typeof window.hljs.highlightAll === 'function') {
+        window.hljs.highlightAll();
+      } else {
+        document.querySelectorAll('pre code.language-cypher')
+          .forEach(function (el) { window.hljs.highlightElement(el); });
+      }
     }
   })();
 </script>
