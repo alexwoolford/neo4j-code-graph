@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Getting Started :: Neo4j Code Graph</title>
+    <title>Guide :: Neo4j Code Graph</title>
     <meta name="generator" content="Antora 3.1.7">
 <link rel="stylesheet" href="../../_/css/site.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
@@ -51,14 +51,14 @@
   <a href="index.html" class="home-link"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
 </nav>
-<div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/getting-started.adoc">Edit this Page</a></div>
+<div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/guide.adoc">Edit this Page</a></div>
 </div>
   <div class="content">
 <aside class="toc sidebar" data-title="Contents" data-levels="2">
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Getting Started</h1>
+<h1 class="page">Guide</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
@@ -82,16 +82,28 @@ pip install -e '.[dev]'</code></pre>
 <h2 id="_configuration"><a class="anchor" href="#_configuration"></a>Configuration</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Set environment variables (or use a <code>.env</code> file):</p>
+<p>Use environment variables or a <code>.env</code> file.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export NEO4J_URI=bolt://localhost:7687
-export NEO4J_USERNAME=neo4j
-export NEO4J_PASSWORD=your_password
-export NEO4J_DATABASE=neo4j
-export NVD_API_KEY=your_nvd_api_key</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=your_password
+NEO4J_DATABASE=neo4j
+
+# Optional (recommended) for faster CVE analysis
+NVD_API_KEY=your_nvd_api_key
+
+# Optional similarity defaults (overridable by CLI flags)
+SIMILARITY_TOP_K=5
+SIMILARITY_CUTOFF=0.8</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>Tips:
+- <code>.env</code> is discovered via <code>find_dotenv()</code>.
+- CLI args override env values.
+- Avoid hardcoded <code>localhost</code> in production; set <code>NEO4J_URI</code> explicitly.</p>
 </div>
 </div>
 </div>
@@ -110,35 +122,26 @@ python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-
 </div>
 </div>
 <div class="sect1">
-<h2 id="_cli_entry_points"><a class="anchor" href="#_cli_entry_points"></a>CLI entry points</h2>
+<h2 id="_query_your_data"><a class="anchor" href="#_query_your_data"></a>Query your data</h2>
 <div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">code-graph-code-to-graph /path/to/repo
-code-graph-git-history /path/to/repo
-code-graph-similarity --top-k 5 --cutoff 0.8
-code-graph-centrality --algorithms pagerank betweenness degree --top-n 20 --write-back
-code-graph-cve --risk-threshold 7.0 --max-hops 4</code></pre>
-</div>
+<div class="paragraph">
+<p>Open Neo4j Browser or Bloom and run queries from the Queries catalog.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_what_gets_analyzed"><a class="anchor" href="#_what_gets_analyzed"></a>What gets analyzed</h2>
+<h2 id="_troubleshooting"><a class="anchor" href="#_troubleshooting"></a>Troubleshooting</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p>Code structure (files, classes, methods, imports)</p>
+<p>Ensure required constraints exist (the pipeline enforces and fails fast).</p>
 </li>
 <li>
-<p>Git history (commits, changes, co-change patterns)</p>
+<p>Prefer explicit <code>NEO4J_URI</code> instead of relying on defaults.</p>
 </li>
 <li>
-<p>Security (CVE vulnerabilities in dependencies)</p>
-</li>
-<li>
-<p>Derived insights (PageRank, community, similarity)</p>
+<p>Live tests expect Neo4j 5.26 with APOC core + GDS.</p>
 </li>
 </ul>
 </div>
