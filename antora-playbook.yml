@@ -10,6 +10,7 @@ ui:
   bundle:
     url: ./.antora/ui-bundle.zip
     snapshot: true
+  supplemental_files: ./docs/supplemental-ui
 asciidoc:
   attributes:
     page-origin-private: false
