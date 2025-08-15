@@ -26,33 +26,20 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-          mkdir -p .antora
-          # Try multiple mirrors to fetch the UI bundle deterministically
           set -e
+          mkdir -p .antora
+          # Build Antora default UI from source to avoid flaky binary downloads
+          UI_DIR=.antora/ui-default
           UI_BUNDLE=.antora/ui-bundle.zip
-          URLS=(
-            https://cdn.jsdelivr.net/npm/@antora/ui-default@3.1.7/ui-bundle.zip
-            https://unpkg.com/@antora/ui-default@3.1.7/ui-bundle.zip
-            https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/v3.1.7/raw/build/ui-bundle.zip?job=bundle-stable
-            https://registry.npmmirror.com/@antora/ui-default/-/ui-default-3.1.7.tgz
-          )
-          for u in "${URLS[@]}"; do
-            echo "Attempting to fetch UI bundle from: $u"
-            if [[ "$u" == *.tgz ]]; then
-              # Fallback: download tarball and extract the dist/ui-bundle.zip
-              curl -fsSL "$u" -o .antora/ui-default.tgz || continue
-              tar -tzf .antora/ui-default.tgz | grep -q "ui-bundle.zip" || continue
-              tar -xzf .antora/ui-default.tgz -C .antora
-              FOUND=$(find .antora -name "ui-bundle.zip" | head -n 1)
-              if [[ -n "$FOUND" ]]; then
-                cp "$FOUND" "$UI_BUNDLE"
-                break
-              fi
-            else
-              curl -fsSL "$u" -o "$UI_BUNDLE" && break || true
-            fi
-          done
-          test -s "$UI_BUNDLE" || { echo "Failed to fetch UI bundle from all mirrors"; exit 1; }
+          echo "Cloning Antora UI default..."
+          git clone --depth 1 --branch v3.1.7 https://github.com/antora/antora-ui-default.git "$UI_DIR" || \
+          git clone --depth 1 --branch v3.1.7 https://gitlab.com/antora/antora-ui-default.git "$UI_DIR"
+          echo "Installing UI dependencies..."
+          (cd "$UI_DIR" && npm ci --no-audit --no-fund)
+          echo "Building UI bundle..."
+          (cd "$UI_DIR" && npx gulp bundle)
+          cp "$UI_DIR/build/ui-bundle.zip" "$UI_BUNDLE"
+          test -s "$UI_BUNDLE" || { echo "UI bundle not produced"; exit 1; }
           npx -y antora@3.1.7 generate antora-playbook.yml --stacktrace --fetch --log-level debug
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
