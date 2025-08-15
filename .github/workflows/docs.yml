@@ -52,19 +52,27 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           pip install neo4j==5.25.0
-          # Start a temporary Neo4j for snippet validation
-          docker run -d --rm --name neo4j-docs -p 7687:7687 -p 7474:7474 -e NEO4J_AUTH=neo4j/neo4j12345 neo4j:5.26
-          echo "Waiting for Neo4j (bolt/http)..."
-          for i in {1..180}; do (nc -z 127.0.0.1 7687 && nc -z 127.0.0.1 7474) && break || sleep 2; done
-          echo "Checking cypher-shell availability..."
-          docker exec neo4j-docs /var/lib/neo4j/bin/cypher-shell --version || (docker logs neo4j-docs | tail -n 200; exit 1)
-          # Seed minimal dataset via cypher-shell
-          docker cp docs/seed/neo4j_seed.cypher neo4j-docs:/var/lib/neo4j/import/neo4j_seed.cypher
-          docker exec neo4j-docs bash -lc "/var/lib/neo4j/bin/cypher-shell -a bolt://localhost:7687 -u neo4j -p neo4j12345 --non-interactive < /var/lib/neo4j/import/neo4j_seed.cypher" || (docker logs neo4j-docs | tail -n 200; exit 1)
-          # Validate snippets against local Neo4j
+          # Start a temporary Neo4j (Enterprise) with APOC core + GDS for parity with live-tests
+          docker run -d --rm --name neo4j-docs \
+            -p 7687:7687 -p 7474:7474 \
+            -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
+            -e NEO4J_PLUGINS='["apoc","graph-data-science"]' \
+            -e NEO4J_AUTH=neo4j/neo4j12345 \
+            neo4j:5.26-enterprise
+          # Use shared readiness helper for consistency
           export NEO4J_URI=bolt://127.0.0.1:7687
           export NEO4J_USERNAME=neo4j
           export NEO4J_PASSWORD=neo4j12345
+          export NEO4J_DATABASE=neo4j
+          export NEO4J_WAIT_TIMEOUT_SECONDS=420
+          python scripts/wait_for_neo4j.py
+          # Seed minimal dataset via HTTP transaction endpoint to avoid interactive shell edge cases
+          echo "Seeding dataset via HTTP endpoint..."
+          curl -s -u neo4j:neo4j12345 -H "Content-Type: application/json" --data '{"statements":[{"statement":"RETURN 1"}]}' http://127.0.0.1:7474/db/neo4j/tx/commit | cat
+          sudo apt-get update -y && sudo apt-get install -y jq
+          jq -Rs '{statements:[{statement: .}]}' docs/seed/neo4j_seed.cypher > seed.json
+          curl -s -u neo4j:neo4j12345 -H "Content-Type: application/json" --data @seed.json http://127.0.0.1:7474/db/neo4j/tx/commit | cat || (docker logs neo4j-docs | tail -n 200; exit 1)
+          # Validate snippets against local Neo4j
           python scripts/validate_cypher_snippets.py docs/modules/ROOT/examples/queries || (docker logs neo4j-docs | tail -n 200; exit 1)
           docker stop neo4j-docs
       - name: Deploy to GitHub Pages
