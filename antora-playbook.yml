@@ -1,5 +1,5 @@
 site:
-  title: Neo4j Code Graph Docs
+  title: Neo4j Code Graph
   start_page: neo4j-code-graph:ROOT:index.adoc
 content:
   sources:
