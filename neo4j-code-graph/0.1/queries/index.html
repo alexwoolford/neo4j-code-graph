@@ -238,6 +238,22 @@ ORDER BY recent_changes DESC</code></pre>
 <script id="site-script" src="../../../_/js/site.js" data-ui-root-path="../../../_"></script>
 <script src="../../../_/js/vendor/highlight.bundle.js"></script>
 <script src="https://unpkg.com/highlightjs-cypher@1.2.0/dist/cypher.min.js"></script>
-<script>try{ if(window.hljs){ window.hljs.highlightAll(); } }catch(e){}</script>
+<script>
+(function(){
+  try {
+    var register = window.hljsCypher || window.hljsDefineCypher;
+    if (window.hljs && typeof register === 'function' && !window.hljs.listLanguages().includes('cypher')) {
+      window.hljs.registerLanguage('cypher', register);
+    }
+    if (window.hljs) {
+      document.querySelectorAll('pre code.language-cypher').forEach(function(el){
+        el.classList.remove('hljs');
+        el.removeAttribute('data-highlighted');
+        window.hljs.highlightElement(el);
+      });
+    }
+  } catch (e) { /* noop */ }
+})();
+</script>
   </body>
 </html>
