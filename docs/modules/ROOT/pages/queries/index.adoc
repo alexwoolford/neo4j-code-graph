@@ -10,3 +10,67 @@ Execute this in Neo4j Browser or Bloom to list top co-changed file pairs.
 ----
 include::example$queries/cochange.cyp[tag=cochange_pairs]
 ----
+
+== Security & Risk
+
+=== Customer-facing APIs using vulnerable dependencies
+
+[source,cypher]
+----
+include::example$queries/security.cyp[tag=api_vulnerable_dependencies]
+----
+
+=== Dependency risk summary
+
+[source,cypher]
+----
+include::example$queries/security.cyp[tag=dependency_risk_summary]
+----
+
+== Architecture & Technical Debt
+
+=== Refactor candidates
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=refactor_candidates]
+----
+
+=== Architectural bottlenecks
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
+----
+
+== Team & Process
+
+=== Experts for a module
+
+[source,cypher]
+----
+include::example$queries/team_process.cyp[tag=experts_for_module]
+----
+
+=== Frequently co-changed files (simple)
+
+[source,cypher]
+----
+include::example$queries/team_process.cyp[tag=cochange_pairs_simple]
+----
+
+== Executive Reporting
+
+=== Technical health summary
+
+[source,cypher]
+----
+include::example$queries/executive.cyp[tag=tech_health_summary]
+----
+
+=== Release risk assessment
+
+[source,cypher]
+----
+include::example$queries/executive.cyp[tag=release_risk_assessment]
+----
