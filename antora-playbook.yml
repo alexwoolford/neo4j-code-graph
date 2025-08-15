@@ -8,7 +8,8 @@ content:
       start_path: docs
 ui:
   bundle:
-    url: https://static.antora.org/ui/default.zip
+    url: https://cdn.jsdelivr.net/npm/@antora/ui-default@3.1.7/dist/ui-bundle.zip
+    snapshot: true
 asciidoc:
   attributes:
     page-origin-private: false
