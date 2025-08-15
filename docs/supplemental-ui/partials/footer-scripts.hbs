@@ -1,16 +1,4 @@
 <script id="site-script" src="{{{uiRootPath}}}/js/site.js" data-ui-root-path="{{{uiRootPath}}}"></script>
-<script src="{{{uiRootPath}}}/js/vendor/highlight.bundle.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/cypher.min.js"></script>
-<script>
-(function(){
-  try {
-    if (window.hljs) {
-      document.querySelectorAll('pre code.language-cypher').forEach(function(el){
-        el.classList.remove('hljs');
-        el.removeAttribute('data-highlighted');
-        window.hljs.highlightElement(el);
-      });
-    }
-  } catch (e) { /* noop */ }
-})();
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cypher.min.js"></script>
+<script>try{ if(window.Prism){ window.Prism.highlightAll(); } }catch(e){}</script>
