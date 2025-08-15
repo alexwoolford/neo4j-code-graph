@@ -8,7 +8,7 @@ content:
       start_path: docs
 ui:
   bundle:
-    url: ./\.antora/ui-bundle.zip
+    url: ./.antora/ui-bundle.zip
   supplemental_files:
     - path: partials/head-styles.hbs
       contents: ./supplemental-ui/partials/head-styles.hbs
