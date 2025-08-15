@@ -2,7 +2,7 @@
 
 == Graph Schema (overview)
 
-image::schema.png[Graph schema,align=center]
+The schema diagram will be added here.
 
 == Components
 
