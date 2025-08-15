@@ -28,17 +28,19 @@ jobs:
           git config --global user.name "GitHub Actions"
           set -e
           mkdir -p .antora
-          # Fetch Antora default UI from npm registry tarball
+          # Fetch Antora default UI from official GitLab artifact (HEAD)
           UI_BUNDLE=.antora/ui-bundle.zip
-          echo "Packing @antora/ui-default@3.1.7 from npm registry..."
-          TARBALL=$(npm pack @antora/ui-default@3.1.7 --silent)
-          echo "Extracting $TARBALL ..."
-          mkdir -p .antora/ui-pack && tar -xzf "$TARBALL" -C .antora/ui-pack
-          FOUND=$(find .antora/ui-pack -name "ui-bundle.zip" | head -n 1)
-          if [[ -n "$FOUND" ]]; then
-            cp "$FOUND" "$UI_BUNDLE"
+          echo "Attempting to download Antora UI bundle from GitLab artifact (HEAD)..."
+          curl -fsSL "https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable" -o "$UI_BUNDLE" || true
+          if [[ ! -s "$UI_BUNDLE" ]]; then
+            echo "Artifact not available or download failed; building UI from source (GitLab default branch)..."
+            UI_DIR=.antora/ui-default
+            git clone --depth 1 https://gitlab.com/antora/antora-ui-default.git "$UI_DIR"
+            (cd "$UI_DIR" && npm ci --no-audit --no-fund)
+            (cd "$UI_DIR" && npx gulp bundle)
+            cp "$UI_DIR/build/ui-bundle.zip" "$UI_BUNDLE"
           fi
-          test -s "$UI_BUNDLE" || { echo "UI bundle not found in npm tarball"; exit 1; }
+          test -s "$UI_BUNDLE" || { echo "UI bundle not produced"; exit 1; }
           npx -y antora@3.1.7 generate antora-playbook.yml --stacktrace --fetch --log-level debug
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
