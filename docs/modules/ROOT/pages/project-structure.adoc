@@ -1,0 +1,14 @@
+= Project Structure
+
+[source]
+----
+neo4j-code-graph/
+├── src/                    # Core library code
+│   ├── analysis/           # Code and git analysis
+│   ├── security/           # CVE vulnerability analysis
+│   ├── data/               # Schema and data management
+│   └── utils/              # Common utilities
+├── cypher_templates_for_bloom.cypher
+├── examples/
+└── tests/
+----

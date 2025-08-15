@@ -2,4 +2,8 @@
 * xref:queries/index.adoc[Queries]
 * xref:getting-started.adoc[Getting Started]
 * xref:architecture.adoc[Architecture]
+* xref:configuration.adoc[Configuration]
+* xref:requirements.adoc[Requirements]
+* xref:project-structure.adoc[Project Structure]
+* xref:development.adoc[Development]
 // Hide default UI footer note by not including it on pages; keep minimal nav

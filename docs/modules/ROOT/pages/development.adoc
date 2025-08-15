@@ -1,0 +1,36 @@
+= Development
+
+== Contributing
+
+Follow the Coding Style Guide (`CODING_STYLE_GUIDE.md`). Key practices:
+
+- Use helpers in `utils.common` for logging and config
+- Consistent error handling and import patterns
+- Run pre-commit hooks before commits
+
+== Testing
+
+[source,bash]
+----
+# Run all tests
+pytest
+
+# Coverage
+pytest --cov=src tests/
+
+# Live integration tests (Neo4j 5.26, APOC core, GDS)
+pytest -m live
+----
+
+== Temporal analysis (CLI)
+
+[source,bash]
+----
+python -m src.analysis.temporal_analysis coupling --min-support 5 --create-relationships
+python -m src.analysis.temporal_analysis hotspots --days 365 --min-changes 3 --top-n 15
+----
+
+== Logs and temp files
+
+- Logs default to console; pass `--log-file .scratch/<name>.log` to persist
+- `.scratch/` is ignored

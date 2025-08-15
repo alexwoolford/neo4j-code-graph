@@ -1,0 +1,6 @@
+= Requirements
+
+- Python 3.10+
+- Neo4j 5.26+ (Community or Enterprise)
+- APOC core and standard GDS installed for analytics
+- Git available on PATH
