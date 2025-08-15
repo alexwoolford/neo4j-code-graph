@@ -12,8 +12,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Show Antora version
+        run: npx -y antora@3.1.7 --version
+      - name: List docs tree
+        run: |
+          echo "Working directory: $(pwd)"
+          ls -la
+          echo "--- docs tree ---"
+          ls -la docs || true
+          echo "--- modules tree ---"
+          ls -la docs/modules/ROOT || true
       - name: Build Antora site
-        run: npx -y antora@3.1.7 docs/preview.yml --stacktrace --fetch
+        run: npx -y antora@3.1.7 generate docs/preview.yml --stacktrace --fetch --log-level debug
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
