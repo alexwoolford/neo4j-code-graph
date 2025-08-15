@@ -77,21 +77,7 @@
     <p>Neo4j Code Graph Docs</p>
   </div>
 </div>
-<script src="https://unpkg.com/highlightjs-cypher/dist/cypher.min.js"></script>
-<script>
-  (function () {
-    var lang = window.hljsCypher || window.hljsDefineCypher;
-    if (window.hljs && typeof lang === 'function') {
-      window.hljs.registerLanguage('cypher', lang);
-      // Re-run highlighter to colorize newly registered language blocks
-      if (typeof window.hljs.highlightAll === 'function') {
-        window.hljs.highlightAll();
-      } else {
-        document.querySelectorAll('pre code.language-cypher')
-          .forEach(function (el) { window.hljs.highlightElement(el); });
-      }
-    }
-  })();
-</script>
+<script id="site-script" src="../../_/js/site.js" data-ui-root-path="../../_"></script>
+<script async src="../../_/js/vendor/highlight.js"></script>
   </body>
 </html>
