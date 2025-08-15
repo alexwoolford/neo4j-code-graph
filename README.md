@@ -12,120 +12,13 @@ Turn your codebase into a queryable knowledge graph. Find security vulnerabiliti
 
 👉 Full documentation: https://alexwoolford.github.io/neo4j-code-graph/
 
-## Business Queries - What Can You Find?
+## Read the Docs
 
-### 🚨 Security & Risk
+The full documentation lives on the site.
 
-**"Which customer-facing APIs use vulnerable dependencies?"**
-```cypher
-MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
-MATCH (f)-[:DECLARES]->(m:Method)
-WHERE m.is_public = true AND cve.cvss_score >= 7.0
-RETURN f.path, m.class_name, m.name, cve.id, cve.cvss_score
-ORDER BY cve.cvss_score DESC
-```
-
-**"What's our complete dependency risk?"**
-```cypher
-MATCH (dep:ExternalDependency)
-OPTIONAL MATCH (dep)<-[:AFFECTS]-(cve:CVE)
-OPTIONAL MATCH (dep)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
-RETURN dep.package, dep.version,
-       count(DISTINCT cve) as vulnerabilities,
-       count(DISTINCT f) as files_using_it,
-       max(cve.cvss_score) as worst_cvss_score
-ORDER BY vulnerabilities DESC, files_using_it DESC
-```
-
-### 🏗️ Architecture & Technical Debt
-
-**"What code should we refactor first?"**
-```cypher
-MATCH (f:File)
-WHERE f.total_lines > 500 AND f.method_count > 20
-OPTIONAL MATCH (f)-[:IMPORTS]->(i:Import)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
-WHERE cve.cvss_score >= 7.0
-RETURN f.path, f.total_lines, f.method_count, f.class_count,
-       count(DISTINCT cve) as security_issues,
-       (f.total_lines * f.method_count + count(cve)*100) as priority_score
-ORDER BY priority_score DESC
-LIMIT 25
-```
-
-**"Which methods are architectural bottlenecks?"**
-```cypher
-MATCH (m:Method)
-WHERE m.pagerank_score IS NOT NULL AND m.pagerank_score > 0.001
-MATCH (m)<-[:DECLARES]-(f:File)
-RETURN f.path, m.class_name, m.name,
-       m.pagerank_score as importance,
-       m.estimated_lines as complexity
-ORDER BY m.pagerank_score DESC
-LIMIT 20
-```
-
-### 👥 Team & Process
-
-**"Who are the experts for this module?"**
-```cypher
-MATCH (dev:Developer)-[:AUTHORED]->(commit:Commit)-[:CHANGED]->(fv:FileVer)-[:OF_FILE]->(f:File)
-WHERE f.path CONTAINS "pregel" // Change to your module
-WITH dev, f, count(DISTINCT commit) as commits_to_file
-WHERE commits_to_file >= 3
-RETURN dev.name, dev.email,
-       count(DISTINCT f) as files_touched,
-       sum(commits_to_file) as total_commits
-ORDER BY total_commits DESC
-LIMIT 10
-```
-
-**"Which files always change together?"**
-```cypher
-MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
-WHERE cc.support > 5 AND cc.confidence > 0.6
-RETURN f1.path, f2.path, cc.support, cc.confidence
-ORDER BY cc.confidence DESC
-LIMIT 25
-```
-
-### 📊 Executive Reporting
-
-**"Technical health summary"**
-```cypher
-MATCH (f:File)
-OPTIONAL MATCH (f)-[:DECLARES]->(m:Method)
-WITH count(DISTINCT f) as total_files,
-     sum(f.total_lines) as total_lines_of_code,
-     count(DISTINCT m) as total_methods,
-     sum(CASE WHEN m.estimated_lines > 100 THEN 1 ELSE 0 END) as complex_methods
-
-OPTIONAL MATCH (cve:CVE)
-WHERE cve.cvss_score >= 7.0
-
-RETURN total_files, total_lines_of_code, total_methods, complex_methods,
-       count(DISTINCT cve) as high_severity_vulnerabilities,
-       round(100 - (complex_methods * 100.0 / total_methods)) as maintainability_score
-```
-
-**"Release risk assessment"**
-```cypher
-MATCH (f:File)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
-WHERE c.date > datetime() - duration('P7D')
-WITH f, count(c) as recent_changes
-WHERE recent_changes > 0
-OPTIONAL MATCH (f)-[:IMPORTS]->(i:Import)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
-WHERE cve.cvss_score >= 7.0
-OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
-RETURN f.path, recent_changes,
-       count(DISTINCT cve) as security_risks,
-       count(DISTINCT m) as public_api_methods,
-       CASE
-         WHEN count(DISTINCT cve) > 0 AND count(DISTINCT m) > 0 THEN "HIGH RISK"
-         WHEN count(DISTINCT cve) > 0 OR recent_changes > 10 THEN "MEDIUM RISK"
-         ELSE "LOW RISK"
-       END as release_risk_level
-ORDER BY recent_changes DESC
-```
+- Getting started: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/getting-started.html
+- Queries catalog: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/queries/index.html
+- Architecture: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/architecture.html
 
 ## Quick Start
 

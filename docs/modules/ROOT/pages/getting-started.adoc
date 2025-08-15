@@ -1,0 +1,54 @@
+= Getting Started
+
+This guide shows how to install, configure, and run the Neo4j Code Graph pipeline.
+
+== Installation
+
+[source,bash]
+----
+git clone https://github.com/alexwoolford/neo4j-code-graph
+cd neo4j-code-graph
+pip install -e '.[dev]'
+----
+
+== Configuration
+
+Set environment variables (or use a `.env` file):
+
+[source,bash]
+----
+export NEO4J_URI=bolt://localhost:7687
+export NEO4J_USERNAME=neo4j
+export NEO4J_PASSWORD=your_password
+export NEO4J_DATABASE=neo4j
+export NVD_API_KEY=your_nvd_api_key
+----
+
+== Run the pipeline
+
+[source,bash]
+----
+# Console script
+code-graph-pipeline-prefect --repo-url https://github.com/your-org/your-repo
+
+# Or run the module directly
+python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo
+----
+
+== CLI entry points
+
+[source,bash]
+----
+code-graph-code-to-graph /path/to/repo
+code-graph-git-history /path/to/repo
+code-graph-similarity --top-k 5 --cutoff 0.8
+code-graph-centrality --algorithms pagerank betweenness degree --top-n 20 --write-back
+code-graph-cve --risk-threshold 7.0 --max-hops 4
+----
+
+== What gets analyzed
+
+- Code structure (files, classes, methods, imports)
+- Git history (commits, changes, co-change patterns)
+- Security (CVE vulnerabilities in dependencies)
+- Derived insights (PageRank, community, similarity)

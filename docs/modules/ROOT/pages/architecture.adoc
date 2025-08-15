@@ -1,0 +1,17 @@
+= Architecture
+
+== Graph Schema (overview)
+
+image::schema.png[Graph schema,align=center]
+
+== Components
+
+- `analysis/` — code and git analyzers
+- `security/` — CVE analysis
+- `data/` — schema/constraint management
+- `pipeline/` — Prefect flow orchestration
+- `utils/` — common utilities
+
+== Neo4j compatibility
+
+- Neo4j 5.26+; APOC core; standard GDS only (Aura-compatible)
