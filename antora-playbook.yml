@@ -1,0 +1,14 @@
+site:
+  title: Neo4j Code Graph Docs
+  start_page: neo4j-code-graph:ROOT:index.adoc
+content:
+  sources:
+    - url: .
+      branches: HEAD
+      start_path: docs
+ui:
+  bundle:
+    url: https://static.antora.org/ui/default.zip
+asciidoc:
+  attributes:
+    page-origin-private: false
