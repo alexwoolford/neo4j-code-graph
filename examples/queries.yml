@@ -1,0 +1,10 @@
+- id: cochange_pairs
+  title: "Which files co-change together?"
+  file: docs/modules/ROOT/examples/queries/cochange.cyp
+  tag: frequent
+  doc_section: process
+  params:
+    min_support: 5
+    min_confidence: 0.6
+  expect:
+    min_rows: 0

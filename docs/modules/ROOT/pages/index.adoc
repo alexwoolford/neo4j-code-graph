@@ -1,0 +1,3 @@
+= Neo4j Code Graph
+
+Welcome to the Neo4j Code Graph documentation. Use the navigation to explore.

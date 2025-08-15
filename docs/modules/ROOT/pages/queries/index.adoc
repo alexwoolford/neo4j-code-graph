@@ -1,0 +1,3 @@
+= Queries Catalog
+
+This section lists example queries with references to tagged Cypher snippets.

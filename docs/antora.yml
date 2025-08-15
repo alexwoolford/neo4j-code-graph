@@ -1,0 +1,5 @@
+name: neo4j-code-graph
+title: Neo4j Code Graph
+version: '0.1'
+nav:
+  - modules/ROOT/nav.adoc
