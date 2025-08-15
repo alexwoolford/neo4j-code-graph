@@ -4,6 +4,7 @@ site:
 content:
   sources:
     - url: .
+      branches: HEAD
       start_path: docs
 ui:
   bundle:

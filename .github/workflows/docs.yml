@@ -23,7 +23,10 @@ jobs:
           echo "--- modules tree ---"
           ls -la docs/modules/ROOT || true
       - name: Build Antora site
-        run: npx -y antora@3.1.7 generate docs/preview.yml --stacktrace --fetch --log-level debug
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          npx -y antora@3.1.7 generate docs/preview.yml --stacktrace --fetch --log-level debug
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
