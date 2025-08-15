@@ -3,3 +3,7 @@
 Welcome to the Neo4j Code Graph documentation.
 
 Use the navigation to browse Queries and learn how to run the pipeline.
+
+== Quick links
+
+- xref:queries/index.adoc[Queries]

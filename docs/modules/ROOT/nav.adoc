@@ -1,3 +1,3 @@
 * xref:index.adoc[Overview]
-* xref:queries/index.adoc[Queries Catalog]
+* xref:queries/index.adoc[Queries]
 // Hide default UI footer note by not including it on pages; keep minimal nav
