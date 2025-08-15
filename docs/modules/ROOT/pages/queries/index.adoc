@@ -6,7 +6,7 @@ This section lists example queries with references to tagged Cypher snippets.
 
 Execute this in Neo4j Browser or Bloom to list top co-changed file pairs.
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/cochange.cyp[tag=cochange_pairs]
 ----
@@ -15,14 +15,14 @@ include::example$queries/cochange.cyp[tag=cochange_pairs]
 
 === Customer-facing APIs using vulnerable dependencies
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/security.cyp[tag=api_vulnerable_dependencies]
 ----
 
 === Dependency risk summary
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/security.cyp[tag=dependency_risk_summary]
 ----
@@ -31,14 +31,14 @@ include::example$queries/security.cyp[tag=dependency_risk_summary]
 
 === Refactor candidates
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/architecture.cyp[tag=refactor_candidates]
 ----
 
 === Architectural bottlenecks
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
 ----
@@ -47,14 +47,14 @@ include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
 
 === Experts for a module
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/team_process.cyp[tag=experts_for_module]
 ----
 
 === Frequently co-changed files (simple)
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/team_process.cyp[tag=cochange_pairs_simple]
 ----
@@ -63,14 +63,14 @@ include::example$queries/team_process.cyp[tag=cochange_pairs_simple]
 
 === Technical health summary
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/executive.cyp[tag=tech_health_summary]
 ----
 
 === Release risk assessment
 
-[source,cypher]
+[source,cypher,subs=attributes+]
 ----
 include::example$queries/executive.cyp[tag=release_risk_assessment]
 ----
