@@ -64,12 +64,17 @@ def iter_queries(root: Path) -> Iterable[tuple[Path, str, str]]:
 
 
 def validate_queries(
-    uri: str, user: str, pwd: str, queries: Iterable[tuple[Path, str, str]]
+    uri: str,
+    user: str,
+    pwd: str,
+    queries: Iterable[tuple[Path, str, str]],
+    database: str | None = None,
 ) -> None:
     driver = GraphDatabase.driver(uri, auth=(user, pwd))
     num_validated = 0
     with driver:
-        with driver.session() as session:
+        session_kwargs = {"database": database} if database else {}
+        with driver.session(**session_kwargs) as session:
             for file_path, tag, query in queries:
                 session.run(f"EXPLAIN\n{query}")
                 num_validated += 1
@@ -89,8 +94,9 @@ def main() -> None:
     pwd = os.environ.get("NEO4J_PASSWORD")
     if not all([uri, user, pwd]):
         raise SystemExit("NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD must be set")
+    database = os.environ.get("NEO4J_DATABASE")
 
-    validate_queries(uri, user, pwd, iter_queries(root))
+    validate_queries(uri, user, pwd, iter_queries(root), database=database)
 
 
 if __name__ == "__main__":

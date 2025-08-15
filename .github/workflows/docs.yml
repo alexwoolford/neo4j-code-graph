@@ -52,6 +52,7 @@ jobs:
           NEO4J_URI: ${{ secrets.DOCS_NEO4J_URI }}
           NEO4J_USERNAME: ${{ secrets.DOCS_NEO4J_USERNAME }}
           NEO4J_PASSWORD: ${{ secrets.DOCS_NEO4J_PASSWORD }}
+          NEO4J_DATABASE: ${{ secrets.DOCS_NEO4J_DATABASE }}
         run: |
           python -m pip install --upgrade pip
           pip install neo4j==5.25.0
