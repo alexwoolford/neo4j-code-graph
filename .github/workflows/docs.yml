@@ -31,8 +31,9 @@ jobs:
           set -e
           UI_BUNDLE=.antora/ui-bundle.zip
           URLS=(
-            https://cdn.jsdelivr.net/npm/@antora/ui-default@3.1.7/dist/ui-bundle.zip
-            https://unpkg.com/@antora/ui-default@3.1.7/dist/ui-bundle.zip
+            https://cdn.jsdelivr.net/npm/@antora/ui-default@3.1.7/ui-bundle.zip
+            https://unpkg.com/@antora/ui-default@3.1.7/ui-bundle.zip
+            https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/v3.1.7/raw/build/ui-bundle.zip?job=bundle-stable
             https://registry.npmmirror.com/@antora/ui-default/-/ui-default-3.1.7.tgz
           )
           for u in "${URLS[@]}"; do
@@ -40,9 +41,9 @@ jobs:
             if [[ "$u" == *.tgz ]]; then
               # Fallback: download tarball and extract the dist/ui-bundle.zip
               curl -fsSL "$u" -o .antora/ui-default.tgz || continue
-              tar -tzf .antora/ui-default.tgz | grep -q "dist/ui-bundle.zip" || continue
+              tar -tzf .antora/ui-default.tgz | grep -q "ui-bundle.zip" || continue
               tar -xzf .antora/ui-default.tgz -C .antora
-              FOUND=$(find .antora -path "*/dist/ui-bundle.zip" | head -n 1)
+              FOUND=$(find .antora -name "ui-bundle.zip" | head -n 1)
               if [[ -n "$FOUND" ]]; then
                 cp "$FOUND" "$UI_BUNDLE"
                 break
