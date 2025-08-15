@@ -1,3 +1,12 @@
+antora:
+  extensions:
+    - require: antora-shiki-extension
+      theme: github-light
+      register_languages:
+        - id: cypher
+          scope_name: source.cypher
+          grammar_path: ./tools/grammars/cypher.tmLanguage.json
+          alias: [cypher]
 site:
   title: Neo4j Code Graph Docs
   start_page: neo4j-code-graph:ROOT:index.adoc
@@ -17,4 +26,4 @@ ui:
 asciidoc:
   attributes:
     page-origin-private: false
-    source-highlighter: highlight.js
+    source-highlighter: shiki

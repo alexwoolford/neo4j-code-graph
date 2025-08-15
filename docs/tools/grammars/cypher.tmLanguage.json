@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cypher",
+  "scopeName": "source.cypher",
+  "patterns": [
+    { "match": "\\b(MATCH|WHERE|RETURN|WITH|OPTIONAL|CREATE|MERGE|DELETE|DETACH|SET|REMOVE|UNWIND|ORDER|BY|LIMIT|SKIP|ASC|DESC|AND|OR|NOT|AS|ON|CALL|YIELD)\\b", "name": "keyword.control.cypher" },
+    { "match": "\\b(TRUE|FALSE|NULL)\\b", "name": "constant.language.cypher" },
+    { "begin": "\\'", "end": "\\'", "name": "string.quoted.single.cypher" },
+    { "begin": '"', "end": '"', "name": "string.quoted.double.cypher" },
+    { "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*", "name": "variable.parameter.cypher" },
+    { "match": "(:[A-Za-z_][A-Za-z0-9_]*)", "name": "entity.name.type.node.cypher" },
+    { "match": "\\[[A-Za-z_][A-Za-z0-9_]*\\]", "name": "entity.other.relationship.cypher" }
+  ]
+}

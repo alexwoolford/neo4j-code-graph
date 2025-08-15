@@ -7,6 +7,7 @@
     "clean": "rm -rf build/site"
   },
   "devDependencies": {
-    "antora": "3.1.7"
+    "antora": "3.1.7",
+    "antora-shiki-extension": "0.5.4"
   }
 }
