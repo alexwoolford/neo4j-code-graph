@@ -2,7 +2,7 @@
 
 == Graph Schema (overview)
 
-The schema diagram will be added here.
+image::/schema.png[Graph schema,align=center]
 
 == Components
 

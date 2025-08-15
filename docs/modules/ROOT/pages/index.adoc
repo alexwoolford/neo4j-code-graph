@@ -6,7 +6,7 @@ Use the navigation to browse Queries and learn how to run the pipeline.
 
 == Quick links
 
-* xref:getting-started.adoc[Getting Started]
+* xref:guide.adoc[Guide]
 * xref:configuration.adoc[Configuration]
 * xref:queries/index.adoc[Queries]
 * xref:architecture.adoc[Architecture]
