@@ -1,0 +1,10 @@
+<script src="https://unpkg.com/highlightjs-cypher/dist/cypher.min.js"></script>
+<script>
+  (function () {
+    if (window.hljs && window.hljsCypher) {
+      window.hljs.registerLanguage('cypher', window.hljsCypher);
+      document.querySelectorAll('pre code.language-cypher')
+        .forEach(function (el) { window.hljs.highlightElement(el); });
+    }
+  })();
+</script>
