@@ -9,6 +9,11 @@ content:
 ui:
   bundle:
     url: https://static.antora.org/ui/default.zip
+  supplemental_files:
+    - path: partials/head-styles.hbs
+      contents: ./docs/supplemental-ui/partials/head-styles.hbs
+    - path: partials/footer-scripts.hbs
+      contents: ./docs/supplemental-ui/partials/footer-scripts.hbs
 asciidoc:
   attributes:
     page-origin-private: false
