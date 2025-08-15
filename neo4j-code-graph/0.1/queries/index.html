@@ -6,7 +6,7 @@
     <title>Queries Catalog :: Neo4j Code Graph Docs</title>
     <meta name="generator" content="Antora 3.1.7">
 <link rel="stylesheet" href="../../../_/css/site.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/stackoverflow-light.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
   </head>
   <body class="article">
 <nav class="navbar">
@@ -236,20 +236,8 @@ ORDER BY recent_changes DESC</code></pre>
 </div>
 <div class="footer"><div class="container"><p>Neo4j Code Graph Docs</p></div></div>
 <script id="site-script" src="../../../_/js/site.js" data-ui-root-path="../../../_"></script>
-<script src="../../../_/js/vendor/highlight.bundle.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/cypher.min.js"></script>
-<script>
-(function(){
-  try {
-    if (window.hljs) {
-      document.querySelectorAll('pre code.language-cypher').forEach(function(el){
-        el.classList.remove('hljs');
-        el.removeAttribute('data-highlighted');
-        window.hljs.highlightElement(el);
-      });
-    }
-  } catch (e) { /* noop */ }
-})();
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cypher.min.js"></script>
+<script>try{ if(window.Prism){ window.Prism.highlightAll(); } }catch(e){}</script>
   </body>
 </html>
