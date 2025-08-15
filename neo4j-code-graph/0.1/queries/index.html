@@ -80,6 +80,155 @@ LIMIT 25</code></pre>
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_security_risk"><a class="anchor" href="#_security_risk"></a>Security &amp; Risk</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_customer_facing_apis_using_vulnerable_dependencies"><a class="anchor" href="#_customer_facing_apis_using_vulnerable_dependencies"></a>Customer-facing APIs using vulnerable dependencies</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (cve:CVE)-[:AFFECTS]-&gt;(dep:ExternalDependency)&lt;-[:DEPENDS_ON]-(i:Import)&lt;-[:IMPORTS]-(f:File)
+MATCH (f)-[:DECLARES]-&gt;(m:Method)
+WHERE m.is_public = true AND cve.cvss_score &gt;= 7.0
+RETURN f.path, m.class_name, m.name, cve.id, cve.cvss_score
+ORDER BY cve.cvss_score DESC</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_dependency_risk_summary"><a class="anchor" href="#_dependency_risk_summary"></a>Dependency risk summary</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (dep:ExternalDependency)
+OPTIONAL MATCH (dep)&lt;-[:AFFECTS]-(cve:CVE)
+OPTIONAL MATCH (dep)&lt;-[:DEPENDS_ON]-(i:Import)&lt;-[:IMPORTS]-(f:File)
+RETURN dep.package, dep.version,
+       count(DISTINCT cve) as vulnerabilities,
+       count(DISTINCT f) as files_using_it,
+       max(cve.cvss_score) as worst_cvss_score
+ORDER BY vulnerabilities DESC, files_using_it DESC</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_architecture_technical_debt"><a class="anchor" href="#_architecture_technical_debt"></a>Architecture &amp; Technical Debt</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_refactor_candidates"><a class="anchor" href="#_refactor_candidates"></a>Refactor candidates</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f:File)
+WHERE f.total_lines &gt; 500 AND f.method_count &gt; 20
+OPTIONAL MATCH (f)-[:IMPORTS]-&gt;(i:Import)-[:DEPENDS_ON]-&gt;(dep:ExternalDependency)&lt;-[:AFFECTS]-(cve:CVE)
+WHERE cve.cvss_score &gt;= 7.0
+RETURN f.path, f.total_lines, f.method_count, f.class_count,
+       count(DISTINCT cve) as security_issues,
+       (f.total_lines * f.method_count + count(cve)*100) as priority_score
+ORDER BY priority_score DESC
+LIMIT 25</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_architectural_bottlenecks"><a class="anchor" href="#_architectural_bottlenecks"></a>Architectural bottlenecks</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (m:Method)
+WHERE m.pagerank_score IS NOT NULL AND m.pagerank_score &gt; 0.001
+MATCH (m)&lt;-[:DECLARES]-(f:File)
+RETURN f.path, m.class_name, m.name,
+       m.pagerank_score as importance,
+       m.estimated_lines as complexity
+ORDER BY m.pagerank_score DESC
+LIMIT 20</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_team_process"><a class="anchor" href="#_team_process"></a>Team &amp; Process</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_experts_for_a_module"><a class="anchor" href="#_experts_for_a_module"></a>Experts for a module</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (dev:Developer)-[:AUTHORED]-&gt;(commit:Commit)-[:CHANGED]-&gt;(fv:FileVer)-[:OF_FILE]-&gt;(f:File)
+WHERE f.path CONTAINS $module
+WITH dev, f, count(DISTINCT commit) as commits_to_file
+WHERE commits_to_file &gt;= 3
+RETURN dev.name, dev.email,
+       count(DISTINCT f) as files_touched,
+       sum(commits_to_file) as total_commits
+ORDER BY total_commits DESC
+LIMIT 10</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_frequently_co_changed_files_simple"><a class="anchor" href="#_frequently_co_changed_files_simple"></a>Frequently co-changed files (simple)</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f1:File)-[cc:CO_CHANGED]-&gt;(f2:File)
+WHERE cc.support &gt; 5 AND cc.confidence &gt; 0.6
+RETURN f1.path, f2.path, cc.support, cc.confidence
+ORDER BY cc.confidence DESC
+LIMIT 25</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_executive_reporting"><a class="anchor" href="#_executive_reporting"></a>Executive Reporting</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_technical_health_summary"><a class="anchor" href="#_technical_health_summary"></a>Technical health summary</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f:File)
+OPTIONAL MATCH (f)-[:DECLARES]-&gt;(m:Method)
+WITH count(DISTINCT f) as total_files,
+     sum(f.total_lines) as total_lines_of_code,
+     count(DISTINCT m) as total_methods,
+     sum(CASE WHEN m.estimated_lines &gt; 100 THEN 1 ELSE 0 END) as complex_methods
+
+OPTIONAL MATCH (cve:CVE)
+WHERE cve.cvss_score &gt;= 7.0
+
+RETURN total_files, total_lines_of_code, total_methods, complex_methods,
+       count(DISTINCT cve) as high_severity_vulnerabilities,
+       round(100 - (complex_methods * 100.0 / total_methods)) as maintainability_score</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_release_risk_assessment"><a class="anchor" href="#_release_risk_assessment"></a>Release risk assessment</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f:File)&lt;-[:OF_FILE]-(fv:FileVer)&lt;-[:CHANGED]-(c:Commit)
+WHERE c.date &gt; datetime() - duration('P7D')
+WITH f, count(c) as recent_changes
+WHERE recent_changes &gt; 0
+OPTIONAL MATCH (f)-[:IMPORTS]-&gt;(i:Import)-[:DEPENDS_ON]-&gt;(dep:ExternalDependency)&lt;-[:AFFECTS]-(cve:CVE)
+WHERE cve.cvss_score &gt;= 7.0
+OPTIONAL MATCH (f)-[:DECLARES]-&gt;(m:Method {is_public: true})
+RETURN f.path, recent_changes,
+       count(DISTINCT cve) as security_risks,
+       count(DISTINCT m) as public_api_methods,
+       CASE
+         WHEN count(DISTINCT cve) &gt; 0 AND count(DISTINCT m) &gt; 0 THEN "HIGH RISK"
+         WHEN count(DISTINCT cve) &gt; 0 OR recent_changes &gt; 10 THEN "MEDIUM RISK"
+         ELSE "LOW RISK"
+       END as release_risk_level
+ORDER BY recent_changes DESC</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 </article>
   </div>
 </main>
