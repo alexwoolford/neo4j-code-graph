@@ -18,21 +18,31 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 
 == Relationships
 
+// Core, high-frequency edges
+- *\(Commit\)-[:CHANGED]->\(FileVer\)*: Git change written by a commit.
+- *\(FileVer\)-[:OF_FILE]->\(File\)*: Version points to its file.
+- *\(Method\)-[:CALLS]->\(Method\)*: Static call graph edges.
+- *\(Method\)-[:SIMILAR]->\(Method\)*: Semantic similarity from embeddings (`score`).
 - *\(File\)-[:DECLARES]->\(Method\)*: File declares a method.
 - *\(Class\)-[:CONTAINS_METHOD]->\(Method\)*: Method belongs to class.
 - *\(Interface\)-[:CONTAINS_METHOD]->\(Method\)*: Method belongs to interface.
-- *\(Method\)-[:CALLS]->\(Method\)*: Static call graph edges.
+- *\(File\)-[:IMPORTS]->\(Import\)*: File contains an import declaration.
+- *\(Import\)-[:DEPENDS_ON]->\(ExternalDependency\)*: Import maps to an external package.
+
+// Type and hierarchy
 - *\(Class\)-[:EXTENDS]->\(Class\)*: Inheritance between classes.
 - *\(Interface\)-[:EXTENDS]->\(Interface\)*: Inheritance between interfaces.
-- *\(Class\)-[:IMPLEMENTS]->\(Interface\)*: Class implements interface (only cross‑type edge).
-- *\(File\)-[:IMPORTS]->\(Import\)* and *\(Import\)-[:DEPENDS_ON]->\(ExternalDependency\)*: File depends on external package.
-- *\(CVE\)-[:AFFECTS]->\(ExternalDependency\)*: Vulnerability affects dependency.
+- *\(Class\)-[:IMPLEMENTS]->\(Interface\)*: Class implements interface (the only cross‑type edge).
+- *\(File\)-[:DEFINES]->\(Class\|Interface\)*: File defines type declarations.
+- *\(Directory\)-[:CONTAINS]->\(Directory\)*: Directory hierarchy.
+- *\(Directory\)-[:CONTAINS]->\(File\)*: Files within a directory.
+
+// People and security
 - *\(Developer\)-[:AUTHORED]->\(Commit\)*: Author authored commit.
-- *\(Commit\)-[:CHANGED]->\(FileVer\)* and *\(FileVer\)-[:OF_FILE]->\(File\)*: Git change history.
-- *\(File\)-[:CONTAINS]->\(Directory\)* and *\(Directory\)-[:CONTAINS]->\(File|Directory\)*: Hierarchy for browsing.
-- *\(File\)-[:DEFINES]->\(Class|Interface\)*: File defines type declarations.
-- *\(File\)-[:CO_CHANGED]->\(File\)*: Temporal coupling derived from commit co‑change (directed with `support`, `confidence`).
-- *\(Method\)-[:SIMILAR]->\(Method\)*: Semantic similarity from embeddings (`score` property).
+- *\(CVE\)-[:AFFECTS]->\(ExternalDependency\)*: Vulnerability affects dependency.
+
+// Derived analyses
+- *\(File\)-[:CO_CHANGED]->\(File\)*: Temporal coupling (co‑change) with `support` and `confidence`.
 
 == Notes
 
