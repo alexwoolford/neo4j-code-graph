@@ -8,6 +8,36 @@ Follow the Coding Style Guide (`CODING_STYLE_GUIDE.md`). Key practices:
 - Consistent error handling and import patterns
 - Run pre-commit hooks before commits
 
+== CI & pre-flight checks
+
+Our CI runs on every push and PR and will fail the build if code quality, typing, or tests break. To avoid churn, run the same checks locally:
+
+[source,bash]
+----
+# Install dev tools
+pip install -r config/dev-requirements.txt
+
+# Run the exact hooks CI uses
+pre-commit run --all-files
+
+# Run unit tests (CI also runs 3.10/3.11/3.12)
+pytest -q
+
+# Live tests (CI spins up Neo4j 5.26 enterprise with APOC core + GDS)
+pytest -m live -q
+----
+
+What CI does:
+- Lint/format/typecheck: black, ruff, ruff-format, mypy, interrogate, codespell
+- Unit tests: Python 3.10–3.12
+- Live tests: starts Neo4j 5.26 enterprise with APOC core + GDS, waits for readiness, seeds data, runs `-m live`
+- Docs: builds Antora site, validates Cypher snippets via ephemeral Neo4j, generates the Prefect DAG image, and publishes to GitHub Pages
+
+Tips:
+- If a hook reformats files, re-run `pre-commit run --all-files` until all pass
+- Keep `.env` up to date; use CLI flags to override for live tests
+- The docs workflow also fails if any `.cyp` snippet fails `EXPLAIN`
+
 == Testing
 
 [source,bash]
