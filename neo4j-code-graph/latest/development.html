@@ -233,6 +233,40 @@ pytest -m live -q</code></pre>
 </div>
 </div>
 <div class="sect1">
+<h2 id="_configuration_constants"><a class="anchor" href="#_configuration_constants"></a>Configuration constants</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Many default knobs live in <code>src/constants.py</code> (embedding sizes, batching, PageRank iterations, similarity thresholds, CVE settings, etc.). These are sensible defaults that can be overridden in two ways:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Environment variables (preferred for runtime tuning). Examples:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><code>SIMILARITY_TOP_K</code>, <code>SIMILARITY_CUTOFF</code></p>
+</li>
+<li>
+<p><code>DB_BATCH_WITH_EMBEDDINGS</code>, <code>DB_BATCH_SIMPLE</code></p>
+</li>
+<li>
+<p><code>DEFAULT_PARALLEL_FILES</code>, <code>DEFAULT_EMBED_BATCH_*</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Code edits in <code>src/constants.py</code> (for durable project-wide changes).</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>This centralization keeps magic numbers out of the code paths and makes it clear where to tweak behavior.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_testing"><a class="anchor" href="#_testing"></a>Testing</h2>
 <div class="sectionbody">
 <div class="listingblock">
