@@ -74,7 +74,7 @@ python -m src.analysis.temporal_analysis coupling --min-support 5 --create-relat
 python -m src.analysis.temporal_analysis hotspots --days 365 --min-changes 3 --top-n 15
 ----
 
-== Logs and temp files
+== Logs
 
-- Logs default to console; pass `--log-file .scratch/<name>.log` to persist
-- `.scratch/` is ignored
+- Logs default to both console and `logs/neo4j-code-graph.log`
+- To override, pass `--log-file logs/<name>.log`

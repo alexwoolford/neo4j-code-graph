@@ -6,6 +6,7 @@ Common utilities shared across neo4j-code-graph scripts.
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 from neo4j import Driver, GraphDatabase
 
@@ -22,8 +23,26 @@ def setup_logging(log_level: str | int = "INFO", log_file: str | None = None) ->
         log_file: Optional path to log file for file output
     """
     handlers = [logging.StreamHandler(sys.stdout)]
+    # Default to logs/ directory inside repo/workdir if no file provided
+    if log_file is None:
+        logs_dir = Path("logs")
+        try:
+            logs_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            # Fall back to console-only if directory can't be created
+            logs_dir = None  # type: ignore[assignment]
+        else:
+            log_file = str(logs_dir / "neo4j-code-graph.log")
+
     if log_file:
-        handlers.append(logging.FileHandler(log_file))
+        # Ensure parent directory exists if a custom path is provided
+        try:
+            Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            # If path invalid, silently keep console logging only
+            pass
+        else:
+            handlers.append(logging.FileHandler(log_file))
 
     # Handle both string levels ("INFO") and integer levels (logging.INFO)
     if isinstance(log_level, int):
