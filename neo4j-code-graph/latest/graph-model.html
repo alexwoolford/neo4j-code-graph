@@ -166,49 +166,49 @@
 <div class="ulist">
 <ul>
 <li>
-<p><strong>File)-[:DECLARES]&#8594;(Method</strong>: File declares a method.</p>
+<p><strong>\(File\)-[:DECLARES]&#8594;\(Method\)</strong>: File declares a method.</p>
 </li>
 <li>
-<p><strong>Class)-[:CONTAINS_METHOD]&#8594;(Method</strong>: Method belongs to class.</p>
+<p><strong>\(Class\)-[:CONTAINS_METHOD]&#8594;\(Method\)</strong>: Method belongs to class.</p>
 </li>
 <li>
-<p><strong>Interface)-[:CONTAINS_METHOD]&#8594;(Method</strong>: Method belongs to interface.</p>
+<p><strong>\(Interface\)-[:CONTAINS_METHOD]&#8594;\(Method\)</strong>: Method belongs to interface.</p>
 </li>
 <li>
-<p><strong>Method)-[:CALLS]&#8594;(Method</strong>: Static call graph edges.</p>
+<p><strong>\(Method\)-[:CALLS]&#8594;\(Method\)</strong>: Static call graph edges.</p>
 </li>
 <li>
-<p><strong>Class)-[:EXTENDS]&#8594;(Class</strong>: Inheritance between classes.</p>
+<p><strong>\(Class\)-[:EXTENDS]&#8594;\(Class\)</strong>: Inheritance between classes.</p>
 </li>
 <li>
-<p><strong>Interface)-[:EXTENDS]&#8594;(Interface</strong>: Inheritance between interfaces.</p>
+<p><strong>\(Interface\)-[:EXTENDS]&#8594;\(Interface\)</strong>: Inheritance between interfaces.</p>
 </li>
 <li>
-<p><strong>Class)-[:IMPLEMENTS]&#8594;(Interface</strong>: Class implements interface (only cross‑type edge).</p>
+<p><strong>\(Class\)-[:IMPLEMENTS]&#8594;\(Interface\)</strong>: Class implements interface (only cross‑type edge).</p>
 </li>
 <li>
-<p><strong>File)-[:IMPORTS]&#8594;(Import</strong> and <strong>Import)-[:DEPENDS_ON]&#8594;(ExternalDependency</strong>: File depends on external package.</p>
+<p><strong>\(File\)-[:IMPORTS]&#8594;\(Import\)</strong> and <strong>\(Import\)-[:DEPENDS_ON]&#8594;\(ExternalDependency\)</strong>: File depends on external package.</p>
 </li>
 <li>
-<p><strong>CVE)-[:AFFECTS]&#8594;(ExternalDependency</strong>: Vulnerability affects dependency.</p>
+<p><strong>\(CVE\)-[:AFFECTS]&#8594;\(ExternalDependency\)</strong>: Vulnerability affects dependency.</p>
 </li>
 <li>
-<p><strong>Developer)-[:AUTHORED]&#8594;(Commit</strong>: Author authored commit.</p>
+<p><strong>\(Developer\)-[:AUTHORED]&#8594;\(Commit\)</strong>: Author authored commit.</p>
 </li>
 <li>
-<p><strong>Commit)-[:CHANGED]&#8594;(FileVer</strong> and <strong>FileVer)-[:OF_FILE]&#8594;(File</strong>: Git change history.</p>
+<p><strong>\(Commit\)-[:CHANGED]&#8594;\(FileVer\)</strong> and <strong>\(FileVer\)-[:OF_FILE]&#8594;\(File\)</strong>: Git change history.</p>
 </li>
 <li>
-<p><strong>File)-[:CONTAINS]&#8594;(Directory</strong> and <strong>Directory)-[:CONTAINS]&#8594;(File|Directory</strong>: Hierarchy for browsing.</p>
+<p><strong>\(File\)-[:CONTAINS]&#8594;\(Directory\)</strong> and <strong>\(Directory\)-[:CONTAINS]&#8594;\(File|Directory\)</strong>: Hierarchy for browsing.</p>
 </li>
 <li>
-<p><strong>File)-[:DEFINES]&#8594;(Class|Interface</strong>: File defines type declarations.</p>
+<p><strong>\(File\)-[:DEFINES]&#8594;\(Class|Interface\)</strong>: File defines type declarations.</p>
 </li>
 <li>
-<p><strong>File)-[:CO_CHANGED]&#8594;(File</strong>: Temporal coupling derived from commit co‑change (directed with <code>support</code>, <code>confidence</code>).</p>
+<p><strong>\(File\)-[:CO_CHANGED]&#8594;\(File\)</strong>: Temporal coupling derived from commit co‑change (directed with <code>support</code>, <code>confidence</code>).</p>
 </li>
 <li>
-<p><strong>Method)-[:SIMILAR]&#8594;(Method</strong>: Semantic similarity from embeddings (<code>score</code> property).</p>
+<p><strong>\(Method\)-[:SIMILAR]&#8594;\(Method\)</strong>: Semantic similarity from embeddings (<code>score</code> property).</p>
 </li>
 </ul>
 </div>
