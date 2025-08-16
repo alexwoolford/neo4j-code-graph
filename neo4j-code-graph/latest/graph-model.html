@@ -166,6 +166,18 @@
 <div class="ulist">
 <ul>
 <li>
+<p><strong>\(Commit\)-[:CHANGED]&#8594;\(FileVer\)</strong>: Git change written by a commit.</p>
+</li>
+<li>
+<p><strong>\(FileVer\)-[:OF_FILE]&#8594;\(File\)</strong>: Version points to its file.</p>
+</li>
+<li>
+<p><strong>\(Method\)-[:CALLS]&#8594;\(Method\)</strong>: Static call graph edges.</p>
+</li>
+<li>
+<p><strong>\(Method\)-[:SIMILAR]&#8594;\(Method\)</strong>: Semantic similarity from embeddings (<code>score</code>).</p>
+</li>
+<li>
 <p><strong>\(File\)-[:DECLARES]&#8594;\(Method\)</strong>: File declares a method.</p>
 </li>
 <li>
@@ -175,8 +187,15 @@
 <p><strong>\(Interface\)-[:CONTAINS_METHOD]&#8594;\(Method\)</strong>: Method belongs to interface.</p>
 </li>
 <li>
-<p><strong>\(Method\)-[:CALLS]&#8594;\(Method\)</strong>: Static call graph edges.</p>
+<p><strong>\(File\)-[:IMPORTS]&#8594;\(Import\)</strong>: File contains an import declaration.</p>
 </li>
+<li>
+<p><strong>\(Import\)-[:DEPENDS_ON]&#8594;\(ExternalDependency\)</strong>: Import maps to an external package.</p>
+</li>
+</ul>
+</div>
+<div class="ulist">
+<ul>
 <li>
 <p><strong>\(Class\)-[:EXTENDS]&#8594;\(Class\)</strong>: Inheritance between classes.</p>
 </li>
@@ -184,31 +203,33 @@
 <p><strong>\(Interface\)-[:EXTENDS]&#8594;\(Interface\)</strong>: Inheritance between interfaces.</p>
 </li>
 <li>
-<p><strong>\(Class\)-[:IMPLEMENTS]&#8594;\(Interface\)</strong>: Class implements interface (only cross‑type edge).</p>
+<p><strong>\(Class\)-[:IMPLEMENTS]&#8594;\(Interface\)</strong>: Class implements interface (the only cross‑type edge).</p>
 </li>
 <li>
-<p><strong>\(File\)-[:IMPORTS]&#8594;\(Import\)</strong> and <strong>\(Import\)-[:DEPENDS_ON]&#8594;\(ExternalDependency\)</strong>: File depends on external package.</p>
+<p><strong>\(File\)-[:DEFINES]&#8594;\(Class\|Interface\)</strong>: File defines type declarations.</p>
 </li>
 <li>
-<p><strong>\(CVE\)-[:AFFECTS]&#8594;\(ExternalDependency\)</strong>: Vulnerability affects dependency.</p>
+<p><strong>\(Directory\)-[:CONTAINS]&#8594;\(Directory\)</strong>: Directory hierarchy.</p>
 </li>
+<li>
+<p><strong>\(Directory\)-[:CONTAINS]&#8594;\(File\)</strong>: Files within a directory.</p>
+</li>
+</ul>
+</div>
+<div class="ulist">
+<ul>
 <li>
 <p><strong>\(Developer\)-[:AUTHORED]&#8594;\(Commit\)</strong>: Author authored commit.</p>
 </li>
 <li>
-<p><strong>\(Commit\)-[:CHANGED]&#8594;\(FileVer\)</strong> and <strong>\(FileVer\)-[:OF_FILE]&#8594;\(File\)</strong>: Git change history.</p>
+<p><strong>\(CVE\)-[:AFFECTS]&#8594;\(ExternalDependency\)</strong>: Vulnerability affects dependency.</p>
 </li>
+</ul>
+</div>
+<div class="ulist">
+<ul>
 <li>
-<p><strong>\(File\)-[:CONTAINS]&#8594;\(Directory\)</strong> and <strong>\(Directory\)-[:CONTAINS]&#8594;\(File|Directory\)</strong>: Hierarchy for browsing.</p>
-</li>
-<li>
-<p><strong>\(File\)-[:DEFINES]&#8594;\(Class|Interface\)</strong>: File defines type declarations.</p>
-</li>
-<li>
-<p><strong>\(File\)-[:CO_CHANGED]&#8594;\(File\)</strong>: Temporal coupling derived from commit co‑change (directed with <code>support</code>, <code>confidence</code>).</p>
-</li>
-<li>
-<p><strong>\(Method\)-[:SIMILAR]&#8594;\(Method\)</strong>: Semantic similarity from embeddings (<code>score</code> property).</p>
+<p><strong>\(File\)-[:CO_CHANGED]&#8594;\(File\)</strong>: Temporal coupling (co‑change) with <code>support</code> and <code>confidence</code>.</p>
 </li>
 </ul>
 </div>
