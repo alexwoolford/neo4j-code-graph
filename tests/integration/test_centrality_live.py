@@ -18,8 +18,11 @@ def test_pagerank_via_cypher_live():
         with driver.session(database=db) as session:
             # Clear and create a tiny graph
             session.run("MATCH (n) DETACH DELETE n").consume()
+            # Schema enforces presence of `method_signature` on :Method
             session.run(
-                "CREATE (:Method {name:'A'}), (:Method {name:'B'}), (:Method {name:'C'})"
+                "CREATE (:Method {name:'A', method_signature:'A#a():void'}), "
+                "(:Method {name:'B', method_signature:'B#b():void'}), "
+                "(:Method {name:'C', method_signature:'C#c():void'})"
             ).consume()
             session.run(
                 "MATCH (a:Method {name:'A'}), (b:Method {name:'B'}), (c:Method {name:'C'}) "
