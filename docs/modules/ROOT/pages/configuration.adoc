@@ -22,7 +22,6 @@ SIMILARITY_CUTOFF=0.8 # or SIM_CUTOFF
 == Notes
 
 - The project loads `.env` using `find_dotenv()` and falls back to explicit CLI args when provided.
-- Do not hardcode `localhost` in production; prefer explicit `NEO4J_URI`.
 - Only APOC core and standard GDS features are used to remain Aura-compatible.
 
 == NVD API key (what/why/how)

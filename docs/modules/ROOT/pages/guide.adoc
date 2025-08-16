@@ -33,7 +33,6 @@ SIMILARITY_CUTOFF=0.8
 Tips:
 - `.env` is discovered via `find_dotenv()`.
 - CLI args override env values.
-- Avoid hardcoded `localhost` in production; set `NEO4J_URI` explicitly.
 
 == Pipeline stages (overview)
 
