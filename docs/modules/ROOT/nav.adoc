@@ -4,6 +4,7 @@
 ** xref:configuration.adoc[Configuration]
 ** xref:queries/index.adoc[Queries]
 ** xref:requirements.adoc[Requirements]
+** xref:graph-model.adoc[Graph model]
 * Developer Guide
 ** xref:architecture.adoc[Architecture]
 ** xref:project-structure.adoc[Project Structure]
