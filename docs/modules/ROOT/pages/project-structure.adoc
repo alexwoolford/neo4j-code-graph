@@ -11,7 +11,7 @@ neo4j-code-graph/
 │   └── utils/                 # Shared utilities (config, cleanup, validation)
 ├── docs/                      # Antora documentation site (pages, examples, UI)
 ├── scripts/                   # CI/build helpers (DAG gen, wait for Neo4j, snippet validation)
-├── examples/                  # Example code and queries catalog
+├── examples/                  # Example code; Cypher catalog lives in docs/modules/ROOT/examples
 ├── tests/                     # Unit + live tests
-└── cypher_templates_for_bloom.cypher
+└── (legacy) cypher_templates_for_bloom.cypher  # to be removed; use Queries catalog instead
 ----
