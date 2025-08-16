@@ -21,8 +21,9 @@ def _get_driver_or_skip():
 def test_temporal_hotspots_and_coupling_live():
     # Minimal synthetic commit/file structure
     driver, database = _get_driver_or_skip()
-    with driver.session(database=database) as session:
-        session.run("MATCH (n) DETACH DELETE n").consume()
+    with driver:
+        with driver.session(database=database) as session:
+            session.run("MATCH (n) DETACH DELETE n").consume()
 
         # Create files and versions
         session.run(

@@ -70,9 +70,8 @@ def validate_queries(
     queries: Iterable[tuple[Path, str, str]],
     database: str | None = None,
 ) -> None:
-    driver = GraphDatabase.driver(uri, auth=(user, pwd))
-    num_validated = 0
-    with driver:
+    with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
+        num_validated = 0
         session_kwargs = {"database": database} if database else {}
         with driver.session(**session_kwargs) as session:
             for file_path, tag, query in queries:

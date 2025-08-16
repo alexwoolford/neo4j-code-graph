@@ -31,10 +31,9 @@ def neo4j_session():
     from src.utils.neo4j_utils import get_neo4j_config
 
     uri, user, pwd, database = get_neo4j_config()
-    driver = GraphDatabase.driver(uri, auth=(user, pwd))
-    with driver.session(database=database) as session:
-        yield session
-    driver.close()
+    with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
+        with driver.session(database=database) as session:
+            yield session
 
 
 @pytest.mark.parametrize("ex", CATALOG, ids=[e["id"] for e in CATALOG])
