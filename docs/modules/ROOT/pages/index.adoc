@@ -4,14 +4,14 @@ Neo4j Code Graph is a Python toolkit and pipeline that turns a source code repos
 
 What it solves:
 
-- Security and risk visibility: surface vulnerable third‑party dependencies and where they intersect with public APIs or recent changes
-- Architecture and technical debt: highlight hot files/methods by size/complexity and graph centrality to prioritize refactors
-- Temporal coupling and release risk: identify files that frequently change together and recent change clusters
-- Team insights: find subject‑matter experts by commit history
+- *Security and risk visibility*: surface vulnerable third‑party dependencies and where they intersect with public APIs or recent changes
+- *Architecture and technical debt*: highlight hot files/methods by size/complexity and graph centrality to prioritize refactors
+- *Temporal coupling and release risk*: identify files that frequently change together and recent change clusters
+- *Team insights*: find subject‑matter experts by commit history
 
 Key capabilities:
 
-- End‑to‑end pipeline with Prefect: code analysis, Git history ingestion, similarity/centrality, CVE analysis, temporal coupling
-- Aura‑compatible analytics: APOC core and standard GDS only
-- Batteries‑included querying: catalog of Cypher patterns for coupling, risk, refactors, expert finding, executive summaries
-- Docs and guardrails: CI builds docs, validates Cypher snippets against an ephemeral Neo4j, and publishes to GitHub Pages
+- *End‑to‑end pipeline with Prefect*: code analysis, Git history ingestion, similarity/centrality, CVE analysis, temporal coupling
+- *Aura‑compatible analytics*: APOC core and standard GDS only
+- *Batteries‑included querying*: catalog of Cypher patterns for coupling, risk, refactors, expert finding, executive summaries
+- *Docs and guardrails*: CI builds docs, validates Cypher snippets against an ephemeral Neo4j, and publishes to GitHub Pages
