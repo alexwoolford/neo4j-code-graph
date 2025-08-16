@@ -111,14 +111,17 @@
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-none hljs">neo4j-code-graph/
-├── src/                    # Core library code
-│   ├── analysis/           # Code and git analysis
-│   ├── security/           # CVE vulnerability analysis
-│   ├── data/               # Schema and data management
-│   └── utils/              # Common utilities
-├── cypher_templates_for_bloom.cypher
-├── examples/
-└── tests/</code></pre>
+├── src/                       # Core library code
+│   ├── analysis/              # Code &amp; Git analyzers, similarity, temporal coupling
+│   ├── security/              # CVE enrichment &amp; matching
+│   ├── data/                  # Schema/constraints management
+│   ├── pipeline/              # Prefect flow orchestration
+│   └── utils/                 # Shared utilities (config, cleanup, validation)
+├── docs/                      # Antora documentation site (pages, examples, UI)
+├── scripts/                   # CI/build helpers (DAG gen, wait for Neo4j, snippet validation)
+├── examples/                  # Example code and queries catalog
+├── tests/                     # Unit + live tests
+└── cypher_templates_for_bloom.cypher</code></pre>
 </div>
 </div>
 </article>
