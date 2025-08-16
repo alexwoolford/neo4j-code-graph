@@ -32,6 +32,11 @@ def _try_prefect_visualize() -> bool:
             # Prefect 2 provided .visualize(); Prefect 3 may offer similar API.
             # We attempt a best-effort call. If it fails, fall back.
             gv = code_graph_flow.visualize()  # type: ignore[attr-defined]
+            # Force portrait orientation
+            try:
+                gv.graph_attr.update(rankdir="TB")  # type: ignore[attr-defined]
+            except Exception:
+                pass
             out = Path("docs/modules/ROOT/assets/images/prefect-dag")
             _ensure_output_dir(out)
             gv.format = "png"
@@ -50,7 +55,8 @@ def _render_static_graph() -> None:
     _ensure_output_dir(out)
 
     g = Digraph("neo4j-code-graph-dag", format="png")
-    g.attr(rankdir="LR", fontsize="10")
+    # Portrait orientation (Top-to-Bottom)
+    g.attr(rankdir="TB", fontsize="10")
     g.attr("node", shape="box", style="rounded,filled", fillcolor="#f7f7f7")
 
     # Nodes
