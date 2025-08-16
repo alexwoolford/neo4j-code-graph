@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Architecture :: Neo4j Code Graph</title>
+    <title>Graph model :: Neo4j Code Graph</title>
     <meta name="generator" content="Antora 3.1.12">
 <link rel="stylesheet" href="../../_/css/site.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
@@ -48,7 +48,7 @@
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="requirements.html">Requirements</a>
   </li>
-  <li class="nav-item" data-depth="2">
+  <li class="nav-item is-current-page" data-depth="2">
     <a class="nav-link" href="graph-model.html">Graph model</a>
   </li>
 </ul>
@@ -57,7 +57,7 @@
     <button class="nav-item-toggle"></button>
     <span class="nav-text">Developer Guide</span>
 <ul class="nav-list">
-  <li class="nav-item is-current-page" data-depth="2">
+  <li class="nav-item" data-depth="2">
     <a class="nav-link" href="architecture.html">Architecture</a>
   </li>
   <li class="nav-item" data-depth="2">
@@ -99,74 +99,131 @@
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
     <li><a href="index.html">Docs</a></li>
-    <li>Developer Guide</li>
-    <li><a href="architecture.html">Architecture</a></li>
+    <li>User Guide</li>
+    <li><a href="graph-model.html">Graph model</a></li>
   </ul>
 </nav>
-<div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/architecture.adoc">Edit this Page</a></div>
+<div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/graph-model.adoc">Edit this Page</a></div>
 </div>
   <div class="content">
 <aside class="toc sidebar" data-title="Contents" data-levels="2">
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Architecture</h1>
-<div class="sect1">
-<h2 id="_graph_schema_overview"><a class="anchor" href="#_graph_schema_overview"></a>Graph Schema (overview)</h2>
+<h1 class="page">Graph model</h1>
+<div id="preamble">
 <div class="sectionbody">
-<div class="imageblock text-center">
-<div class="content">
-<img src="_images/schema.png" alt="Graph schema">
-</div>
+<div class="paragraph">
+<p>This page defines the nodes and relationships used by Neo4j Code Graph so new users can read and write queries confidently.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_components"><a class="anchor" href="#_components"></a>Components</h2>
+<h2 id="_nodes"><a class="anchor" href="#_nodes"></a>Nodes</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p><code>analysis/</code> — code and git analyzers</p>
+<p>File: A source file; properties include <code>path</code>, <code>total_lines</code>, <code>method_count</code>, <code>class_count</code>.</p>
 </li>
 <li>
-<p><code>security/</code> — CVE analysis</p>
+<p>FileVer: A versioned view of a file at a commit. Linked to <code>File</code> by <code>OF_FILE</code> and to <code>Commit</code> by <code>CHANGED</code>.</p>
 </li>
 <li>
-<p><code>data/</code> — schema/constraint management</p>
+<p>Method: A function/method; key property <code>method_signature</code> plus <code>name</code>, <code>class_name</code>, <code>estimated_lines</code>, centrality scores.</p>
 </li>
 <li>
-<p><code>pipeline/</code> — Prefect flow orchestration</p>
+<p>Class: A class declaration; <code>name</code>, <code>file</code>, flags (e.g., <code>is_abstract</code>).</p>
 </li>
 <li>
-<p><code>utils/</code> — common utilities</p>
+<p>Interface: An interface declaration; <code>name</code>, <code>file</code>.</p>
+</li>
+<li>
+<p>Import: An import statement within a file; <code>import_path</code>.</p>
+</li>
+<li>
+<p>ExternalDependency: A third‑party package or module (Aura‑compatible subset); <code>package</code>, <code>version</code>.</p>
+</li>
+<li>
+<p>Commit: A Git commit; <code>sha</code>, <code>date</code>, <code>message</code>.</p>
+</li>
+<li>
+<p>Developer: An author; <code>name</code>, <code>email</code>.</p>
+</li>
+<li>
+<p>CVE: Vulnerability record (from NVD); <code>id</code>, <code>cvss_score</code>.</p>
+</li>
+<li>
+<p>Directory: A directory node used for hierarchical navigation; <code>path</code>.</p>
 </li>
 </ul>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_orchestration_dag"><a class="anchor" href="#_orchestration_dag"></a>Orchestration DAG</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>The diagram below is generated automatically during the docs build from the Prefect flow
-definition. If Prefect&#8217;s native visualization is available, it is used; otherwise a static
-diagram is rendered to match the flow.</p>
-</div>
-<div class="imageblock text-center">
-<div class="content">
-<img src="_images/prefect-dag.png" alt="Prefect pipeline DAG">
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_neo4j_compatibility"><a class="anchor" href="#_neo4j_compatibility"></a>Neo4j compatibility</h2>
+<h2 id="_relationships"><a class="anchor" href="#_relationships"></a>Relationships</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p>Neo4j 5.26+; APOC core; standard GDS only (Aura-compatible)</p>
+<p>(File)-[:DECLARES]&#8594;(Method): File declares a method.</p>
+</li>
+<li>
+<p>(Class)-[:CONTAINS_METHOD]&#8594;(Method): Method belongs to class.</p>
+</li>
+<li>
+<p>(Interface)-[:CONTAINS_METHOD]&#8594;(Method): Method belongs to interface.</p>
+</li>
+<li>
+<p>(Method)-[:CALLS]&#8594;(Method): Static call graph edges.</p>
+</li>
+<li>
+<p>(Class)-[:EXTENDS]&#8594;(Class): Inheritance between classes.</p>
+</li>
+<li>
+<p>(Interface)-[:EXTENDS]&#8594;(Interface): Inheritance between interfaces.</p>
+</li>
+<li>
+<p>(Class)-[:IMPLEMENTS]&#8594;(Interface): Class implements interface (only cross‑type edge).</p>
+</li>
+<li>
+<p>(File)-[:IMPORTS]&#8594;(Import) and (Import)-[:DEPENDS_ON]&#8594;(ExternalDependency): File depends on external package.</p>
+</li>
+<li>
+<p>(CVE)-[:AFFECTS]&#8594;(ExternalDependency): Vulnerability affects dependency.</p>
+</li>
+<li>
+<p>(Developer)-[:AUTHORED]&#8594;(Commit): Author authored commit.</p>
+</li>
+<li>
+<p>(Commit)-[:CHANGED]&#8594;(FileVer) and (FileVer)-[:OF_FILE]&#8594;(File): Git change history.</p>
+</li>
+<li>
+<p>(File)-[:CONTAINS]&#8594;(Directory) and (Directory)-[:CONTAINS]&#8594;(File|Directory): Hierarchy for browsing.</p>
+</li>
+<li>
+<p>(File)-[:DEFINES]&#8594;(Class|Interface): File defines type declarations.</p>
+</li>
+<li>
+<p>(File)-[:CO_CHANGED]&#8594;(File): Temporal coupling derived from commit co‑change (directed with <code>support</code>, <code>confidence</code>).</p>
+</li>
+<li>
+<p>(Method)-[:SIMILAR]&#8594;(Method): Semantic similarity from embeddings (<code>score</code> property).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_notes"><a class="anchor" href="#_notes"></a>Notes</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Schema constraints enforce key properties (e.g., <code>Method.method_signature</code>).</p>
+</li>
+<li>
+<p>For property and count examples, see the Queries catalog and Architecture pages.</p>
 </li>
 </ul>
 </div>
