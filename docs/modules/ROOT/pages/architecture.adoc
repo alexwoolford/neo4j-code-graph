@@ -14,6 +14,10 @@ image::schema.png[Graph schema,align=center]
 
 == Orchestration DAG
 
+The diagram below is generated automatically during the docs build from the Prefect flow
+definition. If Prefect's native visualization is available, it is used; otherwise a static
+diagram is rendered to match the flow.
+
 image::prefect-dag.png[Prefect pipeline DAG,align=center]
 
 == Neo4j compatibility

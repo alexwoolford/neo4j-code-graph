@@ -28,6 +28,10 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
+          # Generate/update Prefect DAG image before site build
+          python -m pip install graphviz || true
+          sudo apt-get update -y && sudo apt-get install -y graphviz || true
+          python scripts/generate_prefect_dag.py || true
           # Pre-fetch UI bundle locally to avoid CDN failures (place next to preview.yml)
           mkdir -p docs/.antora
           curl -fsSL https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable -o docs/.antora/ui-bundle.zip || true
