@@ -130,6 +130,42 @@
 </div>
 </div>
 <div class="sect1">
+<h2 id="_ci_pre_flight_checks"><a class="anchor" href="#_ci_pre_flight_checks"></a>CI &amp; pre-flight checks</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Our CI runs on every push and PR and will fail the build if code quality, typing, or tests break. To avoid churn, run the same checks locally:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Install dev tools
+pip install -r config/dev-requirements.txt
+
+# Run the exact hooks CI uses
+pre-commit run --all-files
+
+# Run unit tests (CI also runs 3.10/3.11/3.12)
+pytest -q
+
+# Live tests (CI spins up Neo4j 5.26 enterprise with APOC core + GDS)
+pytest -m live -q</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>What CI does:
+- Lint/format/typecheck: black, ruff, ruff-format, mypy, interrogate, codespell
+- Unit tests: Python 3.10–3.12
+- Live tests: starts Neo4j 5.26 enterprise with APOC core + GDS, waits for readiness, seeds data, runs <code>-m live</code>
+- Docs: builds Antora site, validates Cypher snippets via ephemeral Neo4j, generates the Prefect DAG image, and publishes to GitHub Pages</p>
+</div>
+<div class="paragraph">
+<p>Tips:
+- If a hook reformats files, re-run <code>pre-commit run --all-files</code> until all pass
+- Keep <code>.env</code> up to date; use CLI flags to override for live tests
+- The docs workflow also fails if any <code>.cyp</code> snippet fails <code>EXPLAIN</code></p>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_testing"><a class="anchor" href="#_testing"></a>Testing</h2>
 <div class="sectionbody">
 <div class="listingblock">
