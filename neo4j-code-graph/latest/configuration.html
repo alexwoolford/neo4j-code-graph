@@ -153,6 +153,37 @@ SIMILARITY_CUTOFF=0.8 # or SIM_CUTOFF</code></pre>
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_nvd_api_key_whatwhyhow"><a class="anchor" href="#_nvd_api_key_whatwhyhow"></a>NVD API key (what/why/how)</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>What: An API key for the National Vulnerability Database (NVD) REST API used to fetch CVE metadata.</p>
+</li>
+<li>
+<p>Why: NVD enforces rate limits. Supplying a key raises the limit significantly, making CVE lookups faster and less likely to be throttled.</p>
+</li>
+<li>
+<p>How:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Create a free key from the NVD API portal (<code><a href="https://nvd.nist.gov/developers/request-an-api-key" class="bare">https://nvd.nist.gov/developers/request-an-api-key</a></code>).</p>
+</li>
+<li>
+<p>You’ll receive a key by email. Set it via <code>NVD_API_KEY</code> in your environment or <code>.env</code>.</p>
+</li>
+<li>
+<p>If unset, CVE features still work but may be slower due to rate limiting.</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
 </article>
   </div>
 </main>
