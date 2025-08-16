@@ -2,7 +2,7 @@
 
 == Contributing
 
-Follow the Coding Style Guide (`CODING_STYLE_GUIDE.md`). Key practices:
+Style is enforced by pre-commit (black, ruff, ruff-format, mypy, interrogate, codespell). Key practices:
 
 - Use helpers in `utils.common` for logging and config
 - Consistent error handling and import patterns
