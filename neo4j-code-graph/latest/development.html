@@ -151,11 +151,78 @@ pytest -m live -q</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>What CI does:
-- Lint/format/typecheck: black, ruff, ruff-format, mypy, interrogate, codespell
-- Unit tests: Python 3.10–3.12
-- Live tests: starts Neo4j 5.26 enterprise with APOC core + GDS, waits for readiness, seeds data, runs <code>-m live</code>
-- Docs: builds Antora site, validates Cypher snippets via ephemeral Neo4j, generates the Prefect DAG image, and publishes to GitHub Pages</p>
+<p>What CI does:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Lint/format/typecheck</p>
+<div class="ulist">
+<ul>
+<li>
+<p>black</p>
+</li>
+<li>
+<p>ruff / ruff-format</p>
+</li>
+<li>
+<p>mypy</p>
+</li>
+<li>
+<p>interrogate</p>
+</li>
+<li>
+<p>codespell</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Unit tests</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Python 3.10–3.12</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Live tests</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Start Neo4j 5.26 enterprise with APOC core + GDS</p>
+</li>
+<li>
+<p>Wait for readiness and seed data</p>
+</li>
+<li>
+<p>Run pytest with <code>-m live</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Docs</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Build Antora site</p>
+</li>
+<li>
+<p>Validate Cypher snippets via ephemeral Neo4j</p>
+</li>
+<li>
+<p>Generate Prefect DAG image</p>
+</li>
+<li>
+<p>Publish to GitHub Pages</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
 </div>
 <div class="paragraph">
 <p>Tips:
