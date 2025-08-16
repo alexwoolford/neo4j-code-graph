@@ -261,15 +261,15 @@ python -m src.analysis.temporal_analysis hotspots --days 365 --min-changes 3 --t
 </div>
 </div>
 <div class="sect1">
-<h2 id="_logs_and_temp_files"><a class="anchor" href="#_logs_and_temp_files"></a>Logs and temp files</h2>
+<h2 id="_logs"><a class="anchor" href="#_logs"></a>Logs</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p>Logs default to console; pass <code>--log-file .scratch/&lt;name&gt;.log</code> to persist</p>
+<p>Logs default to both console and <code>logs/neo4j-code-graph.log</code></p>
 </li>
 <li>
-<p><code>.scratch/</code> is ignored</p>
+<p>To override, pass <code>--log-file logs/&lt;name&gt;.log</code></p>
 </li>
 </ul>
 </div>
