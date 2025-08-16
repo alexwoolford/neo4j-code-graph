@@ -4,35 +4,35 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 
 == Nodes
 
-- File: A source file; properties include `path`, `total_lines`, `method_count`, `class_count`.
-- FileVer: A versioned view of a file at a commit. Linked to `File` by `OF_FILE` and to `Commit` by `CHANGED`.
-- Method: A function/method; key property `method_signature` plus `name`, `class_name`, `estimated_lines`, centrality scores.
-- Class: A class declaration; `name`, `file`, flags (e.g., `is_abstract`).
-- Interface: An interface declaration; `name`, `file`.
-- Import: An import statement within a file; `import_path`.
-- ExternalDependency: A third‑party package or module (Aura‑compatible subset); `package`, `version`.
-- Commit: A Git commit; `sha`, `date`, `message`.
-- Developer: An author; `name`, `email`.
-- CVE: Vulnerability record (from NVD); `id`, `cvss_score`.
-- Directory: A directory node used for hierarchical navigation; `path`.
+- *File*: A source file; properties include `path`, `total_lines`, `method_count`, `class_count`.
+- *FileVer*: A versioned view of a file at a commit. Linked to `File` by `OF_FILE` and to `Commit` by `CHANGED`.
+- *Method*: A function/method; key property `method_signature` plus `name`, `class_name`, `estimated_lines`, centrality scores.
+- *Class*: A class declaration; `name`, `file`, flags (e.g., `is_abstract`).
+- *Interface*: An interface declaration; `name`, `file`.
+- *Import*: An import statement within a file; `import_path`.
+- *ExternalDependency*: A third‑party package or module (Aura‑compatible subset); `package`, `version`.
+- *Commit*: A Git commit; `sha`, `date`, `message`.
+- *Developer*: An author; `name`, `email`.
+- *CVE*: Vulnerability record (from NVD); `id`, `cvss_score`.
+- *Directory*: A directory node used for hierarchical navigation; `path`.
 
 == Relationships
 
-- (File)-[:DECLARES]->(Method): File declares a method.
-- (Class)-[:CONTAINS_METHOD]->(Method): Method belongs to class.
-- (Interface)-[:CONTAINS_METHOD]->(Method): Method belongs to interface.
-- (Method)-[:CALLS]->(Method): Static call graph edges.
-- (Class)-[:EXTENDS]->(Class): Inheritance between classes.
-- (Interface)-[:EXTENDS]->(Interface): Inheritance between interfaces.
-- (Class)-[:IMPLEMENTS]->(Interface): Class implements interface (only cross‑type edge).
-- (File)-[:IMPORTS]->(Import) and (Import)-[:DEPENDS_ON]->(ExternalDependency): File depends on external package.
-- (CVE)-[:AFFECTS]->(ExternalDependency): Vulnerability affects dependency.
-- (Developer)-[:AUTHORED]->(Commit): Author authored commit.
-- (Commit)-[:CHANGED]->(FileVer) and (FileVer)-[:OF_FILE]->(File): Git change history.
-- (File)-[:CONTAINS]->(Directory) and (Directory)-[:CONTAINS]->(File|Directory): Hierarchy for browsing.
-- (File)-[:DEFINES]->(Class|Interface): File defines type declarations.
-- (File)-[:CO_CHANGED]->(File): Temporal coupling derived from commit co‑change (directed with `support`, `confidence`).
-- (Method)-[:SIMILAR]->(Method): Semantic similarity from embeddings (`score` property).
+- *((File)-[:DECLARES]->(Method))*: File declares a method.
+- *((Class)-[:CONTAINS_METHOD]->(Method))*: Method belongs to class.
+- *((Interface)-[:CONTAINS_METHOD]->(Method))*: Method belongs to interface.
+- *((Method)-[:CALLS]->(Method))*: Static call graph edges.
+- *((Class)-[:EXTENDS]->(Class))*: Inheritance between classes.
+- *((Interface)-[:EXTENDS]->(Interface))*: Inheritance between interfaces.
+- *((Class)-[:IMPLEMENTS]->(Interface))*: Class implements interface (only cross‑type edge).
+- *((File)-[:IMPORTS]->(Import))* and *((Import)-[:DEPENDS_ON]->(ExternalDependency))*: File depends on external package.
+- *((CVE)-[:AFFECTS]->(ExternalDependency))*: Vulnerability affects dependency.
+- *((Developer)-[:AUTHORED]->(Commit))*: Author authored commit.
+- *((Commit)-[:CHANGED]->(FileVer))* and *((FileVer)-[:OF_FILE]->(File))*: Git change history.
+- *((File)-[:CONTAINS]->(Directory))* and *((Directory)-[:CONTAINS]->(File|Directory))*: Hierarchy for browsing.
+- *((File)-[:DEFINES]->(Class|Interface))*: File defines type declarations.
+- *((File)-[:CO_CHANGED]->(File))*: Temporal coupling derived from commit co‑change (directed with `support`, `confidence`).
+- *((Method)-[:SIMILAR]->(Method))*: Semantic similarity from embeddings (`score` property).
 
 == Notes
 
