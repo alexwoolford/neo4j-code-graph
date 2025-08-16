@@ -37,7 +37,7 @@ jobs:
           fi
           echo "Listing docs/.antora contents:" && ls -la docs/.antora || true
           echo "Inspect UI bundle:" && unzip -l docs/.antora/ui-bundle.zip | head -n 20 || true
-          npx -y antora@3.1.7 antora-playbook.yml --stacktrace --fetch --log-level debug
+          npx -y antora@3.1.12 antora-playbook.yml --stacktrace --fetch --log-level debug
           echo '<!doctype html><meta http-equiv="refresh" content="0; url=neo4j-code-graph/latest/index.html">' > build/site/index.html
           cp build/site/index.html build/site/404.html || true
       - name: Validate Cypher snippets (EXPLAIN)

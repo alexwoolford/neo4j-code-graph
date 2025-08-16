@@ -3,11 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "build": "npx -y antora@3.1.7 antora-playbook.yml",
+    "build": "npx -y antora@3.1.12 antora-playbook.yml",
     "clean": "rm -rf build/site"
   },
   "devDependencies": {
-    "antora": "3.1.7",
+    "antora": "3.1.12",
     "asciidoctor-shiki": "latest"
   }
 }
