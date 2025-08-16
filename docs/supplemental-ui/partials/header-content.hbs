@@ -4,10 +4,10 @@
   </div>
   <div class="navbar-menu">
     <div class="navbar-start">
-      <a class="navbar-item" href="{{{relativize (concat page.componentVersion.url '/index.html')}}}">Overview</a>
-      <a class="navbar-item" href="{{{relativize (concat page.componentVersion.url '/guide.html')}}}">Guide</a>
-      <a class="navbar-item" href="{{{relativize (concat page.componentVersion.url '/queries/index.html')}}}">Queries</a>
-      <a class="navbar-item" href="{{{relativize (concat page.componentVersion.url '/architecture.html')}}}">Architecture</a>
+      <a class="navbar-item" href="{{{relativize (resolvePage 'index.adoc').url}}}">Overview</a>
+      <a class="navbar-item" href="{{{relativize (resolvePage 'guide.adoc').url}}}">Guide</a>
+      <a class="navbar-item" href="{{{relativize (resolvePage 'queries/index.adoc').url}}}">Queries</a>
+      <a class="navbar-item" href="{{{relativize (resolvePage 'architecture.adoc').url}}}">Architecture</a>
     </div>
   </div>
 </nav>
