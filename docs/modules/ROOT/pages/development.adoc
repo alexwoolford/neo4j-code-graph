@@ -28,10 +28,24 @@ pytest -m live -q
 ----
 
 What CI does:
-- Lint/format/typecheck: black, ruff, ruff-format, mypy, interrogate, codespell
-- Unit tests: Python 3.10–3.12
-- Live tests: starts Neo4j 5.26 enterprise with APOC core + GDS, waits for readiness, seeds data, runs `-m live`
-- Docs: builds Antora site, validates Cypher snippets via ephemeral Neo4j, generates the Prefect DAG image, and publishes to GitHub Pages
+
+- Lint/format/typecheck
+** black
+** ruff / ruff-format
+** mypy
+** interrogate
+** codespell
+- Unit tests
+** Python 3.10–3.12
+- Live tests
+** Start Neo4j 5.26 enterprise with APOC core + GDS
+** Wait for readiness and seed data
+** Run pytest with `-m live`
+- Docs
+** Build Antora site
+** Validate Cypher snippets via ephemeral Neo4j
+** Generate Prefect DAG image
+** Publish to GitHub Pages
 
 Tips:
 - If a hook reformats files, re-run `pre-commit run --all-files` until all pass
