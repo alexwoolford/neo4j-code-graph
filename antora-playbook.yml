@@ -15,3 +15,5 @@ asciidoc:
   attributes:
     page-origin-private: false
     source-highlighter: highlight.js
+    toclevels: 3
+    sectanchors: true

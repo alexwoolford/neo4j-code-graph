@@ -35,6 +35,14 @@ Tips:
 - CLI args override env values.
 - Avoid hardcoded `localhost` in production; set `NEO4J_URI` explicitly.
 
+== Pipeline stages (overview)
+
+* Code analysis
+* Git history ingestion
+* Similarity and centrality calculations
+* CVE analysis
+* Temporal coupling
+
 == Run the pipeline
 
 [source,bash]
