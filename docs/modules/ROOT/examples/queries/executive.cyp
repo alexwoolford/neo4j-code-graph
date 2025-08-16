@@ -22,7 +22,7 @@ WHERE recent_changes > 0
 OPTIONAL MATCH (f)-[:IMPORTS]->(i:Import)-[:DEPENDS_ON]->(dep:ExternalDependency)<-[:AFFECTS]-(cve:CVE)
 WHERE cve.cvss_score >= 7.0
 OPTIONAL MATCH (f)-[:DECLARES]->(m:Method {is_public: true})
-RETURN f.path, recent_changes,
+RETURN f.path as path, recent_changes,
        count(DISTINCT cve) as security_risks,
        count(DISTINCT m) as public_api_methods,
        CASE

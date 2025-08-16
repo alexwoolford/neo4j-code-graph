@@ -1,9 +1,11 @@
 * xref:index.adoc[Overview]
-* xref:guide.adoc[Guide]
-* xref:queries/index.adoc[Queries]
-* xref:architecture.adoc[Architecture]
-* xref:configuration.adoc[Configuration]
-* xref:requirements.adoc[Requirements]
-* xref:project-structure.adoc[Project Structure]
-* xref:development.adoc[Development]
+* User Guide
+** xref:guide.adoc[Guide]
+** xref:configuration.adoc[Configuration]
+** xref:queries/index.adoc[Queries]
+** xref:requirements.adoc[Requirements]
+* Developer Guide
+** xref:architecture.adoc[Architecture]
+** xref:project-structure.adoc[Project Structure]
+** xref:development.adoc[Development]
 // Hide default UI footer note by not including it on pages; keep minimal nav
