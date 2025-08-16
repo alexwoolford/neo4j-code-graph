@@ -1,7 +1,7 @@
 - id: cochange_pairs
   title: "Which files co-change together?"
   file: docs/modules/ROOT/examples/queries/cochange.cyp
-  tag: frequent
+  tag: cochange_pairs
   doc_section: process
   params:
     min_support: 5
