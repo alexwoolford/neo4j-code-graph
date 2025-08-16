@@ -52,6 +52,18 @@ Tips:
 - Keep `.env` up to date; use CLI flags to override for live tests
 - The docs workflow also fails if any `.cyp` snippet fails `EXPLAIN`
 
+== Configuration constants
+
+Many default knobs live in `src/constants.py` (embedding sizes, batching, PageRank iterations, similarity thresholds, CVE settings, etc.). These are sensible defaults that can be overridden in two ways:
+
+- Environment variables (preferred for runtime tuning). Examples:
+  * `SIMILARITY_TOP_K`, `SIMILARITY_CUTOFF`
+  * `DB_BATCH_WITH_EMBEDDINGS`, `DB_BATCH_SIMPLE`
+  * `DEFAULT_PARALLEL_FILES`, `DEFAULT_EMBED_BATCH_*`
+- Code edits in `src/constants.py` (for durable project-wide changes).
+
+This centralization keeps magic numbers out of the code paths and makes it clear where to tweak behavior.
+
 == Testing
 
 [source,bash]
