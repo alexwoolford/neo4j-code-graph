@@ -12,6 +12,10 @@ image::schema.png[Graph schema,align=center]
 - `pipeline/` — Prefect flow orchestration
 - `utils/` — common utilities
 
+== Orchestration DAG
+
+image::prefect-dag.png[Prefect pipeline DAG,align=center]
+
 == Neo4j compatibility
 
 - Neo4j 5.26+; APOC core; standard GDS only (Aura-compatible)
