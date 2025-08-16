@@ -124,37 +124,37 @@
 <div class="ulist">
 <ul>
 <li>
-<p>File: A source file; properties include <code>path</code>, <code>total_lines</code>, <code>method_count</code>, <code>class_count</code>.</p>
+<p><strong>File</strong>: A source file; properties include <code>path</code>, <code>total_lines</code>, <code>method_count</code>, <code>class_count</code>.</p>
 </li>
 <li>
-<p>FileVer: A versioned view of a file at a commit. Linked to <code>File</code> by <code>OF_FILE</code> and to <code>Commit</code> by <code>CHANGED</code>.</p>
+<p><strong>FileVer</strong>: A versioned view of a file at a commit. Linked to <code>File</code> by <code>OF_FILE</code> and to <code>Commit</code> by <code>CHANGED</code>.</p>
 </li>
 <li>
-<p>Method: A function/method; key property <code>method_signature</code> plus <code>name</code>, <code>class_name</code>, <code>estimated_lines</code>, centrality scores.</p>
+<p><strong>Method</strong>: A function/method; key property <code>method_signature</code> plus <code>name</code>, <code>class_name</code>, <code>estimated_lines</code>, centrality scores.</p>
 </li>
 <li>
-<p>Class: A class declaration; <code>name</code>, <code>file</code>, flags (e.g., <code>is_abstract</code>).</p>
+<p><strong>Class</strong>: A class declaration; <code>name</code>, <code>file</code>, flags (e.g., <code>is_abstract</code>).</p>
 </li>
 <li>
-<p>Interface: An interface declaration; <code>name</code>, <code>file</code>.</p>
+<p><strong>Interface</strong>: An interface declaration; <code>name</code>, <code>file</code>.</p>
 </li>
 <li>
-<p>Import: An import statement within a file; <code>import_path</code>.</p>
+<p><strong>Import</strong>: An import statement within a file; <code>import_path</code>.</p>
 </li>
 <li>
-<p>ExternalDependency: A third‑party package or module (Aura‑compatible subset); <code>package</code>, <code>version</code>.</p>
+<p><strong>ExternalDependency</strong>: A third‑party package or module (Aura‑compatible subset); <code>package</code>, <code>version</code>.</p>
 </li>
 <li>
-<p>Commit: A Git commit; <code>sha</code>, <code>date</code>, <code>message</code>.</p>
+<p><strong>Commit</strong>: A Git commit; <code>sha</code>, <code>date</code>, <code>message</code>.</p>
 </li>
 <li>
-<p>Developer: An author; <code>name</code>, <code>email</code>.</p>
+<p><strong>Developer</strong>: An author; <code>name</code>, <code>email</code>.</p>
 </li>
 <li>
-<p>CVE: Vulnerability record (from NVD); <code>id</code>, <code>cvss_score</code>.</p>
+<p><strong>CVE</strong>: Vulnerability record (from NVD); <code>id</code>, <code>cvss_score</code>.</p>
 </li>
 <li>
-<p>Directory: A directory node used for hierarchical navigation; <code>path</code>.</p>
+<p><strong>Directory</strong>: A directory node used for hierarchical navigation; <code>path</code>.</p>
 </li>
 </ul>
 </div>
@@ -166,49 +166,49 @@
 <div class="ulist">
 <ul>
 <li>
-<p>(File)-[:DECLARES]&#8594;(Method): File declares a method.</p>
+<p><strong>File)-[:DECLARES]&#8594;(Method</strong>: File declares a method.</p>
 </li>
 <li>
-<p>(Class)-[:CONTAINS_METHOD]&#8594;(Method): Method belongs to class.</p>
+<p><strong>Class)-[:CONTAINS_METHOD]&#8594;(Method</strong>: Method belongs to class.</p>
 </li>
 <li>
-<p>(Interface)-[:CONTAINS_METHOD]&#8594;(Method): Method belongs to interface.</p>
+<p><strong>Interface)-[:CONTAINS_METHOD]&#8594;(Method</strong>: Method belongs to interface.</p>
 </li>
 <li>
-<p>(Method)-[:CALLS]&#8594;(Method): Static call graph edges.</p>
+<p><strong>Method)-[:CALLS]&#8594;(Method</strong>: Static call graph edges.</p>
 </li>
 <li>
-<p>(Class)-[:EXTENDS]&#8594;(Class): Inheritance between classes.</p>
+<p><strong>Class)-[:EXTENDS]&#8594;(Class</strong>: Inheritance between classes.</p>
 </li>
 <li>
-<p>(Interface)-[:EXTENDS]&#8594;(Interface): Inheritance between interfaces.</p>
+<p><strong>Interface)-[:EXTENDS]&#8594;(Interface</strong>: Inheritance between interfaces.</p>
 </li>
 <li>
-<p>(Class)-[:IMPLEMENTS]&#8594;(Interface): Class implements interface (only cross‑type edge).</p>
+<p><strong>Class)-[:IMPLEMENTS]&#8594;(Interface</strong>: Class implements interface (only cross‑type edge).</p>
 </li>
 <li>
-<p>(File)-[:IMPORTS]&#8594;(Import) and (Import)-[:DEPENDS_ON]&#8594;(ExternalDependency): File depends on external package.</p>
+<p><strong>File)-[:IMPORTS]&#8594;(Import</strong> and <strong>Import)-[:DEPENDS_ON]&#8594;(ExternalDependency</strong>: File depends on external package.</p>
 </li>
 <li>
-<p>(CVE)-[:AFFECTS]&#8594;(ExternalDependency): Vulnerability affects dependency.</p>
+<p><strong>CVE)-[:AFFECTS]&#8594;(ExternalDependency</strong>: Vulnerability affects dependency.</p>
 </li>
 <li>
-<p>(Developer)-[:AUTHORED]&#8594;(Commit): Author authored commit.</p>
+<p><strong>Developer)-[:AUTHORED]&#8594;(Commit</strong>: Author authored commit.</p>
 </li>
 <li>
-<p>(Commit)-[:CHANGED]&#8594;(FileVer) and (FileVer)-[:OF_FILE]&#8594;(File): Git change history.</p>
+<p><strong>Commit)-[:CHANGED]&#8594;(FileVer</strong> and <strong>FileVer)-[:OF_FILE]&#8594;(File</strong>: Git change history.</p>
 </li>
 <li>
-<p>(File)-[:CONTAINS]&#8594;(Directory) and (Directory)-[:CONTAINS]&#8594;(File|Directory): Hierarchy for browsing.</p>
+<p><strong>File)-[:CONTAINS]&#8594;(Directory</strong> and <strong>Directory)-[:CONTAINS]&#8594;(File|Directory</strong>: Hierarchy for browsing.</p>
 </li>
 <li>
-<p>(File)-[:DEFINES]&#8594;(Class|Interface): File defines type declarations.</p>
+<p><strong>File)-[:DEFINES]&#8594;(Class|Interface</strong>: File defines type declarations.</p>
 </li>
 <li>
-<p>(File)-[:CO_CHANGED]&#8594;(File): Temporal coupling derived from commit co‑change (directed with <code>support</code>, <code>confidence</code>).</p>
+<p><strong>File)-[:CO_CHANGED]&#8594;(File</strong>: Temporal coupling derived from commit co‑change (directed with <code>support</code>, <code>confidence</code>).</p>
 </li>
 <li>
-<p>(Method)-[:SIMILAR]&#8594;(Method): Semantic similarity from embeddings (<code>score</code> property).</p>
+<p><strong>Method)-[:SIMILAR]&#8594;(Method</strong>: Semantic similarity from embeddings (<code>score</code> property).</p>
 </li>
 </ul>
 </div>
