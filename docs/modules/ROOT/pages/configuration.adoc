@@ -27,9 +27,9 @@ SIMILARITY_CUTOFF=0.8 # or SIM_CUTOFF
 
 == NVD API key (what/why/how)
 
-- What: An API key for the National Vulnerability Database (NVD) REST API used to fetch CVE metadata.
-- Why: NVD enforces rate limits. Supplying a key raises the limit significantly, making CVE lookups faster and less likely to be throttled.
-- How:
+- *What*: An API key for the National Vulnerability Database (NVD) REST API used to fetch CVE metadata.
+- *Why*: NVD enforces rate limits. Supplying a key raises the limit significantly, making CVE lookups faster and less likely to be throttled.
+- *How*:
   * Create a free key from the NVD API portal (`https://nvd.nist.gov/developers/request-an-api-key`).
   * You’ll receive a key by email. Set it via `NVD_API_KEY` in your environment or `.env`.
   * If unset, CVE features still work but may be slower due to rate limiting.
