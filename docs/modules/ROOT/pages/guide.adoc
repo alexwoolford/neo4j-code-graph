@@ -56,10 +56,4 @@ python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-
 
 == Query your data
 
-Open Neo4j Browser or Bloom and run queries from the Queries catalog.
-
-== Troubleshooting
-
-- Ensure required constraints exist (the pipeline enforces and fails fast).
-- Prefer explicit `NEO4J_URI` instead of relying on defaults.
-- Live tests expect Neo4j 5.26 with APOC core + GDS.
+Open Neo4j Browser or Bloom and run queries from the xref:queries/index.adoc[Queries catalog].
