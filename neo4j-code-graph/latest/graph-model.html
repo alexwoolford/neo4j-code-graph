@@ -236,26 +236,41 @@
 </div>
 </div>
 <div class="sect1">
-<h2 id="_method_similarity_graphcodebert"><a class="anchor" href="#_method_similarity_graphcodebert"></a>Method similarity (GraphCodeBERT)</h2>
+<h2 id="_method_similarity_unixcoder"><a class="anchor" href="#_method_similarity_unixcoder"></a>Method similarity (UniXcoder)</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>We embed <code>Method</code> nodes with GraphCodeBERT to capture semantic similarity beyond token overlap.</p>
+<p>We embed <code>Method</code> nodes with <strong>UniXcoder</strong> to capture functional similarity beyond token overlap or call‑graph adjacency. UniXcoder learns from code, its AST, and comments, yielding embeddings that reflect what code does, not just how it’s spelled (ACL 2022).</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Model</strong>: GraphCodeBERT (see the original paper: <a href="https://arxiv.org/abs/2009.08366">GraphCodeBERT: Pre-training Code Representations with Data Flow</a>).</p>
+<p><strong>Model</strong>: UniXcoder (<code>microsoft/unixcoder-base</code>). See the paper: <a href="https://arxiv.org/abs/2203.03850">UniXcoder: Unified Cross‑Modal Pre‑training for Code Representation</a>. The encoder‑only embedding is 768‑dimensional.</p>
 </li>
 <li>
-<p><strong>Storage</strong>: each <code>Method</code> stores a 768‑dimensional vector in <code>m.embedding</code> and <code>m.embedding_type</code>.</p>
+<p><strong>Context length</strong>: Up to ~1k tokens (<code>max_position_embeddings</code> ≈ 1026); longer methods are truncated.</p>
 </li>
 <li>
-<p><strong>Index + edges</strong>: we create a Neo4j vector index and run kNN to write <code>SIMILAR</code> edges with a <code>score</code> property (cosine similarity). Thresholds such as <code>topK</code> and <code>cutoff</code> are configurable via <code>src/constants.py</code> or environment variables.</p>
+<p><strong>Storage</strong>: each <code>Method</code> stores its vector in <code>m.embedding_unixcoder</code> and the model tag in <code>m.embedding_type</code> (e.g., <code>unixcoder</code>).</p>
 </li>
 <li>
-<p><strong>Interpretation</strong>: a higher <code>SIMILAR.score</code> implies closer functional similarity according to GraphCodeBERT’s structure‑aware embedding space. Use these edges to find refactor candidates, duplicate logic, or related utilities; combine with explicit relations (<code>CALLS</code>, <code>IMPORTS/DEPENDS_ON</code>, <code>CONTAINS_METHOD</code>) for stronger evidence.</p>
+<p><strong>Index + edges</strong>: we create a Neo4j vector index on <code>Method.embedding_unixcoder</code> and run kNN to write <code>(:Method)-[:SIMILAR {score, model}]&#8594;(:Method)</code> using cosine similarity. Thresholds such as <code>topK</code> and <code>cutoff</code> are configurable.</p>
+</li>
+<li>
+<p><strong>Interpretation</strong>: a higher <code>SIMILAR.score</code> implies closer intent‑level similarity in UniXcoder’s embedding space. Combine with <code>CALLS</code>, <code>IMPORTS/DEPENDS_ON</code>, and <code>CO_CHANGED</code> for stronger evidence.</p>
 </li>
 </ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+If you previously used GraphCodeBERT, re‑compute embeddings and rebuild the vector index before comparing results; vector spaces are not interchangeable.
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>
