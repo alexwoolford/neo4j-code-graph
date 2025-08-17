@@ -11,8 +11,9 @@ Note: Only `summary` is persisted for metadata; model/version timestamps are not
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import torch
 from neo4j import GraphDatabase
@@ -36,14 +37,14 @@ def _load_codet5() -> tuple[Any, Any]:
 @torch.no_grad()
 def _summarize(tok: Any, mdl: Any, src: str) -> str:
     enc = tok(src, return_tensors="pt", truncation=True, max_length=512)
-    out = mdl.generate(
-        **enc, num_beams=4, max_new_tokens=32, no_repeat_ngram_size=3
-    )
+    out = mdl.generate(**enc, num_beams=4, max_new_tokens=32, no_repeat_ngram_size=3)
     text = tok.decode(out[0], skip_special_tokens=True).strip()
     return text[:120].rstrip(".")
 
 
-def _read_method_source(repo_root: str, file_path: str, start_line: int | None, est_lines: int | None) -> str:
+def _read_method_source(
+    repo_root: str, file_path: str, start_line: int | None, est_lines: int | None
+) -> str:
     """Best-effort slice of method source based on file+line info.
 
     Falls back to a small window around start_line if estimated length is missing.
@@ -67,7 +68,9 @@ def _read_method_source(repo_root: str, file_path: str, start_line: int | None, 
     return "\n".join(lines[idx:tail_extra])
 
 
-def summarize_methods_codet5(repo_root: str, uri: str, user: str, pwd: str, database: str | None) -> int:
+def summarize_methods_codet5(
+    repo_root: str, uri: str, user: str, pwd: str, database: str | None
+) -> int:
     tok, mdl = _load_codet5()
     updated = 0
     with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
@@ -82,7 +85,9 @@ def summarize_methods_codet5(repo_root: str, uri: str, user: str, pwd: str, data
             )
             methods: Iterable[dict[str, Any]] = (r.data() for r in result)
             for row in methods:
-                src = _read_method_source(repo_root, row.get("file", ""), row.get("line"), row.get("est"))
+                src = _read_method_source(
+                    repo_root, row.get("file", ""), row.get("line"), row.get("est")
+                )
                 # prepend signature if present
                 sig = row.get("sig")
                 if sig:
@@ -142,7 +147,9 @@ def embed_method_summaries_unixcoder(uri: str, user: str, pwd: str, database: st
     return written
 
 
-def build_intent_similarity(uri: str, user: str, pwd: str, database: str | None, top_k: int = 8, cutoff: float = 0.75) -> None:
+def build_intent_similarity(
+    uri: str, user: str, pwd: str, database: str | None, top_k: int = 8, cutoff: float = 0.75
+) -> None:
     # Prefer GDS kNN over summary_embedding_unixcoder
     from graphdatascience import GraphDataScience  # type: ignore
 
@@ -194,5 +201,3 @@ def build_intent_similarity(uri: str, user: str, pwd: str, database: str | None,
         graph.drop()
     finally:
         gds.close()
-
-

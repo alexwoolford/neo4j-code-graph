@@ -24,13 +24,17 @@ try:
     from analysis.centrality import main as centrality_main
     from analysis.code_analysis import main as code_to_graph_main
     from analysis.git_analysis import main as git_history_main
-    from analysis.similarity import main as similarity_main
-    from analysis.temporal_analysis import main as temporal_main
     from analysis.intent import (
-        summarize_methods_codet5 as intent_summarize,
-        embed_method_summaries_unixcoder as intent_embed,
         build_intent_similarity as intent_knn,
     )
+    from analysis.intent import (
+        embed_method_summaries_unixcoder as intent_embed,
+    )
+    from analysis.intent import (
+        summarize_methods_codet5 as intent_summarize,
+    )
+    from analysis.similarity import main as similarity_main
+    from analysis.temporal_analysis import main as temporal_main
     from data.schema_management import main as schema_main
     from security.cve_analysis import main as cve_main
     from utils.cleanup import main as cleanup_main
@@ -39,13 +43,17 @@ except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.analysis.centrality import main as centrality_main  # type: ignore
     from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
     from src.analysis.git_analysis import main as git_history_main  # type: ignore
-    from src.analysis.similarity import main as similarity_main  # type: ignore
-    from src.analysis.temporal_analysis import main as temporal_main  # type: ignore
-    from src.analysis.intent import (  # type: ignore
-        summarize_methods_codet5 as intent_summarize,
-        embed_method_summaries_unixcoder as intent_embed,
+    from src.analysis.intent import (
         build_intent_similarity as intent_knn,
     )
+    from src.analysis.intent import (
+        embed_method_summaries_unixcoder as intent_embed,
+    )
+    from src.analysis.intent import (  # type: ignore
+        summarize_methods_codet5 as intent_summarize,
+    )
+    from src.analysis.similarity import main as similarity_main  # type: ignore
+    from src.analysis.temporal_analysis import main as temporal_main  # type: ignore
     from src.data.schema_management import main as schema_main  # type: ignore
     from src.security.cve_analysis import main as cve_main  # type: ignore
     from src.utils.cleanup import main as cleanup_main  # type: ignore
@@ -362,7 +370,13 @@ def louvain_task(
 
 
 @task(retries=1)
-def summarize_methods_task(repo_path: str, uri: str | None, username: str | None, password: str | None, database: str | None) -> None:
+def summarize_methods_task(
+    repo_path: str,
+    uri: str | None,
+    username: str | None,
+    password: str | None,
+    database: str | None,
+) -> None:
     logger = get_run_logger()
     logger.info("Summarizing methods with CodeT5")
     # Resolve connection
@@ -381,7 +395,9 @@ def summarize_methods_task(repo_path: str, uri: str | None, username: str | None
 
 
 @task(retries=1)
-def embed_summaries_task(uri: str | None, username: str | None, password: str | None, database: str | None) -> None:
+def embed_summaries_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
     logger = get_run_logger()
     logger.info("Embedding method summaries with UniXcoder")
     try:
@@ -399,7 +415,9 @@ def embed_summaries_task(uri: str | None, username: str | None, password: str | 
 
 
 @task(retries=1)
-def intent_similarity_task(uri: str | None, username: str | None, password: str | None, database: str | None) -> None:
+def intent_similarity_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
     logger = get_run_logger()
     logger.info("Building INTENT_SIMILAR edges from summary embeddings")
     try:

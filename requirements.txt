@@ -12,3 +12,4 @@ pandas==2.2.3
 pyarrow>=17.0,<21.0
 aiohttp==3.9.5
 sentencepiece==0.2.0
+unixcoder>=0.1.0

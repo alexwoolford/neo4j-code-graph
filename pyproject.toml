@@ -40,6 +40,7 @@ dependencies = [
     "packaging>=21.0",
   "prefect>=2.16.0",
   "sentencepiece>=0.1.99",
+  "unixcoder>=0.1.0",
 ]
 
 [project.optional-dependencies]
