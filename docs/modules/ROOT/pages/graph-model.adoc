@@ -10,7 +10,7 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 - *Class*: A class declaration; `name`, `file`, flags (e.g., `is_abstract`).
 - *Interface*: An interface declaration; `name`, `file`.
 - *Import*: An import statement within a file; `import_path`.
-- *ExternalDependency*: A third‑party package or module (Aura‑compatible subset); `package`, `version`.
+- *ExternalDependency*: A third‑party package or module referenced by the code; properties include `package`, `version`.
 - *Commit*: A Git commit; `sha`, `date`, `message`.
 - *Developer*: An author; `name`, `email`.
 - *CVE*: Vulnerability record (from NVD); `id`, `cvss_score`.
