@@ -166,70 +166,70 @@
 <div class="ulist">
 <ul>
 <li>
-<p><strong>(Commit)-[:CHANGED&#8594;(FileVer)]</strong>: Git change written by a commit.</p>
+<p><strong><code>(Commit)-[:CHANGED]&#8594;(FileVer)</code></strong>: Git change written by a commit.</p>
 </li>
 <li>
-<p><strong>(FileVer)-[:OF_FILE&#8594;(File)]</strong>: Version points to its file.</p>
+<p><strong><code>(FileVer)-[:OF_FILE]&#8594;(File)</code></strong>: Version points to its file.</p>
 </li>
 <li>
-<p><strong>(Method)-[:CALLS&#8594;(Method)]</strong>: Static call graph edges.</p>
+<p><strong><code>(Method)-[:CALLS]&#8594;(Method)</code></strong>: Static call graph edges.</p>
 </li>
 <li>
-<p><strong>(Method)-[:SIMILAR&#8594;(Method)]</strong>: Semantic similarity from embeddings (<code>score</code>).</p>
+<p><strong><code>(Method)-[:SIMILAR]&#8594;(Method)</code></strong>: Semantic similarity from embeddings (<code>score</code>).</p>
 </li>
 <li>
-<p><strong>(File)-[:DECLARES&#8594;(Method)]</strong>: File declares a method.</p>
+<p><strong><code>(File)-[:DECLARES]&#8594;(Method)</code></strong>: File declares a method.</p>
 </li>
 <li>
-<p><strong>(Class)-[:CONTAINS_METHOD&#8594;(Method)]</strong>: Method belongs to class.</p>
+<p><strong><code>(Class)-[:CONTAINS_METHOD]&#8594;(Method)</code></strong>: Method belongs to class.</p>
 </li>
 <li>
-<p><strong>(Interface)-[:CONTAINS_METHOD&#8594;(Method)]</strong>: Method belongs to interface.</p>
+<p><strong><code>(Interface)-[:CONTAINS_METHOD]&#8594;(Method)</code></strong>: Method belongs to interface.</p>
 </li>
 <li>
-<p><strong>(File)-[:IMPORTS&#8594;(Import)]</strong>: File contains an import declaration.</p>
+<p><strong><code>(File)-[:IMPORTS]&#8594;(Import)</code></strong>: File contains an import declaration.</p>
 </li>
 <li>
-<p><strong>(Import)-[:DEPENDS_ON&#8594;(ExternalDependency)]</strong>: Import maps to an external package.</p>
-</li>
-</ul>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p><strong>(Class)-[:EXTENDS&#8594;(Class)]</strong>: Inheritance between classes.</p>
-</li>
-<li>
-<p><strong>(Interface)-[:EXTENDS&#8594;(Interface)]</strong>: Inheritance between interfaces.</p>
-</li>
-<li>
-<p><strong>(Class)-[:IMPLEMENTS&#8594;(Interface)]</strong>: Class implements interface (the only cross‑type edge).</p>
-</li>
-<li>
-<p><strong>(File)-[:DEFINES&#8594;(Class|Interface)]</strong>: File defines type declarations.</p>
-</li>
-<li>
-<p><strong>(Directory)-[:CONTAINS&#8594;(Directory)]</strong>: Directory hierarchy.</p>
-</li>
-<li>
-<p><strong>(Directory)-[:CONTAINS&#8594;(File)]</strong>: Files within a directory.</p>
+<p><strong><code>(Import)-[:DEPENDS_ON]&#8594;(ExternalDependency)</code></strong>: Import maps to an external package.</p>
 </li>
 </ul>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>(Developer)-[:AUTHORED&#8594;(Commit)]</strong>: Author authored commit.</p>
+<p><strong><code>(Class)-[:EXTENDS]&#8594;(Class)</code></strong>: Inheritance between classes.</p>
 </li>
 <li>
-<p><strong>(CVE)-[:AFFECTS&#8594;(ExternalDependency)]</strong>: Vulnerability affects dependency.</p>
+<p><strong><code>(Interface)-[:EXTENDS]&#8594;(Interface)</code></strong>: Inheritance between interfaces.</p>
+</li>
+<li>
+<p><strong><code>(Class)-[:IMPLEMENTS]&#8594;(Interface)</code></strong>: Class implements interface (the only cross‑type edge).</p>
+</li>
+<li>
+<p><strong><code>(File)-[:DEFINES]&#8594;(Class|Interface)</code></strong>: File defines type declarations.</p>
+</li>
+<li>
+<p><strong><code>(Directory)-[:CONTAINS]&#8594;(Directory)</code></strong>: Directory hierarchy.</p>
+</li>
+<li>
+<p><strong><code>(Directory)-[:CONTAINS]&#8594;(File)</code></strong>: Files within a directory.</p>
 </li>
 </ul>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>(File)-[:CO_CHANGED&#8594;(File)]</strong>: Temporal coupling (co‑change) with <code>support</code> and <code>confidence</code>.</p>
+<p><strong><code>(Developer)-[:AUTHORED]&#8594;(Commit)</code></strong>: Author authored commit.</p>
+</li>
+<li>
+<p><strong><code>(CVE)-[:AFFECTS]&#8594;(ExternalDependency)</code></strong>: Vulnerability affects dependency.</p>
+</li>
+</ul>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong><code>(File)-[:CO_CHANGED]&#8594;(File)</code></strong>: Temporal coupling (co‑change) with <code>support</code> and <code>confidence</code>.</p>
 </li>
 </ul>
 </div>
