@@ -105,27 +105,37 @@ def summarize_methods_codet5(
     return updated
 
 
-def _load_unixcoder():
-    try:
-        from unixcoder import UniXcoder  # type: ignore
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError("unixcoder library is required for summary embedding") from e
+def _load_unixcoder_hf() -> tuple[Any, Any, Any]:
+    """Load UniXcoder via Hugging Face transformers (encoder-only usage)."""
+    from transformers import AutoModel, AutoTokenizer
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = UniXcoder("microsoft/unixcoder-base")
-    return model.to(device), device
+    tokenizer = AutoTokenizer.from_pretrained("microsoft/unixcoder-base")
+    model = AutoModel.from_pretrained("microsoft/unixcoder-base").to(device)
+    model.eval()
+    return tokenizer, model, device
 
 
 @torch.no_grad()
-def _embed_unixcoder(model: Any, device: Any, text: str) -> list[float]:
-    # encoder-only mode
-    ids = model.tokenize([text], max_length=512, mode="<encoder-only>")
-    src = torch.tensor(ids).to(device)
-    _, emb = model(src)
-    return emb[0].detach().cpu().tolist()
+def _embed_unixcoder(tokenizer: Any, model: Any, device: Any, text: str) -> list[float]:
+    tokens = tokenizer(
+        [text],
+        padding=True,
+        truncation=True,
+        max_length=512,
+        return_tensors="pt",
+        add_special_tokens=True,
+    )
+    tokens = {k: v.to(device) for k, v in tokens.items()}
+    outputs = model(**tokens)
+    vec = outputs.last_hidden_state[:, 0, :]
+    if device.type != "cpu":
+        vec = vec.cpu()
+    return vec[0].detach().numpy().tolist()
 
 
 def embed_method_summaries_unixcoder(uri: str, user: str, pwd: str, database: str | None) -> int:
-    model, device = _load_unixcoder()
+    tokenizer, model, device = _load_unixcoder_hf()
     written = 0
     with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
         with driver.session(database=database) as session:
@@ -137,7 +147,7 @@ def embed_method_summaries_unixcoder(uri: str, user: str, pwd: str, database: st
                 """
             )
             for row in (r.data() for r in res):
-                vec = _embed_unixcoder(model, device, row["s"])
+                vec = _embed_unixcoder(tokenizer, model, device, row["s"])
                 session.run(
                     "MATCH (m:Method) WHERE id(m) = $id SET m.summary_embedding_unixcoder = $v",
                     id=row["id"],
