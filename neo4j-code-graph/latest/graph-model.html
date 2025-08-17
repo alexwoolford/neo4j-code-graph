@@ -236,6 +236,30 @@
 </div>
 </div>
 <div class="sect1">
+<h2 id="_method_similarity_graphcodebert"><a class="anchor" href="#_method_similarity_graphcodebert"></a>Method similarity (GraphCodeBERT)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>We embed <code>Method</code> nodes with GraphCodeBERT to capture semantic similarity beyond token overlap.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Model: GraphCodeBERT (see the original paper: <a href="https://arxiv.org/abs/2009.08366">GraphCodeBERT: Pre-training Code Representations with Data Flow</a>).</p>
+</li>
+<li>
+<p>Storage: each <code>Method</code> stores a 768‑dimensional vector in <code>m.embedding</code> and <code>m.embedding_type</code>.</p>
+</li>
+<li>
+<p>Index + edges: we create a Neo4j vector index and run kNN to write <code>SIMILAR</code> edges with a <code>score</code> property (cosine similarity). Thresholds such as <code>topK</code> and <code>cutoff</code> are configurable via <code>src/constants.py</code> or environment variables.</p>
+</li>
+<li>
+<p>Interpretation: a higher <code>SIMILAR.score</code> implies closer functional similarity according to GraphCodeBERT’s structure‑aware embedding space. Use these edges to find refactor candidates, duplicate logic, or related utilities; combine with explicit relations (<code>CALLS</code>, <code>IMPORTS/DEPENDS_ON</code>, <code>CONTAINS_METHOD</code>) for stronger evidence.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_notes"><a class="anchor" href="#_notes"></a>Notes</h2>
 <div class="sectionbody">
 <div class="ulist">
