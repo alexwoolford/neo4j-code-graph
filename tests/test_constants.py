@@ -48,12 +48,12 @@ class TestModelConfiguration:
         """Test that model name follows expected format."""
         assert isinstance(MODEL_NAME, str)
         assert "/" in MODEL_NAME  # Hugging Face format: org/model
-        assert MODEL_NAME == "microsoft/graphcodebert-base"
+        assert MODEL_NAME == "microsoft/unixcoder-base"
 
     def test_embedding_type_consistency(self):
         """Test embedding type matches model name."""
-        assert EMBEDDING_TYPE == "graphcodebert"
-        assert "graphcodebert" in MODEL_NAME.lower()
+        assert EMBEDDING_TYPE == "unixcoder"
+        assert "unixcoder" in MODEL_NAME.lower()
 
     def test_embedding_dimension_is_valid(self):
         """Test embedding dimension is reasonable."""

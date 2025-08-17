@@ -29,9 +29,13 @@ def test_run_knn_creates_projection_and_runs():
 
     run_knn(gds, top_k=3, cutoff=0.5)
 
-    gds.run_cypher.assert_called_once_with(
-        "MATCH (m:Method) WHERE m.embedding IS NULL RETURN count(m) AS missing"
+    # First call should check missing vectors on the per-model property
+    first_call = gds.run_cypher.call_args_list[0]
+    assert (
+        first_call[0][0]
+        == "MATCH (m:Method) WHERE m.embedding_unixcoder IS NULL RETURN count(m) AS missing"
     )
+
     gds.graph.exists.assert_called_once_with("methodGraph")
     gds.graph.drop.assert_called_once_with("methodGraph")
     gds.graph.project.cypher.assert_called_once_with(
