@@ -127,7 +127,7 @@
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (f1:File)-[cc:CO_CHANGED]-&gt;(f2:File)
-WHERE cc.support &gt;= coalesce($min_support, 5) AND cc.confidence &gt;= coalesce($min_confidence, 0.6)
+WHERE cc.support &gt;= 5 AND cc.confidence &gt;= 0.6
 RETURN f1.path AS f1, f2.path AS f2, cc.support AS support, cc.confidence AS confidence
 ORDER BY confidence DESC, support DESC
 LIMIT 25</code></pre>
