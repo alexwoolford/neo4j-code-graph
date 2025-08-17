@@ -8,9 +8,12 @@ improve maintainability.
 """
 
 # Model Configuration
-MODEL_NAME = "microsoft/graphcodebert-base"
-EMBEDDING_TYPE = "graphcodebert"
+# Switchable embedding backbone. Default to UniXcoder (structure + NL aware).
+MODEL_NAME = "microsoft/unixcoder-base"
+EMBEDDING_TYPE = "unixcoder"
 EMBEDDING_DIMENSION = 768
+# Canonical vector property name for this embedding type
+EMBEDDING_PROPERTY = f"embedding_{EMBEDDING_TYPE}"
 
 # Database Configuration
 DEFAULT_NEO4J_URI = "bolt://localhost:7687"

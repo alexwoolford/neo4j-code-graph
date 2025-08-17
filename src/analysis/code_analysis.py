@@ -345,10 +345,10 @@ def get_device() -> Any:
 
 
 def load_model_and_tokenizer() -> tuple[Any, Any, Any, int]:
-    """Load the GraphCodeBERT model and tokenizer for embedding computation."""
+    """Load the embedding model and tokenizer for embedding computation."""
     from transformers import AutoModel, AutoTokenizer
 
-    logger.info("Loading GraphCodeBERT model...")
+    logger.info("Loading embedding model: %s", MODEL_NAME)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModel.from_pretrained(MODEL_NAME)
     device = get_device()
@@ -497,7 +497,11 @@ def compute_embeddings_bulk(
 
         if not valid_snippets:
             # Fill with zero embeddings for skipped snippets
-            zero_embedding = [0.0] * 768  # GraphCodeBERT embedding size
+            try:
+                from constants import EMBEDDING_DIMENSION as _EMB_DIM
+            except Exception:  # fallback import path
+                from src.constants import EMBEDDING_DIMENSION as _EMB_DIM  # type: ignore
+            zero_embedding = [0.0] * _EMB_DIM
             all_embeddings.extend([zero_embedding] * len(batch_snippets))
             continue
 
@@ -1011,10 +1015,14 @@ def create_files(
             except Exception:
                 emb_value = None
 
+        try:
+            from constants import EMBEDDING_PROPERTY as _EMB_PROP
+        except Exception:  # fallback import path
+            from src.constants import EMBEDDING_PROPERTY as _EMB_PROP  # type: ignore
         file_node = {
             "path": file_path_str,
             "name": file_name_only,
-            **({"embedding": emb_value} if has_embedding and emb_value is not None else {}),
+            **({_EMB_PROP: emb_value} if has_embedding and emb_value is not None else {}),
             "embedding_type": EMBEDDING_TYPE,
             "language": file_data.get("language", "java"),
             "ecosystem": file_data.get("ecosystem", "maven"),
@@ -1046,10 +1054,20 @@ def create_files(
                     f.method_count = file.method_count,
                     f.class_count = file.class_count,
                     f.interface_count = file.interface_count,
-                    f.embedding = CASE WHEN file.embedding IS NOT NULL THEN file.embedding ELSE f.embedding END,
-                    f.embedding_type = CASE WHEN file.embedding IS NOT NULL THEN file.embedding_type ELSE f.embedding_type END
+                    f."""
+                + f"{_EMB_PROP}"
+                + """ = CASE WHEN file."""
+                + f"{_EMB_PROP}"
+                + """ IS NOT NULL THEN file."""
+                + f"{_EMB_PROP}"
+                + """ ELSE f."""
+                + f"{_EMB_PROP}"
+                + """ END,
+                    f.embedding_type = CASE WHEN file."""
+                + f"{_EMB_PROP}"
+                + """ IS NOT NULL THEN file.embedding_type ELSE f.embedding_type END
                 """,
-                files=batch,
+                files=[{**f, _EMB_PROP: f.get(_EMB_PROP)} for f in batch],
             )
 
     file_dir_rels = []
@@ -1295,11 +1313,13 @@ def create_methods(
                 except Exception:
                     emb_value = None
 
+            from constants import EMBEDDING_PROPERTY as _EMB_PROP
+
             method_node = {
                 "name": method["name"],
                 "file": method["file"],
                 "line": method["line"],
-                **({"embedding": emb_value} if has_embedding and emb_value is not None else {}),
+                **({_EMB_PROP: emb_value} if has_embedding and emb_value is not None else {}),
                 "embedding_type": EMBEDDING_TYPE,
                 "estimated_lines": method.get("estimated_lines", 0),
                 "is_static": method.get("is_static", False),
@@ -1331,29 +1351,33 @@ def create_methods(
         batch = method_nodes[i : i + batch_size]
 
         session.run(
-            """
-            UNWIND $methods AS method
-            // Merge by stable signature to align with uniqueness constraint
-            MERGE (m:Method {method_signature: method.method_signature})
-            SET m.name = method.name,
-                m.file = method.file,
-                m.line = method.line,
-                m.embedding = CASE WHEN method.embedding IS NOT NULL THEN method.embedding ELSE m.embedding END,
-                m.embedding_type = CASE WHEN method.embedding IS NOT NULL THEN method.embedding_type ELSE m.embedding_type END,
-                m.estimated_lines = method.estimated_lines,
-                m.is_static = method.is_static,
-                m.is_abstract = method.is_abstract,
-                m.is_final = method.is_final,
-                m.is_private = method.is_private,
-                m.is_public = method.is_public,
-                m.return_type = method.return_type,
-                m.modifiers = method.modifiers,
-                m.id = coalesce(m.id, method.method_signature)
-            """
-            + (
-                "SET m.class_name = method.class_name, m.containing_type = method.containing_type"
-                if any("class_name" in m for m in batch)
-                else ""
+            (
+                """
+                UNWIND $methods AS method
+                // Merge by stable signature to align with uniqueness constraint
+                MERGE (m:Method {method_signature: method.method_signature})
+                SET m.name = method.name,
+                    m.file = method.file,
+                    m.line = method.line,
+                """
+                + f"m.{_EMB_PROP} = CASE WHEN method.{_EMB_PROP} IS NOT NULL THEN method.{_EMB_PROP} ELSE m.{_EMB_PROP} END, "
+                + f"m.embedding_type = CASE WHEN method.{_EMB_PROP} IS NOT NULL THEN method.embedding_type ELSE m.embedding_type END,"
+                + """
+                    m.estimated_lines = method.estimated_lines,
+                    m.is_static = method.is_static,
+                    m.is_abstract = method.is_abstract,
+                    m.is_final = method.is_final,
+                    m.is_private = method.is_private,
+                    m.is_public = method.is_public,
+                    m.return_type = method.return_type,
+                    m.modifiers = method.modifiers,
+                    m.id = coalesce(m.id, method.method_signature)
+                """
+                + (
+                    "SET m.class_name = method.class_name, m.containing_type = method.containing_type"
+                    if any("class_name" in m for m in batch)
+                    else ""
+                )
             ),
             methods=batch,
         )
@@ -1910,7 +1934,7 @@ def main():
     if not getattr(args, "skip_embed", False) and (need_files or need_methods) and files_data:
         from transformers import AutoModel, AutoTokenizer
 
-        logger.info("Loading GraphCodeBERT model...")
+        logger.info("Loading embedding model: %s", MODEL_NAME)
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         model = AutoModel.from_pretrained(MODEL_NAME)
         device = get_device()

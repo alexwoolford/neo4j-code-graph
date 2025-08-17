@@ -39,6 +39,7 @@ dependencies = [
     "graphdatascience>=1.5.0",
     "packaging>=21.0",
   "prefect>=2.16.0",
+  "sentencepiece>=0.1.99",
 ]
 
 [project.optional-dependencies]

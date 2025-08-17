@@ -1,3 +1,10 @@
+=== Embedding model
+
+- Default model: `microsoft/unixcoder-base` (encoder‑only, 768‑dim).
+- Property: vectors are written to `embedding_unixcoder`; relationships include `SIMILAR.model = unixcoder`.
+- Index: ensure the Neo4j vector index uses `dimensions: 768` over `Method.embedding_unixcoder`.
+- Dependency: install `sentencepiece`.
+
 = Configuration
 
 Configure Neo4j Code Graph using environment variables or a `.env` file.

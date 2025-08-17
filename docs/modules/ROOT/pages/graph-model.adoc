@@ -44,14 +44,17 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 // Derived analyses
 - *`(File)-[:CO_CHANGED]->(File)`*: Temporal coupling (co‑change) with `support` and `confidence`.
 
-== Method similarity (GraphCodeBERT)
+== Method similarity (UniXcoder)
 
-We embed `Method` nodes with GraphCodeBERT to capture semantic similarity beyond token overlap.
+We embed `Method` nodes with *UniXcoder* to capture functional similarity beyond token overlap or call‑graph adjacency. UniXcoder learns from code, its AST, and comments, yielding embeddings that reflect what code does, not just how it’s spelled (ACL 2022).
 
-- *Model*: GraphCodeBERT (see the original paper: https://arxiv.org/abs/2009.08366[GraphCodeBERT: Pre-training Code Representations with Data Flow]).
-- *Storage*: each `Method` stores a 768‑dimensional vector in `m.embedding` and `m.embedding_type`.
-- *Index + edges*: we create a Neo4j vector index and run kNN to write `SIMILAR` edges with a `score` property (cosine similarity). Thresholds such as `topK` and `cutoff` are configurable via `src/constants.py` or environment variables.
-- *Interpretation*: a higher `SIMILAR.score` implies closer functional similarity according to GraphCodeBERT’s structure‑aware embedding space. Use these edges to find refactor candidates, duplicate logic, or related utilities; combine with explicit relations (`CALLS`, `IMPORTS/DEPENDS_ON`, `CONTAINS_METHOD`) for stronger evidence.
+- *Model*: UniXcoder (`microsoft/unixcoder-base`). See the paper: https://arxiv.org/abs/2203.03850[UniXcoder: Unified Cross‑Modal Pre‑training for Code Representation]. The encoder‑only embedding is 768‑dimensional.
+- *Context length*: Up to ~1k tokens (`max_position_embeddings` ≈ 1026); longer methods are truncated.
+- *Storage*: each `Method` stores its vector in `m.embedding_unixcoder` and the model tag in `m.embedding_type` (e.g., `unixcoder`).
+- *Index + edges*: we create a Neo4j vector index on `Method.embedding_unixcoder` and run kNN to write `(:Method)-[:SIMILAR {score, model}]->(:Method)` using cosine similarity. Thresholds such as `topK` and `cutoff` are configurable.
+- *Interpretation*: a higher `SIMILAR.score` implies closer intent‑level similarity in UniXcoder’s embedding space. Combine with `CALLS`, `IMPORTS/DEPENDS_ON`, and `CO_CHANGED` for stronger evidence.
+
+NOTE: If you previously used GraphCodeBERT, re‑compute embeddings and rebuild the vector index before comparing results; vector spaces are not interchangeable.
 
 == Notes
 

@@ -120,23 +120,29 @@ def parse_args() -> argparse.Namespace:
 
 def create_index(gds: GraphDataScience) -> None:
     logger.info("Ensuring vector index exists")
+    from constants import EMBEDDING_PROPERTY
+
+    index_name = f"method_embeddings_{EMBEDDING_PROPERTY}"
     gds.run_cypher(
-        """
-        CREATE VECTOR INDEX method_embeddings IF NOT EXISTS
-        FOR (m:Method) ON (m.embedding)
-        OPTIONS {indexConfig: {
+        f"""
+        CREATE VECTOR INDEX {index_name} IF NOT EXISTS
+        FOR (m:Method) ON (m.{EMBEDDING_PROPERTY})
+        OPTIONS {{indexConfig: {{
             `vector.dimensions`: $dim,
             `vector.similarity_function`: 'cosine'
-        }}
+        }}}}
         """,
         params={"dim": EMBEDDING_DIM},
     )
-    gds.run_cypher("CALL db.awaitIndex('method_embeddings')")
+    gds.run_cypher(f"CALL db.awaitIndex('{index_name}')")
 
 
 def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     """Run the KNN algorithm and create SIMILAR relationships."""
+    from constants import EMBEDDING_PROPERTY, EMBEDDING_TYPE
+
     base_config = {
+        # Use the property name in the projected in-memory graph (alias below)
         "nodeProperties": "embedding",
         "topK": top_k,
         "similarityCutoff": cutoff,
@@ -145,7 +151,7 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     }
 
     missing_df = gds.run_cypher(
-        "MATCH (m:Method) WHERE m.embedding IS NULL RETURN count(m) AS missing"
+        f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NULL RETURN count(m) AS missing"
     )
     missing = missing_df.iloc[0]["missing"]
 
@@ -173,14 +179,16 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     graph, _ = gds.graph.project.cypher(
         graph_name,
         (
-            "MATCH (m:Method) WHERE m.embedding IS NOT NULL "
-            "RETURN id(m) AS id, m.embedding AS embedding"
+            f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
+            f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS embedding"
         ),
         "RETURN null AS source, null AS target LIMIT 0",
     )
 
     start = perf_counter()
     gds.knn.write(graph, **base_config)
+    # Persist provenance of the embedding model on the relationships
+    gds.run_cypher("MATCH ()-[s:SIMILAR]->() SET s.model = $m", params={"m": EMBEDDING_TYPE})
     logger.info(
         "kNN wrote relationships for top %d with cutoff %.2f in %.2fs",
         top_k,
