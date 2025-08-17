@@ -48,10 +48,10 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 
 We embed `Method` nodes with GraphCodeBERT to capture semantic similarity beyond token overlap.
 
-- Model: GraphCodeBERT (see the original paper: https://arxiv.org/abs/2009.08366[GraphCodeBERT: Pre-training Code Representations with Data Flow]).
-- Storage: each `Method` stores a 768‑dimensional vector in `m.embedding` and `m.embedding_type`.
-- Index + edges: we create a Neo4j vector index and run kNN to write `SIMILAR` edges with a `score` property (cosine similarity). Thresholds such as `topK` and `cutoff` are configurable via `src/constants.py` or environment variables.
-- Interpretation: a higher `SIMILAR.score` implies closer functional similarity according to GraphCodeBERT’s structure‑aware embedding space. Use these edges to find refactor candidates, duplicate logic, or related utilities; combine with explicit relations (`CALLS`, `IMPORTS/DEPENDS_ON`, `CONTAINS_METHOD`) for stronger evidence.
+- *Model*: GraphCodeBERT (see the original paper: https://arxiv.org/abs/2009.08366[GraphCodeBERT: Pre-training Code Representations with Data Flow]).
+- *Storage*: each `Method` stores a 768‑dimensional vector in `m.embedding` and `m.embedding_type`.
+- *Index + edges*: we create a Neo4j vector index and run kNN to write `SIMILAR` edges with a `score` property (cosine similarity). Thresholds such as `topK` and `cutoff` are configurable via `src/constants.py` or environment variables.
+- *Interpretation*: a higher `SIMILAR.score` implies closer functional similarity according to GraphCodeBERT’s structure‑aware embedding space. Use these edges to find refactor candidates, duplicate logic, or related utilities; combine with explicit relations (`CALLS`, `IMPORTS/DEPENDS_ON`, `CONTAINS_METHOD`) for stronger evidence.
 
 == Notes
 
