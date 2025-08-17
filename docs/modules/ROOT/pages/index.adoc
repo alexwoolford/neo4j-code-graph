@@ -2,6 +2,8 @@
 
 Neo4j Code Graph is a Python toolkit and pipeline that turns a source code repository (and its Git history) into a queryable knowledge graph in Neo4j. Once ingested, you can ask targeted Cypher questions about security exposure, architectural bottlenecks, refactor candidates, co‑change/temporal coupling, and team expertise to drive engineering decisions.
 
+image::/assets/images/overview-art.jpg[align=center]
+
 What it solves:
 
 - *Security and risk visibility*: surface vulnerable third‑party dependencies and where they intersect with public APIs or recent changes
