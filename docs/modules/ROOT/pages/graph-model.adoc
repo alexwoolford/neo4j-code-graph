@@ -47,4 +47,4 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 == Notes
 
 - Schema constraints enforce key properties (e.g., `Method.method_signature`).
-- For property and count examples, see the Queries catalog and Architecture pages.
+- For property and count examples, see the xref:queries/index.adoc[Queries catalog] and xref:architecture.adoc[Architecture] pages.
