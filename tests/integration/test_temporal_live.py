@@ -25,23 +25,23 @@ def test_temporal_hotspots_and_coupling_live():
         with driver.session(database=database) as session:
             session.run("MATCH (n) DETACH DELETE n").consume()
 
-        # Create files and versions
-        session.run(
-            """
+            # Create files and versions
+            session.run(
+                """
             CREATE (f1:File {path:'src/A.java', total_lines:200, method_count:10}),
                    (f2:File {path:'src/B.java', total_lines:100, method_count:5}),
                    (f3:File {path:'src/C.java', total_lines:50,  method_count:2})
             """
-        ).consume()
-        session.run(
-            """
+            ).consume()
+            session.run(
+                """
             UNWIND [1,2,3,4,5] AS i
             CREATE (:Commit {id: toString(i), date: datetime() - duration({days: 10 - i})})
             """
-        ).consume()
-        # Link commits to file versions
-        session.run(
-            """
+            ).consume()
+            # Link commits to file versions
+            session.run(
+                """
             MATCH (f1:File {path:'src/A.java'}), (f2:File {path:'src/B.java'}), (f3:File {path:'src/C.java'})
             UNWIND [1,2,3,4,5] AS i
             CREATE (v1:FileVer {idx:i})-[:OF_FILE]->(f1),
@@ -56,27 +56,29 @@ def test_temporal_hotspots_and_coupling_live():
             // Co-change f3 rarely
             FOREACH (_ IN CASE WHEN i = 1 THEN [1] ELSE [] END | CREATE (c)-[:CHANGED]->(v3))
             """
-        ).consume()
+            ).consume()
 
         # Run hotspots (recent days=365)
         from src.analysis.temporal_analysis import run_coupling, run_hotspots
 
-        run_hotspots(driver, database, days=365, min_changes=1, top_n=5, write_back=False)
-        # Basic assertion: there should be at least one hotspot candidate
-        rec = session.run(
-            "MATCH (f:File)<-[:OF_FILE]-(:FileVer)<-[:CHANGED]-(:Commit) RETURN count(DISTINCT f) AS c"
-        ).single()
-        assert rec and int(rec["c"]) >= 1
+        with driver.session(database=database) as session:
+            run_hotspots(driver, database, days=365, min_changes=1, top_n=5, write_back=False)
+            # Basic assertion: there should be at least one hotspot candidate
+            rec = session.run(
+                "MATCH (f:File)<-[:OF_FILE]-(:FileVer)<-[:CHANGED]-(:Commit) RETURN count(DISTINCT f) AS c"
+            ).single()
+            assert rec and int(rec["c"]) >= 1
 
         # Run coupling with low thresholds
-        run_coupling(driver, database, min_support=2, confidence_threshold=0.0, write=False)
-        # Verify at least one co-change pair exists given our synthetic data
-        rec = session.run(
-            """
-            MATCH (c:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f1:File)
-            MATCH (c)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f2:File)
-            WHERE f1.path < f2.path
-            RETURN count(*) AS pairs
-            """
-        ).single()
-        assert rec and int(rec["pairs"]) >= 1
+        with driver.session(database=database) as session:
+            run_coupling(driver, database, min_support=2, confidence_threshold=0.0, write=False)
+            # Verify at least one co-change pair exists given our synthetic data
+            rec = session.run(
+                """
+                MATCH (c:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f1:File)
+                MATCH (c)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f2:File)
+                WHERE f1.path < f2.path
+                RETURN count(*) AS pairs
+                """
+            ).single()
+            assert rec and int(rec["pairs"]) >= 1
