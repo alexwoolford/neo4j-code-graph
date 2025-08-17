@@ -195,6 +195,36 @@ code-graph-cve --risk-threshold 7.0 --max-hops 4</code></pre>
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_monitor_runs_with_prefect_ui"><a class="anchor" href="#_monitor_runs_with_prefect_ui"></a>Monitor runs with Prefect UI</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Run the Prefect UI in a separate terminal, then start the pipeline so you can watch progress in real time.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Terminal 1: start Prefect UI locally
+prefect server start
+# UI: http://127.0.0.1:4200</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Terminal 2: run the pipeline (uses your .env or env vars)
+code-graph-pipeline-prefect --repo-url https://github.com/your-org/your-repo
+
+# Alternatively
+python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo \
+  --uri "$NEO4J_URI" --username "$NEO4J_USERNAME" --password "$NEO4J_PASSWORD" --database "$NEO4J_DATABASE"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Notes:
+- If using a remote Prefect server or Prefect Cloud, set <code>PREFECT_API_URL</code> accordingly and ensure you are authenticated.
+- Logs also stream to the Prefect UI; set <code>PREFECT_LOGGING_LEVEL=INFO</code> for more verbosity if needed.</p>
+</div>
+</div>
+</div>
 </article>
   </div>
 </main>
