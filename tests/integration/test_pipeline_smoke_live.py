@@ -37,7 +37,7 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
         bulk_create_nodes_and_relationships,
         extract_file_data,
     )
-    from src.constants import EMBEDDING_DIMENSION
+    from src.constants import EMBEDDING_DIMENSION, EMBEDDING_PROPERTY
     from src.data.schema_management import setup_complete_schema
 
     driver, database = _get_driver_or_skip()
@@ -68,37 +68,54 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
 
             # Quick GDS kNN on any existing embeddings (vector index required)
             session.run(
-                """
-            CREATE VECTOR INDEX method_embeddings IF NOT EXISTS
-            FOR (m:Method) ON (m.embedding)
-            OPTIONS {indexConfig: {
-              `vector.dimensions`: %d,
+                f"""
+            CREATE VECTOR INDEX method_embeddings_smoke IF NOT EXISTS
+            FOR (m:Method) ON (m.{EMBEDDING_PROPERTY})
+            OPTIONS {{indexConfig: {{
+              `vector.dimensions`: {EMBEDDING_DIMENSION},
               `vector.similarity_function`: 'cosine'
-            }}
+            }}}}
             """
-                % EMBEDDING_DIMENSION
             ).consume()
-            session.run("CALL db.awaitIndex('method_embeddings')").consume()
-            session.run("CALL gds.graph.drop('pipeGraph', false)").consume()
+            session.run("CALL db.awaitIndex('method_embeddings_smoke')").consume()
+            session.run(
+                """
+            CALL gds.graph.exists('pipeGraph') YIELD exists
+            WITH exists
+            WHERE exists
+            CALL gds.graph.drop('pipeGraph') YIELD graphName
+            RETURN graphName
+            """
+            ).consume()
             session.run(
                 """
             CALL gds.graph.project(
               'pipeGraph',
               ['Method'],
               { DECLARES: { type: 'DECLARES', orientation: 'UNDIRECTED' } },
-              { nodeProperties: ['embedding'] }
+              { nodeProperties: [$prop] }
             )
-            """
+            """,
+                prop=EMBEDDING_PROPERTY,
             ).consume()
             session.run(
                 """
             CALL gds.knn.write('pipeGraph', {
-              nodeProperties:['embedding'], topK:1, similarityCutoff:0.0,
+              nodeProperties:$propList, topK:1, similarityCutoff:0.0,
               writeRelationshipType:'SIMILAR', writeProperty:'score'
             })
+            """,
+                propList=[EMBEDDING_PROPERTY],
+            ).consume()
+            session.run(
+                """
+            CALL gds.graph.exists('pipeGraph') YIELD exists
+            WITH exists
+            WHERE exists
+            CALL gds.graph.drop('pipeGraph') YIELD graphName
+            RETURN graphName
             """
             ).consume()
-            session.run("CALL gds.graph.drop('pipeGraph', false)").consume()
 
             # Assertions: basic pipeline outputs
             rec = session.run("MATCH (:File) RETURN count(*) AS c").single()
