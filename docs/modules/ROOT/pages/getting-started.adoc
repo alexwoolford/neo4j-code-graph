@@ -52,3 +52,28 @@ code-graph-cve --risk-threshold 7.0 --max-hops 4
 - Git history (commits, changes, co-change patterns)
 - Security (CVE vulnerabilities in dependencies)
 - Derived insights (PageRank, community, similarity)
+
+== Monitor runs with Prefect UI
+
+Run the Prefect UI in a separate terminal, then start the pipeline so you can watch progress in real time.
+
+[source,bash]
+----
+# Terminal 1: start Prefect UI locally
+prefect server start
+# UI: http://127.0.0.1:4200
+----
+
+[source,bash]
+----
+# Terminal 2: run the pipeline (uses your .env or env vars)
+code-graph-pipeline-prefect --repo-url https://github.com/your-org/your-repo
+
+# Alternatively
+python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo \
+  --uri "$NEO4J_URI" --username "$NEO4J_USERNAME" --password "$NEO4J_PASSWORD" --database "$NEO4J_DATABASE"
+----
+
+Notes:
+- If using a remote Prefect server or Prefect Cloud, set `PREFECT_API_URL` accordingly and ensure you are authenticated.
+- Logs also stream to the Prefect UI; set `PREFECT_LOGGING_LEVEL=INFO` for more verbosity if needed.

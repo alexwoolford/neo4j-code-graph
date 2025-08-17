@@ -57,6 +57,8 @@ DEFAULT_EMBED_BATCH_CUDA_SMALL = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_SMALL",
 DEFAULT_EMBED_BATCH_CUDA_LARGE = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_LARGE", "256"))
 DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = int(os.getenv("DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE", "512"))
 
+## Removed: summarization and intent similarity configuration
+
 # Neo4j write batching
 # Allow tuning via env without touching code
 DB_BATCH_WITH_EMBEDDINGS = int(os.getenv("DB_BATCH_WITH_EMBEDDINGS", "600"))

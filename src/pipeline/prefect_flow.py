@@ -24,15 +24,6 @@ try:
     from analysis.centrality import main as centrality_main
     from analysis.code_analysis import main as code_to_graph_main
     from analysis.git_analysis import main as git_history_main
-    from analysis.intent import (
-        build_intent_similarity as intent_knn,
-    )
-    from analysis.intent import (
-        embed_method_summaries_unixcoder as intent_embed,
-    )
-    from analysis.intent import (
-        summarize_methods_codet5 as intent_summarize,
-    )
     from analysis.similarity import main as similarity_main
     from analysis.temporal_analysis import main as temporal_main
     from data.schema_management import main as schema_main
@@ -43,15 +34,6 @@ except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.analysis.centrality import main as centrality_main  # type: ignore
     from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
     from src.analysis.git_analysis import main as git_history_main  # type: ignore
-    from src.analysis.intent import (
-        build_intent_similarity as intent_knn,
-    )
-    from src.analysis.intent import (
-        embed_method_summaries_unixcoder as intent_embed,
-    )
-    from src.analysis.intent import (  # type: ignore
-        summarize_methods_codet5 as intent_summarize,
-    )
     from src.analysis.similarity import main as similarity_main  # type: ignore
     from src.analysis.temporal_analysis import main as temporal_main  # type: ignore
     from src.data.schema_management import main as schema_main  # type: ignore
@@ -369,68 +351,7 @@ def louvain_task(
         sys.argv = old_argv
 
 
-@task(retries=1)
-def summarize_methods_task(
-    repo_path: str,
-    uri: str | None,
-    username: str | None,
-    password: str | None,
-    database: str | None,
-) -> None:
-    logger = get_run_logger()
-    logger.info("Summarizing methods with CodeT5")
-    # Resolve connection
-    try:
-        from utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-    except Exception:  # pragma: no cover
-        from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-    if uri and username and password:
-        _uri, _user, _pwd, _db = uri, username, password, database
-    else:
-        _uri, _user, _pwd, _db = _get_cfg()
-        if database:
-            _db = database
-    updated = intent_summarize(repo_path, _uri, _user, _pwd, _db)
-    logger.info("Summarized %d methods", updated)
-
-
-@task(retries=1)
-def embed_summaries_task(
-    uri: str | None, username: str | None, password: str | None, database: str | None
-) -> None:
-    logger = get_run_logger()
-    logger.info("Embedding method summaries with UniXcoder")
-    try:
-        from utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-    except Exception:  # pragma: no cover
-        from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-    if uri and username and password:
-        _uri, _user, _pwd, _db = uri, username, password, database
-    else:
-        _uri, _user, _pwd, _db = _get_cfg()
-        if database:
-            _db = database
-    written = intent_embed(_uri, _user, _pwd, _db)
-    logger.info("Embedded %d method summaries", written)
-
-
-@task(retries=1)
-def intent_similarity_task(
-    uri: str | None, username: str | None, password: str | None, database: str | None
-) -> None:
-    logger = get_run_logger()
-    logger.info("Building INTENT_SIMILAR edges from summary embeddings")
-    try:
-        from utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-    except Exception:  # pragma: no cover
-        from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-    if uri and username and password:
-        _uri, _user, _pwd, _db = uri, username, password, database
-    else:
-        _uri, _user, _pwd, _db = _get_cfg()
-        if database:
-            _db = database
-    intent_knn(_uri, _user, _pwd, _db, top_k=8, cutoff=0.75)
+## Removed summarization and intent similarity tasks
 
 
 @task(retries=1)
@@ -582,10 +503,8 @@ def code_graph_flow(
     # Create CO_CHANGED relationships from commit history before similarity
     coupling_task(uri, username, password, database)
 
-    # Summarize methods, embed summaries, and build intent-level similarity
-    summarize_methods_task(repo_path, uri, username, password, database)
-    embed_summaries_task(uri, username, password, database)
-    intent_similarity_task(uri, username, password, database)
+    # Summaries/intent stages removed
+    logger.info("Summary and intent similarity stages are not part of this flow")
 
     # Before similarity, clear existing SIMILAR relationships to avoid duplicates
     # Do it quickly with a small Cypher call via GDS client to ensure a clean slate

@@ -182,6 +182,21 @@ Tests use mocked database connections for execution without requiring a running 
 - **CUDA**: Automatic detection with mixed-precision support
 - **Memory management**: Efficient cache clearing prevents OOM errors
 
+### **Transformer Workloads (Policy)**
+- Always prefer GPU (CUDA) or MPS if available; fall back to CPU.
+- Always process inputs in batches; avoid per-item forward passes:
+  - UniXcoder code embeddings: large batches (128–256) depending on device.
+  - CodeT5 summarization: smaller batches (default 16) due to decoder generation cost.
+- Centralize batch sizes and generation settings in `src/constants.py`.
+- Use CLS pooling for encoder-only embeddings; keep vectors at 768-D.
+
+### **Progress Visibility for Long-Running Batches**
+- Use `tqdm` progress bars for transformer batch loops and other long operations.
+- Default pattern:
+  - Wrap `range(0, N, batch_size)` with `tqdm(..., desc="<action>", unit="batch")`.
+  - Fall back to periodic `print` if `tqdm` unavailable.
+- This is mandatory for summarization, embedding, and similar steps to provide user feedback.
+
 ### **Git History Performance**
 - **15-30x faster**: 3-step CREATE vs 5-step MERGE operations
 - **Large batches**: 25K records per batch with progress reporting
@@ -294,6 +309,25 @@ with create_neo4j_driver(uri, user, pwd) as driver:
     with driver.session(database=db) as session:
         ...
 ```
+
+### Consistency & Conventions (MANDATORY)
+- Logging:
+  - Use `logging.getLogger(__name__)` in every module; avoid `print()` (except CLI tools), prefer logger.
+  - INFO for high-level progress; DEBUG for verbose details.
+- Progress for long runs:
+  - Use `tqdm` for batch loops (transformers, bulk writes). If `tqdm` missing, emit periodic logger messages.
+- Neo4j connections:
+  - Always `with GraphDatabase.driver(...)` and `with driver.session(...)`.
+  - Load creds via `src.utils.common.get_neo4j_config()`; CLI args override `.env`; never hardcode `localhost`.
+  - Verify schema before writes using `src.data.schema_management.ensure_constraints_exist_or_fail`.
+- Constants & tunables:
+  - Put tunables in `src/constants.py` and allow env overrides.
+  - Keep naming consistent (e.g., `embedding_{EMBEDDING_TYPE}`; avoid stale names tied to removed features).
+- Transformers:
+  - Prefer GPU (CUDA)/MPS; batch inputs; avoid per-item inference; show progress with `tqdm`.
+  - Keep model settings in `constants.py` for any active transformer workloads.
+- Utilities reuse:
+  - Reuse helpers in `src/utils` for configuration/logging/connection instead of duplicating logic.
 
 ## 🔧 AUTOMATED TOOLS SUMMARY
 
