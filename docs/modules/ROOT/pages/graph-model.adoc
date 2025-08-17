@@ -54,7 +54,7 @@ We embed `Method` nodes with *UniXcoder* to capture functional similarity beyond
 - *Index + edges*: we create a Neo4j vector index on `Method.embedding_unixcoder` and run kNN to write `(:Method)-[:SIMILAR {score, model}]->(:Method)` using cosine similarity. Thresholds such as `topK` and `cutoff` are configurable.
 - *Interpretation*: a higher `SIMILAR.score` implies closer intent‑level similarity in UniXcoder’s embedding space. Combine with `CALLS`, `IMPORTS/DEPENDS_ON`, and `CO_CHANGED` for stronger evidence.
 
-NOTE: If you previously used GraphCodeBERT, re‑compute embeddings and rebuild the vector index before comparing results; vector spaces are not interchangeable.
+NOTE: If you change the embedding model (e.g., switching to UniXcoder or between UniXcoder variants), re‑compute embeddings and rebuild the vector index before comparing results; embedding spaces are not interchangeable.
 
 == Notes
 
