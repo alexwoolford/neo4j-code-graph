@@ -244,16 +244,16 @@
 <div class="ulist">
 <ul>
 <li>
-<p>Model: GraphCodeBERT (see the original paper: <a href="https://arxiv.org/abs/2009.08366">GraphCodeBERT: Pre-training Code Representations with Data Flow</a>).</p>
+<p><strong>Model</strong>: GraphCodeBERT (see the original paper: <a href="https://arxiv.org/abs/2009.08366">GraphCodeBERT: Pre-training Code Representations with Data Flow</a>).</p>
 </li>
 <li>
-<p>Storage: each <code>Method</code> stores a 768‑dimensional vector in <code>m.embedding</code> and <code>m.embedding_type</code>.</p>
+<p><strong>Storage</strong>: each <code>Method</code> stores a 768‑dimensional vector in <code>m.embedding</code> and <code>m.embedding_type</code>.</p>
 </li>
 <li>
-<p>Index + edges: we create a Neo4j vector index and run kNN to write <code>SIMILAR</code> edges with a <code>score</code> property (cosine similarity). Thresholds such as <code>topK</code> and <code>cutoff</code> are configurable via <code>src/constants.py</code> or environment variables.</p>
+<p><strong>Index + edges</strong>: we create a Neo4j vector index and run kNN to write <code>SIMILAR</code> edges with a <code>score</code> property (cosine similarity). Thresholds such as <code>topK</code> and <code>cutoff</code> are configurable via <code>src/constants.py</code> or environment variables.</p>
 </li>
 <li>
-<p>Interpretation: a higher <code>SIMILAR.score</code> implies closer functional similarity according to GraphCodeBERT’s structure‑aware embedding space. Use these edges to find refactor candidates, duplicate logic, or related utilities; combine with explicit relations (<code>CALLS</code>, <code>IMPORTS/DEPENDS_ON</code>, <code>CONTAINS_METHOD</code>) for stronger evidence.</p>
+<p><strong>Interpretation</strong>: a higher <code>SIMILAR.score</code> implies closer functional similarity according to GraphCodeBERT’s structure‑aware embedding space. Use these edges to find refactor candidates, duplicate logic, or related utilities; combine with explicit relations (<code>CALLS</code>, <code>IMPORTS/DEPENDS_ON</code>, <code>CONTAINS_METHOD</code>) for stronger evidence.</p>
 </li>
 </ul>
 </div>
