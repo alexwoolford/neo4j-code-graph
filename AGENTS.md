@@ -152,6 +152,16 @@ from utils.common import create_neo4j_driver, setup_logging
 ## Testing Strategy
 ## Schema Enforcement Policy
 ## Connection Configuration Policy
+### Test scope alignment (MANDATORY)
+
+- Do not write tests for behaviors or features the pipeline does not implement.
+- Tests must reflect the current DAG and code paths. If a behavior is optional or future-facing (e.g., file-level embeddings), do not add tests for it unless it is explicitly part of the active pipeline.
+- When in doubt, inspect `src/pipeline/prefect_flow.py` and the modules it calls; derive tests from those tasks only.
+- Prefer:
+  - Unit tests for small, deterministic helpers.
+  - Live tests for behaviors that depend on Neo4j/GDS (use the existing Testcontainers/CI live job).
+- Avoid brittle tests that assert internal implementation details; assert externally visible effects (created nodes/relationships, properties, query results).
+
 
 - Single source of truth for Neo4j connection is `.env` loaded via `src/utils/neo4j_utils.get_neo4j_config()`.
 - All stages (CLI, Prefect tasks, GDS helpers) must use either:
