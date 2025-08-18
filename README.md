@@ -11,20 +11,3 @@
 Turn your codebase into a queryable knowledge graph. Find security vulnerabilities, architectural bottlenecks, technical debt hotspots, and team coordination issues with simple Cypher queries.
 
 👉 Full documentation: https://alexwoolford.github.io/neo4j-code-graph/
-
-## Read the Docs
-
-The full documentation lives on the site.
-
-- Getting started: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/getting-started.html
-- Queries catalog: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/queries/index.html
-- Architecture: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/0.1/architecture.html
-
-## Minimal README
-
-For full docs, visit the site above. Quick links:
-
-- Guide: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/guide.html
-- Queries: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/queries/index.html
-- Architecture: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/architecture.html
-- Development: https://alexwoolford.github.io/neo4j-code-graph/neo4j-code-graph/latest/development.html
