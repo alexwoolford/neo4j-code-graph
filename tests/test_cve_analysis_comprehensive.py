@@ -15,6 +15,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Mark this module as security-focused so it runs in the dedicated job, not the fast unit job
+pytestmark = pytest.mark.security
+
 
 # Test the import system first - this would catch the production bug!
 def test_import_resolution():
