@@ -408,10 +408,12 @@ class CVEAnalyzer:
 
         # Create relationships
         if all_matches:
+            # Only link to dependencies with a concrete version to avoid package-only false positives
             link_query = """
             UNWIND $links AS link
             MATCH (cve:CVE {id: link.cve_id})
             MATCH (ed:ExternalDependency {package: link.dep_package})
+            WHERE ed.version IS NOT NULL AND ed.version <> 'unknown'
             MERGE (cve)-[r:AFFECTS]->(ed)
             SET r.confidence = link.confidence,
                 r.match_type = link.match_type,

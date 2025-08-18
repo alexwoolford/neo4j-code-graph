@@ -1575,8 +1575,9 @@ def create_imports(
                 dependency_node["version"] = version
                 logger.debug(f"📦 {dep} -> {group_id}:{artifact_id}:{version}")
             else:
-                dependency_node["version"] = "unknown"  # Fallback for CVE analysis
-                logger.debug(f"📦 {dep} -> no version found, using 'unknown'")
+                # Leave version unset; mark a diagnostic flag instead of writing "unknown".
+                dependency_node["version_missing"] = True
+                logger.debug(f"📦 {dep} -> no version found; leaving version unset")
 
             dependency_nodes.append(dependency_node)
 
@@ -1587,9 +1588,10 @@ def create_imports(
             MERGE (e:ExternalDependency {package: dep.package})
             SET e.language = dep.language,
                 e.ecosystem = dep.ecosystem,
-                e.version = CASE WHEN dep.version IS NOT NULL THEN dep.version ELSE "unknown" END,
-                e.group_id = CASE WHEN dep.group_id IS NOT NULL THEN dep.group_id ELSE null END,
-                e.artifact_id = CASE WHEN dep.artifact_id IS NOT NULL THEN dep.artifact_id ELSE null END
+                e.version = CASE WHEN dep.version IS NOT NULL THEN dep.version ELSE e.version END,
+                e.group_id = CASE WHEN dep.group_id IS NOT NULL THEN dep.group_id ELSE e.group_id END,
+                e.artifact_id = CASE WHEN dep.artifact_id IS NOT NULL THEN dep.artifact_id ELSE e.artifact_id END,
+                e.version_missing = CASE WHEN dep.version_missing IS NOT NULL THEN dep.version_missing ELSE e.version_missing END
             """,
             dependencies=dependency_nodes,
         )
