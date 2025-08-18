@@ -197,6 +197,32 @@ python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-
 </div>
 </div>
 <div class="sect1">
+<h2 id="_monitor_runs_with_prefect_ui"><a class="anchor" href="#_monitor_runs_with_prefect_ui"></a>Monitor runs with Prefect UI</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Run the Prefect UI in a separate terminal to watch progress in real time, then start the pipeline.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Terminal 1: start Prefect UI locally
+prefect server start
+# UI: http://127.0.0.1:4200
+
+# Terminal 2: run the pipeline
+python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Below is an example DAG view of this pipeline:</p>
+</div>
+<div class="imageblock text-center">
+<div class="content">
+<img src="_images/prefect-dag.png" alt="Prefect pipeline DAG">
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_query_your_data"><a class="anchor" href="#_query_your_data"></a>Query your data</h2>
 <div class="sectionbody">
 <div class="paragraph">
