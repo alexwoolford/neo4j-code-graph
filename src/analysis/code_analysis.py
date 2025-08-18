@@ -1575,8 +1575,7 @@ def create_imports(
                 dependency_node["version"] = version
                 logger.debug(f"📦 {dep} -> {group_id}:{artifact_id}:{version}")
             else:
-                # Leave version unset; mark a diagnostic flag instead of writing "unknown".
-                dependency_node["version_missing"] = True
+                # Leave version unset; absence conveys missing version in Neo4j
                 logger.debug(f"📦 {dep} -> no version found; leaving version unset")
 
             dependency_nodes.append(dependency_node)
@@ -1590,8 +1589,7 @@ def create_imports(
                 e.ecosystem = dep.ecosystem,
                 e.version = CASE WHEN dep.version IS NOT NULL THEN dep.version ELSE e.version END,
                 e.group_id = CASE WHEN dep.group_id IS NOT NULL THEN dep.group_id ELSE e.group_id END,
-                e.artifact_id = CASE WHEN dep.artifact_id IS NOT NULL THEN dep.artifact_id ELSE e.artifact_id END,
-                e.version_missing = CASE WHEN dep.version_missing IS NOT NULL THEN dep.version_missing ELSE e.version_missing END
+                e.artifact_id = CASE WHEN dep.artifact_id IS NOT NULL THEN dep.artifact_id ELSE e.artifact_id END
             """,
             dependencies=dependency_nodes,
         )
