@@ -54,7 +54,7 @@ jobs:
 
     # Pre-commit already runs in quality; avoid duplicate work here
 
-    - name: Run unit tests with coverage (xdist)
+    - name: Run fast tests with coverage (exclude live/e2e/security)
       env:
         KMP_DUPLICATE_LIB_OK: "TRUE"
         OMP_NUM_THREADS: "1"
@@ -62,7 +62,7 @@ jobs:
         TEST_EXIT=0
         python -m pip install --upgrade pip
         python -m pip install pytest-cov pytest-xdist
-        pytest -m "unit" -n auto \
+        pytest -m "not live and not e2e and not security" -n auto \
                --cov=src --cov-report=xml:coverage.xml \
                --junitxml=junit.xml -o junit_family=legacy \
                -k "not test_pytorch_api_compatibility" --disable-warnings \
