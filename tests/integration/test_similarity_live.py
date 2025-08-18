@@ -120,7 +120,10 @@ def test_similarity_module_sets_model_property_live():
             ).consume()
 
     # Use our similarity helpers with a real client
-    from graphdatascience import GraphDataScience  # type: ignore
+    try:
+        from graphdatascience import GraphDataScience  # type: ignore
+    except Exception:
+        pytest.skip("graphdatascience with pyarrow.flight not available in this environment")
 
     from src.analysis.similarity import create_index, run_knn, run_louvain
     from src.utils.neo4j_utils import get_neo4j_config
