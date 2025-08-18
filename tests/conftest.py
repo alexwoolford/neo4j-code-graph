@@ -60,3 +60,52 @@ def pytest_pyfunc_call(pyfuncitem) -> bool | None:  # type: ignore[override]
             loop.close()
         return True
     return None
+
+
+#!/usr/bin/env python3
+import os
+
+import pytest
+
+
+def _has_docker() -> bool:
+    # Basic signal for CI/local; Testcontainers needs a working Docker socket
+    return os.path.exists("/var/run/docker.sock") or bool(os.getenv("DOCKER_HOST"))
+
+
+@pytest.fixture(scope="session")
+def neo4j_driver():
+    """Session-scoped Neo4j driver using Testcontainers when available.
+
+    Falls back to environment-driven connection (NEO4J_*) if Docker is not available.
+    Skips politely if neither is configured.
+    """
+    try:
+        if _has_docker():
+            from testcontainers.neo4j import Neo4jContainer  # type: ignore
+
+            with Neo4jContainer(image="neo4j:5.26") as neo4j:  # latest LTS
+                with neo4j.get_driver() as driver:  # type: ignore[attr-defined]
+                    yield driver
+                return
+    except Exception:
+        pass
+
+    # Fallback to explicit env-configured instance
+    try:
+        from neo4j import GraphDatabase  # type: ignore
+
+        from src.utils.neo4j_utils import get_neo4j_config  # type: ignore
+
+        uri, user, pwd, db = get_neo4j_config()
+        drv = GraphDatabase.driver(uri, auth=(user, pwd))
+        try:
+            drv.verify_connectivity()
+        except Exception:
+            drv.close()
+            pytest.skip("Neo4j not available and Docker not usable for Testcontainers")
+        else:
+            yield drv
+            drv.close()
+    except Exception:
+        pytest.skip("Neo4j not available and Docker not usable for Testcontainers")
