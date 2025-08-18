@@ -4,7 +4,7 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 
 == Visual schema
 
-image::images/schema/arrows-schema.png[Graph schema,align=center]
+image::schema/arrows-schema.png[Graph schema,align=center]
 
 == Nodes
 
