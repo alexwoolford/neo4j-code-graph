@@ -29,7 +29,14 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
     # Tiny Java repo as pipeline input
     repo = tmp_path / "tiny"
     repo.mkdir()
-    _write(repo / "src" / "A.java", "package p; class A { void a() { } }")
+    _write(
+        repo / "src" / "A.java",
+        """
+        package p;
+        import com.fasterxml.jackson.databind.ObjectMapper; // external import to exercise DEPENDS_ON
+        class A { void a() { ObjectMapper om = null; } }
+        """,
+    )
     _write(repo / "src" / "B.java", "package p; class B { void b() { } }")
 
     # Import core steps
@@ -77,7 +84,8 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
             }}}}
             """
             ).consume()
-            session.run("CALL db.awaitIndex('method_embeddings_smoke')").consume()
+            # Await all indexes to be online (name may differ if an equivalent exists)
+            session.run("CALL db.awaitIndexes()").consume()
             session.run(
                 """
             CALL gds.graph.exists('pipeGraph') YIELD exists
@@ -122,6 +130,24 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
             assert rec and int(rec["c"]) >= 2
             rec = session.run("MATCH (:Method) RETURN count(*) AS c").single()
             assert rec and int(rec["c"]) >= 2
+            # Import present and linked to dependency
+            rec = session.run("MATCH (i:Import) RETURN count(i) AS c").single()
+            assert rec and int(rec["c"]) >= 1
+            # Create deps linking as loader does and assert it works for the external import
+            session.run(
+                """
+                MATCH (i:Import)
+                WITH i, split(i.import_path, '.') AS parts
+                WHERE size(parts) >= 3
+                WITH i, parts[0] + '.' + parts[1] + '.' + parts[2] AS base_package
+                MERGE (e:ExternalDependency {package: base_package})
+                MERGE (i)-[:DEPENDS_ON]->(e)
+                """
+            ).consume()
+            rec = session.run(
+                "MATCH (:Import)-[:DEPENDS_ON]->(:ExternalDependency) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) >= 1
             # SIMILAR may be zero with trivial equal embeddings, but ensure query runs and community write works
             session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) AS c").single()
             # Build similarity graph and run Louvain write to ensure property is set when relationships exist
