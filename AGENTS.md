@@ -329,6 +329,12 @@ with create_neo4j_driver(uri, user, pwd) as driver:
 - Utilities reuse:
   - Reuse helpers in `src/utils` for configuration/logging/connection instead of duplicating logic.
 
+### Deprecation policy (MANDATORY)
+- Never ship or keep code that emits deprecation warnings from Neo4j, GDS, drivers, or libraries.
+- If a deprecation warning appears in tests, scripts, or query output, replace the deprecated API/procedure/function with the documented alternative immediately.
+- Do not suppress deprecation warnings; update the implementation and associated tests/queries so they are warning-free.
+- Prefer the latest stable APIs in docs and examples to avoid future breakage.
+
 ## 🔧 AUTOMATED TOOLS SUMMARY
 
 ### 1. **Safe Commit Script** (RECOMMENDED)
