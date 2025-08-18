@@ -4,9 +4,7 @@ This page defines the nodes and relationships used by Neo4j Code Graph so new us
 
 == Visual schema
 
-image::schema/arrows-schema.png[Graph schema (Arrows export),align=center]
-
-Download/edit the Arrows.app diagram source: link:../assets/schema/arrows-schema.json[arrows-schema.json]
+image::images/schema/arrows-schema.png[Graph schema,align=center]
 
 == Nodes
 
