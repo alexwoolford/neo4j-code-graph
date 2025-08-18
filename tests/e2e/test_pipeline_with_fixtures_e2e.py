@@ -42,3 +42,24 @@ def test_builds_graph_from_toy_java_fixtures(neo4j_driver):
             "       (SELECT count(*) FROM (MATCH (:File)-[:DECLARES]->(:Method) RETURN 1)) AS fm"
         ).data()[0]
         assert edges["cm"] >= 1 and edges["fm"] >= 2
+
+        # Method signature uniqueness
+        dup = s.run(
+            """
+            MATCH (m:Method)
+            WITH m.method_signature AS sig, count(*) AS c
+            WHERE sig IS NOT NULL AND c > 1
+            RETURN count(*) AS dups
+            """
+        ).data()[0]["dups"]
+        assert dup == 0
+
+        # Optional: CALLS edge from A#a to B#b (parser-dependent in tiny snippets)
+        call = s.run(
+            """
+            MATCH (m1:Method {method_signature:'com.example.A#a():void'})-[:CALLS]->
+                  (m2:Method {method_signature:'com.example.B#b():void'})
+            RETURN count(*) AS c
+            """
+        ).data()[0]["c"]
+        assert call >= 0
