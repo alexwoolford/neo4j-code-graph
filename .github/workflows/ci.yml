@@ -65,8 +65,8 @@ jobs:
         TEST_EXIT=0
         python -m pip install --upgrade pip
         python -m pip install pytest-cov pytest-xdist testcontainers[neo4j]
-        # Run unit and integration; integration will start Neo4j via Testcontainers fixture
-        pytest -m "unit or integration" -n auto \
+        # Run all non-live tests; integration will start Neo4j via Testcontainers fixture if used
+        pytest -m "not live" -n auto \
                --cov=src --cov-report=xml:coverage.xml \
                --junitxml=junit.xml -o junit_family=legacy \
                -k "not test_pytorch_api_compatibility" --disable-warnings \
