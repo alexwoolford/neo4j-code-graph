@@ -1,16 +1,10 @@
 = Architecture
 
-== Graph Schema (overview)
-
-image::schema.png[Graph schema,align=center]
+// Graph schema diagram moved to the dedicated User Guide page: graph-model.adoc.
 
 == Components
 
-- `analysis/` — code and git analyzers
-- `security/` — CVE analysis
-- `data/` — schema/constraint management
-- `pipeline/` — Prefect flow orchestration
-- `utils/` — common utilities
+See the xref:project-structure.adoc[Project Structure] page for an up‑to‑date breakdown of directories and components.
 
 == Orchestration DAG
 
