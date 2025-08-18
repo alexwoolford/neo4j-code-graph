@@ -72,32 +72,29 @@ def cleanup_similarities(session: Session, dry_run: bool = False) -> int:
     if dry_run:
         logger.info("[DRY RUN] Would delete %d SIMILAR relationships", count)
         return 0
-    else:
 
-        def _delete_all(tx) -> None:
-            # Collect directed rel IDs for diagnostics and precise deletion
-            ids = [row[0] for row in tx.run("MATCH ()-[r:SIMILAR]->() RETURN id(r)").values()]
-            logger.debug("SIMILAR directed rel IDs pre-delete: %s", ids)
-            if ids:
-                tx.run(
-                    "UNWIND $ids AS rid MATCH ()-[r]-() WHERE id(r)=rid DELETE r",
-                    {"ids": ids},
-                ).consume()
-            # Safety sweeps
-            tx.run("MATCH ()-[r:SIMILAR]->() DELETE r").consume()
-            tx.run("MATCH ()-[r:SIMILAR]-() DELETE r").consume()
+    # Aggressive batched deletion loop using simple LIMIT pattern within a write tx
+    batch_size = 50000
 
-        session.execute_write(_delete_all)
-        # Post-delete diagnostics
-        post_directed = session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) as c").single()
-        post_undirected = session.run("MATCH ()-[r:SIMILAR]-() RETURN count(r) as c").single()
-        logger.debug(
-            "SIMILAR post-delete counts: directed=%s undirected=%s",
-            (post_directed and post_directed.get("c")),
-            (post_undirected and post_undirected.get("c")),
-        )
-        logger.info("Deleted SIMILAR relationships")
-        return count
+    def _batch_delete(tx) -> int:
+        rec = tx.run(
+            (
+                "MATCH ()-[r:SIMILAR]-() "
+                "WITH collect(r)[..$limit] AS rels "
+                "FOREACH (rel IN rels | DELETE rel) "
+                "RETURN size(rels) AS deleted"
+            ),
+            {"limit": batch_size},
+        ).single()
+        return int(rec["deleted"]) if rec and "deleted" in rec else 0
+
+    while True:
+        deleted = session.execute_write(_batch_delete)
+        if deleted == 0:
+            break
+
+    logger.info("Deleted SIMILAR relationships")
+    return count
 
 
 def cleanup_communities(
