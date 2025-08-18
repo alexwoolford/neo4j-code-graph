@@ -166,3 +166,110 @@ def test_pagerank_stream_on_bulk_graph_live():
         except Exception:
             pass
         gds.close()
+
+
+@pytest.mark.live
+def test_degree_write_back_live():
+    try:
+        from graphdatascience import GraphDataScience  # type: ignore
+    except Exception:
+        pytest.skip("graphdatascience with pyarrow.flight not available in this environment")
+
+    try:
+        from src.utils.common import create_neo4j_driver, get_neo4j_config
+    except Exception:
+        pytest.skip("Utilities not available")
+
+    from src.analysis.centrality import create_call_graph_projection, run_degree_analysis
+    from src.data.schema_management import setup_complete_schema
+
+    uri, user, pwd, db = get_neo4j_config()
+    driver = create_neo4j_driver(uri, user, pwd)
+    with driver:
+        with driver.session(database=db) as session:
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(session)
+            # A->B, B->C. Degrees: A(out1,in0,tot1), B(out1,in1,tot2), C(out0,in1,tot1)
+            session.run(
+                """
+                CREATE (:Method {id:'A#a():void', name:'A', method_signature:'A#a():void'}),
+                       (:Method {id:'B#b():void', name:'B', method_signature:'B#b():void'}),
+                       (:Method {id:'C#c():void', name:'C', method_signature:'C#c():void'})
+                """
+            ).consume()
+            session.run(
+                "MATCH (a:Method {name:'A'}), (b:Method {name:'B'}), (c:Method {name:'C'}) "
+                "CREATE (a)-[:CALLS]->(b), (b)-[:CALLS]->(c)"
+            ).consume()
+
+    gds = GraphDataScience(uri, auth=(user, pwd), database=db, arrow=False)
+    try:
+        G = create_call_graph_projection(gds)
+        _ = run_degree_analysis(gds, G, top_n=3, write_back=True)
+        # Verify degrees written
+        df = gds.run_cypher(
+            "MATCH (m:Method) RETURN m.name AS n, m.in_degree AS i, m.out_degree AS o, m.total_degree AS t ORDER BY n"
+        )
+        rows = {
+            r["n"]: (int(r["i"] or 0), int(r["o"] or 0), int(r["t"] or 0)) for _, r in df.iterrows()
+        }
+        assert rows["A"] == (0, 1, 1)
+        assert rows["B"] == (1, 1, 2)
+        assert rows["C"] == (1, 0, 1)
+    finally:
+        try:
+            gds.graph.drop("method_call_graph")
+        except Exception:
+            pass
+        gds.close()
+
+
+@pytest.mark.live
+def test_betweenness_write_back_live():
+    try:
+        from graphdatascience import GraphDataScience  # type: ignore
+    except Exception:
+        pytest.skip("graphdatascience with pyarrow.flight not available in this environment")
+
+    try:
+        from src.utils.common import create_neo4j_driver, get_neo4j_config
+    except Exception:
+        pytest.skip("Utilities not available")
+
+    from src.analysis.centrality import create_call_graph_projection, run_betweenness_analysis
+    from src.data.schema_management import setup_complete_schema
+
+    uri, user, pwd, db = get_neo4j_config()
+    driver = create_neo4j_driver(uri, user, pwd)
+    with driver:
+        with driver.session(database=db) as session:
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(session)
+            # Path A->B->C; B should have highest betweenness
+            session.run(
+                """
+                CREATE (:Method {id:'A#a():void', name:'A', method_signature:'A#a():void'}),
+                       (:Method {id:'B#b():void', name:'B', method_signature:'B#b():void'}),
+                       (:Method {id:'C#c():void', name:'C', method_signature:'C#c():void'})
+                """
+            ).consume()
+            session.run(
+                "MATCH (a:Method {name:'A'}), (b:Method {name:'B'}), (c:Method {name:'C'}) "
+                "CREATE (a)-[:CALLS]->(b), (b)-[:CALLS]->(c)"
+            ).consume()
+
+    gds = GraphDataScience(uri, auth=(user, pwd), database=db, arrow=False)
+    try:
+        G = create_call_graph_projection(gds)
+        _ = run_betweenness_analysis(gds, G, top_n=3, write_back=True)
+        # Ensure betweenness written; check B present in top
+        df = gds.run_cypher(
+            "MATCH (m:Method) WHERE m.betweenness_score IS NOT NULL RETURN m.name AS n, m.betweenness_score AS s ORDER BY s DESC"
+        )
+        assert len(df) >= 1 and df.iloc[0]["n"] in ("B", "A", "C")
+    finally:
+        try:
+            gds.graph.drop("method_call_graph")
+        except Exception:
+            pass
+        gds.close()
