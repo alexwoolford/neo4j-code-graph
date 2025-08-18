@@ -134,7 +134,8 @@ def create_index(gds: GraphDataScience) -> None:
         """,
         params={"dim": EMBEDDING_DIM},
     )
-    gds.run_cypher(f"CALL db.awaitIndex('{index_name}')")
+    # Neo4j 5.x: prefer awaiting all indexes (specific awaitIndex may not be present)
+    gds.run_cypher("CALL db.awaitIndexes()")
 
 
 def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:

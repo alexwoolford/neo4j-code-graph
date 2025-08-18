@@ -45,7 +45,7 @@ def test_knn_and_louvain_live():
             }}
             """
             ).consume()
-            session.run("CALL db.awaitIndex('method_embeddings')").consume()
+            session.run("CALL db.awaitIndexes()").consume()
 
             # Ensure GDS is available (emit version)
             session.run("CALL gds.version()").consume()
