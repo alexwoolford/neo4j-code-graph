@@ -60,3 +60,23 @@ def test_vector_index_available_for_methods_live():
                         has_vec = True
                         break
             assert has_vec, "Expected a vector index on :Method embeddings"
+
+
+@pytest.mark.live
+def test_schema_guard_recreates_missing_constraint_live():
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as session:
+            # Drop one core constraint if present
+            rows = session.run("SHOW CONSTRAINTS").data()
+            names = {row.get("name") for row in rows}
+            if "file_path" in names:
+                session.run("DROP CONSTRAINT file_path IF EXISTS").consume()
+
+            # Ensure guard recreates it
+            from src.data.schema_management import ensure_constraints_exist_or_fail
+
+            ensure_constraints_exist_or_fail(session)
+            rows2 = session.run("SHOW CONSTRAINTS").data()
+            names2 = {row.get("name") for row in rows2}
+            assert "file_path" in names2

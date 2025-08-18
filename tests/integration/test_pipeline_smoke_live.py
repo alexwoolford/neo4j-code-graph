@@ -66,7 +66,7 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
                 session, files_data, file_embeddings, method_embeddings, dependency_versions={}
             )
 
-            # Quick GDS kNN on any existing embeddings (vector index required)
+            # Quick GDS kNN on existing embeddings (vector index required)
             session.run(
                 f"""
             CREATE VECTOR INDEX method_embeddings_smoke IF NOT EXISTS
@@ -122,5 +122,13 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
             assert rec and int(rec["c"]) >= 2
             rec = session.run("MATCH (:Method) RETURN count(*) AS c").single()
             assert rec and int(rec["c"]) >= 2
-            # SIMILAR may be zero with trivial equal embeddings, but ensure query runs
+            # SIMILAR may be zero with trivial equal embeddings, but ensure query runs and community write works
             session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) AS c").single()
+            # Build similarity graph and run Louvain write to ensure property is set when relationships exist
+            session.run(
+                "CALL gds.graph.project('pipeComm', ['Method'], { SIMILAR: { type: 'SIMILAR', orientation: 'UNDIRECTED' } })"
+            ).consume()
+            session.run(
+                "CALL gds.louvain.write('pipeComm', {writeProperty:'similarityCommunity'})"
+            ).consume()
+            session.run("CALL gds.graph.drop('pipeComm', false)").consume()

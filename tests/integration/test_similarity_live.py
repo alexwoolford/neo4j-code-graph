@@ -102,3 +102,46 @@ def test_knn_and_louvain_live():
             # Cleanup in-memory graphs
             session.run("CALL gds.graph.drop('simGraph', false)").consume()
             session.run("CALL gds.graph.drop('simComm', false)").consume()
+
+
+def test_similarity_module_sets_model_property_live():
+    """Use our module functions with a real GDS client and assert s.model is set."""
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as session:
+            # Clean slate and create methods with 2D embeddings
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            session.run(
+                """
+                CREATE (:Method {id:'m1', name:'M1', method_signature:'q.A#a()', embedding:[0.95, 0.05]}),
+                       (:Method {id:'m2', name:'M2', method_signature:'q.B#b()', embedding:[0.90, 0.10]}),
+                       (:Method {id:'m3', name:'M3', method_signature:'q.C#c()', embedding:[0.05, 0.95]})
+                """
+            ).consume()
+
+    # Use our similarity helpers with a real client
+    from graphdatascience import GraphDataScience  # type: ignore
+
+    from src.analysis.similarity import create_index, run_knn, run_louvain
+    from src.utils.neo4j_utils import get_neo4j_config
+
+    uri, user, pwd, db = get_neo4j_config()
+    gds = GraphDataScience(uri, auth=(user, pwd), database=db, arrow=False)
+    try:
+        create_index(gds)
+        run_knn(gds, top_k=1, cutoff=0.0)
+        # s.model should be present on SIMILAR edges
+        model_rows = gds.run_cypher("MATCH ()-[s:SIMILAR]->() RETURN count(s.model) AS c")
+        assert int(model_rows.iloc[0]["c"]) >= 1
+        run_louvain(gds, threshold=0.0, community_property="similarityCommunity")
+        comm_rows = gds.run_cypher(
+            "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL RETURN count(m) AS c"
+        )
+        assert int(comm_rows.iloc[0]["c"]) >= 1
+    finally:
+        try:
+            gds.run_cypher("CALL gds.graph.drop('methodGraph', false)")
+            gds.run_cypher("CALL gds.graph.drop('similarityGraph', false)")
+        except Exception:
+            pass
+        gds.close()
