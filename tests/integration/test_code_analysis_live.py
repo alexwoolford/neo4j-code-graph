@@ -619,3 +619,156 @@ def test_live_bulk_idempotent():
                 "Import": 1,
                 "ExternalDependency": 1,
             }
+
+
+def test_live_multi_interfaces_and_multi_level_extends():
+    from src.analysis.code_analysis import create_classes, create_directories, create_files
+    from src.data.schema_management import setup_complete_schema
+
+    files_data = [
+        {
+            "path": "mlev/A.java",
+            "classes": [{"name": "A", "file": "mlev/A.java", "line": 1, "implements": []}],
+            "interfaces": [
+                {"name": "J", "file": "mlev/A.java", "line": 2, "extends": []},
+                {"name": "K", "file": "mlev/A.java", "line": 3, "extends": []},
+            ],
+            "methods": [],
+        },
+        {
+            "path": "mlev/B.java",
+            "classes": [{"name": "B", "file": "mlev/B.java", "line": 1, "extends": "A"}],
+            "interfaces": [],
+            "methods": [],
+        },
+        {
+            "path": "mlev/C.java",
+            "classes": [
+                {"name": "C", "file": "mlev/C.java", "line": 1, "extends": "B"},
+                {"name": "D", "file": "mlev/C.java", "line": 2, "implements": ["I", "K"]},
+            ],
+            "interfaces": [{"name": "I", "file": "mlev/C.java", "line": 3, "extends": ["J", "K"]}],
+            "methods": [],
+        },
+    ]
+
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as s:
+            s.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(s)
+
+            create_directories(s, files_data)
+            create_files(s, files_data, file_embeddings=[])
+            create_classes(s, files_data)
+
+            # Multi-level class inheritance
+            rec = s.run(
+                "MATCH (:Class {name:'C'})-[:EXTENDS]->(:Class {name:'B'})-[:EXTENDS]->(:Class {name:'A'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
+            # Class implements multiple interfaces
+            rec = s.run(
+                "MATCH (:Class {name:'D'})-[:IMPLEMENTS]->(:Interface {name:'I'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
+            rec = s.run(
+                "MATCH (:Class {name:'D'})-[:IMPLEMENTS]->(:Interface {name:'K'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
+            # Interface extends multiple interfaces
+            rec = s.run(
+                "MATCH (:Interface {name:'I'})-[:EXTENDS]->(:Interface {name:'J'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
+            rec = s.run(
+                "MATCH (:Interface {name:'I'})-[:EXTENDS]->(:Interface {name:'K'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
+
+
+def test_live_bulk_with_calls_creates_calls():
+    from src.analysis.code_analysis import bulk_create_nodes_and_relationships
+    from src.data.schema_management import setup_complete_schema
+
+    files_data = [
+        {
+            "path": "calls2/A.java",
+            "classes": [{"name": "A", "file": "calls2/A.java", "line": 1, "implements": []}],
+            "methods": [
+                {
+                    "name": "a",
+                    "file": "calls2/A.java",
+                    "line": 10,
+                    "method_signature": "r.A#a():void",
+                    "class_name": "A",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "code": "b();",
+                    "calls": [{"method_name": "b", "target_class": "A", "call_type": "same_class"}],
+                },
+                {
+                    "name": "b",
+                    "file": "calls2/A.java",
+                    "line": 20,
+                    "method_signature": "r.A#b():void",
+                    "class_name": "A",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "code": "",
+                },
+                {
+                    "name": "s",
+                    "file": "calls2/A.java",
+                    "line": 30,
+                    "method_signature": "r.A#s():void",
+                    "class_name": "A",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "is_static": True,
+                    "code": "",
+                },
+                {
+                    "name": "c",
+                    "file": "calls2/A.java",
+                    "line": 40,
+                    "method_signature": "r.A#c():void",
+                    "class_name": "A",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "code": "A.s();",
+                    "calls": [
+                        {
+                            "method_name": "s",
+                            "target_class": "A",
+                            "call_type": "static",
+                            "qualifier": "A",
+                        }
+                    ],
+                },
+            ],
+        }
+    ]
+
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as s:
+            s.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(s)
+
+            bulk_create_nodes_and_relationships(
+                s, files_data, file_embeddings=[], method_embeddings=[], dependency_versions=None
+            )
+
+            rec = s.run(
+                "MATCH (:Method {name:'a'})-[:CALLS]->(:Method {name:'b'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
+            rec = s.run(
+                "MATCH (:Method {name:'c'})-[:CALLS {type:'static'}]->(:Method {name:'s'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
