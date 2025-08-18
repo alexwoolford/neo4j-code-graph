@@ -2,6 +2,12 @@
 
 This page defines the nodes and relationships used by Neo4j Code Graph so new users can read and write queries confidently.
 
+== Visual schema
+
+image::schema/arrows-schema.png[Graph schema (Arrows export),align=center]
+
+Download/edit the Arrows.app diagram source: link:../assets/schema/arrows-schema.json[arrows-schema.json]
+
 == Nodes
 
 - *File*: A source file; properties include `path`, `total_lines`, `method_count`, `class_count`.

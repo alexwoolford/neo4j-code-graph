@@ -1,0 +1,368 @@
+{
+  "style": {
+    "font-family": "sans-serif",
+    "background-color": "#ffffff",
+    "background-image": "",
+    "background-size": "100%",
+    "node-color": "#ffffff",
+    "border-width": 4,
+    "border-color": "#000000",
+    "radius": 50,
+    "node-padding": 5,
+    "node-margin": 2,
+    "outside-position": "auto",
+    "node-icon-image": "",
+    "node-background-image": "",
+    "icon-position": "inside",
+    "icon-size": 64,
+    "caption-position": "inside",
+    "caption-max-width": 200,
+    "caption-color": "#000000",
+    "caption-font-size": 50,
+    "caption-font-weight": "normal",
+    "label-position": "inside",
+    "label-display": "pill",
+    "label-color": "#000000",
+    "label-background-color": "#ffffff",
+    "label-border-color": "#000000",
+    "label-border-width": 4,
+    "label-font-size": 40,
+    "label-padding": 5,
+    "label-margin": 4,
+    "directionality": "directed",
+    "detail-position": "inline",
+    "detail-orientation": "parallel",
+    "arrow-width": 5,
+    "arrow-color": "#000000",
+    "margin-start": 5,
+    "margin-end": 5,
+    "margin-peer": 20,
+    "attachment-start": "normal",
+    "attachment-end": "normal",
+    "relationship-icon-image": "",
+    "type-color": "#000000",
+    "type-background-color": "#ffffff",
+    "type-border-color": "#000000",
+    "type-border-width": 0,
+    "type-font-size": 16,
+    "type-padding": 5,
+    "property-position": "outside",
+    "property-alignment": "colon",
+    "property-color": "#000000",
+    "property-font-size": 16,
+    "property-font-weight": "normal"
+  },
+  "nodes": [
+    {
+      "id": "n0",
+      "position": {
+        "x": -504.2748658192775,
+        "y": 123.86735081611806
+      },
+      "caption": "",
+      "labels": [
+        "CVE"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#DA7194"
+      }
+    },
+    {
+      "id": "n1",
+      "position": {
+        "x": -268,
+        "y": -41
+      },
+      "caption": "",
+      "labels": [
+        "ExternalDependency"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#8DCC93"
+      }
+    },
+    {
+      "id": "n2",
+      "position": {
+        "x": -43,
+        "y": -197.99999999999997
+      },
+      "caption": "",
+      "labels": [
+        "Import"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#FFC454"
+      }
+    },
+    {
+      "id": "n3",
+      "position": {
+        "x": 119,
+        "y": 23.427188935776343
+      },
+      "caption": "",
+      "labels": [
+        "File"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#D9D9D9"
+      }
+    },
+    {
+      "id": "n4",
+      "position": {
+        "x": -96.65377549138722,
+        "y": 231.65377549138728
+      },
+      "caption": "",
+      "labels": [
+        "FileVer"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#ECB5C9"
+      }
+    },
+    {
+      "id": "n5",
+      "position": {
+        "x": -267.2012591963444,
+        "y": 396.3275461991494
+      },
+      "caption": "",
+      "labels": [
+        "Commit"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#569480"
+      }
+    },
+    {
+      "id": "n6",
+      "position": {
+        "x": 612.0985858707941,
+        "y": 15.999999999999265
+      },
+      "caption": "",
+      "labels": [
+        "Method"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#F16667"
+      }
+    },
+    {
+      "id": "n7",
+      "position": {
+        "x": 119,
+        "y": 396.3275461991494
+      },
+      "caption": "",
+      "labels": [
+        "Class"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#4C8EDA"
+      }
+    },
+    {
+      "id": "n8",
+      "position": {
+        "x": 612.0985858707942,
+        "y": 396.3275461991492
+      },
+      "caption": "",
+      "labels": [
+        "Interface"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#57C7E3"
+      }
+    },
+    {
+      "id": "n9",
+      "position": {
+        "x": 357.43809554728733,
+        "y": -197.99999999999946
+      },
+      "caption": "",
+      "labels": [
+        "Directory"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#FFE081"
+      }
+    },
+    {
+      "id": "n10",
+      "position": {
+        "x": -504.2748658192775,
+        "y": 396.3275461991492
+      },
+      "caption": "",
+      "labels": [
+        "Developer"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#8DCC93"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "n0",
+      "fromId": "n0",
+      "toId": "n1",
+      "type": "AFFECTS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n1",
+      "fromId": "n2",
+      "toId": "n1",
+      "type": "DEPENDS_ON",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n2",
+      "type": "IMPORTS",
+      "style": {},
+      "properties": {},
+      "fromId": "n3",
+      "toId": "n2"
+    },
+    {
+      "id": "n3",
+      "type": "OF_FILE",
+      "style": {},
+      "properties": {},
+      "fromId": "n4",
+      "toId": "n3"
+    },
+    {
+      "id": "n4",
+      "type": "CHANGED",
+      "style": {},
+      "properties": {},
+      "fromId": "n5",
+      "toId": "n4"
+    },
+    {
+      "id": "n5",
+      "type": "DECLARES",
+      "style": {},
+      "properties": {},
+      "fromId": "n3",
+      "toId": "n6"
+    },
+    {
+      "id": "n6",
+      "type": "CALLS",
+      "style": {},
+      "properties": {},
+      "fromId": "n6",
+      "toId": "n6"
+    },
+    {
+      "id": "n7",
+      "type": "SIMILAR",
+      "style": {},
+      "properties": {},
+      "fromId": "n6",
+      "toId": "n6"
+    },
+    {
+      "id": "n8",
+      "type": "CONTAINS_METHOD",
+      "style": {},
+      "properties": {},
+      "fromId": "n7",
+      "toId": "n6"
+    },
+    {
+      "id": "n9",
+      "type": "IMPLEMENTS",
+      "style": {},
+      "properties": {},
+      "fromId": "n7",
+      "toId": "n8"
+    },
+    {
+      "id": "n10",
+      "type": "CONTAINS",
+      "style": {},
+      "properties": {},
+      "fromId": "n9",
+      "toId": "n9"
+    },
+    {
+      "id": "n11",
+      "type": "CONTAINS",
+      "style": {},
+      "properties": {},
+      "fromId": "n9",
+      "toId": "n3"
+    },
+    {
+      "id": "n12",
+      "type": "AUTHORED",
+      "style": {},
+      "properties": {},
+      "fromId": "n10",
+      "toId": "n5"
+    },
+    {
+      "id": "n13",
+      "type": "CONTAINS_METHOD",
+      "style": {},
+      "properties": {},
+      "fromId": "n8",
+      "toId": "n6"
+    },
+    {
+      "id": "n14",
+      "type": "EXTENDS",
+      "style": {},
+      "properties": {},
+      "fromId": "n8",
+      "toId": "n8"
+    },
+    {
+      "id": "n15",
+      "type": "DEFINES",
+      "style": {},
+      "properties": {},
+      "fromId": "n3",
+      "toId": "n7"
+    },
+    {
+      "id": "n16",
+      "type": "DEFINES",
+      "style": {},
+      "properties": {},
+      "fromId": "n3",
+      "toId": "n8"
+    },
+    {
+      "id": "n17",
+      "type": "CO_CHANGED",
+      "style": {},
+      "properties": {},
+      "fromId": "n3",
+      "toId": "n3"
+    }
+  ]
+}
