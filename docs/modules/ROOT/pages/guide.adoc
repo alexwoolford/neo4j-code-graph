@@ -53,6 +53,24 @@ code-graph-pipeline-prefect --repo-url https://github.com/your-org/your-repo
 python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo
 ----
 
+== Monitor runs with Prefect UI
+
+Run the Prefect UI in a separate terminal to watch progress in real time, then start the pipeline.
+
+[source,bash]
+----
+# Terminal 1: start Prefect UI locally
+prefect server start
+# UI: http://127.0.0.1:4200
+
+# Terminal 2: run the pipeline
+python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo
+----
+
+Below is an example DAG view of this pipeline:
+
+image::prefect-dag.png[Prefect pipeline DAG,align=center]
+
 == Query your data
 
 Open Neo4j Browser or Bloom and run queries from the xref:queries/index.adoc[Queries catalog].

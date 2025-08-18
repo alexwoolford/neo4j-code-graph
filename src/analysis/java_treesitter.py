@@ -182,6 +182,42 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict:
     code = abs_path.read_text(encoding="utf-8")
     rel_path = str(abs_path.relative_to(project_root))
     extraction = extract_with_treesitter(code, rel_path)
+
+    # Ensure method entries carry required fields for downstream writers
+    def _build_signature(
+        pkg: str | None, cls: str | None, name: str, params: list | None, ret: str | None
+    ) -> str:
+        pkg_prefix = f"{pkg}." if pkg else ""
+        owner = cls or ""
+        param_types = []
+        if params:
+            for p in params:
+                t = p.get("type") if isinstance(p, dict) else None
+                if t:
+                    param_types.append(str(t))
+        params_sig = ",".join(param_types)
+        ret_type = ret or "void"
+        return f"{pkg_prefix}{owner}#{name}({params_sig}):{ret_type}"
+
+    for m in extraction.methods:
+        # File path is required downstream
+        m.setdefault("file", rel_path)
+        # Best-effort signature for uniqueness/merge
+        try:
+            m.setdefault(
+                "method_signature",
+                _build_signature(
+                    extraction.package_name,
+                    m.get("class_name"),
+                    m.get("name", ""),
+                    m.get("parameters"),
+                    m.get("return_type"),
+                ),
+            )
+        except Exception:
+            # Fallback to minimal signature
+            name = m.get("name", "")
+            m.setdefault("method_signature", f"{m.get('class_name') or ''}#{name}():void")
     return {
         "path": rel_path,
         "code": code,
