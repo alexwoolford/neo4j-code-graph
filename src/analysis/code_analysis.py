@@ -810,7 +810,8 @@ def extract_file_data(file_path: Path, repo_root: Path):
                 try:
                     global FALLBACK_ATTEMPTS, FALLBACK_SUCCESSES
                     FALLBACK_ATTEMPTS += 1
-                    ts = _jt.extract_file_data(Path(rel_path), Path(repo_root))  # type: ignore[attr-defined]
+                    # Always pass an absolute path for robust file access in fallback
+                    ts = _jt.extract_file_data(Path(repo_root) / Path(rel_path), Path(repo_root))  # type: ignore[attr-defined]
                     imports = ts.get("imports", [])
                     classes = ts.get("classes", [])
                     interfaces = ts.get("interfaces", [])

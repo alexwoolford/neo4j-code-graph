@@ -177,8 +177,10 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict:
     Heuristic extractor API compatible with tests expecting extract_file_data.
     Returns a dict with counts and methods/interfaces/classes similar to javalang path.
     """
-    code = java_file.read_text(encoding="utf-8")
-    rel_path = str(java_file.relative_to(project_root))
+    # Ensure absolute path to avoid current-working-dir surprises
+    abs_path = java_file if java_file.is_absolute() else (project_root / java_file)
+    code = abs_path.read_text(encoding="utf-8")
+    rel_path = str(abs_path.relative_to(project_root))
     extraction = extract_with_treesitter(code, rel_path)
     return {
         "path": rel_path,

@@ -73,10 +73,10 @@ def create_neo4j_driver(uri: str, username: str, password: str) -> Driver:
     driver = GraphDatabase.driver(uri, auth=(username, password))
     try:
         driver.verify_connectivity()
+        return driver
     except Exception:
         driver.close()
         raise
-    return driver
 
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:
