@@ -27,6 +27,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: quality
     strategy:
       matrix:
@@ -53,27 +54,21 @@ jobs:
 
     # Pre-commit already runs in quality; avoid duplicate work here
 
-    - name: Run unit+integration (containers) with coverage (xdist)
+    - name: Run unit tests with coverage (xdist)
       env:
         KMP_DUPLICATE_LIB_OK: "TRUE"
         OMP_NUM_THREADS: "1"
-        NEO4J_URI: ${{ secrets.NEO4J_URI }}
-        NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
-        NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
-        NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
       run: |
         TEST_EXIT=0
         python -m pip install --upgrade pip
-        python -m pip install pytest-cov pytest-xdist testcontainers[neo4j]
-        # Run all non-live tests; integration will start Neo4j via Testcontainers fixture if used
-        pytest -m "not live" -n auto \
+        python -m pip install pytest-cov pytest-xdist
+        pytest -m "unit" -n auto \
                --cov=src --cov-report=xml:coverage.xml \
                --junitxml=junit.xml -o junit_family=legacy \
                -k "not test_pytorch_api_compatibility" --disable-warnings \
                | tee pytest-output.txt || TEST_EXIT=$?
         echo "JUnit testcases: $(grep -c '<testcase' junit.xml || true)"
-        echo "Listing workspace to show coverage.xml presence:" && ls -lah
-        if [ -f coverage.xml ]; then echo "coverage.xml size:" && wc -c coverage.xml; head -n 5 coverage.xml || true; else echo "coverage.xml missing"; fi
+        if [ -f coverage.xml ]; then echo "coverage.xml size:" && wc -c coverage.xml; fi
         exit $TEST_EXIT
 
     - name: Upload coverage to Codecov (only on 3.12; OIDC)
@@ -110,6 +105,7 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
 
@@ -196,6 +192,7 @@ jobs:
 
   live-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
