@@ -80,16 +80,16 @@ def neo4j_driver():
     Falls back to environment-driven connection (NEO4J_*) if Docker is not available.
     Skips politely if neither is configured.
     """
-    try:
-        if _has_docker():
+    if _has_docker():
+        try:
             from testcontainers.neo4j import Neo4jContainer  # type: ignore
 
             with Neo4jContainer(image="neo4j:5.26") as neo4j:  # latest LTS
                 with neo4j.get_driver() as driver:  # type: ignore[attr-defined]
                     yield driver
                 return
-    except Exception:
-        pass
+        except Exception as e:  # fall through to env-based driver
+            print(f"[tests] Testcontainers Neo4j not available: {e}")
 
     # Fallback to explicit env-configured instance
     try:

@@ -53,7 +53,7 @@ jobs:
 
     # Pre-commit already runs in quality; avoid duplicate work here
 
-    - name: Run unit tests with coverage (xdist, exclude integration + torch-compat)
+    - name: Run unit+integration (containers) with coverage (xdist)
       env:
         KMP_DUPLICATE_LIB_OK: "TRUE"
         OMP_NUM_THREADS: "1"
@@ -64,8 +64,9 @@ jobs:
       run: |
         TEST_EXIT=0
         python -m pip install --upgrade pip
-        python -m pip install pytest-cov pytest-xdist
-        pytest -m "not integration and not live" -n auto \
+        python -m pip install pytest-cov pytest-xdist testcontainers[neo4j]
+        # Run unit and integration; integration will start Neo4j via Testcontainers fixture
+        pytest -m "unit or integration" -n auto \
                --cov=src --cov-report=xml:coverage.xml \
                --junitxml=junit.xml -o junit_family=legacy \
                -k "not test_pytorch_api_compatibility" --disable-warnings \

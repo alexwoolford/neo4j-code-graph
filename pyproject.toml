@@ -54,6 +54,8 @@ dev = [
     "pytest-mock>=3.10.0",
     "pytest-xdist>=3.0.0",
     "pytest-asyncio>=0.23",
+    "testcontainers[neo4j]>=4.7.2",
+    "approvaltests>=12.4.0",
 ]
 
 [project.urls]
@@ -108,7 +110,6 @@ warn_redundant_casts = false
 warn_unused_ignores = false
 warn_no_return = false
 warn_unreachable = false
-strict_equality = false
 # Allow missing type annotations during development
 allow_untyped_calls = true
 allow_incomplete_defs = true
