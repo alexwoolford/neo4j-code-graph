@@ -42,3 +42,48 @@ def test_run_coupling_and_hotspots_smoke():
             driver, database=database, min_support=1, confidence_threshold=0.0, write=False
         )
         run_hotspots(driver, database=database, days=365, min_changes=1, top_n=10, write_back=False)
+
+
+@pytest.mark.live
+def test_coupling_and_hotspots_write_back_and_idempotent():
+    from src.analysis.temporal_analysis import run_coupling, run_hotspots
+
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as session:
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            # Seed two files and commits to produce a single co-change pair
+            session.run(
+                """
+                CREATE (a:File {path:'A.java', total_lines:200, method_count:10}),
+                       (b:File {path:'B.java', total_lines:150, method_count:6})
+                CREATE (c1:Commit {sha:'c1', date: datetime()}),
+                       (c2:Commit {sha:'c2', date: datetime()})
+                CREATE (c1)-[:CHANGED]->(:FileVer {sha:'1'})-[:OF_FILE]->(a)
+                CREATE (c1)-[:CHANGED]->(:FileVer {sha:'1b'})-[:OF_FILE]->(b)
+                CREATE (c2)-[:CHANGED]->(:FileVer {sha:'2'})-[:OF_FILE]->(a)
+                """
+            ).consume()
+
+        # First run writes back
+        run_coupling(driver, database=database, min_support=1, confidence_threshold=0.0, write=True)
+        run_hotspots(driver, database=database, days=365, min_changes=1, top_n=10, write_back=True)
+
+        # Verify properties/relationships written
+        with driver.session(database=database) as s2:
+            cc = s2.run(
+                "MATCH (:File {path:'A.java'})-[r:CO_CHANGED]->(:File {path:'B.java'}) RETURN r.support AS s, r.confidence AS c"
+            ).single()
+            assert cc and float(cc["s"]) >= 1 and float(cc["c"]) >= 0.0
+            hs = s2.run(
+                "MATCH (f:File {path:'A.java'}) RETURN f.recent_changes AS rc, f.hotspot_score AS hs"
+            ).single()
+            assert hs and float(hs["rc"]) >= 1 and float(hs["hs"]) > 0.0
+
+        # Second run should be idempotent (no duplicate CO_CHANGED edges)
+        run_coupling(driver, database=database, min_support=1, confidence_threshold=0.0, write=True)
+        with driver.session(database=database) as s3:
+            cnt = s3.run(
+                "MATCH (:File {path:'A.java'})-[r:CO_CHANGED]->(:File {path:'B.java'}) RETURN count(r) AS c"
+            ).single()
+            assert cnt and int(cnt["c"]) == 1
