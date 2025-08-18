@@ -510,3 +510,112 @@ def test_live_imports_set_gav_properties():
             # group_id/artifact_id may be unset for 3-part base packages; allow None
             assert rec["g"] is None or isinstance(rec["g"], str)
             assert rec["a"] is None or isinstance(rec["a"], str)
+
+
+def test_live_imports_idempotent():
+    from src.analysis.code_analysis import create_directories, create_files, create_imports
+    from src.data.schema_management import setup_complete_schema
+
+    files_data = [
+        {
+            "path": "src/Idem.java",
+            "imports": [
+                {
+                    "import_path": "org.acme.pkg.Widget",
+                    "import_type": "external",
+                    "file": "src/Idem.java",
+                    "is_static": False,
+                    "is_wildcard": False,
+                }
+            ],
+            "methods": [],
+        }
+    ]
+    dep_versions = {"org.acme.pkg": "1.2.3"}
+
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as s:
+            s.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(s)
+            for _ in range(2):
+                create_directories(s, files_data)
+                create_files(s, files_data, file_embeddings=[])
+                create_imports(s, files_data, dep_versions)
+
+            rec_i = s.run("MATCH (i:Import) RETURN count(i) AS c").single()
+            rec_e = s.run("MATCH (e:ExternalDependency) RETURN count(e) AS c").single()
+            rec_d = s.run(
+                "MATCH (:Import)-[r:DEPENDS_ON]->(:ExternalDependency) RETURN count(r) AS c"
+            ).single()
+            assert int(rec_i["c"]) == 1
+            assert int(rec_e["c"]) == 1
+            assert int(rec_d["c"]) == 1
+
+
+def test_live_bulk_idempotent():
+    from src.analysis.code_analysis import bulk_create_nodes_and_relationships
+    from src.data.schema_management import setup_complete_schema
+
+    files_data = [
+        {
+            "path": "idem/B.java",
+            "classes": [{"name": "B", "file": "idem/B.java", "line": 1, "implements": []}],
+            "interfaces": [],
+            "imports": [
+                {
+                    "import_path": "org.sample.lib.Core",
+                    "import_type": "external",
+                    "file": "idem/B.java",
+                    "is_static": False,
+                    "is_wildcard": False,
+                }
+            ],
+            "methods": [
+                {
+                    "name": "m",
+                    "file": "idem/B.java",
+                    "line": 10,
+                    "method_signature": "q.B#m():void",
+                    "class_name": "B",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "code": "",
+                }
+            ],
+        }
+    ]
+
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as s:
+            s.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(s)
+
+            for _ in range(2):
+                bulk_create_nodes_and_relationships(
+                    s,
+                    files_data,
+                    file_embeddings=[],
+                    method_embeddings=[],
+                    dependency_versions={"org.sample.lib:core:9.9.9": "9.9.9"},
+                )
+
+            # Counts should remain stable after repeated runs
+            counts = {
+                "File": s.run("MATCH (n:File) RETURN count(n) AS c").single()["c"],
+                "Class": s.run("MATCH (n:Class) RETURN count(n) AS c").single()["c"],
+                "Method": s.run("MATCH (n:Method) RETURN count(n) AS c").single()["c"],
+                "Import": s.run("MATCH (n:Import) RETURN count(n) AS c").single()["c"],
+                "ExternalDependency": s.run(
+                    "MATCH (n:ExternalDependency) RETURN count(n) AS c"
+                ).single()["c"],
+            }
+            assert counts == {
+                "File": 1,
+                "Class": 1,
+                "Method": 1,
+                "Import": 1,
+                "ExternalDependency": 1,
+            }
