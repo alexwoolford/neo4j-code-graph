@@ -127,12 +127,12 @@ def run_coupling(
     WITH $min_support AS minSupport, $confidence_threshold AS conf
     MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
     WHERE cc.support >= minSupport
-    WITH f1, f2, cc, f1.change_count AS c1, f2.change_count AS c2
-    WITH cc,
+    WITH f1, f2, cc, conf, f1.change_count AS c1, f2.change_count AS c2
+    WITH cc, conf,
          (CASE WHEN c1 > 0 THEN toFloat(cc.support)/c1 ELSE 0 END) AS conf1,
          (CASE WHEN c2 > 0 THEN toFloat(cc.support)/c2 ELSE 0 END) AS conf2
     SET cc.confidence = (conf1 + conf2) / 2.0
-    WITH cc
+    WITH cc, conf
     WHERE cc.confidence < conf
     DELETE cc
     """
