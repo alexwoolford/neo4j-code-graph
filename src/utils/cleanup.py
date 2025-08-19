@@ -268,7 +268,7 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
                 "CALL apoc.periodic.iterate(\n"
                 "  'MATCH (n) RETURN n',\n"
                 "  'DETACH DELETE n',\n"
-                "  {batchSize:5000, parallel:true}\n"
+                "  {batchSize:5000, parallel:false}\n"
                 ")"
             ).consume()
             # Verify
