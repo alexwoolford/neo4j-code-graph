@@ -124,6 +124,10 @@ def selective_cleanup_task(
         sys.argv = old_argv
 
 
+# Backward-compatible alias expected by some unit tests
+cleanup_task = selective_cleanup_task
+
+
 @task(retries=1, retry_delay_seconds=5)
 def clone_repo_task(repo_url: str) -> str:
     logger = get_run_logger()
@@ -513,7 +517,7 @@ def code_graph_flow(
 
     setup_schema_task(uri, username, password, database)
     if cleanup:
-        selective_cleanup_task(uri, username, password, database)
+        cleanup_task(uri, username, password, database)
 
     # Clone or reuse a local path
     repo_path: str

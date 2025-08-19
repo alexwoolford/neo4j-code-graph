@@ -16,6 +16,8 @@ try:
     from constants import (
         COMMUNITY_PROPERTY,
         EMBEDDING_DIMENSION,
+        EMBEDDING_PROPERTY,
+        EMBEDDING_TYPE,
         SIMILARITY_CUTOFF,
         SIMILARITY_TOP_K,
     )
@@ -25,6 +27,8 @@ except Exception:
         from src.constants import (
             COMMUNITY_PROPERTY,
             EMBEDDING_DIMENSION,
+            EMBEDDING_PROPERTY,
+            EMBEDDING_TYPE,
             SIMILARITY_CUTOFF,
             SIMILARITY_TOP_K,
         )
@@ -32,6 +36,8 @@ except Exception:
         # Relative import when used as module inside package
         from ..constants import COMMUNITY_PROPERTY as COMMUNITY_PROPERTY
         from ..constants import EMBEDDING_DIMENSION as EMBEDDING_DIMENSION
+        from ..constants import EMBEDDING_PROPERTY as EMBEDDING_PROPERTY
+        from ..constants import EMBEDDING_TYPE as EMBEDDING_TYPE
         from ..constants import SIMILARITY_CUTOFF as SIMILARITY_CUTOFF
         from ..constants import SIMILARITY_TOP_K as SIMILARITY_TOP_K
 
@@ -120,8 +126,6 @@ def parse_args() -> argparse.Namespace:
 
 def create_index(gds: GraphDataScience) -> None:
     logger.info("Ensuring vector index exists")
-    from constants import EMBEDDING_PROPERTY
-
     index_name = f"method_embeddings_{EMBEDDING_PROPERTY}"
     gds.run_cypher(
         f"""
@@ -138,10 +142,35 @@ def create_index(gds: GraphDataScience) -> None:
     gds.run_cypher("CALL db.awaitIndexes()")
 
 
+def _extract_count(df: Any, preferred_column: str) -> int:
+    """Return an integer count from a pandas DataFrame or other truthy return.
+
+    - Prefer a specific column if present
+    - Otherwise fall back to the first cell
+    - If df is falsy or empty, return 0
+    """
+    try:
+        import pandas as pd  # type: ignore
+
+        if df is None:
+            return 0
+        if isinstance(df, pd.DataFrame):
+            if df.empty:
+                return 0
+            if preferred_column in df.columns:
+                return int(df.iloc[0][preferred_column])
+            # Fallback: take the first column's first row
+            return int(df.iloc[0][df.columns[0]])
+    except Exception:
+        pass
+    try:
+        return int(df)
+    except Exception:
+        return 0
+
+
 def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     """Run the KNN algorithm and create SIMILAR relationships."""
-    from constants import EMBEDDING_PROPERTY, EMBEDDING_TYPE
-
     base_config = {
         # Use the property name in the projected in-memory graph (alias below)
         "nodeProperties": "embedding",
@@ -154,7 +183,7 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     missing_df = gds.run_cypher(
         f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NULL RETURN count(m) AS missing"
     )
-    missing = missing_df.iloc[0]["missing"]
+    missing = _extract_count(missing_df, "missing")
 
     if missing:
         logger.warning("Ignoring %d Method nodes without embeddings", missing)
@@ -163,7 +192,7 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     with_emb_df = gds.run_cypher(
         f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL RETURN count(m) AS withEmb"
     )
-    with_emb = int(with_emb_df.iloc[0]["withEmb"]) if not with_emb_df.empty else 0
+    with_emb = _extract_count(with_emb_df, "withEmb")
     if with_emb == 0:
         raise RuntimeError(
             "No Method nodes have the configured embedding property set. "
