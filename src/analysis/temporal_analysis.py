@@ -159,7 +159,19 @@ def run_coupling(
                     "confidence_threshold": float(confidence_threshold),
                 },
             ).consume()
-            rows = []
+            # Summarize results (post-prune)
+            count_res = session.run("MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c").single()
+            total_pairs = int(count_res["c"]) if count_res else 0
+
+            top_res = session.run(
+                """
+                MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
+                RETURN f1.path AS file1, f2.path AS file2, cc.support AS support, cc.confidence AS confidence
+                ORDER BY support DESC, confidence DESC, file1, file2
+                LIMIT 20
+                """
+            ).data()
+            rows = top_res
         else:
             result = session.run(
                 read_query,
@@ -171,13 +183,20 @@ def run_coupling(
             )
             rows = list(result)
 
-    logger.info("Computed %d co-change pairs", len(rows))
-    # Print concise summary to stdout
-    print("\nTop change-coupled files:")
-    for row in rows[:20]:
-        print(
-            f"  {row['support']:>4d} | {row['confidence']:.2f} | {row['file1']}  <>  {row['file2']}"
-        )
+    if write:
+        logger.info("Computed %d co-change pairs", total_pairs)
+        print("\nTop change-coupled files:")
+        for row in rows[:20]:
+            print(
+                f"  {row['support']:>4d} | {row['confidence']:.2f} | {row['file1']}  <>  {row['file2']}"
+            )
+    else:
+        logger.info("Computed %d co-change pairs", len(rows))
+        print("\nTop change-coupled files:")
+        for row in rows[:20]:
+            print(
+                f"  {row['support']:>4d} | {row['confidence']:.2f} | {row['file1']}  <>  {row['file2']}"
+            )
 
 
 def run_hotspots(
