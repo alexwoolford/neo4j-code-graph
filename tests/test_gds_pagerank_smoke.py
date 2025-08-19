@@ -36,6 +36,12 @@ def test_pagerank_smoke_projection_and_stream():
         except Exception:
             pass
 
+    # Validate GDS availability on server
+    try:
+        GraphDataScience(uri, auth=(username, password)).run_cypher("CALL gds.version()")
+    except Exception:
+        pytest.skip("GDS not available on server")
+
     # Create a tiny graph: A->B, A->C, B->C
     try:
         gds.run_cypher("MATCH (n) DETACH DELETE n")

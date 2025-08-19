@@ -137,6 +137,16 @@ def run_coupling(
     DELETE cc
     """
 
+    def _safe_single(result):
+        try:
+            return result.single()
+        except Exception:
+            try:
+                rows = list(result)
+                return rows[0] if rows else None
+            except Exception:
+                return None
+
     with driver.session(database=database) as session:
         if write:
             # Build support counts in batches
@@ -173,10 +183,9 @@ def run_coupling(
             except Exception:
                 pass
             # Summarize results (post-prune)
-            count_res = session.run(
-                "MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c", {}
-            ).single()
-            total_pairs = int(count_res["c"]) if count_res else 0
+            count_res = session.run("MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c", {})
+            count_rec = _safe_single(count_res)
+            total_pairs = int(count_rec["c"]) if count_rec else 0
 
             top_res = session.run(
                 """
