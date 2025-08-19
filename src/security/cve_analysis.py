@@ -363,48 +363,26 @@ class CVEAnalyzer:
             logger.warning("Precise GAV matcher not available, skipping precise matching")
             precise_matches = []
 
-        # Fall back to improved text matching only for dependencies without GAV coordinates
-        # and only if no precise matches were found
-        text_matches: list[dict[str, Any]] = []
-        if len(precise_matches) < 10:  # Only use text matching if we have very few precise matches
-            deps_without_gav = [
-                dep
-                for dep in dependencies
-                if not (
-                    dep["group_id"]
-                    and dep["artifact_id"]
-                    and dep["version"]
-                    and dep["version"] != "unknown"
-                )
-            ]
+        # Strict mode: disable text fallback links to avoid false positives.
+        # We still compute a count for observability, but DO NOT create relationships from it.
+        deps_without_gav = [
+            dep
+            for dep in dependencies
+            if not (
+                dep["group_id"]
+                and dep["artifact_id"]
+                and dep["version"]
+                and dep["version"] != "unknown"
+            )
+        ]
+        if deps_without_gav:
+            logger.info(
+                f"ℹ️  Skipping text-only CVE linkage for {len(deps_without_gav)} dependencies without GAV coordinates (strict mode)"
+            )
+            # If needed, we could compute candidate counts here for reporting only.
 
-            if deps_without_gav:
-                logger.info(
-                    f"⚠️  Using fallback text matching for {len(deps_without_gav)} dependencies without GAV coordinates"
-                )
-
-                for cve in cve_data:
-                    cve_id = cve.get("id", "")
-                    description = cve.get("description", "").lower()
-
-                    for dep in deps_without_gav:
-                        dep_path = dep["package"]
-                        if self._is_dependency_affected_improved(dep_path, description):
-                            confidence = self._calculate_match_confidence_improved(
-                                dep_path, description
-                            )
-                            if confidence > 0.7:  # Higher threshold for text matching
-                                text_matches.append(
-                                    {
-                                        "cve_id": cve_id,
-                                        "dep_package": dep_path,
-                                        "confidence": confidence,
-                                        "match_type": "text_fallback",
-                                    }
-                                )
-
-        # Combine all matches
-        all_matches: list[dict[str, Any]] = precise_matches + text_matches
+        # Combine all matches (strict: only precise)
+        all_matches: list[dict[str, Any]] = precise_matches
 
         # Create relationships
         if all_matches:
@@ -422,7 +400,7 @@ class CVEAnalyzer:
             session.run(link_query, links=all_matches)
             logger.info(f"🔗 Created {len(all_matches)} CVE-dependency relationships")
             logger.info(f"   - {len(precise_matches)} precise GAV matches")
-            logger.info(f"   - {len(text_matches)} text fallback matches")
+            logger.info("   - 0 text fallback links (strict mode)")
         else:
             logger.info("No CVE-dependency matches found")
 

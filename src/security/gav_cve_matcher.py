@@ -186,7 +186,18 @@ class PreciseGAVMatcher:
         for cpe_uri, affected_product in cpe_matches:
             # Check if CPE matches our expected pattern
             if expected_cpe_pattern in cpe_uri.lower():
-                # Check version constraints
+                # Require version constraints in the CVE; reject versionless CVEs
+                has_any_version_constraint = any(
+                    [
+                        affected_product.version_start_including,
+                        affected_product.version_start_excluding,
+                        affected_product.version_end_including,
+                        affected_product.version_end_excluding,
+                    ]
+                )
+                if not has_any_version_constraint:
+                    continue
+                # Check version constraints precisely
                 if affected_product.matches_version(gav.version):
                     return 1.0  # Exact match with version constraint
 
@@ -215,7 +226,19 @@ class PreciseGAVMatcher:
                     1 for part in group_parts if len(part) > 3 and part in cpe_lower
                 )
 
-                if group_matches > 0 and affected_product.matches_version(gav.version):
+                has_any_version_constraint = any(
+                    [
+                        affected_product.version_start_including,
+                        affected_product.version_start_excluding,
+                        affected_product.version_end_including,
+                        affected_product.version_end_excluding,
+                    ]
+                )
+                if (
+                    group_matches > 0
+                    and has_any_version_constraint
+                    and affected_product.matches_version(gav.version)
+                ):
                     # Lower confidence for fuzzy match
                     return 0.7
 

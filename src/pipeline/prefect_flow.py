@@ -256,6 +256,31 @@ def write_graph_task(
     finally:
         sys.argv = old_argv
 
+    # Observability: log how many methods have embeddings set
+    try:
+        from graphdatascience import GraphDataScience as _GDS  # type: ignore
+
+        # Resolve connection consistently; prefer explicit args if provided
+        if uri and username and password:
+            _uri, _user, _pwd, _db = uri, username, password, database
+        else:
+            from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
+
+            _uri, _user, _pwd, _db = _get_cfg()
+            if database:
+                _db = database
+
+        from src.constants import EMBEDDING_PROPERTY as _EMB
+
+        gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
+        df = gds.run_cypher(f"MATCH (m:Method) WHERE m.{_EMB} IS NOT NULL RETURN count(m) AS c")
+        count = int(df.iloc[0]["c"]) if not df.empty else 0
+        logger.info("Methods with embeddings (%s): %d", _EMB, count)
+        gds.close()
+    except Exception:
+        # Best-effort logging only; do not fail the pipeline here
+        pass
+
 
 @task(retries=0)
 def cleanup_artifacts_task(artifacts_dir: str) -> None:
