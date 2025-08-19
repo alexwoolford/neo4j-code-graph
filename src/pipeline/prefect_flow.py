@@ -111,7 +111,11 @@ def selective_cleanup_task(
             from src.utils.cleanup import selective_cleanup as _sel
         except Exception:
             from utils.cleanup import selective_cleanup as _sel  # type: ignore
-        from src.utils.common import create_neo4j_driver as _drv  # type: ignore
+        # Import driver helper in both contexts (installed package vs repo path)
+        try:
+            from utils.common import create_neo4j_driver as _drv
+        except Exception:  # pragma: no cover - fallback when running as module
+            from src.utils.common import create_neo4j_driver as _drv  # type: ignore
 
         with _drv(uri or "", username or "", password or "") as driver:
             with driver.session(database=database) as session:
