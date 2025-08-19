@@ -311,14 +311,27 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
         logger.info("⏳ Dropping managed schema (constraints/indexes) created by this project...")
         _drop_schema(session)
 
-    # Final verification
-    result = session.run("MATCH (n) RETURN count(n) as final_count")
-    single = result.single()
-    final_count = int(single["final_count"]) if single and "final_count" in single else 0
+    # Final verification with retry to avoid any transactional visibility edge cases
+    attempts = 0
+    final_count = -1
+    final_rels = -1
+    while attempts < 5:
+        result = session.run("MATCH (n) RETURN count(n) as final_count")
+        single = result.single()
+        final_count = int(single["final_count"]) if single and "final_count" in single else 0
 
-    result = session.run("MATCH ()-[r]->() RETURN count(r) as final_rels")
-    single = result.single()
-    final_rels = int(single["final_rels"]) if single and "final_rels" in single else 0
+        result = session.run("MATCH ()-[r]->() RETURN count(r) as final_rels")
+        single = result.single()
+        final_rels = int(single["final_rels"]) if single and "final_rels" in single else 0
+
+        if final_count == 0 and final_rels == 0:
+            break
+        # Best-effort extra sweep if anything remains
+        session.run(
+            "MATCH (n) WITH n LIMIT $limit DETACH DELETE n", {"limit": batch_size}
+        ).consume()
+        time.sleep(0.05)
+        attempts += 1
 
     logger.info("🎉 COMPLETE RESET FINISHED!")
     logger.info("  Final state: %d nodes, %d relationships", final_count, final_rels)
