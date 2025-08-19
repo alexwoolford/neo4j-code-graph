@@ -111,11 +111,13 @@ def test_similarity_module_sets_model_property_live():
         with driver.session(database=database) as session:
             # Clean slate and create methods with 2D embeddings
             session.run("MATCH (n) DETACH DELETE n").consume()
+            from src.constants import EMBEDDING_PROPERTY
+
             session.run(
-                """
-                CREATE (:Method {id:'m1', name:'M1', method_signature:'q.A#a()', embedding:[0.95, 0.05]}),
-                       (:Method {id:'m2', name:'M2', method_signature:'q.B#b()', embedding:[0.90, 0.10]}),
-                       (:Method {id:'m3', name:'M3', method_signature:'q.C#c()', embedding:[0.05, 0.95]})
+                f"""
+                CREATE (:Method {{id:'m1', name:'M1', method_signature:'q.A#a()', {EMBEDDING_PROPERTY}:[0.95, 0.05]}}),
+                       (:Method {{id:'m2', name:'M2', method_signature:'q.B#b()', {EMBEDDING_PROPERTY}:[0.90, 0.10]}}),
+                       (:Method {{id:'m3', name:'M3', method_signature:'q.C#c()', {EMBEDDING_PROPERTY}:[0.05, 0.95]}})
                 """
             ).consume()
 

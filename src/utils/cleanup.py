@@ -220,35 +220,15 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
 
     logger.info("🗑️  Starting complete database reset...")
 
-    # Delete relationships in batches to avoid memory issues
+    # Robust batched DETACH DELETE to remove both relationships and nodes safely
     batch_size = 50000
-    total_rel_deleted = 0
-
-    if initial_rels > 0:
-        logger.info("⏳ Deleting relationships in batches of %d...", batch_size)
-        while True:
-            result = session.run(
-                "MATCH ()-[r]->() WITH r LIMIT $limit DELETE r RETURN count(*) as deleted",
-                {"limit": batch_size},
-            )
-            single = result.single()
-            deleted = int(single["deleted"]) if single and "deleted" in single else 0
-            if deleted == 0:
-                break
-            total_rel_deleted += deleted
-            logger.info("  Deleted %d relationships (total: %d)", deleted, total_rel_deleted)
-            time.sleep(0.1)  # Brief pause to avoid overwhelming the server
-
-        logger.info("✅ Deleted %d relationships", total_rel_deleted)
-
-    # Delete nodes in batches
     total_nodes_deleted = 0
 
-    if initial_nodes > 0:
-        logger.info("⏳ Deleting nodes in batches of %d...", batch_size)
+    if initial_nodes > 0 or initial_rels > 0:
+        logger.info("⏳ Deleting all data in batches of %d (DETACH DELETE)...", batch_size)
         while True:
             result = session.run(
-                "MATCH (n) WITH n LIMIT $limit DELETE n RETURN count(*) as deleted",
+                "MATCH (n) WITH n LIMIT $limit DETACH DELETE n RETURN count(*) as deleted",
                 {"limit": batch_size},
             )
             single = result.single()
@@ -257,9 +237,9 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
                 break
             total_nodes_deleted += deleted
             logger.info("  Deleted %d nodes (total: %d)", deleted, total_nodes_deleted)
-            time.sleep(0.1)
+            time.sleep(0.05)
 
-        logger.info("✅ Deleted %d nodes", total_nodes_deleted)
+        logger.info("✅ Deleted %d nodes (all relationships removed)", total_nodes_deleted)
 
     # Drop indexes and constraints
     logger.info("⏳ Dropping indexes and constraints...")
