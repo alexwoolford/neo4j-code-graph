@@ -50,3 +50,22 @@ def test_extract_gradle_dependencies_formats(tmp_path: Path):
     deps = _extract_gradle_dependencies(g1)
     assert deps["org.slf4j.slf4j-api"] == "2.0.9"
     assert deps["junit.junit"] == "4.13.2"
+
+
+def test_extract_gradle_version_property_substitution(tmp_path: Path):
+    from src.analysis.code_analysis import _extract_gradle_dependencies
+
+    g = tmp_path / "build.gradle"
+    g.write_text(
+        """
+        // simple version property style
+        slf4jVersion = '2.0.12'
+        dependencies {
+          implementation group: 'org.slf4j', name: 'slf4j-api', version: 'slf4jVersion'
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    deps = _extract_gradle_dependencies(g)
+    assert deps["org.slf4j.slf4j-api"] == "2.0.12"
