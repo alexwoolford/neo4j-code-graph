@@ -173,7 +173,9 @@ def run_coupling(
             except Exception:
                 pass
             # Summarize results (post-prune)
-            count_res = session.run("MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c").single()
+            count_res = session.run(
+                "MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c", {}
+            ).single()
             total_pairs = int(count_res["c"]) if count_res else 0
 
             top_res = session.run(
@@ -182,7 +184,8 @@ def run_coupling(
                 RETURN f1.path AS file1, f2.path AS file2, cc.support AS support, cc.confidence AS confidence
                 ORDER BY support DESC, confidence DESC, file1, file2
                 LIMIT 20
-                """
+                """,
+                {},
             ).data()
             rows = top_res
         else:
