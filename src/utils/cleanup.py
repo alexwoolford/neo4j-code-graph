@@ -249,6 +249,34 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
         )
         return
 
+    # Strategy override: database replacement (Enterprise-only), fastest and most deterministic
+    strategy = (_os.getenv("CODEGRAPH_RESET_STRATEGY") or "").lower()
+    if strategy in {"replace", "recreate", "create_or_replace"} and not dry_run:
+        try:
+            db_info = session.run("CALL db.info() YIELD name RETURN name").single()
+            current_db = db_info["name"] if db_info and "name" in db_info else None
+        except Exception:
+            current_db = None
+        if current_db:
+            try:
+                logger.info("⏳ Replacing database '%s' via system command...", current_db)
+                session.run(f"USE system CREATE OR REPLACE DATABASE `{current_db}` WAIT").consume()
+                # Verify
+                verify = session.run(f"USE `{current_db}` MATCH (n) RETURN count(n) AS c").single()
+                c = int(verify["c"]) if verify and "c" in verify else -1
+                logger.info("✅ Database replaced; node count now: %d", c)
+                if c == 0:
+                    # Also ensure no relationships
+                    rels = session.run(
+                        f"USE `{current_db}` MATCH ()-[r]->() RETURN count(r) AS rc"
+                    ).single()
+                    rc = int(rels["rc"]) if rels and "rc" in rels else -1
+                    logger.info("✅ Relationship count now: %d", rc)
+                    if rc == 0:
+                        return
+            except Exception as e:
+                logger.warning("Database replace strategy failed, falling back to delete: %s", e)
+
     # Robust batched DETACH DELETE to remove both relationships and nodes safely
     batch_size = 50000
     total_nodes_deleted = 0

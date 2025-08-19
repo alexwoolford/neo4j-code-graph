@@ -57,8 +57,10 @@ def test_complete_database_reset_dry_run_then_delete():
             import os
 
             os.environ["CODEGRAPH_ALLOW_RESET"] = "true"
+            os.environ["CODEGRAPH_RESET_STRATEGY"] = "replace"
             complete_database_reset(s, dry_run=False)
             os.environ.pop("CODEGRAPH_ALLOW_RESET", None)
+            os.environ.pop("CODEGRAPH_RESET_STRATEGY", None)
 
         # Close and reopen session to avoid transactional visibility issues
         with driver.session(database=database) as s2:
