@@ -59,5 +59,8 @@ def test_complete_database_reset_dry_run_then_delete():
             os.environ["CODEGRAPH_ALLOW_RESET"] = "true"
             complete_database_reset(s, dry_run=False)
             os.environ.pop("CODEGRAPH_ALLOW_RESET", None)
-            n2, r2 = _count_nodes_and_rels(s)
+
+        # Close and reopen session to avoid transactional visibility issues
+        with driver.session(database=database) as s2:
+            n2, r2 = _count_nodes_and_rels(s2)
             assert n2 == 0 and r2 == 0
