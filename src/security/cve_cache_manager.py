@@ -235,7 +235,7 @@ class CVECacheManager:
         remaining = max(total - covered, 0)
         pct = (covered / max(total, 1)) * 100.0
         logger.info(
-            f"📈 Coverage: processed {covered}/{total} dependency terms ({pct:.1f}%%); {remaining} remaining"
+            f"📈 Coverage: processed {covered}/{total} dependency terms ({pct:.1f}%); {remaining} remaining"
         )
 
         # Save final results

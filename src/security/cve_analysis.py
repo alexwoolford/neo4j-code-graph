@@ -565,15 +565,16 @@ class CVEAnalyzer:
                 """
                 MATCH (cve:CVE)
                 WHERE cve.cvss_score >= $risk_threshold
-                OPTIONAL MATCH (ed:ExternalDependency)
-                WITH cve, ed, CASE WHEN ed.package IS NOT NULL THEN 1 ELSE 0 END AS has_dependency
-                WITH cve, collect(ed.package) AS dependencies, sum(has_dependency) AS dep_count
+                OPTIONAL MATCH (cve)-[:AFFECTS]->(ed:ExternalDependency)
+                WITH cve, collect(ed.package) AS dependencies
+                WITH cve, [d IN dependencies WHERE d IS NOT NULL] AS deps
+                WITH cve, deps, size(deps) AS dep_count
                 WHERE dep_count > 0
                 RETURN cve.id AS cve_id,
                        cve.description AS description,
                        cve.cvss_score AS cvss_score,
                        cve.severity AS severity,
-                       dependencies AS affected_dependencies,
+                       deps AS affected_dependencies,
                        dep_count AS dependency_count
                 ORDER BY cve.cvss_score DESC
                 LIMIT 50
@@ -799,7 +800,8 @@ Examples:
             # Create vulnerability graph
             print("\n📊 **CREATING VULNERABILITY GRAPH**")
             num_cves = analyzer.create_vulnerability_graph(cve_data)
-            print(f"✅ Created {num_cves} CVE nodes with dependency relationships")
+            # Report CVE nodes separately from relationships; linking is strict and may be zero
+            print(f"✅ Created {num_cves} CVE nodes")
 
             # Analyze impact
             impact_summary = analyzer.analyze_vulnerability_impact(
