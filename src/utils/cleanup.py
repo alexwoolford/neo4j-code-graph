@@ -263,14 +263,35 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
             apoc_ok = False
 
         if apoc_ok and not dry_run:
-            logger.info("⏳ Using APOC periodic iterate to wipe database...")
-            session.run(
-                "CALL apoc.periodic.iterate(\n"
-                "  'MATCH (n) RETURN n',\n"
-                "  'DETACH DELETE n',\n"
-                "  {batchSize:5000, parallel:false}\n"
-                ")"
-            ).consume()
+            logger.info("⏳ Using APOC label-wise iterate to wipe database deterministically...")
+            try:
+                labels_res = session.run("CALL db.labels() YIELD label RETURN label")
+                labels = [rec["label"] for rec in labels_res]
+            except Exception:
+                labels = []
+            if labels:
+                for lbl in labels:
+                    # Skip system/internal labels if present
+                    if not lbl or lbl.startswith("_"):
+                        continue
+                    logger.debug("Deleting label: %s", lbl)
+                    cypher = (
+                        "CALL apoc.periodic.iterate(\n"
+                        f"  'MATCH (n:`{lbl}`) RETURN n',\n"
+                        "  'DETACH DELETE n',\n"
+                        "  {batchSize:5000, parallel:false}\n"
+                        ")"
+                    )
+                    session.run(cypher).consume()
+            else:
+                # Fallback to all-nodes iterate
+                session.run(
+                    "CALL apoc.periodic.iterate(\n"
+                    "  'MATCH (n) RETURN n',\n"
+                    "  'DETACH DELETE n',\n"
+                    "  {batchSize:5000, parallel:false}\n"
+                    ")"
+                ).consume()
             # Verify
             final = session.run("MATCH (n) RETURN count(n) AS c").single()
             total_nodes_deleted = initial_nodes - int(final["c"]) if final else initial_nodes
@@ -315,6 +336,24 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
     if _drop_schema is not None and not dry_run:
         logger.info("⏳ Dropping managed schema (constraints/indexes) created by this project...")
         _drop_schema(session)
+
+    # Also drop any vector indexes created for embeddings (discovered dynamically)
+    try:
+        vidx = session.run("SHOW VECTOR INDEXES")
+        for rec in vidx:
+            name = rec.get("name")
+            if name:
+                try:
+                    session.run(f"DROP VECTOR INDEX {name} IF EXISTS").consume()
+                    logger.info("  ✅ Dropped vector index %s", name)
+                except Exception:
+                    try:
+                        session.run(f"DROP INDEX {name} IF EXISTS").consume()
+                        logger.info("  ✅ Dropped index %s", name)
+                    except Exception as e2:
+                        logger.debug("  ⚠️  Could not drop vector index %s: %s", name, e2)
+    except Exception:
+        pass
 
     # Final verification with retry to avoid any transactional visibility edge cases
     attempts = 0
