@@ -279,7 +279,12 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
             logger.info("⏳ Deleting all data in batches of %d (DETACH DELETE)...", batch_size)
             while True:
                 result = session.run(
-                    "MATCH (n) WITH n LIMIT $limit DETACH DELETE n RETURN count(*) as deleted",
+                    (
+                        "MATCH (n) "
+                        "WITH collect(n)[..$limit] AS nodes "
+                        "FOREACH (x IN nodes | DETACH DELETE x) "
+                        "RETURN size(nodes) as deleted"
+                    ),
                     {"limit": batch_size},
                 )
                 single = result.single()
@@ -328,7 +333,12 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
             break
         # Best-effort extra sweep if anything remains
         session.run(
-            "MATCH (n) WITH n LIMIT $limit DETACH DELETE n", {"limit": batch_size}
+            (
+                "MATCH (n) "
+                "WITH collect(n)[..$limit] AS nodes "
+                "FOREACH (x IN nodes | DETACH DELETE x)"
+            ),
+            {"limit": batch_size},
         ).consume()
         time.sleep(0.05)
         attempts += 1
