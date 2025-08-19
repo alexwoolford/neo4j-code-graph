@@ -13,7 +13,18 @@ def _get_driver_or_skip():
     uri, user, pwd, db = get_neo4j_config()
     try:
         driver = create_neo4j_driver(uri, user, pwd)
-        return driver, db
+        # Verify database exists; fallback to 'neo4j' if the configured one is missing
+        try:
+            with driver.session(database=db) as _s:
+                _s.run("RETURN 1").consume()
+            return driver, db
+        except Exception:
+            try:
+                with driver.session(database="neo4j") as _s2:
+                    _s2.run("RETURN 1").consume()
+                return driver, "neo4j"
+            except Exception:
+                raise
     except Exception:
         pytest.skip("Neo4j is not available for live tests (set NEO4J_* env vars)")
 
@@ -501,15 +512,20 @@ def test_live_imports_set_gav_properties():
 
             rec = s.run(
                 """
-                MATCH (i:Import)-[:DEPENDS_ON]->(e:ExternalDependency {package:'com.fasterxml.jackson'})
+                MATCH (i:Import)-[:DEPENDS_ON]->(e:ExternalDependency)
+                WHERE e.package IN ['com.fasterxml.jackson', 'com.fasterxml.jackson.core']
                 RETURN e.version AS v, e.group_id AS g, e.artifact_id AS a
+                ORDER BY e.package DESC LIMIT 1
                 """
             ).single()
             assert rec is not None
             assert rec["v"] == "2.15.0"
-            # group_id/artifact_id may be unset for 3-part base packages; allow None
-            assert rec["g"] is None or isinstance(rec["g"], str)
-            assert rec["a"] is None or isinstance(rec["a"], str)
+            # group_id/artifact_id may be unset depending on fuzzy matching; allow None
+            assert rec["g"] is None or rec["g"] in (
+                "com.fasterxml.jackson.core",
+                "com.fasterxml.jackson",
+            )
+            assert rec["a"] is None or rec["a"] in ("jackson-core", "core")
 
 
 def test_live_imports_idempotent():
