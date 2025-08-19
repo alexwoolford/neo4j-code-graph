@@ -56,6 +56,9 @@ def run_coupling(
     min_support: int = 5,
     confidence_threshold: float = 0.0,
     write: bool = False,
+    *,
+    days: int | None = None,
+    max_files_per_commit: int = 200,
 ) -> None:
     logger.info(
         "Analyzing file change coupling (min_support=%d, confidence>=%.2f, write=%s)",
@@ -66,15 +69,19 @@ def run_coupling(
 
     # Use canonical ordering to avoid duplicate pairs
     read_query = """
-    MATCH (c:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f1:File)
+    MATCH (c:Commit)
+    WHERE $days IS NULL OR c.date > datetime() - duration({days: $days})
+    MATCH (c)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f1:File)
     MATCH (c)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f2:File)
     WHERE f1.path < f2.path
     WITH f1, f2, count(DISTINCT c) AS support
     WHERE support >= $min_support
-    // Compute confidence based on individual change frequencies
+    // Compute confidence based on individual change frequencies (scoped to the time window when provided)
     MATCH (c1:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f1)
+    WHERE $days IS NULL OR c1.date > datetime() - duration({days: $days})
     WITH f1, f2, support, toFloat(count(DISTINCT c1)) AS f1_changes
     MATCH (c2:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f2)
+    WHERE $days IS NULL OR c2.date > datetime() - duration({days: $days})
     WITH f1, f2, support, f1_changes, toFloat(count(DISTINCT c2)) AS f2_changes
     WITH f1, f2, support,
          CASE WHEN f1_changes > 0 THEN support / f1_changes ELSE 0 END AS conf1,
@@ -85,38 +92,84 @@ def run_coupling(
     ORDER BY support DESC, confidence DESC, file1, file2
     """
 
-    write_query = """
-    MATCH (c:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f1:File)
-    MATCH (c)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f2:File)
-    WHERE f1.path < f2.path
-    WITH f1, f2, count(DISTINCT c) AS support
-    WHERE support >= $min_support
-    MATCH (c1:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f1)
-    WITH f1, f2, support, toFloat(count(DISTINCT c1)) AS f1_changes
-    MATCH (c2:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f2)
-    WITH f1, f2, support, f1_changes, toFloat(count(DISTINCT c2)) AS f2_changes
-    WITH f1, f2, support,
-         CASE WHEN f1_changes > 0 THEN support / f1_changes ELSE 0 END AS conf1,
-         CASE WHEN f2_changes > 0 THEN support / f2_changes ELSE 0 END AS conf2
-    WITH f1, f2, support, (conf1 + conf2) / 2.0 AS confidence
-    WHERE confidence >= $confidence_threshold
-    MERGE (f1)-[cc:CO_CHANGED]->(f2)
-    SET cc.support = support,
-        cc.confidence = confidence,
-        cc.lastUpdated = datetime()
-    RETURN f1.path AS file1, f2.path AS file2, support, confidence
-    ORDER BY support DESC, confidence DESC, file1, file2
+    # Batched write path using APOC to avoid large in-memory combinations
+    apoc_iterate = """
+    CALL apoc.periodic.iterate(
+      '
+      MATCH (c:Commit)
+      WHERE $days IS NULL OR c.date > datetime() - duration({days: $days})
+      MATCH (c)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f:File)
+      WITH c, collect(DISTINCT f) AS files
+      WHERE size(files) > 1 AND size(files) <= $maxFilesPerCommit
+      RETURN files
+      ',
+      '
+      WITH files
+      UNWIND range(0, size(files)-2) AS i
+      UNWIND range(i+1, size(files)-1) AS j
+      WITH files[i] AS f1, files[j] AS f2
+      WITH CASE WHEN f1.path < f2.path THEN [f1,f2] ELSE [f2,f1] END AS p
+      WITH p[0] AS f1, p[1] AS f2
+      MERGE (f1)-[cc:CO_CHANGED]->(f2)
+      ON CREATE SET cc.support = 1, cc.lastUpdated = datetime()
+      ON MATCH  SET cc.support = cc.support + 1, cc.lastUpdated = datetime()
+      ',
+      {batchSize: 250, parallel: true, params: {days: $days, maxFilesPerCommit: $max_files}}
+    )
+    """
+    change_counts = """
+    MATCH (f:File)<-[:OF_FILE]-(:FileVer)<-[:CHANGED]-(c:Commit)
+    WHERE $days IS NULL OR c.date > datetime() - duration({days: $days})
+    WITH f, count(DISTINCT c) AS changes
+    SET f.change_count = changes
+    """
+    write_confidence_and_prune = """
+    WITH $min_support AS minSupport, $confidence_threshold AS conf
+    MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
+    WHERE cc.support >= minSupport
+    WITH f1, f2, cc, f1.change_count AS c1, f2.change_count AS c2
+    WITH cc,
+         (CASE WHEN c1 > 0 THEN toFloat(cc.support)/c1 ELSE 0 END) AS conf1,
+         (CASE WHEN c2 > 0 THEN toFloat(cc.support)/c2 ELSE 0 END) AS conf2
+    SET cc.confidence = (conf1 + conf2) / 2.0
+    WITH cc
+    WHERE cc.confidence < conf
+    DELETE cc
     """
 
     with driver.session(database=database) as session:
-        result = session.run(
-            write_query if write else read_query,
-            {
-                "min_support": int(min_support),
-                "confidence_threshold": float(confidence_threshold),
-            },
-        )
-        rows = list(result)
+        if write:
+            # Build support counts in batches
+            session.run(
+                apoc_iterate,
+                {
+                    "days": int(days) if days is not None else None,
+                    "max_files": int(max_files_per_commit),
+                },
+            ).consume()
+            # Compute per-file change counts and write confidence
+            session.run(
+                change_counts,
+                {"days": int(days) if days is not None else None},
+            ).consume()
+            session.run(
+                write_confidence_and_prune,
+                {
+                    "min_support": int(min_support),
+                    "confidence_threshold": float(confidence_threshold),
+                },
+            ).consume()
+            rows = []
+        else:
+            result = session.run(
+                read_query,
+                {
+                    "min_support": int(min_support),
+                    "confidence_threshold": float(confidence_threshold),
+                    "days": int(days) if days is not None else None,
+                },
+            )
+            rows = list(result)
 
     logger.info("Computed %d co-change pairs", len(rows))
     # Print concise summary to stdout
