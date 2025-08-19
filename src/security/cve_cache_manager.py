@@ -117,10 +117,20 @@ class CVECacheManager:
         all_cves: list[CleanCVE] = list(partial_data)
         completed_terms_set: set[str] = set(completed_terms)
 
-        # Convert search terms to more effective search queries
+        # Convert search terms to effective search queries; we will generate as many as needed
+        # to cover 100% of dependencies (not capped), while honoring rate limits.
         search_queries = self._prepare_search_queries(remaining_terms)
 
-        logger.info(f"🔍 Prepared {len(search_queries)} targeted search queries")
+        # If grouping returned fewer queries than terms, generate any remaining single-term queries
+        # to guarantee 100% coverage.
+        grouped_term_union: set[str] = set()
+        for _, terms in search_queries:
+            grouped_term_union |= terms
+        missing_terms = list(remaining_terms - grouped_term_union)
+        for t in missing_terms:
+            search_queries.append((t, {t}))
+
+        logger.info(f"🔍 Prepared {len(search_queries)} targeted search queries (100% coverage)")
 
         async def _run_async() -> None:
             concurrency_limit = max_concurrency or max_requests_per_window
@@ -289,7 +299,7 @@ class CVECacheManager:
             compound_searches = self._create_compound_searches(java_terms)
             queries.extend(compound_searches)
 
-        return queries[:50]  # Limit to reasonable number of searches
+        return queries
 
     def _create_compound_searches(self, java_terms: list[str]) -> list[tuple[str, set[str]]]:
         """Create compound search terms for better Java library detection."""

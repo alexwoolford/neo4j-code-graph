@@ -1,3 +1,40 @@
+# AGENTS Guidance
+
+This document captures hard requirements and conventions for agents contributing to this repository.
+
+## Neo4j usage
+- Always create and close drivers/sessions using context managers: `with driver:` and `with driver.session(...) as session:`.
+- Do not migrate or mutate existing DB data implicitly. End-to-end flows must work without manual repair steps.
+- Ensure required constraints/indexes exist before writes (fail fast if missing).
+
+## Embedding property
+- Use one canonical method/file embedding property across the project via `src/constants.py`:
+  - `EMBEDDING_PROPERTY = f"embedding_{EMBEDDING_TYPE}"`
+- Writers and readers MUST use the constant; do not hardcode the property name.
+- Similarity must fail early with a clear error if no methods have `EMBEDDING_PROPERTY` set.
+
+## CVE handling
+- Version-aware only: link CVEs to dependencies strictly when CVE version constraints match the dependency version.
+- Only consider `ExternalDependency` nodes where `version IS NOT NULL` for `AFFECTS` queries and relationships.
+- Ignore CVEs without version constraints for linkage (both precise and fuzzy paths).
+- Cache CVE queries persistently; resume partial searches; respect TTL for complete caches to avoid redundant work.
+
+## NVD searches (coverage and rate limiting)
+- 100% coverage: when running the end-to-end pipeline, the NVD search MUST cover all relevant external dependencies detected in the graph (not a subset).
+- Use batching to remain under NVD rate limits:
+  - With API key: 50 requests/30s; without: 5 requests/30s.
+  - Group search terms to minimize requests, but iterate all groups until 100% of dependencies have been processed.
+- Backoff on 429 and honor `Retry-After` headers; do not exceed limits.
+- Log coverage explicitly: `covered X/Y dependencies` at the end of the search.
+
+## Temporal coupling (large repos)
+- Use APOC `apoc.periodic.iterate` to build `CO_CHANGED` support in batches; skip pathological commits (configurable threshold) and support optional time windows.
+- Compute confidence and prune below threshold in a second step.
+
+## Testing
+- Live tests must use driver/session context managers and avoid deprecation warnings.
+- Prefer live integration tests for critical paths and keep unit tests for fast shape/logic validation.
+
 # AGENTS Instructions
 
 ## 🚨 CRITICAL: ZERO TOLERANCE FOR CI FAILURES
