@@ -11,6 +11,154 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Central lists to avoid duplication across create/drop/verify
+SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
+    (
+        "directory_path",
+        "Directory",
+        "path",
+        "CREATE CONSTRAINT directory_path IF NOT EXISTS FOR (d:Directory) REQUIRE d.path IS UNIQUE",
+    ),
+    (
+        "file_path",
+        "File",
+        "path",
+        "CREATE CONSTRAINT file_path IF NOT EXISTS FOR (f:File) REQUIRE f.path IS UNIQUE",
+    ),
+    ("file_name", "File", "name", "CREATE INDEX file_name IF NOT EXISTS FOR (f:File) ON (f.name)"),
+    (
+        "class_name_file",
+        "Class",
+        "(name, file)",
+        "CREATE CONSTRAINT class_name_file IF NOT EXISTS FOR (c:Class) REQUIRE (c.name, c.file) IS UNIQUE",
+    ),
+    (
+        "interface_name_file",
+        "Interface",
+        "(name, file)",
+        "CREATE CONSTRAINT interface_name_file IF NOT EXISTS FOR (i:Interface) REQUIRE (i.name, i.file) IS UNIQUE",
+    ),
+    (
+        "method_signature_unique",
+        "Method",
+        "method_signature",
+        "CREATE CONSTRAINT method_signature_unique IF NOT EXISTS FOR (m:Method) REQUIRE m.method_signature IS UNIQUE",
+    ),
+    (
+        "method_id_required",
+        "Method",
+        "id",
+        "CREATE CONSTRAINT method_id_required IF NOT EXISTS FOR (m:Method) REQUIRE m.id IS NOT NULL",
+    ),
+    (
+        "method_signature_required",
+        "Method",
+        "method_signature",
+        "CREATE CONSTRAINT method_signature_required IF NOT EXISTS FOR (m:Method) REQUIRE m.method_signature IS NOT NULL",
+    ),
+    (
+        "commit_sha",
+        "Commit",
+        "sha",
+        "CREATE CONSTRAINT commit_sha IF NOT EXISTS FOR (c:Commit) REQUIRE c.sha IS UNIQUE",
+    ),
+    (
+        "developer_email",
+        "Developer",
+        "email",
+        "CREATE CONSTRAINT developer_email IF NOT EXISTS FOR (d:Developer) REQUIRE d.email IS UNIQUE",
+    ),
+    (
+        "file_ver_sha_path",
+        "FileVer",
+        "(sha, path)",
+        "CREATE CONSTRAINT file_ver_sha_path IF NOT EXISTS FOR (fv:FileVer) REQUIRE (fv.sha, fv.path) IS UNIQUE",
+    ),
+    (
+        "external_dependency_package",
+        "ExternalDependency",
+        "package",
+        "CREATE CONSTRAINT external_dependency_package IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE ed.package IS UNIQUE",
+    ),
+    (
+        "import_path",
+        "Import",
+        "import_path",
+        "CREATE CONSTRAINT import_path IF NOT EXISTS FOR (i:Import) REQUIRE i.import_path IS UNIQUE",
+    ),
+    (
+        "cve_id_unique",
+        "CVE",
+        "id",
+        "CREATE CONSTRAINT cve_id_unique IF NOT EXISTS FOR (cve:CVE) REQUIRE cve.id IS UNIQUE",
+    ),
+]
+
+SCHEMA_INDEXES: list[tuple[str, str, str]] = [
+    (
+        "class_estimated_lines",
+        "Class",
+        "CREATE INDEX class_estimated_lines IF NOT EXISTS FOR (c:Class) ON (c.estimated_lines)",
+    ),
+    (
+        "interface_method_count",
+        "Interface",
+        "CREATE INDEX interface_method_count IF NOT EXISTS FOR (i:Interface) ON (i.method_count)",
+    ),
+    (
+        "method_estimated_lines",
+        "Method",
+        "CREATE INDEX method_estimated_lines IF NOT EXISTS FOR (m:Method) ON (m.estimated_lines)",
+    ),
+    ("method_name", "Method", "CREATE INDEX method_name IF NOT EXISTS FOR (m:Method) ON (m.name)"),
+    (
+        "method_is_public",
+        "Method",
+        "CREATE INDEX method_is_public IF NOT EXISTS FOR (m:Method) ON (m.is_public)",
+    ),
+    (
+        "method_is_static",
+        "Method",
+        "CREATE INDEX method_is_static IF NOT EXISTS FOR (m:Method) ON (m.is_static)",
+    ),
+    (
+        "method_name_class_name",
+        "Method",
+        "CREATE INDEX method_name_class_name IF NOT EXISTS FOR (m:Method) ON (m.name, m.class_name)",
+    ),
+    (
+        "method_file_line",
+        "Method",
+        "CREATE INDEX method_file_line IF NOT EXISTS FOR (m:Method) ON (m.file, m.line)",
+    ),
+    (
+        "method_name_file_line",
+        "Method",
+        "CREATE INDEX method_name_file_line IF NOT EXISTS FOR (m:Method) ON (m.name, m.file, m.line)",
+    ),
+    (
+        "class_name_file_composite",
+        "Class",
+        "CREATE INDEX class_name_file_composite IF NOT EXISTS FOR (c:Class) ON (c.name, c.file)",
+    ),
+    ("commit_date", "Commit", "CREATE INDEX commit_date IF NOT EXISTS FOR (c:Commit) ON (c.date)"),
+    (
+        "method_pagerank",
+        "Method",
+        "CREATE INDEX method_pagerank IF NOT EXISTS FOR (m:Method) ON (m.pagerank_score)",
+    ),
+    (
+        "method_betweenness",
+        "Method",
+        "CREATE INDEX method_betweenness IF NOT EXISTS FOR (m:Method) ON (m.betweenness_score)",
+    ),
+    (
+        "method_similarity_community",
+        "Method",
+        "CREATE INDEX method_similarity_community IF NOT EXISTS FOR (m:Method) ON (m.similarityCommunity)",
+    ),
+]
+
 
 def create_schema_constraints_and_indexes(session: Any) -> None:
     """
@@ -28,118 +176,7 @@ def create_schema_constraints_and_indexes(session: Any) -> None:
     # UNIQUE CONSTRAINTS (enforce natural key uniqueness)
     # =============================================================================
 
-    constraints: list[tuple[str, str, str, str]] = [
-        # Directory: unique by path
-        (
-            "directory_path",
-            "Directory",
-            "path",
-            "CREATE CONSTRAINT directory_path IF NOT EXISTS "
-            "FOR (d:Directory) REQUIRE d.path IS UNIQUE",
-        ),
-        # File: unique by path - allows same filename in different directories
-        (
-            "file_path",
-            "File",
-            "path",
-            "CREATE CONSTRAINT file_path IF NOT EXISTS " "FOR (f:File) REQUIRE f.path IS UNIQUE",
-        ),
-        # File: index on name for fast retrieval by filename
-        (
-            "file_name",
-            "File",
-            "name",
-            "CREATE INDEX file_name IF NOT EXISTS FOR (f:File) ON (f.name)",
-        ),
-        # Class: unique by (name, file) - same class name can exist in different files
-        (
-            "class_name_file",
-            "Class",
-            "(name, file)",
-            "CREATE CONSTRAINT class_name_file IF NOT EXISTS "
-            "FOR (c:Class) REQUIRE (c.name, c.file) IS UNIQUE",
-        ),
-        # Interface: unique by (name, file) - same interface name can exist in different files
-        (
-            "interface_name_file",
-            "Interface",
-            "(name, file)",
-            "CREATE CONSTRAINT interface_name_file IF NOT EXISTS "
-            "FOR (i:Interface) REQUIRE (i.name, i.file) IS UNIQUE",
-        ),
-        # Method: unique by method_signature (stable and collision-proof)
-        (
-            "method_signature_unique",
-            "Method",
-            "method_signature",
-            "CREATE CONSTRAINT method_signature_unique IF NOT EXISTS "
-            "FOR (m:Method) REQUIRE m.method_signature IS UNIQUE",
-        ),
-        # Method: ensure id exists for Bloom/perspective compatibility
-        (
-            "method_id_required",
-            "Method",
-            "id",
-            "CREATE CONSTRAINT method_id_required IF NOT EXISTS "
-            "FOR (m:Method) REQUIRE m.id IS NOT NULL",
-        ),
-        # Method: ensure method_signature exists (complements uniqueness constraint)
-        (
-            "method_signature_required",
-            "Method",
-            "method_signature",
-            "CREATE CONSTRAINT method_signature_required IF NOT EXISTS "
-            "FOR (m:Method) REQUIRE m.method_signature IS NOT NULL",
-        ),
-        # Git history constraints
-        (
-            "commit_sha",
-            "Commit",
-            "sha",
-            "CREATE CONSTRAINT commit_sha IF NOT EXISTS " "FOR (c:Commit) REQUIRE c.sha IS UNIQUE",
-        ),
-        # Developer: unique by email
-        (
-            "developer_email",
-            "Developer",
-            "email",
-            "CREATE CONSTRAINT developer_email IF NOT EXISTS "
-            "FOR (d:Developer) REQUIRE d.email IS UNIQUE",
-        ),
-        # FileVer: unique by (sha, path) - same file can exist in multiple commits
-        (
-            "file_ver_sha_path",
-            "FileVer",
-            "(sha, path)",
-            "CREATE CONSTRAINT file_ver_sha_path IF NOT EXISTS "
-            "FOR (fv:FileVer) REQUIRE (fv.sha, fv.path) IS UNIQUE",
-        ),
-        # External dependencies: unique by package (aligns with data loader)
-        (
-            "external_dependency_package",
-            "ExternalDependency",
-            "package",
-            "CREATE CONSTRAINT external_dependency_package IF NOT EXISTS "
-            "FOR (ed:ExternalDependency) REQUIRE ed.package IS UNIQUE",
-        ),
-        # Import: unique by import_path
-        (
-            "import_path",
-            "Import",
-            "import_path",
-            "CREATE CONSTRAINT import_path IF NOT EXISTS "
-            "FOR (i:Import) REQUIRE i.import_path IS UNIQUE",
-        ),
-        # CVE: unique by id (aligns with analysis and Bloom templates)
-        (
-            "cve_id_unique",
-            "CVE",
-            "id",
-            "CREATE CONSTRAINT cve_id_unique IF NOT EXISTS FOR (cve:CVE) REQUIRE cve.id IS UNIQUE",
-        ),
-    ]
-
-    for constraint_name, node_type, key_desc, cypher in constraints:
+    for constraint_name, node_type, key_desc, cypher in SCHEMA_CONSTRAINTS:
         try:
             session.run(cypher)
             logger.info(f"✅ Created constraint {constraint_name}: {node_type}({key_desc})")
@@ -153,92 +190,7 @@ def create_schema_constraints_and_indexes(session: Any) -> None:
     # PERFORMANCE INDEXES (for commonly queried properties)
     # =============================================================================
 
-    indexes: list[tuple[str, str, str]] = [
-        # Performance indexes for code analysis
-        (
-            "class_estimated_lines",
-            "Class",
-            "CREATE INDEX class_estimated_lines IF NOT EXISTS "
-            "FOR (c:Class) ON (c.estimated_lines)",
-        ),
-        (
-            "interface_method_count",
-            "Interface",
-            "CREATE INDEX interface_method_count IF NOT EXISTS "
-            "FOR (i:Interface) ON (i.method_count)",
-        ),
-        # Method performance indexes
-        (
-            "method_estimated_lines",
-            "Method",
-            "CREATE INDEX method_estimated_lines IF NOT EXISTS "
-            "FOR (m:Method) ON (m.estimated_lines)",
-        ),
-        (
-            "method_name",
-            "Method",
-            "CREATE INDEX method_name IF NOT EXISTS FOR (m:Method) ON (m.name)",
-        ),
-        # Keep only the boolean indexes that are actually queried
-        (
-            "method_is_public",
-            "Method",
-            "CREATE INDEX method_is_public IF NOT EXISTS FOR (m:Method) ON (m.is_public)",
-        ),
-        (
-            "method_is_static",
-            "Method",
-            "CREATE INDEX method_is_static IF NOT EXISTS FOR (m:Method) ON (m.is_static)",
-        ),
-        # Composite indexes for common query patterns
-        (
-            "method_name_class_name",
-            "Method",
-            "CREATE INDEX method_name_class_name IF NOT EXISTS FOR (m:Method) ON (m.name, m.class_name)",
-        ),
-        (
-            "method_file_line",
-            "Method",
-            "CREATE INDEX method_file_line IF NOT EXISTS FOR (m:Method) ON (m.file, m.line)",
-        ),
-        (
-            "method_name_file_line",
-            "Method",
-            "CREATE INDEX method_name_file_line IF NOT EXISTS FOR (m:Method) ON (m.name, m.file, m.line)",
-        ),
-        (
-            "class_name_file",
-            "Class",
-            "CREATE INDEX class_name_file_composite IF NOT EXISTS FOR (c:Class) ON (c.name, c.file)",
-        ),
-        # Git history indexes
-        (
-            "commit_date",
-            "Commit",
-            "CREATE INDEX commit_date IF NOT EXISTS FOR (c:Commit) ON (c.date)",
-        ),
-        # Centrality indexes
-        (
-            "method_pagerank",
-            "Method",
-            "CREATE INDEX method_pagerank IF NOT EXISTS " "FOR (m:Method) ON (m.pagerank_score)",
-        ),
-        (
-            "method_betweenness",
-            "Method",
-            "CREATE INDEX method_betweenness IF NOT EXISTS "
-            "FOR (m:Method) ON (m.betweenness_score)",
-        ),
-        # Community detection indexes
-        (
-            "method_similarity_community",
-            "Method",
-            "CREATE INDEX method_similarity_community IF NOT EXISTS "
-            "FOR (m:Method) ON (m.similarityCommunity)",
-        ),
-    ]
-
-    for index_name, node_type, cypher in indexes:
+    for index_name, node_type, cypher in SCHEMA_INDEXES:
         try:
             session.run(cypher)
             logger.info(f"✅ Created index {index_name} on {node_type}")
@@ -413,16 +365,21 @@ def ensure_constraints_exist_or_fail(session: Any) -> None:
     """
 
     required_constraint_names = {
-        "directory_path",
-        "file_path",
-        "class_name_file",
-        "interface_name_file",
-        "method_signature_unique",
-        "commit_sha",
-        "developer_email",
-        "file_ver_sha_path",
-        "import_path",
-        "cve_id_unique",
+        name
+        for name, _label, _props, _cypher in SCHEMA_CONSTRAINTS
+        if name
+        in {
+            "directory_path",
+            "file_path",
+            "class_name_file",
+            "interface_name_file",
+            "method_signature_unique",
+            "commit_sha",
+            "developer_email",
+            "file_ver_sha_path",
+            "import_path",
+            "cve_id_unique",
+        }
     }
 
     existing = verify_schema_constraints(session)
@@ -445,6 +402,28 @@ def ensure_constraints_exist_or_fail(session: Any) -> None:
         raise RuntimeError(
             "Schema constraints missing after setup: " + ", ".join(sorted(still_missing))
         )
+
+
+def drop_managed_schema(session: Any) -> None:
+    """
+    Drop only constraints and indexes that this project manages, based on
+    SCHEMA_CONSTRAINTS and SCHEMA_INDEXES. Does not touch user-created schema.
+    """
+    logger.info("🧹 Dropping managed schema (constraints + indexes)...")
+    # Drop constraints first (to avoid index dependencies)
+    for constraint_name, _label, _props, _ in SCHEMA_CONSTRAINTS:
+        try:
+            session.run(f"DROP CONSTRAINT {constraint_name} IF EXISTS").consume()
+            logger.info(f"  ✅ Dropped constraint {constraint_name}")
+        except Exception as e:
+            logger.debug(f"  ⚠️  Could not drop constraint {constraint_name}: {e}")
+    # Drop indexes
+    for index_name, _label, _ in SCHEMA_INDEXES:
+        try:
+            session.run(f"DROP INDEX {index_name} IF EXISTS").consume()
+            logger.info(f"  ✅ Dropped index {index_name}")
+        except Exception as e:
+            logger.debug(f"  ⚠️  Could not drop index {index_name}: {e}")
 
 
 def main():

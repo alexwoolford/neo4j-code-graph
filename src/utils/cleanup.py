@@ -36,6 +36,11 @@ def parse_args():
         help="Perform complete database reset (deletes ALL nodes and relationships)",
     )
     parser.add_argument(
+        "--schema-reset",
+        action="store_true",
+        help="Drop managed constraints and indexes created by this project",
+    )
+    parser.add_argument(
         "--confirm",
         action="store_true",
         help="Skip confirmation prompt for complete reset (use with --complete)",
@@ -192,6 +197,20 @@ def cleanup_vector_index(session: Session, dry_run: bool = False) -> None:
         logger.warning("Could not check vector indexes: %s", e)
 
 
+def selective_cleanup(session: Session, dry_run: bool = False) -> None:
+    """
+    Remove analysis artifacts only (SIMILAR relationships, community properties, GDS graphs).
+
+    This is safe to run before re-computing similarity/community stages and is idempotent.
+    """
+    logger.info("Starting selective cleanup%s...", " (DRY RUN)" if dry_run else "")
+    cleanup_similarities(session, dry_run)
+    cleanup_communities(session, "similarityCommunity", dry_run)
+    cleanup_graph_projections(session, dry_run)
+    cleanup_vector_index(session, dry_run)
+    logger.info("Selective cleanup completed%s", " (DRY RUN)" if dry_run else "")
+
+
 def complete_database_reset(session: Session, dry_run: bool = False) -> None:
     """Perform complete database reset (delete everything)."""
     # Get initial counts
@@ -220,63 +239,71 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
 
     logger.info("🗑️  Starting complete database reset...")
 
+    # Safety guard: require explicit env allow flag
+    import os as _os
+
+    allow_reset = _os.getenv("CODEGRAPH_ALLOW_RESET", "").lower() in {"1", "true", "yes"}
+    if not allow_reset:
+        logger.error(
+            "Complete reset is disabled. Set CODEGRAPH_ALLOW_RESET=true to enable in this environment."
+        )
+        return
+
     # Robust batched DETACH DELETE to remove both relationships and nodes safely
     batch_size = 50000
     total_nodes_deleted = 0
 
     if initial_nodes > 0 or initial_rels > 0:
-        logger.info("⏳ Deleting all data in batches of %d (DETACH DELETE)...", batch_size)
-        while True:
-            result = session.run(
-                "MATCH (n) WITH n LIMIT $limit DETACH DELETE n RETURN count(*) as deleted",
-                {"limit": batch_size},
-            )
-            single = result.single()
-            deleted = int(single["deleted"]) if single and "deleted" in single else 0
-            if deleted == 0:
-                break
-            total_nodes_deleted += deleted
-            logger.info("  Deleted %d nodes (total: %d)", deleted, total_nodes_deleted)
-            time.sleep(0.05)
+        # Prefer APOC periodic iterate when available for scalability
+        apoc_ok = False
+        try:
+            session.run("CALL apoc.help('periodic.iterate')").consume()
+            apoc_ok = True
+        except Exception:
+            apoc_ok = False
 
-        logger.info("✅ Deleted %d nodes (all relationships removed)", total_nodes_deleted)
+        if apoc_ok and not dry_run:
+            logger.info("⏳ Using APOC periodic iterate to wipe database...")
+            session.run(
+                "CALL apoc.periodic.iterate(\n"
+                "  'MATCH (n) RETURN n',\n"
+                "  'DETACH DELETE n',\n"
+                "  {batchSize:5000, parallel:true}\n"
+                ")"
+            ).consume()
+            # Verify
+            final = session.run("MATCH (n) RETURN count(n) AS c").single()
+            total_nodes_deleted = initial_nodes - int(final["c"]) if final else initial_nodes
+            logger.info("✅ Deleted nodes via APOC; remaining: %d", int(final["c"]) if final else 0)
+        else:
+            logger.info("⏳ Deleting all data in batches of %d (DETACH DELETE)...", batch_size)
+            while True:
+                result = session.run(
+                    "MATCH (n) WITH n LIMIT $limit DETACH DELETE n RETURN count(*) as deleted",
+                    {"limit": batch_size},
+                )
+                single = result.single()
+                deleted = int(single["deleted"]) if single and "deleted" in single else 0
+                if deleted == 0:
+                    break
+                total_nodes_deleted += deleted
+                logger.info("  Deleted %d nodes (total: %d)", deleted, total_nodes_deleted)
+                time.sleep(0.05)
 
-    # Drop indexes and constraints
-    logger.info("⏳ Dropping indexes and constraints...")
-    # Drop a few known constraints/indexes using literal strings to satisfy strict typing
-    try:
-        session.run("DROP CONSTRAINT commit_sha IF EXISTS")
-        logger.info("  ✅ DROP CONSTRAINT commit_sha IF EXISTS")
-    except Exception as e:
-        logger.warning("  ⚠️  DROP CONSTRAINT commit_sha IF EXISTS: %s", e)
-    try:
-        session.run("DROP CONSTRAINT developer_email IF EXISTS")
-        logger.info("  ✅ DROP CONSTRAINT developer_email IF EXISTS")
-    except Exception as e:
-        logger.warning("  ⚠️  DROP CONSTRAINT developer_email IF EXISTS: %s", e)
-    try:
-        session.run("DROP INDEX file_path_index IF EXISTS")
-        logger.info("  ✅ DROP INDEX file_path_index IF EXISTS")
-    except Exception as e:
-        logger.warning("  ⚠️  DROP INDEX file_path_index IF EXISTS: %s", e)
-    try:
-        session.run("DROP INDEX file_ver_composite IF EXISTS")
-        logger.info("  ✅ DROP INDEX file_ver_composite IF EXISTS")
-    except Exception as e:
-        logger.warning("  ⚠️  DROP INDEX file_ver_composite IF EXISTS: %s", e)
+            logger.info("✅ Deleted %d nodes (all relationships removed)", total_nodes_deleted)
 
-    # Try to drop vector index (may not exist or may have different syntax)
+    # Drop managed schema if requested via env guard
     try:
-        # Try newer syntax first
-        session.run("DROP VECTOR INDEX method_embeddings IF EXISTS")
-        logger.info("  ✅ Dropped vector index method_embeddings")
+        from src.data.schema_management import drop_managed_schema as _drop_schema
     except Exception:
         try:
-            # Try alternative syntax
-            session.run("DROP INDEX method_embeddings IF EXISTS")
-            logger.info("  ✅ Dropped index method_embeddings")
-        except Exception as e:
-            logger.warning("  ⚠️  Could not drop vector index: %s", e)
+            from ..data.schema_management import drop_managed_schema as _drop_schema  # type: ignore
+        except Exception:
+            _drop_schema = None  # type: ignore
+
+    if _drop_schema is not None and not dry_run:
+        logger.info("⏳ Dropping managed schema (constraints/indexes) created by this project...")
+        _drop_schema(session)
 
     # Final verification
     result = session.run("MATCH (n) RETURN count(n) as final_count")

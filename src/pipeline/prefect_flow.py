@@ -28,7 +28,6 @@ try:
     from analysis.temporal_analysis import main as temporal_main
     from data.schema_management import main as schema_main
     from security.cve_analysis import main as cve_main
-    from utils.cleanup import main as cleanup_main
     from utils.common import setup_logging
 except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.analysis.centrality import main as centrality_main  # type: ignore
@@ -38,7 +37,6 @@ except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.analysis.temporal_analysis import main as temporal_main  # type: ignore
     from src.data.schema_management import main as schema_main  # type: ignore
     from src.security.cve_analysis import main as cve_main  # type: ignore
-    from src.utils.cleanup import main as cleanup_main  # type: ignore
     from src.utils.common import setup_logging  # type: ignore
 
 
@@ -83,18 +81,17 @@ def setup_schema_task(
 
 
 @task(retries=0)
-def cleanup_task(
-    confirm: bool,
+def selective_cleanup_task(
     uri: str | None,
     username: str | None,
     password: str | None,
     database: str | None,
 ) -> None:
     logger = get_run_logger()
-    logger.info("Cleaning up previous analysis (confirm=%s)...", confirm)
-    # cleanup_main reads args via argparse; simulate non-interactive execution
-    base = ["prog"]
-    overrides: dict[str, object] = {"--log-level": "INFO"}
+    logger.info("Selective cleanup before similarity/community stages...")
+    # Call the cleanup CLI in selective mode to remove analysis artifacts only
+    base = ["prog", "--log-level", "INFO"]
+    overrides: dict[str, object] = {}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -103,14 +100,22 @@ def cleanup_task(
         overrides["--password"] = password
     if database:
         overrides["--database"] = database
-    if confirm:
-        overrides["--confirm"] = True
     import sys
 
     old_argv = sys.argv
     try:
+        # We pass no flags; the cleanup script's default path now exposes a selective cleanup helper
         sys.argv = _build_args(base, overrides)
-        cleanup_main()
+        # Import and call the selective cleanup flow directly to avoid CLI arg plumbing
+        try:
+            from src.utils.cleanup import selective_cleanup as _sel
+        except Exception:
+            from utils.cleanup import selective_cleanup as _sel  # type: ignore
+        from src.utils.common import create_neo4j_driver as _drv  # type: ignore
+
+        with _drv(uri or "", username or "", password or "") as driver:
+            with driver.session(database=database) as session:
+                _sel(session, dry_run=False)
     finally:
         sys.argv = old_argv
 
@@ -504,7 +509,7 @@ def code_graph_flow(
 
     setup_schema_task(uri, username, password, database)
     if cleanup:
-        cleanup_task(cleanup, uri, username, password, database)
+        selective_cleanup_task(uri, username, password, database)
 
     # Clone or reuse a local path
     repo_path: str
@@ -531,30 +536,7 @@ def code_graph_flow(
     # Summaries/intent stages removed
     logger.info("Summary and intent similarity stages are not part of this flow")
 
-    # Before similarity, clear existing SIMILAR relationships to avoid duplicates
-    # Do it quickly with a small Cypher call via GDS client to ensure a clean slate
-    try:
-        from graphdatascience import GraphDataScience as _GDS  # local import
-
-        # Resolve connection consistently: prefer explicit args, otherwise .env via get_neo4j_config
-        try:
-            from utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-        except Exception:  # pragma: no cover - fallback when running as module
-            from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-
-        if uri and username and password:
-            _uri, _user, _pwd, _db = uri, username, password, database
-        else:
-            _uri, _user, _pwd, _db = _get_cfg()
-            # Allow explicit database override if provided
-            if database:
-                _db = database
-
-        gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
-        gds.run_cypher("MATCH ()-[r:SIMILAR]-() DELETE r")
-        gds.close()
-    except Exception:
-        pass
+    # Redundant explicit SIMILAR purge removed; selective_cleanup_task already handles analysis artifacts
 
     # Run similarity then Louvain (explicit dependency). Capture futures and block at the end
     # to ensure the flow does not finish before downstream tasks complete.
