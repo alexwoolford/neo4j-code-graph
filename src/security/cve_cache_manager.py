@@ -229,6 +229,14 @@ class CVECacheManager:
             f"📊 Relevance rate: {len(unique_cves)}/{len(all_cves)} = "
             f"{len(unique_cves) / max(len(all_cves), 1) * 100:.1f}%"
         )
+        # Final coverage log
+        covered = len(completed_terms_set)
+        total = len(search_terms)
+        remaining = max(total - covered, 0)
+        pct = (covered / max(total, 1)) * 100.0
+        logger.info(
+            f"📈 Coverage: processed {covered}/{total} dependency terms ({pct:.1f}%%); {remaining} remaining"
+        )
 
         # Save final results
         self._save_complete_cache(cache_key, unique_cves)
