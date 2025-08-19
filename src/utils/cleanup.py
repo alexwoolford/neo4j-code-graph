@@ -345,6 +345,23 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
 
     logger.info("🎉 COMPLETE RESET FINISHED!")
     logger.info("  Final state: %d nodes, %d relationships", final_count, final_rels)
+    if final_count or final_rels:
+        try:
+            diag = session.run(
+                """
+                CALL {
+                  MATCH (n) RETURN labels(n) AS labels, count(n) AS c
+                } RETURN labels, c ORDER BY c DESC LIMIT 10
+                """
+            )
+            rows = list(diag)
+            logger.warning("Residual nodes by labels (top 10): %s", rows)
+            sample = session.run(
+                "MATCH (n) RETURN labels(n) AS labels, properties(n) AS props LIMIT 5"
+            )
+            logger.warning("Residual node samples: %s", list(sample))
+        except Exception:
+            pass
 
 
 def main():
