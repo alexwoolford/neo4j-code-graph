@@ -53,7 +53,11 @@ def test_complete_database_reset_dry_run_then_delete():
             n1, r1 = _count_nodes_and_rels(s)
             assert n1 == n0 and r1 == r0
 
-            # Real delete should clear database
+            # Real delete should clear database (guarded by env)
+            import os
+
+            os.environ["CODEGRAPH_ALLOW_RESET"] = "true"
             complete_database_reset(s, dry_run=False)
+            os.environ.pop("CODEGRAPH_ALLOW_RESET", None)
             n2, r2 = _count_nodes_and_rels(s)
             assert n2 == 0 and r2 == 0
