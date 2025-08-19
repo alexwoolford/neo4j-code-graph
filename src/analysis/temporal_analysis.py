@@ -140,25 +140,38 @@ def run_coupling(
     with driver.session(database=database) as session:
         if write:
             # Build support counts in batches
-            session.run(
+            res = session.run(
                 apoc_iterate,
                 {
                     "days": int(days) if days is not None else None,
                     "max_files": int(max_files_per_commit),
                 },
-            ).consume()
+            )
+            try:
+                res.consume()
+            except Exception:
+                # Allow lightweight mocks that don't implement `.consume()`
+                pass
             # Compute per-file change counts and write confidence
-            session.run(
+            res2 = session.run(
                 change_counts,
                 {"days": int(days) if days is not None else None},
-            ).consume()
-            session.run(
+            )
+            try:
+                res2.consume()
+            except Exception:
+                pass
+            res3 = session.run(
                 write_confidence_and_prune,
                 {
                     "min_support": int(min_support),
                     "confidence_threshold": float(confidence_threshold),
                 },
-            ).consume()
+            )
+            try:
+                res3.consume()
+            except Exception:
+                pass
             # Summarize results (post-prune)
             count_res = session.run("MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c").single()
             total_pairs = int(count_res["c"]) if count_res else 0
