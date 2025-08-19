@@ -25,6 +25,7 @@ def test_cve_efficient_developer_grouping_live():
             s.run(
                 """
                 MERGE (dep:ExternalDependency {package:'org.example.lib'})
+                SET dep.version='1.0.0'
                 MERGE (f:File {path:'src/E.java'})
                 MERGE (i:Import {import_path:'org.example.lib.Api'})
                 MERGE (f)-[:IMPORTS]->(i)
@@ -50,6 +51,7 @@ def test_cve_efficient_developer_grouping_live():
                 WHERE cve.cvss_score >= 6.0
                 WITH cve ORDER BY cve.cvss_score DESC LIMIT 100
                 MATCH (cve)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
+                WHERE dep.version IS NOT NULL
                 MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
                 WITH dev,
                      collect(DISTINCT cve.id) as cves,
@@ -73,6 +75,7 @@ def test_cve_critical_path_summary_live():
             s.run(
                 """
                 MERGE (dep:ExternalDependency {package:'org.example.lib'})
+                SET dep.version='1.2.3'
                 MERGE (f:File {path:'src/Z.java'})
                 MERGE (i:Import {import_path:'org.example.lib.Core'})
                 MERGE (f)-[:IMPORTS]->(i)
@@ -90,7 +93,7 @@ def test_cve_critical_path_summary_live():
             rows = s.run(
                 """
                 MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
-                WHERE cve.cvss_score >= 8.0
+                WHERE cve.cvss_score >= 8.0 AND dep.version IS NOT NULL
                 OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
                 WHERE c.date > datetime() - duration('P90D')
                 WITH cve.id as cve_id,

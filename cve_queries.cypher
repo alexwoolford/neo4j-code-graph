@@ -10,6 +10,7 @@ WHERE cve.cvss_score >= 7.0
 WITH cve ORDER BY cve.cvss_score DESC LIMIT 50
 
 MATCH (cve)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(f:File)
+WHERE dep.version IS NOT NULL
 WITH cve, dep, collect(DISTINCT f)[0..10] as files
 UNWIND files as f
 
@@ -34,6 +35,7 @@ WHERE cve.cvss_score >= 6.0
 WITH cve ORDER BY cve.cvss_score DESC LIMIT 100
 
 MATCH (cve)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(f:File)
+WHERE dep.version IS NOT NULL
 MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
 
 WITH dev,
@@ -59,7 +61,7 @@ LIMIT 50;
 // 📊 SUMMARY: CVE exposure by file complexity
 // Identifies high-risk files that are complex AND have vulnerabilities
 MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(f:File)
-WHERE cve.cvss_score >= 7.0
+WHERE cve.cvss_score >= 7.0 AND dep.version IS NOT NULL
   AND f.total_lines > 100
   AND f.method_count > 5
 
@@ -88,7 +90,7 @@ LIMIT 25;
 // ⚡ LIGHTNING FAST: Critical path summary
 // Minimal data for dashboard/alerting
 MATCH (cve:CVE)-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(f:File)
-WHERE cve.cvss_score >= 8.0
+WHERE cve.cvss_score >= 8.0 AND dep.version IS NOT NULL
 
 OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
 WHERE c.date > datetime() - duration('P90D')
@@ -106,6 +108,7 @@ ORDER BY severity DESC, files_affected DESC;
 // 🔍 DEEP DIVE: Specific CVE analysis
 // Use this template and replace CVE-2022-28291 with your target CVE
 MATCH (cve:CVE {id: "CVE-2022-28291"})-[:AFFECTS]->(dep:ExternalDependency)<-[:DEPENDS_ON]-(f:File)
+WHERE dep.version IS NOT NULL
 
 OPTIONAL MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(dev:Developer)
 
