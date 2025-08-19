@@ -292,6 +292,12 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
 
             logger.info("✅ Deleted %d nodes (all relationships removed)", total_nodes_deleted)
 
+        # Final sweep: ensure no stragglers remain (e.g., transactional leftovers)
+        try:
+            session.run("MATCH (n) DETACH DELETE n").consume()
+        except Exception:
+            pass
+
     # Drop managed schema if requested via env guard
     try:
         from src.data.schema_management import drop_managed_schema as _drop_schema
