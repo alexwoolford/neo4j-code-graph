@@ -299,6 +299,295 @@ If you change the embedding model (e.g., switching to UniXcoder or between UniXc
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_node_properties_generated"><a class="anchor" href="#_node_properties_generated"></a>Node properties (generated)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>These property lists are generated from the live database via <code>db.schema.nodeTypeProperties()</code> and annotated with descriptions.</p>
+</div>
+<div class="sect2">
+<h3 id="_file"><a class="anchor" href="#_file"></a>File</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>class_count</code> (Long): Number of class declarations in this file.</p>
+</li>
+<li>
+<p><code>code_lines</code> (Long): Non-empty, non-comment lines of code (approximate).</p>
+</li>
+<li>
+<p><code>ecosystem</code> (String): Build ecosystem (e.g., maven).</p>
+</li>
+<li>
+<p><code>embedding_type</code> (String): Embedding model tag used to produce the vector.</p>
+</li>
+<li>
+<p><code>embedding_unixcoder</code> (DoubleArray): Vector embedding for file content (if generated).</p>
+</li>
+<li>
+<p><code>interface_count</code> (Long): Number of interface declarations in this file.</p>
+</li>
+<li>
+<p><code>language</code> (String): Primary language detected for the file (e.g., java).</p>
+</li>
+<li>
+<p><code>method_count</code> (Long): Number of method declarations in this file.</p>
+</li>
+<li>
+<p><code>name</code> (String): File name (basename).</p>
+</li>
+<li>
+<p><code>path</code> (String): Repository-relative file path (unique).</p>
+</li>
+<li>
+<p><code>total_lines</code> (Long): Total number of lines in the file.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_filever"><a class="anchor" href="#_filever"></a>FileVer</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>path</code> (String): File path for this version (part of natural key).</p>
+</li>
+<li>
+<p><code>sha</code> (String): Commit SHA that produced this file version (part of natural key).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_method"><a class="anchor" href="#_method"></a>Method</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>betweenness_score</code> (Double): Betweenness centrality score on the call graph.</p>
+</li>
+<li>
+<p><code>class_name</code> (String): Declaring class name (if applicable).</p>
+</li>
+<li>
+<p><code>containing_type</code> (String): Declaring type (class or interface) name when known.</p>
+</li>
+<li>
+<p><code>embedding_type</code> (String): Embedding model tag used to produce the vector.</p>
+</li>
+<li>
+<p><code>embedding_unixcoder</code> (DoubleArray): Vector embedding for method body (if generated).</p>
+</li>
+<li>
+<p><code>estimated_lines</code> (Long): Approximate number of source lines in the method.</p>
+</li>
+<li>
+<p><code>file</code> (String): Repository-relative file path containing the method.</p>
+</li>
+<li>
+<p><code>id</code> (String): Internal identifier mirroring the signature for convenience.</p>
+</li>
+<li>
+<p><code>in_degree</code> (Long): Number of distinct incoming CALLS.</p>
+</li>
+<li>
+<p><code>is_abstract</code> (Boolean): True if the method is abstract.</p>
+</li>
+<li>
+<p><code>is_final</code> (Boolean): True if the method is final.</p>
+</li>
+<li>
+<p><code>is_private</code> (Boolean): True if the method is private.</p>
+</li>
+<li>
+<p><code>is_public</code> (Boolean): True if the method is public.</p>
+</li>
+<li>
+<p><code>is_static</code> (Boolean): True if the method is static.</p>
+</li>
+<li>
+<p><code>line</code> (Long): Line number where the method starts.</p>
+</li>
+<li>
+<p><code>method_signature</code> (String): Stable unique signature for the method (unique).</p>
+</li>
+<li>
+<p><code>modifiers</code> (StringArray): List of Java modifiers present on the method.</p>
+</li>
+<li>
+<p><code>name</code> (String): Method name.</p>
+</li>
+<li>
+<p><code>out_degree</code> (Long): Number of distinct outgoing CALLS.</p>
+</li>
+<li>
+<p><code>pagerank_score</code> (Double): PageRank centrality score on the call graph.</p>
+</li>
+<li>
+<p><code>return_type</code> (String): Declared return type.</p>
+</li>
+<li>
+<p><code>similarityCommunity</code> (Long): Community id from similarity clustering (Louvain).</p>
+</li>
+<li>
+<p><code>total_degree</code> (Long): Sum of in_degree and out_degree.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_class"><a class="anchor" href="#_class"></a>Class</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>estimated_lines</code> (Long): Approximate number of lines spanned by the class.</p>
+</li>
+<li>
+<p><code>file</code> (String): Repository-relative file path declaring the class.</p>
+</li>
+<li>
+<p><code>is_abstract</code> (Boolean): True if the class is abstract.</p>
+</li>
+<li>
+<p><code>is_final</code> (Boolean): True if the class is final.</p>
+</li>
+<li>
+<p><code>line</code> (Long): Line number where the class starts.</p>
+</li>
+<li>
+<p><code>modifiers</code> (StringArray): List of Java modifiers present on the class.</p>
+</li>
+<li>
+<p><code>name</code> (String): Class name (unique with file).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_interface"><a class="anchor" href="#_interface"></a>Interface</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>file</code> (String): Repository-relative file path declaring the interface.</p>
+</li>
+<li>
+<p><code>line</code> (Long): Line number where the interface starts.</p>
+</li>
+<li>
+<p><code>method_count</code> (Long): Number of declared methods in the interface.</p>
+</li>
+<li>
+<p><code>modifiers</code> (StringArray): List of Java modifiers present on the interface.</p>
+</li>
+<li>
+<p><code>name</code> (String): Interface name (unique with file).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_import"><a class="anchor" href="#_import"></a>Import</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>import_path</code> (String): Imported type or package path (unique).</p>
+</li>
+<li>
+<p><code>import_type</code> (String): One of internal|external (derived from analysis).</p>
+</li>
+<li>
+<p><code>is_static</code> (Boolean): True for static imports.</p>
+</li>
+<li>
+<p><code>is_wildcard</code> (Boolean): True if the import uses wildcard syntax (e.g., *).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_externaldependency"><a class="anchor" href="#_externaldependency"></a>ExternalDependency</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>ecosystem</code> (String): Dependency ecosystem (e.g., maven).</p>
+</li>
+<li>
+<p><code>language</code> (String): Programming language associated with the dependency graph.</p>
+</li>
+<li>
+<p><code>package</code> (String): Base package or coordinate identifying the dependency (unique).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_commit"><a class="anchor" href="#_commit"></a>Commit</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>date</code> (DateTime): Commit timestamp (datetime).</p>
+</li>
+<li>
+<p><code>message</code> (String): Commit message.</p>
+</li>
+<li>
+<p><code>sha</code> (String): Commit SHA (unique).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_developer"><a class="anchor" href="#_developer"></a>Developer</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>email</code> (String): Author email (unique).</p>
+</li>
+<li>
+<p><code>name</code> (String): Author display name.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_cve"><a class="anchor" href="#_cve"></a>CVE</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>cvss_score</code> (Double): CVSS base score (0-10).</p>
+</li>
+<li>
+<p><code>cvss_vector</code> (String): Derived or auxiliary property written by specific stages.</p>
+</li>
+<li>
+<p><code>description</code> (String): Short description from NVD.</p>
+</li>
+<li>
+<p><code>id</code> (String): CVE identifier (unique).</p>
+</li>
+<li>
+<p><code>published</code> (String): Published date/time from NVD.</p>
+</li>
+<li>
+<p><code>severity</code> (String): Severity classification (e.g., CRITICAL, HIGH).</p>
+</li>
+<li>
+<p><code>updated_at</code> (DateTime): Derived or auxiliary property written by specific stages.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_directory"><a class="anchor" href="#_directory"></a>Directory</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>path</code> (String): Directory path relative to repository root (unique).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
 </article>
   </div>
 </main>
