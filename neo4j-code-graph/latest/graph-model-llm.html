@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Graph model (LLM-friendly) :: Neo4j Code Graph</title>
+    <meta name="generator" content="Antora 3.1.12">
+<link rel="stylesheet" href="../../_/css/site.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+<link rel="icon" type="image/svg+xml" href="../../_/img/favicon.svg">
+<link rel="alternate icon" href="../../_/img/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../../_/img/apple-touch-icon.png">
+  </head>
+  <body class="article">
+<nav class="navbar">
+  <div class="navbar-brand">
+    <a class="navbar-item" href="../../">Neo4j Code Graph</a>
+  </div>
+  <div class="navbar-menu"></div>
+</nav>
+<div class="body">
+<div class="nav-container" data-component="neo4j-code-graph" data-version="latest">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Docs</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User Guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="guide.html">Guide</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="configuration.html">Configuration</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="queries/index.html">Queries</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="requirements.html">Requirements</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="graph-model.html">Graph model</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Developer Guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="architecture.html">Architecture</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="project-structure.html">Project Structure</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="development.html">Development</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Docs</span>
+    <span class="version">latest</span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Docs</a></div>
+      <ul class="versions">
+        <li class="version is-current is-latest">
+          <a href="index.html">latest</a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Docs</a></li>
+    <li><a href="graph-model-llm.html">Graph model (LLM-friendly)</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/graph-model-llm.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Graph model (LLM-friendly)</h1>
+<div class="sect1">
+<h2 id="_base_content"><a class="anchor" href="#_base_content"></a>Base content</h2>
+<div class="sectionbody">
+
+</div>
+</div>
+<h1 id="_graph_model" class="sect0"><a class="anchor" href="#_graph_model"></a>Graph model</h1>
+<div class="paragraph">
+<p>This page defines the nodes and relationships used by Neo4j Code Graph so new users can read and write queries confidently.</p>
+</div>
+<div class="sect1">
+<h2 id="_visual_schema"><a class="anchor" href="#_visual_schema"></a>Visual schema</h2>
+<div class="sectionbody">
+<div class="imageblock text-center">
+<div class="content">
+<img src="_images/schema/arrows-schema.png" alt="Graph schema">
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_nodes"><a class="anchor" href="#_nodes"></a>Nodes</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>File</strong>: A source file; properties include <code>path</code>, <code>total_lines</code>, <code>method_count</code>, <code>class_count</code>.</p>
+</li>
+<li>
+<p><strong>FileVer</strong>: A versioned view of a file at a commit. Linked to <code>File</code> by <code>OF_FILE</code> and to <code>Commit</code> by <code>CHANGED</code>.</p>
+</li>
+<li>
+<p><strong>Method</strong>: A function/method; key property <code>method_signature</code> plus <code>name</code>, <code>class_name</code>, <code>estimated_lines</code>, centrality scores.</p>
+</li>
+<li>
+<p><strong>Class</strong>: A class declaration; <code>name</code>, <code>file</code>, flags (e.g., <code>is_abstract</code>).</p>
+</li>
+<li>
+<p><strong>Interface</strong>: An interface declaration; <code>name</code>, <code>file</code>.</p>
+</li>
+<li>
+<p><strong>Import</strong>: An import statement within a file; <code>import_path</code>.</p>
+</li>
+<li>
+<p><strong>ExternalDependency</strong>: A third‑party package or module referenced by the code; properties include <code>package</code>, <code>version</code>.</p>
+</li>
+<li>
+<p><strong>Commit</strong>: A Git commit; <code>sha</code>, <code>date</code>, <code>message</code>.</p>
+</li>
+<li>
+<p><strong>Developer</strong>: An author; <code>name</code>, <code>email</code>.</p>
+</li>
+<li>
+<p><strong>CVE</strong>: Vulnerability record (from NVD); <code>id</code>, <code>cvss_score</code>.</p>
+</li>
+<li>
+<p><strong>Directory</strong>: A directory node used for hierarchical navigation; <code>path</code>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_relationships"><a class="anchor" href="#_relationships"></a>Relationships</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong><code>(Commit)-[:CHANGED]&#8594;(FileVer)</code></strong>: Git change written by a commit.</p>
+</li>
+<li>
+<p><strong><code>(FileVer)-[:OF_FILE]&#8594;(File)</code></strong>: Version points to its file.</p>
+</li>
+<li>
+<p><strong><code>(Method)-[:CALLS]&#8594;(Method)</code></strong>: Static call graph edges.</p>
+</li>
+<li>
+<p><strong><code>(Method)-[:SIMILAR]&#8594;(Method)</code></strong>: Semantic similarity from embeddings (<code>score</code>).</p>
+</li>
+<li>
+<p><strong><code>(File)-[:DECLARES]&#8594;(Method)</code></strong>: File declares a method.</p>
+</li>
+<li>
+<p><strong><code>(Class)-[:CONTAINS_METHOD]&#8594;(Method)</code></strong>: Method belongs to class.</p>
+</li>
+<li>
+<p><strong><code>(Interface)-[:CONTAINS_METHOD]&#8594;(Method)</code></strong>: Method belongs to interface.</p>
+</li>
+<li>
+<p><strong><code>(File)-[:IMPORTS]&#8594;(Import)</code></strong>: File contains an import declaration.</p>
+</li>
+<li>
+<p><strong><code>(Import)-[:DEPENDS_ON]&#8594;(ExternalDependency)</code></strong>: Import maps to an external package.</p>
+</li>
+</ul>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong><code>(Class)-[:EXTENDS]&#8594;(Class)</code></strong>: Inheritance between classes.</p>
+</li>
+<li>
+<p><strong><code>(Interface)-[:EXTENDS]&#8594;(Interface)</code></strong>: Inheritance between interfaces.</p>
+</li>
+<li>
+<p><strong><code>(Class)-[:IMPLEMENTS]&#8594;(Interface)</code></strong>: Class implements interface (the only cross‑type edge).</p>
+</li>
+<li>
+<p><strong><code>(File)-[:DEFINES]&#8594;(Class|Interface)</code></strong>: File defines type declarations.</p>
+</li>
+<li>
+<p><strong><code>(Directory)-[:CONTAINS]&#8594;(Directory)</code></strong>: Directory hierarchy.</p>
+</li>
+<li>
+<p><strong><code>(Directory)-[:CONTAINS]&#8594;(File)</code></strong>: Files within a directory.</p>
+</li>
+</ul>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong><code>(Developer)-[:AUTHORED]&#8594;(Commit)</code></strong>: Author authored commit.</p>
+</li>
+<li>
+<p><strong><code>(CVE)-[:AFFECTS]&#8594;(ExternalDependency)</code></strong>: Vulnerability affects dependency.</p>
+</li>
+</ul>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong><code>(File)-[:CO_CHANGED]&#8594;(File)</code></strong>: Temporal coupling (co‑change) with <code>support</code> and <code>confidence</code>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_method_similarity_unixcoder"><a class="anchor" href="#_method_similarity_unixcoder"></a>Method similarity (UniXcoder)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>We embed <code>Method</code> nodes with <strong>UniXcoder</strong> to capture functional similarity beyond token overlap or call‑graph adjacency. UniXcoder learns from code, its AST, and comments, yielding embeddings that reflect what code does, not just how it’s spelled (ACL 2022).</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Model</strong>: UniXcoder (<code>microsoft/unixcoder-base</code>). See the paper: <a href="https://arxiv.org/abs/2203.03850">UniXcoder: Unified Cross‑Modal Pre‑training for Code Representation</a>. The encoder‑only embedding is 768‑dimensional.</p>
+</li>
+<li>
+<p><strong>Context length</strong>: Up to ~1k tokens (<code>max_position_embeddings</code> ≈ 1026); longer methods are truncated.</p>
+</li>
+<li>
+<p><strong>Storage</strong>: each <code>Method</code> stores its vector in <code>m.embedding_unixcoder</code> and the model tag in <code>m.embedding_type</code> (e.g., <code>unixcoder</code>).</p>
+</li>
+<li>
+<p><strong>Index + edges</strong>: we create a Neo4j vector index on <code>Method.embedding_unixcoder</code> and run kNN to write <code>(:Method)-[:SIMILAR {score, model}]&#8594;(:Method)</code> using cosine similarity. Thresholds such as <code>topK</code> and <code>cutoff</code> are configurable.</p>
+</li>
+<li>
+<p><strong>Interpretation</strong>: a higher <code>SIMILAR.score</code> implies closer intent‑level similarity in UniXcoder’s embedding space. Combine with <code>CALLS</code>, <code>IMPORTS/DEPENDS_ON</code>, and <code>CO_CHANGED</code> for stronger evidence.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+If you change the embedding model (e.g., switching to UniXcoder or between UniXcoder variants), re‑compute embeddings and rebuild the vector index before comparing results; embedding spaces are not interchangeable.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_notes"><a class="anchor" href="#_notes"></a>Notes</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Schema constraints enforce key properties (e.g., <code>Method.method_signature</code>).</p>
+</li>
+<li>
+<p>For property and count examples, see the <a href="queries/index.html" class="xref page">Queries catalog</a> and <a href="architecture.html" class="xref page">Architecture</a> pages.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_node_properties_generated"><a class="anchor" href="#_node_properties_generated"></a>Node properties (generated)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>These property lists are generated from the live database via <code>db.schema.nodeTypeProperties()</code> and annotated with descriptions.</p>
+</div>
+<div class="sect2">
+<h3 id="_file"><a class="anchor" href="#_file"></a>File</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>class_count</code> (Long): Number of class declarations in this file.</p>
+</li>
+<li>
+<p><code>code_lines</code> (Long): Non-empty, non-comment lines of code (approximate).</p>
+</li>
+<li>
+<p><code>ecosystem</code> (String): Build ecosystem (e.g., maven).</p>
+</li>
+<li>
+<p><code>embedding_type</code> (String): Embedding model tag used to produce the vector.</p>
+</li>
+<li>
+<p><code>embedding_unixcoder</code> (DoubleArray): Vector embedding for file content (if generated).</p>
+</li>
+<li>
+<p><code>interface_count</code> (Long): Number of interface declarations in this file.</p>
+</li>
+<li>
+<p><code>language</code> (String): Primary language detected for the file (e.g., java).</p>
+</li>
+<li>
+<p><code>method_count</code> (Long): Number of method declarations in this file.</p>
+</li>
+<li>
+<p><code>name</code> (String): File name (basename).</p>
+</li>
+<li>
+<p><code>path</code> (String): Repository-relative file path (unique).</p>
+</li>
+<li>
+<p><code>total_lines</code> (Long): Total number of lines in the file.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_filever"><a class="anchor" href="#_filever"></a>FileVer</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>path</code> (String): File path for this version (part of natural key).</p>
+</li>
+<li>
+<p><code>sha</code> (String): Commit SHA that produced this file version (part of natural key).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_method"><a class="anchor" href="#_method"></a>Method</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>betweenness_score</code> (Double): Betweenness centrality score on the call graph.</p>
+</li>
+<li>
+<p><code>class_name</code> (String): Declaring class name (if applicable).</p>
+</li>
+<li>
+<p><code>containing_type</code> (String): Declaring type (class or interface) name when known.</p>
+</li>
+<li>
+<p><code>embedding_type</code> (String): Embedding model tag used to produce the vector.</p>
+</li>
+<li>
+<p><code>embedding_unixcoder</code> (DoubleArray): Vector embedding for method body (if generated).</p>
+</li>
+<li>
+<p><code>estimated_lines</code> (Long): Approximate number of source lines in the method.</p>
+</li>
+<li>
+<p><code>file</code> (String): Repository-relative file path containing the method.</p>
+</li>
+<li>
+<p><code>id</code> (String): Internal identifier mirroring the signature for convenience.</p>
+</li>
+<li>
+<p><code>in_degree</code> (Long): Number of distinct incoming CALLS.</p>
+</li>
+<li>
+<p><code>is_abstract</code> (Boolean): True if the method is abstract.</p>
+</li>
+<li>
+<p><code>is_final</code> (Boolean): True if the method is final.</p>
+</li>
+<li>
+<p><code>is_private</code> (Boolean): True if the method is private.</p>
+</li>
+<li>
+<p><code>is_public</code> (Boolean): True if the method is public.</p>
+</li>
+<li>
+<p><code>is_static</code> (Boolean): True if the method is static.</p>
+</li>
+<li>
+<p><code>line</code> (Long): Line number where the method starts.</p>
+</li>
+<li>
+<p><code>method_signature</code> (String): Stable unique signature for the method (unique).</p>
+</li>
+<li>
+<p><code>modifiers</code> (StringArray): List of Java modifiers present on the method.</p>
+</li>
+<li>
+<p><code>name</code> (String): Method name.</p>
+</li>
+<li>
+<p><code>out_degree</code> (Long): Number of distinct outgoing CALLS.</p>
+</li>
+<li>
+<p><code>pagerank_score</code> (Double): PageRank centrality score on the call graph.</p>
+</li>
+<li>
+<p><code>return_type</code> (String): Declared return type.</p>
+</li>
+<li>
+<p><code>similarityCommunity</code> (Long): Community id from similarity clustering (Louvain).</p>
+</li>
+<li>
+<p><code>total_degree</code> (Long): Sum of in_degree and out_degree.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_class"><a class="anchor" href="#_class"></a>Class</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>estimated_lines</code> (Long): Approximate number of lines spanned by the class.</p>
+</li>
+<li>
+<p><code>file</code> (String): Repository-relative file path declaring the class.</p>
+</li>
+<li>
+<p><code>is_abstract</code> (Boolean): True if the class is abstract.</p>
+</li>
+<li>
+<p><code>is_final</code> (Boolean): True if the class is final.</p>
+</li>
+<li>
+<p><code>line</code> (Long): Line number where the class starts.</p>
+</li>
+<li>
+<p><code>modifiers</code> (StringArray): List of Java modifiers present on the class.</p>
+</li>
+<li>
+<p><code>name</code> (String): Class name (unique with file).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_interface"><a class="anchor" href="#_interface"></a>Interface</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>file</code> (String): Repository-relative file path declaring the interface.</p>
+</li>
+<li>
+<p><code>line</code> (Long): Line number where the interface starts.</p>
+</li>
+<li>
+<p><code>method_count</code> (Long): Number of declared methods in the interface.</p>
+</li>
+<li>
+<p><code>modifiers</code> (StringArray): List of Java modifiers present on the interface.</p>
+</li>
+<li>
+<p><code>name</code> (String): Interface name (unique with file).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_import"><a class="anchor" href="#_import"></a>Import</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>import_path</code> (String): Imported type or package path (unique).</p>
+</li>
+<li>
+<p><code>import_type</code> (String): One of internal|external (derived from analysis).</p>
+</li>
+<li>
+<p><code>is_static</code> (Boolean): True for static imports.</p>
+</li>
+<li>
+<p><code>is_wildcard</code> (Boolean): True if the import uses wildcard syntax (e.g., *).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_externaldependency"><a class="anchor" href="#_externaldependency"></a>ExternalDependency</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>ecosystem</code> (String): Dependency ecosystem (e.g., maven).</p>
+</li>
+<li>
+<p><code>language</code> (String): Programming language associated with the dependency graph.</p>
+</li>
+<li>
+<p><code>package</code> (String): Base package or coordinate identifying the dependency (unique).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_commit"><a class="anchor" href="#_commit"></a>Commit</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>date</code> (DateTime): Commit timestamp (datetime).</p>
+</li>
+<li>
+<p><code>message</code> (String): Commit message.</p>
+</li>
+<li>
+<p><code>sha</code> (String): Commit SHA (unique).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_developer"><a class="anchor" href="#_developer"></a>Developer</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>email</code> (String): Author email (unique).</p>
+</li>
+<li>
+<p><code>name</code> (String): Author display name.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_cve"><a class="anchor" href="#_cve"></a>CVE</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>cvss_score</code> (Double): CVSS base score (0-10).</p>
+</li>
+<li>
+<p><code>cvss_vector</code> (String): Derived or auxiliary property written by specific stages.</p>
+</li>
+<li>
+<p><code>description</code> (String): Short description from NVD.</p>
+</li>
+<li>
+<p><code>id</code> (String): CVE identifier (unique).</p>
+</li>
+<li>
+<p><code>published</code> (String): Published date/time from NVD.</p>
+</li>
+<li>
+<p><code>severity</code> (String): Severity classification (e.g., CRITICAL, HIGH).</p>
+</li>
+<li>
+<p><code>updated_at</code> (DateTime): Derived or auxiliary property written by specific stages.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_directory"><a class="anchor" href="#_directory"></a>Directory</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>path</code> (String): Directory path relative to repository root (unique).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_canonical_chains_non_negotiable"><a class="anchor" href="#_canonical_chains_non_negotiable"></a>Canonical chains (non-negotiable)</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><code>(Commit)-[:CHANGED]&#8594;(FileVer)-[:OF_FILE]&#8594;(File)</code></p>
+</li>
+<li>
+<p>Never use <code>(:Commit)-[:CHANGED]&#8594;(:File)</code> directly.</p>
+</li>
+<li>
+<p><code>(File)-[:DECLARES]&#8594;(Method)</code></p>
+</li>
+<li>
+<p><code>(Class)-[:CONTAINS_METHOD]&#8594;(Method)</code></p>
+</li>
+<li>
+<p><code>(Interface)-[:CONTAINS_METHOD]&#8594;(Method)</code></p>
+</li>
+<li>
+<p><code>(Developer)-[:AUTHORED]&#8594;(Commit)</code></p>
+</li>
+<li>
+<p><code>(File)-[:IMPORTS]&#8594;(Import)</code></p>
+</li>
+<li>
+<p><code>(Import)-[:DEPENDS_ON]&#8594;(ExternalDependency)</code></p>
+</li>
+<li>
+<p><code>(CVE)-[:AFFECTS]&#8594;(ExternalDependency)</code></p>
+</li>
+<li>
+<p><code>(Directory)-[:CONTAINS]&#8594;(Directory)</code> and <code>(Directory)-[:CONTAINS]&#8594;(File)</code></p>
+</li>
+<li>
+<p><code>(File)-[:CO_CHANGED {support, confidence}]&#8594;(File)</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Composed patterns to reuse:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>File-to-commit context (commit provenance for a file):
+<code>(File)&#8592;[:OF_FILE]-(FileVer)&#8592;[:CHANGED]-(Commit)</code></p>
+</li>
+<li>
+<p>File-to-developer context (who changed a file):
+<code>(File)&#8592;[:OF_FILE]-(FileVer)&#8592;[:CHANGED]-(Commit)&#8592;[:AUTHORED]-(Developer)</code></p>
+</li>
+<li>
+<p>CVE to affected files (with dependency chain):
+<code>(CVE)-[:AFFECTS]&#8594;(ExternalDependency)&#8592;[:DEPENDS_ON]-(Import)&#8592;[:IMPORTS]-(File)</code></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_banned_direct_edges_auto_rewrite_if_produced"><a class="anchor" href="#_banned_direct_edges_auto_rewrite_if_produced"></a>Banned direct edges (auto-rewrite if produced)</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><code>(:Commit)-[:CHANGED]&#8594;(:File)</code> → rewrite to <code>(:Commit)-[:CHANGED]&#8594;(:FileVer)-[:OF_FILE]&#8594;(:File)</code></p>
+</li>
+<li>
+<p>Any reversal of canonical directions (e.g., <code>(:File)-[:OF_FILE]&#8594;(:FileVer)</code>) is invalid.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_machine_readable_schema_excerpt"><a class="anchor" href="#_machine_readable_schema_excerpt"></a>Machine-readable schema excerpt</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  "labels": [
+    "File", "FileVer", "Method", "Class", "Interface",
+    "Import", "ExternalDependency", "Commit", "Developer", "CVE", "Directory"
+  ],
+  "relationships": [
+    {"type": "CHANGED", "from": "Commit", "to": "FileVer"},
+    {"type": "OF_FILE", "from": "FileVer", "to": "File"},
+    {"type": "DECLARES", "from": "File", "to": "Method"},
+    {"type": "CONTAINS_METHOD", "from": "Class", "to": "Method"},
+    {"type": "CONTAINS_METHOD", "from": "Interface", "to": "Method"},
+    {"type": "IMPORTS", "from": "File", "to": "Import"},
+    {"type": "DEPENDS_ON", "from": "Import", "to": "ExternalDependency"},
+    {"type": "AUTHORED", "from": "Developer", "to": "Commit"},
+    {"type": "AFFECTS", "from": "CVE", "to": "ExternalDependency"},
+    {"type": "EXTENDS", "from": "Class", "to": "Class"},
+    {"type": "EXTENDS", "from": "Interface", "to": "Interface"},
+    {"type": "IMPLEMENTS", "from": "Class", "to": "Interface"},
+    {"type": "CONTAINS", "from": "Directory", "to": "Directory"},
+    {"type": "CONTAINS", "from": "Directory", "to": "File"},
+    {"type": "CO_CHANGED", "from": "File", "to": "File", "properties": ["support", "confidence"]},
+    {"type": "SIMILAR", "from": "Method", "to": "Method", "properties": ["score"]},
+    {"type": "CALLS", "from": "Method", "to": "Method"}
+  ],
+  "canonical_chains": [
+    ["Commit", "CHANGED", "FileVer", "OF_FILE", "File"],
+    ["File", "DECLARES", "Method"],
+    ["Class", "CONTAINS_METHOD", "Method"],
+    ["Interface", "CONTAINS_METHOD", "Method"],
+    ["Developer", "AUTHORED", "Commit"],
+    ["File", "IMPORTS", "Import", "DEPENDS_ON", "ExternalDependency"],
+    ["CVE", "AFFECTS", "ExternalDependency"]
+  ],
+  "banned_edges": [
+    {"from": "Commit", "type": "CHANGED", "to": "File"}
+  ]
+}</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_query_templates_safe_building_blocks"><a class="anchor" href="#_query_templates_safe_building_blocks"></a>Query templates (safe building blocks)</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// File provenance (who changed a file)
+MATCH (f:File {path: $path})
+MATCH (f)&lt;-[:OF_FILE]-(fv:FileVer)&lt;-[:CHANGED]-(c:Commit)&lt;-[:AUTHORED]-(d:Developer)
+RETURN d.email AS author, c.sha AS sha, c.date AS date
+ORDER BY date DESC LIMIT 20;
+
+// CVE → dependency → files
+MATCH (cve:CVE {id: $cveId})-[:AFFECTS]-&gt;(dep:ExternalDependency)
+MATCH (dep)&lt;-[:DEPENDS_ON]-(i:Import)&lt;-[:IMPORTS]-(f:File)
+RETURN f.path AS file, dep.package AS package;
+
+// Similar methods (SIMILAR edges are directed but represent similarity)
+MATCH (m:Method {method_signature: $sig})-[:SIMILAR]-&gt;(n:Method)
+RETURN n.method_signature AS candidate, n.name AS name, n.class_name AS class_name
+ORDER BY coalesce(m.score, 0.0) DESC LIMIT 10;</code></pre>
+</div>
+</div>
+</div>
+</div>
+</article>
+  </div>
+</main>
+</div>
+<div class="footer"><div class="container"><p></p></div></div>
+<script id="site-script" src="../../_/js/site.js" data-ui-root-path="../../_"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cypher.min.js"></script>
+<script>try{ if(window.Prism){ window.Prism.highlightAll(); } }catch(e){}</script>
+  </body>
+</html>
