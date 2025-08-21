@@ -1,0 +1,105 @@
+= Graph model (LLM-friendly)
+
+// This page is intentionally not listed in nav. It includes the full graph-model page
+// and appends canonical chains and a compact machine-readable schema excerpt to guide LLMs.
+
+== Base content
+
+// Include the authoritative human-facing page to avoid duplication.
+include::ROOT:page$graph-model.adoc[]
+
+== Canonical chains (non-negotiable)
+
+// Use these exact paths in generated queries. Do not shortcut or skip intermediate nodes.
+
+- `(Commit)-[:CHANGED]->(FileVer)-[:OF_FILE]->(File)`
+  - Never use `(:Commit)-[:CHANGED]->(:File)` directly.
+- `(File)-[:DECLARES]->(Method)`
+- `(Class)-[:CONTAINS_METHOD]->(Method)`
+- `(Interface)-[:CONTAINS_METHOD]->(Method)`
+- `(Developer)-[:AUTHORED]->(Commit)`
+- `(File)-[:IMPORTS]->(Import)`
+- `(Import)-[:DEPENDS_ON]->(ExternalDependency)`
+- `(CVE)-[:AFFECTS]->(ExternalDependency)`
+- `(Directory)-[:CONTAINS]->(Directory)` and `(Directory)-[:CONTAINS]->(File)`
+- `(File)-[:CO_CHANGED {support, confidence}]->(File)`
+
+Composed patterns to reuse:
+
+- File-to-commit context (commit provenance for a file):
+  `(File)<-[:OF_FILE]-(FileVer)<-[:CHANGED]-(Commit)`
+- File-to-developer context (who changed a file):
+  `(File)<-[:OF_FILE]-(FileVer)<-[:CHANGED]-(Commit)<-[:AUTHORED]-(Developer)`
+- CVE to affected files (with dependency chain):
+  `(CVE)-[:AFFECTS]->(ExternalDependency)<-[:DEPENDS_ON]-(Import)<-[:IMPORTS]-(File)`
+
+== Banned direct edges (auto-rewrite if produced)
+
+- `(:Commit)-[:CHANGED]->(:File)` → rewrite to `(:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(:File)`
+- Any reversal of canonical directions (e.g., `(:File)-[:OF_FILE]->(:FileVer)`) is invalid.
+
+== Machine-readable schema excerpt
+
+[source,json]
+----
+{
+  "labels": [
+    "File", "FileVer", "Method", "Class", "Interface",
+    "Import", "ExternalDependency", "Commit", "Developer", "CVE", "Directory"
+  ],
+  "relationships": [
+    {"type": "CHANGED", "from": "Commit", "to": "FileVer"},
+    {"type": "OF_FILE", "from": "FileVer", "to": "File"},
+    {"type": "DECLARES", "from": "File", "to": "Method"},
+    {"type": "CONTAINS_METHOD", "from": "Class", "to": "Method"},
+    {"type": "CONTAINS_METHOD", "from": "Interface", "to": "Method"},
+    {"type": "IMPORTS", "from": "File", "to": "Import"},
+    {"type": "DEPENDS_ON", "from": "Import", "to": "ExternalDependency"},
+    {"type": "AUTHORED", "from": "Developer", "to": "Commit"},
+    {"type": "AFFECTS", "from": "CVE", "to": "ExternalDependency"},
+    {"type": "EXTENDS", "from": "Class", "to": "Class"},
+    {"type": "EXTENDS", "from": "Interface", "to": "Interface"},
+    {"type": "IMPLEMENTS", "from": "Class", "to": "Interface"},
+    {"type": "CONTAINS", "from": "Directory", "to": "Directory"},
+    {"type": "CONTAINS", "from": "Directory", "to": "File"},
+    {"type": "CO_CHANGED", "from": "File", "to": "File", "properties": ["support", "confidence"]},
+    {"type": "SIMILAR", "from": "Method", "to": "Method", "properties": ["score"]},
+    {"type": "CALLS", "from": "Method", "to": "Method"}
+  ],
+  "canonical_chains": [
+    ["Commit", "CHANGED", "FileVer", "OF_FILE", "File"],
+    ["File", "DECLARES", "Method"],
+    ["Class", "CONTAINS_METHOD", "Method"],
+    ["Interface", "CONTAINS_METHOD", "Method"],
+    ["Developer", "AUTHORED", "Commit"],
+    ["File", "IMPORTS", "Import", "DEPENDS_ON", "ExternalDependency"],
+    ["CVE", "AFFECTS", "ExternalDependency"]
+  ],
+  "banned_edges": [
+    {"from": "Commit", "type": "CHANGED", "to": "File"}
+  ]
+}
+----
+
+== Query templates (safe building blocks)
+
+[source,cypher]
+----
+// File provenance (who changed a file)
+MATCH (f:File {path: $path})
+MATCH (f)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)<-[:AUTHORED]-(d:Developer)
+RETURN d.email AS author, c.sha AS sha, c.date AS date
+ORDER BY date DESC LIMIT 20;
+
+// CVE → dependency → files
+MATCH (cve:CVE {id: $cveId})-[:AFFECTS]->(dep:ExternalDependency)
+MATCH (dep)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
+RETURN f.path AS file, dep.package AS package;
+
+// Similar methods (SIMILAR edges are directed but represent similarity)
+MATCH (m:Method {method_signature: $sig})-[:SIMILAR]->(n:Method)
+RETURN n.method_signature AS candidate, n.name AS name, n.class_name AS class_name
+ORDER BY coalesce(m.score, 0.0) DESC LIMIT 10;
+----
+
+
