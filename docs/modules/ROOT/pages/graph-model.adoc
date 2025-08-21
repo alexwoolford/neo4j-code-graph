@@ -64,3 +64,100 @@ NOTE: If you change the embedding model (e.g., switching to UniXcoder or between
 
 - Schema constraints enforce key properties (e.g., `Method.method_signature`).
 - For property and count examples, see the xref:queries/index.adoc[Queries catalog] and xref:architecture.adoc[Architecture] pages.
+
+// BEGIN GENERATED: NODE_PROPERTIES
+
+== Node properties (generated)
+
+These property lists are generated from the live database via `db.schema.nodeTypeProperties()` and annotated with descriptions.
+
+=== File
+- `class_count` (Long): Number of class declarations in this file.
+- `code_lines` (Long): Non-empty, non-comment lines of code (approximate).
+- `ecosystem` (String): Build ecosystem (e.g., maven).
+- `embedding_type` (String): Embedding model tag used to produce the vector.
+- `embedding_unixcoder` (DoubleArray): Vector embedding for file content (if generated).
+- `interface_count` (Long): Number of interface declarations in this file.
+- `language` (String): Primary language detected for the file (e.g., java).
+- `method_count` (Long): Number of method declarations in this file.
+- `name` (String): File name (basename).
+- `path` (String): Repository-relative file path (unique).
+- `total_lines` (Long): Total number of lines in the file.
+
+=== FileVer
+- `path` (String): File path for this version (part of natural key).
+- `sha` (String): Commit SHA that produced this file version (part of natural key).
+
+=== Method
+- `betweenness_score` (Double): Betweenness centrality score on the call graph.
+- `class_name` (String): Declaring class name (if applicable).
+- `containing_type` (String): Declaring type (class or interface) name when known.
+- `embedding_type` (String): Embedding model tag used to produce the vector.
+- `embedding_unixcoder` (DoubleArray): Vector embedding for method body (if generated).
+- `estimated_lines` (Long): Approximate number of source lines in the method.
+- `file` (String): Repository-relative file path containing the method.
+- `id` (String): Internal identifier mirroring the signature for convenience.
+- `in_degree` (Long): Number of distinct incoming CALLS.
+- `is_abstract` (Boolean): True if the method is abstract.
+- `is_final` (Boolean): True if the method is final.
+- `is_private` (Boolean): True if the method is private.
+- `is_public` (Boolean): True if the method is public.
+- `is_static` (Boolean): True if the method is static.
+- `line` (Long): Line number where the method starts.
+- `method_signature` (String): Stable unique signature for the method (unique).
+- `modifiers` (StringArray): List of Java modifiers present on the method.
+- `name` (String): Method name.
+- `out_degree` (Long): Number of distinct outgoing CALLS.
+- `pagerank_score` (Double): PageRank centrality score on the call graph.
+- `return_type` (String): Declared return type.
+- `similarityCommunity` (Long): Community id from similarity clustering (Louvain).
+- `total_degree` (Long): Sum of in_degree and out_degree.
+
+=== Class
+- `estimated_lines` (Long): Approximate number of lines spanned by the class.
+- `file` (String): Repository-relative file path declaring the class.
+- `is_abstract` (Boolean): True if the class is abstract.
+- `is_final` (Boolean): True if the class is final.
+- `line` (Long): Line number where the class starts.
+- `modifiers` (StringArray): List of Java modifiers present on the class.
+- `name` (String): Class name (unique with file).
+
+=== Interface
+- `file` (String): Repository-relative file path declaring the interface.
+- `line` (Long): Line number where the interface starts.
+- `method_count` (Long): Number of declared methods in the interface.
+- `modifiers` (StringArray): List of Java modifiers present on the interface.
+- `name` (String): Interface name (unique with file).
+
+=== Import
+- `import_path` (String): Imported type or package path (unique).
+- `import_type` (String): One of internal|external (derived from analysis).
+- `is_static` (Boolean): True for static imports.
+- `is_wildcard` (Boolean): True if the import uses wildcard syntax (e.g., *).
+
+=== ExternalDependency
+- `ecosystem` (String): Dependency ecosystem (e.g., maven).
+- `language` (String): Programming language associated with the dependency graph.
+- `package` (String): Base package or coordinate identifying the dependency (unique).
+
+=== Commit
+- `date` (DateTime): Commit timestamp (datetime).
+- `message` (String): Commit message.
+- `sha` (String): Commit SHA (unique).
+
+=== Developer
+- `email` (String): Author email (unique).
+- `name` (String): Author display name.
+
+=== CVE
+- `cvss_score` (Double): CVSS base score (0-10).
+- `cvss_vector` (String): Derived or auxiliary property written by specific stages.
+- `description` (String): Short description from NVD.
+- `id` (String): CVE identifier (unique).
+- `published` (String): Published date/time from NVD.
+- `severity` (String): Severity classification (e.g., CRITICAL, HIGH).
+- `updated_at` (DateTime): Derived or auxiliary property written by specific stages.
+
+=== Directory
+- `path` (String): Directory path relative to repository root (unique).
+// END GENERATED: NODE_PROPERTIES
