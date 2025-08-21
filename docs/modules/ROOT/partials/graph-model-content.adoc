@@ -159,6 +159,3 @@ These property lists are generated from the live database via `db.schema.nodeTyp
 === Directory
 - `path` (String): Directory path relative to repository root (unique).
 // END GENERATED: NODE_PROPERTIES
-
-
-
