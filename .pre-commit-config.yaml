@@ -3,7 +3,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^bloom/CodeGraph\.json$
       - id: end-of-file-fixer
+        exclude: ^bloom/CodeGraph\.json$
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
