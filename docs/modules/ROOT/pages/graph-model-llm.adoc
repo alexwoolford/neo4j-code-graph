@@ -5,8 +5,8 @@
 
 == Base content
 
-// Include the authoritative human-facing page to avoid duplication.
-include::ROOT:page$graph-model.adoc[]
+// Include the authoritative content partial to avoid recursive page includes.
+include::ROOT:partial$graph-model-content.adoc[]
 
 == Canonical chains (non-negotiable)
 
@@ -101,5 +101,3 @@ MATCH (m:Method {method_signature: $sig})-[:SIMILAR]->(n:Method)
 RETURN n.method_signature AS candidate, n.name AS name, n.class_name AS class_name
 ORDER BY coalesce(m.score, 0.0) DESC LIMIT 10;
 ----
-
-
