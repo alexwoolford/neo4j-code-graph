@@ -7,6 +7,8 @@ Provides focused, testable functions for file co-change coupling and hotspot sco
 
 import argparse
 import logging
+from collections.abc import Mapping
+from typing import Any
 
 try:
     from utils.common import add_common_args, create_neo4j_driver, setup_logging
@@ -51,7 +53,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def run_coupling(
-    driver,
+    driver: Any,
     database: str,
     min_support: int = 5,
     confidence_threshold: float = 0.0,
@@ -137,20 +139,20 @@ def run_coupling(
     DELETE cc
     """
 
-    def _safe_single(result):
+    def _safe_single(result: Any) -> Any | None:
         try:
             return result.single()
         except Exception:
             try:
-                rows = list(result)
+                rows: list[Any] = list(result)
                 return rows[0] if rows else None
             except Exception:
                 return None
 
-    with driver.session(database=database) as session:
+    with driver.session(database=database) as session:  # type: ignore[no-untyped-call]
         if write:
             # Build support counts in batches
-            res = session.run(
+            res = session.run(  # type: ignore[no-untyped-call]
                 apoc_iterate,
                 {
                     "days": int(days) if days is not None else None,
@@ -163,7 +165,7 @@ def run_coupling(
                 # Allow lightweight mocks that don't implement `.consume()`
                 pass
             # Compute per-file change counts and write confidence
-            res2 = session.run(
+            res2 = session.run(  # type: ignore[no-untyped-call]
                 change_counts,
                 {"days": int(days) if days is not None else None},
             )
@@ -171,7 +173,7 @@ def run_coupling(
                 res2.consume()
             except Exception:
                 pass
-            res3 = session.run(
+            res3 = session.run(  # type: ignore[no-untyped-call]
                 write_confidence_and_prune,
                 {
                     "min_support": int(min_support),
@@ -183,11 +185,11 @@ def run_coupling(
             except Exception:
                 pass
             # Summarize results (post-prune)
-            count_res = session.run("MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c", {})
+            count_res = session.run("MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c", {})  # type: ignore[no-untyped-call]
             count_rec = _safe_single(count_res)
             total_pairs = int(count_rec["c"]) if count_rec else 0
 
-            top_res = session.run(
+            top_res = session.run(  # type: ignore[no-untyped-call]
                 """
                 MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
                 RETURN f1.path AS file1, f2.path AS file2, cc.support AS support, cc.confidence AS confidence
@@ -196,9 +198,9 @@ def run_coupling(
                 """,
                 {},
             ).data()
-            rows = top_res
+            rows = top_res  # type: ignore[assignment]
         else:
-            result = session.run(
+            result = session.run(  # type: ignore[no-untyped-call]
                 read_query,
                 {
                     "min_support": int(min_support),
@@ -206,26 +208,59 @@ def run_coupling(
                     "days": int(days) if days is not None else None,
                 },
             )
-            rows = list(result)
+            rows = list(result)  # type: ignore[assignment]
 
+    def _get_val(row: Any, key: str) -> Any | None:
+        # neo4j.Record supports .get(key, default) and __getitem__
+        if isinstance(row, Mapping):
+            try:
+                return row.get(key)  # type: ignore[no-any-return]
+            except Exception:
+                return None
+        getter = getattr(row, "get", None)
+        if callable(getter):
+            try:
+                return getter(key, None)  # type: ignore[no-any-return]
+            except Exception:
+                pass
+        try:
+            return row[key]  # type: ignore[index, no-any-return]
+        except Exception:
+            return None
+
+    def _safe_print_row(row: Any) -> None:
+        support_val = _get_val(row, "support")
+        conf_val = _get_val(row, "confidence")
+        file1_val = _get_val(row, "file1") or ""
+        file2_val = _get_val(row, "file2") or ""
+
+        # Coalesce types
+        try:
+            support_int = int(support_val) if support_val is not None else 0
+        except Exception:
+            support_int = 0
+        try:
+            conf_float = float(conf_val) if conf_val is not None else 0.0
+        except Exception:
+            conf_float = 0.0
+
+        print(f"  {support_int:>4d} | {conf_float:.2f} | {file1_val}  <>  {file2_val}")
+
+    total_pairs = 0 if write else 0
     if write:
         logger.info("Computed %d co-change pairs", total_pairs)
         print("\nTop change-coupled files:")
-        for row in rows[:20]:
-            print(
-                f"  {row['support']:>4d} | {row['confidence']:.2f} | {row['file1']}  <>  {row['file2']}"
-            )
+        for row in rows[:20]:  # type: ignore[index]
+            _safe_print_row(row)
     else:
-        logger.info("Computed %d co-change pairs", len(rows))
+        logger.info("Computed %d co-change pairs", len(rows))  # type: ignore[arg-type]
         print("\nTop change-coupled files:")
-        for row in rows[:20]:
-            print(
-                f"  {row['support']:>4d} | {row['confidence']:.2f} | {row['file1']}  <>  {row['file2']}"
-            )
+        for row in rows[:20]:  # type: ignore[index]
+            _safe_print_row(row)
 
 
 def run_hotspots(
-    driver,
+    driver: Any,
     database: str,
     days: int = 365,
     min_changes: int = 3,
@@ -272,8 +307,8 @@ def run_hotspots(
     LIMIT $top_n
     """
 
-    with driver.session(database=database) as session:
-        result = session.run(
+    with driver.session(database=database) as session:  # type: ignore[no-untyped-call]
+        result = session.run(  # type: ignore[no-untyped-call]
             write_query if write_back else read_query,
             {
                 "days": int(days),

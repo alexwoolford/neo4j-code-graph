@@ -111,14 +111,24 @@ def selective_cleanup_task(
             from src.utils.cleanup import selective_cleanup as _sel
         except Exception:
             from utils.cleanup import selective_cleanup as _sel  # type: ignore
-        # Import driver helper in both contexts (installed package vs repo path)
+        # Import driver and config helpers for both contexts (installed package vs repo path)
         try:
             from utils.common import create_neo4j_driver as _drv
+            from utils.neo4j_utils import get_neo4j_config as _get_cfg
         except Exception:  # pragma: no cover - fallback when running as module
             from src.utils.common import create_neo4j_driver as _drv  # type: ignore
+            from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
 
-        with _drv(uri or "", username or "", password or "") as driver:
-            with driver.session(database=database) as session:
+        # Resolve connection: prefer explicit args; otherwise use .env/.environment
+        if uri and username and password:
+            _uri, _user, _pwd, _db = uri, username, password, database
+        else:
+            _uri, _user, _pwd, _db = _get_cfg()
+            if database:
+                _db = database
+
+        with _drv(_uri, _user, _pwd) as driver:
+            with driver.session(database=_db) as session:
                 _sel(session, dry_run=False)
     finally:
         sys.argv = old_argv
@@ -549,11 +559,18 @@ def code_graph_flow(
     # Run similarity then Louvain (explicit dependency). Capture futures and block at the end
     # to ensure the flow does not finish before downstream tasks complete.
     sim_state = similarity_task.submit(uri, username, password, database)
-    louv_state = louvain_task.submit(uri, username, password, database, wait_for=sim_state)
-    cent_state = centrality_task.submit(uri, username, password, database, wait_for=louv_state)
+    # Submit downstream tasks using keyword-only wait_for to satisfy type checker
+    louv_state = louvain_task.submit(
+        uri=uri, username=username, password=password, database=database, wait_for=sim_state
+    )
+    cent_state = centrality_task.submit(
+        uri=uri, username=username, password=password, database=database, wait_for=louv_state
+    )
 
     # Optional CVE stage, after centrality
-    cve_state = cve_task.submit(uri, username, password, database, wait_for=cent_state)
+    cve_state = cve_task.submit(
+        uri=uri, username=username, password=password, database=database, wait_for=cent_state
+    )
     # Explicitly wait for the final task to complete to avoid early flow completion in some runners
     try:
         cve_state.result()
