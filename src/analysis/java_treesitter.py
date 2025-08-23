@@ -92,9 +92,9 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 }
             )
 
-    # Class and interface declarations
+    # Class, interface, and record declarations
     def walk(node, ancestors: list):
-        if node.type in ("class_declaration", "interface_declaration"):
+        if node.type in ("class_declaration", "interface_declaration", "record_declaration"):
             identifier = _child_by_type(node, "identifier")
             name = _node_text(source_bytes, identifier) if identifier else ""
             start_line = node.start_point[0] + 1
@@ -109,9 +109,12 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             if node.type == "class_declaration":
                 info.update({"type": "class", "estimated_lines": max(0, end_line - start_line)})
                 classes.append(info)
-            else:
+            elif node.type == "interface_declaration":
                 info.update({"type": "interface", "method_count": 0})
                 interfaces.append(info)
+            else:  # record_declaration
+                info.update({"type": "record", "estimated_lines": max(0, end_line - start_line)})
+                classes.append(info)
 
         if node.type == "method_declaration":
             # Find owning type name by walking ancestors
