@@ -796,7 +796,9 @@ def extract_file_data(file_path: Path, repo_root: Path):
 
         # Update interface method counts
         for interface in interfaces:
-            interface["method_count"] = sum(1 for m in methods if m["class"] == interface["name"])
+            interface["method_count"] = sum(
+                1 for m in methods if m.get("class_name") == interface["name"]
+            )
 
     except Exception as e:
         # Fallback: try our lightweight extractor
