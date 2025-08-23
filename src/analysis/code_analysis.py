@@ -812,13 +812,24 @@ def extract_file_data(file_path: Path, repo_root: Path):
                 try:
                     global FALLBACK_ATTEMPTS, FALLBACK_SUCCESSES
                     FALLBACK_ATTEMPTS += 1
-                    # Always pass an absolute path for robust file access in fallback
-                    ts = _jt.extract_file_data(Path(repo_root) / Path(rel_path), Path(repo_root))  # type: ignore[attr-defined]
-                    imports = ts.get("imports", [])
-                    classes = ts.get("classes", [])
-                    interfaces = ts.get("interfaces", [])
-                    methods = ts.get("methods", [])
-                    package_name = ts.get("package")
+                    # Prefer parsing the already-loaded source to avoid encoding issues
+                    if hasattr(_jt, "extract_with_treesitter"):
+                        extraction = _jt.extract_with_treesitter(code, rel_path)  # type: ignore[attr-defined]
+                        imports = extraction.imports
+                        classes = extraction.classes
+                        interfaces = extraction.interfaces
+                        methods = extraction.methods
+                        package_name = extraction.package_name
+                    else:
+                        # Fallback to file-based extractor
+                        ts = _jt.extract_file_data(
+                            Path(repo_root) / Path(rel_path), Path(repo_root)
+                        )  # type: ignore[attr-defined]
+                        imports = ts.get("imports", [])
+                        classes = ts.get("classes", [])
+                        interfaces = ts.get("interfaces", [])
+                        methods = ts.get("methods", [])
+                        package_name = ts.get("package")
                     FALLBACK_SUCCESSES += 1
                 except Exception as ts_e:
                     # Record and optionally suppress per-file warnings
@@ -827,21 +838,38 @@ def extract_file_data(file_path: Path, repo_root: Path):
                     except Exception:
                         pass
                     if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-                        logger.warning("Failed to parse Java file %s: %s", rel_path, ts_e)
+                        logger.warning(
+                            "Failed to parse Java file %s: javalang=%s (%s); fallback=%s (%s)",
+                            rel_path,
+                            type(e).__name__,
+                            e,
+                            type(ts_e).__name__,
+                            ts_e,
+                        )
             else:
                 try:
                     PARSE_ERRORS.append((rel_path, str(e)))
                 except Exception:
                     pass
                 if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-                    logger.warning("Failed to parse Java file %s: %s", rel_path, e)
+                    logger.warning(
+                        "Failed to parse Java file %s: javalang=%s (%s)",
+                        rel_path,
+                        type(e).__name__,
+                        e,
+                    )
         else:
             try:
                 PARSE_ERRORS.append((rel_path, str(e)))
             except Exception:
                 pass
             if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-                logger.warning("Failed to parse Java file %s: %s", rel_path, e)
+                logger.warning(
+                    "Failed to parse Java file %s: javalang=%s (%s)",
+                    rel_path,
+                    type(e).__name__,
+                    e,
+                )
 
     # Calculate file-level metrics using the cached lines
     file_lines = len(source_lines)
