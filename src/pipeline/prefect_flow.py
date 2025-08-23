@@ -29,6 +29,7 @@ try:
     from data.schema_management import main as schema_main
     from security.cve_analysis import main as cve_main
     from utils.common import setup_logging
+    from utils.neo4j_utils import check_capabilities as _check_caps
 except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.analysis.centrality import main as centrality_main  # type: ignore
     from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
@@ -38,6 +39,7 @@ except Exception:  # pragma: no cover - fallback path for direct repo execution
     from src.data.schema_management import main as schema_main  # type: ignore
     from src.security.cve_analysis import main as cve_main  # type: ignore
     from src.utils.common import setup_logging  # type: ignore
+    from src.utils.neo4j_utils import check_capabilities as _check_caps  # type: ignore
 
 
 def _build_args(base: list[str], overrides: Mapping[str, object] | None = None) -> list[str]:
@@ -452,8 +454,10 @@ def coupling_task(
         min_support,
         confidence_threshold,
     )
-    base = [
-        "prog",
+    # Argparse requires global flags (uri/username/password/database) before the subcommand
+    # Build argv in the order: prog + globals + subcommand + its flags
+    global_base = ["prog"]
+    subcommand = [
         "coupling",
         "--create-relationships",
         "--min-support",
@@ -474,7 +478,8 @@ def coupling_task(
 
     old_argv = sys.argv
     try:
-        sys.argv = _build_args(base, overrides)
+        # Compose argv: globals first, then subcommand + flags
+        sys.argv = _build_args(global_base, overrides) + subcommand
         temporal_main()
     finally:
         sys.argv = old_argv
@@ -526,6 +531,14 @@ def code_graph_flow(
     logger.info("Starting flow for repo: %s", repo_url)
 
     setup_schema_task(uri, username, password, database)
+    caps: dict[str, object] = preflight_task(uri, username, password, database)
+    apoc_info_obj = caps.get("apoc")
+    gds_info_obj = caps.get("gds")
+    apoc_info: dict[str, object] = apoc_info_obj if isinstance(apoc_info_obj, dict) else {}
+    gds_info: dict[str, object] = gds_info_obj if isinstance(gds_info_obj, dict) else {}
+    apoc_ok = bool(apoc_info.get("available", False))
+    gds_ok = bool(gds_info.get("available", False))
+    gds_proj_ok = bool(gds_info.get("projection_ok", False))
     if cleanup:
         cleanup_task(uri, username, password, database)
 
@@ -549,7 +562,37 @@ def code_graph_flow(
     git_history_task(repo_path, uri, username, password, database)
 
     # Create CO_CHANGED relationships from commit history before similarity
-    coupling_task(uri, username, password, database)
+    # If APOC is unavailable, run coupling in read-only mode (no relationship writes)
+    if apoc_ok:
+        coupling_task(uri, username, password, database)
+    else:
+        logger = get_run_logger()
+        logger.warning("APOC not available; running coupling without writes")
+        # Run coupling as read-only by calling CLI with no --create-relationships
+        base = ["prog"]
+        overrides: dict[str, object] = {}
+        if uri:
+            overrides["--uri"] = uri
+        if username:
+            overrides["--username"] = username
+        if password:
+            overrides["--password"] = password
+        if database:
+            overrides["--database"] = database
+        import sys
+
+        old_argv = sys.argv
+        try:
+            sys.argv = _build_args(base, overrides) + [
+                "coupling",
+                "--min-support",
+                "5",
+                "--confidence-threshold",
+                "0.6",
+            ]
+            temporal_main()
+        finally:
+            sys.argv = old_argv
 
     # Summaries/intent stages removed
     logger.info("Summary and intent similarity stages are not part of this flow")
@@ -558,19 +601,23 @@ def code_graph_flow(
 
     # Run similarity then Louvain (explicit dependency). Capture futures and block at the end
     # to ensure the flow does not finish before downstream tasks complete.
-    sim_state = similarity_task.submit(uri, username, password, database)
-    # Submit downstream tasks using keyword-only wait_for to satisfy type checker
-    louv_state = louvain_task.submit(
-        uri=uri, username=username, password=password, database=database, wait_for=sim_state
-    )
-    cent_state = centrality_task.submit(
-        uri=uri, username=username, password=password, database=database, wait_for=louv_state
-    )
-
-    # Optional CVE stage, after centrality
-    cve_state = cve_task.submit(
-        uri=uri, username=username, password=password, database=database, wait_for=cent_state
-    )
+    # Skip GDS stages if GDS missing or projection not supported
+    if gds_ok and gds_proj_ok:
+        # Run sequentially to avoid type-checker issues with wait_for overloads
+        similarity_task(uri, username, password, database)
+        louvain_task(uri, username, password, database)
+        centrality_task(uri, username, password, database)
+        cve_state = cve_task.submit(uri, username, password, database)
+    else:
+        logger = get_run_logger()
+        if not gds_ok:
+            logger.warning("GDS not available; skipping similarity, Louvain, and centrality stages")
+        else:
+            logger.warning(
+                "GDS projection procedures not usable; skipping similarity, Louvain, and centrality stages"
+            )
+        # No sim/louvain/centrality; proceed to CVE directly
+        cve_state = cve_task.submit(uri, username, password, database)
     # Explicitly wait for the final task to complete to avoid early flow completion in some runners
     try:
         cve_state.result()
@@ -598,6 +645,54 @@ def parse_cli_args() -> argparse.Namespace:
     # attach normalized field for downstream use
     args.repo_url = args.repo_url or args.pos_repo_url
     return args
+
+
+@task(retries=0)
+def preflight_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> dict[str, object]:
+    """Probe DB for APOC/GDS and return a capabilities map for downstream tasks."""
+    logger = get_run_logger()
+    try:
+        from utils.common import create_neo4j_driver as _drv
+    except Exception:
+        from src.utils.common import create_neo4j_driver as _drv  # type: ignore
+
+    # Resolve connection like cleanup_task
+    try:
+        from utils.neo4j_utils import get_neo4j_config as _get_cfg
+    except Exception:
+        from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
+
+    if uri and username and password:
+        _uri, _user, _pwd, _db = uri, username, password, database
+    else:
+        _uri, _user, _pwd, _db = _get_cfg()
+        if database:
+            _db = database
+
+    with _drv(_uri, _user, _pwd) as driver:
+        with driver.session(database=_db) as session:
+            caps = _check_caps(session)
+            apoc_obj = caps.get("apoc")
+            gds_obj = caps.get("gds")
+
+            apoc: dict[str, object] = apoc_obj if isinstance(apoc_obj, dict) else {}
+            gds: dict[str, object] = gds_obj if isinstance(gds_obj, dict) else {}
+            apoc_avail = bool(apoc.get("available", False))
+            apoc_ver = apoc.get("version")
+            gds_avail = bool(gds.get("available", False))
+            gds_ver = gds.get("version")
+            gds_proj_ok = bool(gds.get("projection_ok", False))
+            logger.info(
+                "Capabilities: APOC available=%s version=%s; GDS available=%s version=%s projection_ok=%s",
+                apoc_avail,
+                apoc_ver,
+                gds_avail,
+                gds_ver,
+                gds_proj_ok,
+            )
+            return caps
 
 
 def main() -> None:
