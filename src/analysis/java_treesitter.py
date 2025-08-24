@@ -14,7 +14,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tree_sitter import Parser
-from tree_sitter_languages import get_language
+
+try:
+    # Pin to API compatible with 0.20.x
+    from tree_sitter_languages import get_language  # type: ignore
+except Exception:  # pragma: no cover
+    # Fallback shim for older/newer APIs if needed
+    def get_language(name: str):  # type: ignore
+        from tree_sitter_languages import get_language as _gl
+
+        return _gl(name)
 
 
 @dataclass

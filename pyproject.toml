@@ -39,8 +39,8 @@ dependencies = [
     "packaging>=21.0",
   "prefect>=2.16.0",
   "sentencepiece>=0.1.99",
-  "tree_sitter>=0.20.0",
-  "tree_sitter_languages>=1.10.0",
+  "tree_sitter==0.20.4",
+  "tree_sitter_languages==1.10.2",
 ]
 
 [project.optional-dependencies]
