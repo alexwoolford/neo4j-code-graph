@@ -549,10 +549,8 @@ def _determine_call_target(qualifier, containing_class):
         return qualifier, "instance"  # We'll resolve the type later if possible
 
 
-from data.graph_writer import (
-    bulk_create_nodes_and_relationships as _gw_bulk,
-)
 from data.graph_writer import (  # type: ignore
+    bulk_create_nodes_and_relationships,  # noqa: F401 - re-exported for back-compat
     create_classes,  # noqa: F401 - re-exported for back-compat
     create_directories,  # noqa: F401 - re-exported for back-compat
     create_files,  # noqa: F401 - re-exported for back-compat
@@ -1004,14 +1002,7 @@ def create_method_calls(session: Any, files_data: list[FileData]) -> None:
             )
 
 
-def bulk_create_nodes_and_relationships(
-    session: Any,
-    files_data: list[FileData],
-    file_embeddings: list[list[float]],
-    method_embeddings: list[list[float]],
-    dependency_versions: dict[str, str] | None = None,
-) -> None:
-    _gw_bulk(session, files_data, file_embeddings, method_embeddings, dependency_versions)
+## bulk_create_nodes_and_relationships is re-exported from data.graph_writer
 
 
 def main():
