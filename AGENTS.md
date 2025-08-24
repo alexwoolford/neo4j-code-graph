@@ -2,6 +2,8 @@
 
 This document captures hard requirements and conventions for agents contributing to this repository.
 
+**Global Rule: All critical preconditions must fail fast (schema, embeddings, dependency versions). Never allow silent fallbacks.**
+
 ## Neo4j usage
 - Always create and close drivers/sessions using context managers: `with driver:` and `with driver.session(...) as session:`.
 - Do not migrate or mutate existing DB data implicitly. End-to-end flows must work without manual repair steps.
