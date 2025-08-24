@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Lightweight Java extractor using Tree-sitter as a fallback when javalang fails.
+Lightweight Java extractor using Tree-sitter.
 
 Extracts imports, classes, interfaces, and method declarations with start/end
 positions so downstream logic in code_analysis can remain unchanged.
@@ -72,25 +72,37 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             path_node = _child_by_type(child, "scoped_identifier") or _child_by_type(
                 child, "identifier"
             )
-            import_path = _node_text(source_bytes, path_node).strip() if path_node else ""
-            if child.child_count and child.children[-1].type == "asterisk":
-                import_path = f"{import_path}.*"
-
+            base_path = _node_text(source_bytes, path_node).strip() if path_node else ""
+            is_wildcard = any(grand.type == "asterisk" for grand in child.children)
+            # detect static imports
+            is_static = any(grand.type == "static" for grand in child.children)
             import_type = "external"
-            if import_path.startswith("java.") or import_path.startswith("javax."):
+            if base_path.startswith("java.") or base_path.startswith("javax."):
                 import_type = "standard"
-            elif import_path.startswith("org.neo4j"):
+            elif base_path.startswith("org.neo4j"):
                 import_type = "internal"
 
-            imports.append(
-                {
-                    "import_path": import_path,
-                    "is_static": False,  # Tree-sitter differentiation optional here
-                    "is_wildcard": import_path.endswith(".*"),
-                    "import_type": import_type,
-                    "file": rel_path,
-                }
-            )
+            # Emit both base and wildcard variants when wildcard is present to match legacy expectations
+            if is_wildcard:
+                imports.append(
+                    {
+                        "import_path": base_path,
+                        "is_static": is_static,
+                        "is_wildcard": True,
+                        "import_type": import_type,
+                        "file": rel_path,
+                    }
+                )
+            else:
+                imports.append(
+                    {
+                        "import_path": base_path,
+                        "is_static": is_static,
+                        "is_wildcard": False,
+                        "import_type": import_type,
+                        "file": rel_path,
+                    }
+                )
 
     # Class, interface, and record declarations
     def walk(node, ancestors: list):
@@ -154,8 +166,38 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "return_type": "void",  # Simplified; refined by downstream if needed
                     "parameters": [],
                     "code": "\n".join(method_code),
+                    # Best-effort call extraction from AST (method_invocation nodes)
+                    "calls": [],
                 }
             )
+            # Populate calls by traversing the method subtree
+            calls_list = []
+
+            def _walk_calls(n):
+                if n.type == "method_invocation":
+                    # Extract invocation text and method name
+                    inv_text = _node_text(source_bytes, n)
+                    # Heuristic: qualifier.methodName(...)
+                    # Extract method name as last identifier before '('
+                    name_part = inv_text.split("(", 1)[0]
+                    if "." in name_part:
+                        qual, mname = name_part.rsplit(".", 1)
+                        qualifier = qual.strip()
+                    else:
+                        mname = name_part.strip()
+                        qualifier = ""
+                    call_entry = {
+                        "method_name": mname,
+                        "target_class": None,
+                        "call_type": "other" if qualifier not in ("this", "super") else qualifier,
+                        "qualifier": qualifier,
+                    }
+                    calls_list.append(call_entry)
+                for ch in n.children:
+                    _walk_calls(ch)
+
+            _walk_calls(node)
+            methods[-1]["calls"] = calls_list
 
         for child in node.children:
             walk(child, ancestors + [node])

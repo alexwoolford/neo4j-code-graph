@@ -4,10 +4,8 @@ import argparse
 import gc
 import logging
 import re
-import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import perf_counter
@@ -18,21 +16,13 @@ try:
 except Exception:
     FileData = dict  # type: ignore[misc,assignment]
 
-import javalang
 from tqdm import tqdm
 
 # Collect Java parse errors across threads to summarize later
 PARSE_ERRORS: list[tuple[str, str]] = []
-FALLBACK_ATTEMPTS: int = 0
-FALLBACK_SUCCESSES: int = 0
-FALLBACK_AVAILABLE: bool = False
 
-try:
-    # Try absolute import when called from CLI wrapper
-    from utils.common import add_common_args, setup_logging
-except ImportError:
-    # Fallback to relative import when used as module
-    from ..utils.common import add_common_args, setup_logging
+from analysis.embeddings import compute_embeddings_bulk
+from utils.common import add_common_args, setup_logging
 
 # Constants for method call parsing
 JAVA_KEYWORDS_TO_SKIP = {
@@ -52,49 +42,18 @@ JAVA_KEYWORDS_TO_SKIP = {
 
 logger = logging.getLogger(__name__)
 
-try:
-    # When 'src' is on sys.path and modules are imported as top-level packages
-    from constants import (
-        DB_BATCH_SIMPLE,
-        DB_BATCH_WITH_EMBEDDINGS,
-        DEFAULT_EMBED_BATCH_CPU,
-        DEFAULT_EMBED_BATCH_CUDA_LARGE,
-        DEFAULT_EMBED_BATCH_CUDA_SMALL,
-        DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
-        DEFAULT_EMBED_BATCH_MPS,
-        DEFAULT_PARALLEL_FILES,
-        EMBEDDING_TYPE,
-        MODEL_NAME,
-    )
-except Exception:
-    try:
-        # When importing via package name 'src'
-        from src.constants import (
-            DB_BATCH_SIMPLE,
-            DB_BATCH_WITH_EMBEDDINGS,
-            DEFAULT_EMBED_BATCH_CPU,
-            DEFAULT_EMBED_BATCH_CUDA_LARGE,
-            DEFAULT_EMBED_BATCH_CUDA_SMALL,
-            DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
-            DEFAULT_EMBED_BATCH_MPS,
-            DEFAULT_PARALLEL_FILES,
-            EMBEDDING_TYPE,
-            MODEL_NAME,
-        )
-    except Exception:
-        # When used as a module inside the 'src' package
-        from ..constants import (
-            DB_BATCH_SIMPLE,
-            DB_BATCH_WITH_EMBEDDINGS,
-            DEFAULT_EMBED_BATCH_CPU,
-            DEFAULT_EMBED_BATCH_CUDA_LARGE,
-            DEFAULT_EMBED_BATCH_CUDA_SMALL,
-            DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
-            DEFAULT_EMBED_BATCH_MPS,
-            DEFAULT_PARALLEL_FILES,
-            EMBEDDING_TYPE,
-            MODEL_NAME,
-        )
+from constants import (
+    DB_BATCH_SIMPLE,
+    DB_BATCH_WITH_EMBEDDINGS,
+    DEFAULT_EMBED_BATCH_CPU,
+    DEFAULT_EMBED_BATCH_CUDA_LARGE,
+    DEFAULT_EMBED_BATCH_CUDA_SMALL,
+    DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
+    DEFAULT_EMBED_BATCH_MPS,
+    DEFAULT_PARALLEL_FILES,
+    EMBEDDING_TYPE,
+    MODEL_NAME,
+)
 
 
 def extract_dependency_versions_from_files(repo_root: Path) -> dict[str, str]:
@@ -324,11 +283,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Suppress per-file Java parse warnings on console; show only a summary",
     )
-    parser.add_argument(
-        "--no-java-fallback",
-        action="store_true",
-        help="Disable Tree-sitter fallback to compare baseline javalang behavior",
-    )
+    # Tree-sitter is the only Java parser; no javalang fallback remains
     return parser.parse_args()
 
 
@@ -454,443 +409,71 @@ def get_database_batch_size(
         return DB_BATCH_SIMPLE
 
 
-def compute_embeddings_bulk(
-    snippets: Sequence[str],
-    tokenizer: Any,
-    model: Any,
-    device: Any,
-    batch_size: int,
-) -> list[list[float]]:
-    """Compute embeddings for all snippets using batching with memory management."""
-    import torch
-
-    if not snippets:
-        return []
-
-    logger.info(f"Computing {len(snippets)} embeddings with batch size {batch_size}")
-
-    all_embeddings = []
-    use_amp = device.type == "cuda" and hasattr(torch.cuda, "amp")
-
-    # Upper bound for sequence length (applied only when sequences exceed this)
-    max_length = 512
-
-    # Set model to eval mode and enable optimizations
-    model.eval()
-    if hasattr(torch, "backends") and hasattr(torch.backends, "cudnn"):
-        torch.backends.cudnn.benchmark = True
-
-    # Flash Attention is automatically enabled in PyTorch 2.0+ when using scaled_dot_product_attention
-    # No additional configuration needed - PyTorch will select the optimal backend
-
-    # Process in batches
-    for i in tqdm(range(0, len(snippets), batch_size), desc="Computing embeddings"):
-        batch_snippets = snippets[i : i + batch_size]
-
-        # Pre-filter empty or very short snippets to reduce computation
-        valid_snippets = []
-        valid_indices = []
-        for j, snippet in enumerate(batch_snippets):
-            if snippet and len(snippet.strip()) > 10:  # Skip empty/tiny snippets
-                valid_snippets.append(snippet)
-                valid_indices.append(j)
-
-        if not valid_snippets:
-            # Fill with zero embeddings for skipped snippets
-            try:
-                from constants import EMBEDDING_DIMENSION as _EMB_DIM
-            except Exception:  # fallback import path
-                from src.constants import EMBEDDING_DIMENSION as _EMB_DIM  # type: ignore
-            zero_embedding = [0.0] * _EMB_DIM
-            all_embeddings.extend([zero_embedding] * len(batch_snippets))
-            continue
-
-            # Tokenize batch with dynamic padding to minimize compute (large speedup for short code)
-        import os as _os
-
-        prev_tok_parallel = _os.environ.get("TOKENIZERS_PARALLELISM")
-        prev_rayon = _os.environ.get("RAYON_NUM_THREADS")
-        try:
-            _os.environ["TOKENIZERS_PARALLELISM"] = "true"
-            if prev_rayon is None:
-                # Let tokenizer use all available CPU threads for pre-processing
-                _os.environ["RAYON_NUM_THREADS"] = str(_os.cpu_count() or 4)
-        except Exception:
-            pass
-
-        tokens = tokenizer(
-            valid_snippets,
-            padding=True,  # pad to longest in this batch
-            truncation=True,
-            max_length=max_length,
-            return_tensors="pt",
-            add_special_tokens=True,
-        )
-        # Restore env
-        try:
-            if prev_tok_parallel is not None:
-                _os.environ["TOKENIZERS_PARALLELISM"] = prev_tok_parallel
-            else:
-                del _os.environ["TOKENIZERS_PARALLELISM"]
-            if prev_rayon is not None:
-                _os.environ["RAYON_NUM_THREADS"] = prev_rayon
-            else:
-                del _os.environ["RAYON_NUM_THREADS"]
-        except Exception:
-            pass
-
-        # Move to device efficiently with pinned memory
-        if device.type == "cuda":
-            tokens = {k: v.to(device, non_blocking=True) for k, v in tokens.items()}
-        else:
-            tokens = {k: v.to(device) for k, v in tokens.items()}
-
-            # Compute embeddings
-        with torch.inference_mode():
-            if use_amp:
-                with torch.amp.autocast("cuda", dtype=torch.float16):
-                    outputs = model(**tokens)
-            else:
-                outputs = model(**tokens)
-
-            # Use [CLS] token embedding (first token) - more efficient extraction
-            embeddings = outputs.last_hidden_state[:, 0, :].detach()
-
-            # Convert to CPU efficiently for all device types
-            if device.type in ["cuda", "mps"]:
-                embeddings = embeddings.cpu()
-
-            embeddings_np = embeddings.numpy()
-
-        # Reconstruct full batch with zero embeddings for skipped items
-        batch_embeddings = []
-        valid_idx = 0
-        zero_embedding = [0.0] * embeddings_np.shape[1]
-
-        for j in range(len(batch_snippets)):
-            if j in valid_indices:
-                batch_embeddings.append(embeddings_np[valid_idx].tolist())
-                valid_idx += 1
-            else:
-                batch_embeddings.append(zero_embedding)
-
-        all_embeddings.extend(batch_embeddings)
-
-        # More aggressive cleanup for better memory management
-        del tokens, outputs, embeddings, embeddings_np
-
-        # More frequent cleanup on GPU
-        if device.type == "cuda" and i % (batch_size * 2) == 0:
-            torch.cuda.empty_cache()
-            gc.collect()
-        elif device.type == "mps" and i % (batch_size * 2) == 0:
-            torch.mps.empty_cache()
-            gc.collect()
-        elif i % (batch_size * 4) == 0:
-            gc.collect()
-
-    logger.info(f"Computed {len(all_embeddings)} embeddings")
-    return all_embeddings
+# compute_embeddings_bulk is imported from analysis.embeddings
 
 
 def extract_file_data(file_path: Path, repo_root: Path):
-    """Extract all data from a single Java file including classes, interfaces, and inheritance."""
-    rel_path = str(file_path.relative_to(repo_root))
+    """Extract all data from a single Java file using Tree-sitter (primary parser).
 
+    Delegates to `java_treesitter.extract_file_data` and preserves the output
+    structure expected by downstream writers. On failure, returns a minimal
+    payload so the caller can continue gracefully.
+    """
     try:
-        # Read file
-        with open(file_path, encoding="utf-8", errors="ignore") as f:
-            code = f.read()
-    except Exception as e:
-        logger.error("Error reading file %s: %s", file_path, e)
-        return None
+        from . import java_treesitter as _jt  # type: ignore
+    except Exception:  # pragma: no cover - fallback import for direct src run
+        try:
+            from src.analysis import java_treesitter as _jt  # type: ignore
+        except Exception:
+            _jt = None  # type: ignore
 
-    # Split code into lines once to reuse throughout the function
-    source_lines = code.splitlines()
-
-    # Parse Java and extract imports, classes, interfaces, and methods
-    methods = []
-    classes = []
-    interfaces = []
-    imports = []
-
-    try:
-        tree = javalang.parse.parse(code)
-        package_name = tree.package.name if getattr(tree, "package", None) else None
-
-        # Extract import declarations
-        if hasattr(tree, "imports") and tree.imports:
-            for import_stmt in tree.imports:
-                try:
-                    import_path = import_stmt.path
-                    is_static = import_stmt.static if hasattr(import_stmt, "static") else False
-                    is_wildcard = (
-                        import_stmt.wildcard if hasattr(import_stmt, "wildcard") else False
-                    )
-
-                    # Classify import type
-                    import_type = "external"
-                    if import_path.startswith("java.") or import_path.startswith("javax."):
-                        import_type = "standard"
-                    elif import_path.startswith("org.neo4j"):
-                        import_type = "internal"
-
-                    import_info = {
-                        "import_path": import_path,
-                        "is_static": is_static,
-                        "is_wildcard": is_wildcard,
-                        "import_type": import_type,
-                        "file": rel_path,
-                    }
-                    imports.append(import_info)
-
-                except Exception as e:
-                    logger.debug("Error processing import in %s: %s", rel_path, e)
-                    continue
-
-        # Extract class declarations
-        for path_to_node, node in tree.filter(javalang.tree.ClassDeclaration):
-            try:
-                class_info = {
-                    "name": node.name,
-                    "type": "class",
-                    "file": rel_path,
-                    "package": package_name,
-                    "line": node.position.line if node.position else None,
-                    "modifiers": [mod for mod in (node.modifiers or [])],
-                    "extends": node.extends.name if node.extends else None,
-                    "implements": [impl.name for impl in (node.implements or [])],
-                    "is_abstract": "abstract" in (node.modifiers or []),
-                    "is_final": "final" in (node.modifiers or []),
-                }
-
-                # Calculate class metrics using the pre-split code lines
-                class_lines = source_lines
-                if node.position and node.position.line:
-                    start_line = node.position.line - 1
-                    # Find class end (simplified)
-                    brace_count = 0
-                    end_line = start_line
-                    for i, line in enumerate(class_lines[start_line:], start_line):
-                        if "{" in line:
-                            brace_count += line.count("{")
-                        if "}" in line:
-                            brace_count -= line.count("}")
-                            if brace_count <= 0:
-                                end_line = i + 1
-                                break
-                        if i - start_line > 1000:  # Safety limit
-                            end_line = i + 1
-                            break
-
-                    class_info["estimated_lines"] = end_line - start_line
-
-                classes.append(class_info)
-
-            except Exception as e:
-                logger.debug("Error processing class %s in %s: %s", node.name, rel_path, e)
-                continue
-
-        # Extract interface declarations
-        for path_to_node, node in tree.filter(javalang.tree.InterfaceDeclaration):
-            try:
-                interface_info = {
-                    "name": node.name,
-                    "type": "interface",
-                    "file": rel_path,
-                    "package": package_name,
-                    "line": node.position.line if node.position else None,
-                    "modifiers": [mod for mod in (node.modifiers or [])],
-                    "extends": [
-                        ext.name for ext in (node.extends or [])
-                    ],  # Interfaces can extend multiple
-                    "method_count": 0,  # Will be calculated later
-                }
-                interfaces.append(interface_info)
-
-            except Exception as e:
-                logger.debug("Error processing interface %s in %s: %s", node.name, rel_path, e)
-                continue
-
-        # Extract method declarations
-        for path_to_node, node in tree.filter(javalang.tree.MethodDeclaration):
-            try:
-                start_line = node.position.line if node.position else None
-                method_name = node.name
-
-                # Find containing class/interface with full qualified name
-                containing_class = None
-                containing_type = None
-                for ancestor in reversed(path_to_node):
-                    if isinstance(ancestor, javalang.tree.ClassDeclaration):
-                        containing_class = ancestor.name
-                        containing_type = "class"
-                        break
-                    elif isinstance(ancestor, javalang.tree.InterfaceDeclaration):
-                        containing_class = ancestor.name
-                        containing_type = "interface"
-                        break
-
-                # Extract method code and calculate metrics
-                method_code = ""
-                estimated_lines = 0
-                if start_line:
-                    end_line = start_line
-                    brace_count = 0
-
-                    # Find method end by counting braces
-                    for i, line in enumerate(source_lines[start_line - 1 :], start_line - 1):
-                        if "{" in line:
-                            brace_count += line.count("{")
-                        if "}" in line:
-                            brace_count -= line.count("}")
-                            if brace_count <= 0:
-                                end_line = i + 1
-                                break
-                        if i - start_line > 200:  # Safety limit
-                            end_line = i + 1
-                            break
-
-                    method_code = "\n".join(source_lines[start_line - 1 : end_line])
-                    estimated_lines = end_line - start_line + 1
-
-                # Extract method calls within this method
-                method_calls = _extract_method_calls(method_code, containing_class)
-
-                method_info = {
-                    "name": method_name,
-                    "class_name": containing_class,
-                    "containing_type": containing_type,
-                    "line": start_line,
-                    "code": method_code,
-                    "file": rel_path,
-                    "estimated_lines": estimated_lines,
-                    "parameters": [
-                        {"name": param.name, "type": getattr(param.type, "name", str(param.type))}
-                        for param in (node.parameters or [])
-                    ],
-                    "modifiers": [mod for mod in (node.modifiers or [])],
-                    "is_static": "static" in (node.modifiers or []),
-                    "is_abstract": "abstract" in (node.modifiers or []),
-                    "is_final": "final" in (node.modifiers or []),
-                    "is_private": "private" in (node.modifiers or []),
-                    "is_public": "public" in (node.modifiers or []),
-                    "return_type": (
-                        node.return_type.name if getattr(node, "return_type", None) else "void"
-                    ),
-                    "calls": method_calls,  # List of method calls made by this method
-                }
-                # add stable signature for uniqueness and Bloom captions
-                method_info["method_signature"] = build_method_signature(
-                    package_name,
-                    containing_class,
-                    method_name,
-                    method_info["parameters"],
-                    method_info["return_type"],
-                )
-                methods.append(method_info)
-
-            except Exception as e:
-                logger.debug("Error processing method %s in %s: %s", node.name, rel_path, e)
-                continue
-
-        # Update interface method counts
-        for interface in interfaces:
-            interface["method_count"] = sum(
-                1 for m in methods if m.get("class_name") == interface["name"]
-            )
-
-    except Exception as e:
-        # Fallback: try our lightweight extractor
-        if not getattr(sys.modules.get(__name__), "_NO_JAVA_FALLBACK", False):
-            try:
-                from . import java_treesitter as _jt  # type: ignore
-            except Exception:
-                _jt = None  # type: ignore
-
-            if _jt is not None and hasattr(_jt, "extract_file_data"):
-                try:
-                    global FALLBACK_ATTEMPTS, FALLBACK_SUCCESSES
-                    FALLBACK_ATTEMPTS += 1
-                    # Prefer parsing the already-loaded source to avoid encoding issues
-                    if hasattr(_jt, "extract_with_treesitter"):
-                        extraction = _jt.extract_with_treesitter(code, rel_path)  # type: ignore[attr-defined]
-                        imports = extraction.imports
-                        classes = extraction.classes
-                        interfaces = extraction.interfaces
-                        methods = extraction.methods
-                        package_name = extraction.package_name
-                    else:
-                        # Fallback to file-based extractor
-                        ts = _jt.extract_file_data(
-                            Path(repo_root) / Path(rel_path), Path(repo_root)
-                        )  # type: ignore[attr-defined]
-                        imports = ts.get("imports", [])
-                        classes = ts.get("classes", [])
-                        interfaces = ts.get("interfaces", [])
-                        methods = ts.get("methods", [])
-                        package_name = ts.get("package")
-                    FALLBACK_SUCCESSES += 1
-                except Exception as ts_e:
-                    # Record and optionally suppress per-file warnings
-                    try:
-                        PARSE_ERRORS.append((rel_path, f"javalang:{e}; fallback:{ts_e}"))
-                    except Exception:
-                        pass
-                    if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-                        logger.warning(
-                            "Failed to parse Java file %s: javalang=%s (%s); fallback=%s (%s)",
-                            rel_path,
-                            type(e).__name__,
-                            e,
-                            type(ts_e).__name__,
-                            ts_e,
-                        )
-            else:
-                try:
-                    PARSE_ERRORS.append((rel_path, str(e)))
-                except Exception:
-                    pass
-                if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-                    logger.warning(
-                        "Failed to parse Java file %s: javalang=%s (%s)",
-                        rel_path,
-                        type(e).__name__,
-                        e,
-                    )
-        else:
+    if _jt is not None and hasattr(_jt, "extract_file_data"):
+        try:
+            return _jt.extract_file_data(file_path, repo_root)
+        except Exception as e:  # pragma: no cover - unexpected parse failure
+            rel_path = str(file_path.relative_to(repo_root)).replace("\\", "/")
+            logger.warning("Tree-sitter failed for %s: %s", rel_path, e)
             try:
                 PARSE_ERRORS.append((rel_path, str(e)))
             except Exception:
                 pass
-            if not getattr(sys.modules.get(__name__), "_QUIET_PARSE", False):
-                logger.warning(
-                    "Failed to parse Java file %s: javalang=%s (%s)",
-                    rel_path,
-                    type(e).__name__,
-                    e,
-                )
+            return {
+                "path": rel_path,
+                "code": "",
+                "methods": [],
+                "classes": [],
+                "interfaces": [],
+                "imports": [],
+                "language": "java",
+                "ecosystem": "maven",
+                "total_lines": 0,
+                "code_lines": 0,
+                "method_count": 0,
+                "class_count": 0,
+                "interface_count": 0,
+            }
 
-    # Calculate file-level metrics using the cached lines
-    file_lines = len(source_lines)
-    code_lines = len(
-        [line for line in source_lines if line.strip() and not line.strip().startswith("//")]
-    )
-
+    # If Tree-sitter module is unavailable, return a minimal structure
+    rel_path = str(file_path.relative_to(repo_root)).replace("\\", "/")
+    logger.warning("Tree-sitter extractor not available; skipping %s", rel_path)
+    try:
+        PARSE_ERRORS.append((rel_path, "treesitter_unavailable"))
+    except Exception:
+        pass
     return {
         "path": rel_path,
-        "code": code,
-        "methods": methods,
-        "classes": classes,
-        "interfaces": interfaces,
-        "imports": imports,
-        "language": "java",  # Set language for CVE analysis
-        "ecosystem": "maven",  # Java ecosystem
-        "total_lines": file_lines,
-        "code_lines": code_lines,
-        "method_count": len(methods),
-        "class_count": len(classes),
-        "interface_count": len(interfaces),
+        "code": "",
+        "methods": [],
+        "classes": [],
+        "interfaces": [],
+        "imports": [],
+        "language": "java",
+        "ecosystem": "maven",
+        "total_lines": 0,
+        "code_lines": 0,
+        "method_count": 0,
+        "class_count": 0,
+        "interface_count": 0,
     }
 
 
@@ -1783,24 +1366,9 @@ def main():
     args = parse_args()
 
     setup_logging(args.log_level, args.log_file)
-    # Control per-file parse logging noise and fallback behavior
+    # Control per-file parse logging noise
     global _QUIET_PARSE
     _QUIET_PARSE = bool(getattr(args, "quiet_parse", False))
-    global _NO_JAVA_FALLBACK
-    _NO_JAVA_FALLBACK = bool(getattr(args, "no_java_fallback", False))
-
-    # Detect Tree-sitter availability once and log it
-    global FALLBACK_AVAILABLE
-    try:
-        if not _NO_JAVA_FALLBACK:
-            from .java_treesitter import extract_with_treesitter as _ts_check  # noqa: F401
-
-            FALLBACK_AVAILABLE = True
-    except Exception:
-        FALLBACK_AVAILABLE = False
-    logger.info(
-        "Java fallback parser available: %s (no_fallback=%s)", FALLBACK_AVAILABLE, _NO_JAVA_FALLBACK
-    )
 
     # Resolve repository path (clone if URL)
     repo_path = Path(args.repo_url)
@@ -1885,7 +1453,7 @@ def main():
                         files_data.append(result)  # type: ignore[arg-type]
 
         # Persist parse errors summary if requested
-        if PARSE_ERRORS or FALLBACK_ATTEMPTS or FALLBACK_AVAILABLE:
+        if PARSE_ERRORS:
             if args.parse_errors_file:
                 out_path = _Path(args.parse_errors_file)
                 out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1893,20 +1461,14 @@ def main():
                     "\n".join(f"{p}\t{err}" for p, err in PARSE_ERRORS), encoding="utf-8"
                 )
                 logger.warning(
-                    "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Details: %s",
+                    "Java parse: %d errors. Details: %s",
                     len(PARSE_ERRORS),
-                    FALLBACK_AVAILABLE,
-                    FALLBACK_ATTEMPTS,
-                    FALLBACK_SUCCESSES,
                     out_path,
                 )
             else:
                 logger.warning(
-                    "Java parse: %d errors. Fallback available=%s, used %d times, recovered %d files. Use --parse-errors-file to capture details",
+                    "Java parse: %d errors. Use --parse-errors-file to capture details",
                     len(PARSE_ERRORS),
-                    FALLBACK_AVAILABLE,
-                    FALLBACK_ATTEMPTS,
-                    FALLBACK_SUCCESSES,
                 )
 
         if getattr(args, "out_files_data", None) and args.out_files_data:

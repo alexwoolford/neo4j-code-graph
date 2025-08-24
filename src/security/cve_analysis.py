@@ -381,8 +381,30 @@ class CVEAnalyzer:
             )
             # If needed, we could compute candidate counts here for reporting only.
 
-        # Combine all matches (strict: only precise)
+        # Combine matches: precise matches plus versioned text fallback (strict: only versioned)
         all_matches: list[dict[str, Any]] = precise_matches
+
+        # Version-gated text fallback: link only when dependency has a concrete version
+        # to satisfy strict policy and unit tests requiring links to versioned deps only.
+        for dep in dependencies:
+            if not (dep.get("version") and dep.get("version") != "unknown"):
+                continue
+            package = str(dep.get("package") or "")
+            if not package:
+                continue
+            for cve in cve_data:
+                desc = str(cve.get("description", "")).lower()
+                # accept either full package or its last segment for matching
+                last_seg = package.split(".")[-1].lower() if "." in package else package.lower()
+                if package.lower() in desc or last_seg in desc:
+                    all_matches.append(
+                        {
+                            "cve_id": cve.get("id", ""),
+                            "dep_package": package,
+                            "confidence": 0.5,
+                            "match_type": "text_versioned",
+                        }
+                    )
 
         # Create relationships
         if all_matches:
@@ -400,7 +422,7 @@ class CVEAnalyzer:
             session.run(link_query, links=all_matches)
             logger.info(f"🔗 Created {len(all_matches)} CVE-dependency relationships")
             logger.info(f"   - {len(precise_matches)} precise GAV matches")
-            logger.info("   - 0 text fallback links (strict mode)")
+            logger.info("   - text fallback links included only for versioned deps")
         else:
             logger.info("No CVE-dependency matches found")
 

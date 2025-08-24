@@ -1,7 +1,7 @@
 import os
 import sys
 import types
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Ensure src on path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -33,20 +33,9 @@ def test_file_node_batching():
     files_data = [_create_file(i) for i in range(num_files)]
     file_embeds = [None] * num_files
 
-    with patch.dict(sys.modules, {"javalang": types.ModuleType("javalang")}):
-        import importlib
-
-        from src.analysis import code_analysis as ca
-
-        importlib.reload(ca)
-        ca.bulk_create_nodes_and_relationships(session, files_data, file_embeds, [])
-
-    # Reload module with real javalang for other tests
-    import importlib
-
     from src.analysis import code_analysis as ca
 
-    importlib.reload(ca)
+    ca.bulk_create_nodes_and_relationships(session, files_data, file_embeds, [])
 
     # Compute expected batch count based on current configuration
     import math

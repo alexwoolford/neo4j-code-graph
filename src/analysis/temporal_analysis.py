@@ -187,7 +187,10 @@ def run_coupling(
             # Summarize results (post-prune)
             count_res = session.run("MATCH ()-[cc:CO_CHANGED]->() RETURN count(cc) AS c", {})  # type: ignore[no-untyped-call]
             count_rec = _safe_single(count_res)
-            total_pairs = int(count_rec["c"]) if count_rec else 0
+            try:
+                total_pairs = int(count_rec["c"]) if count_rec and "c" in count_rec else 0
+            except Exception:
+                total_pairs = 0
 
             top_res = session.run(  # type: ignore[no-untyped-call]
                 """
@@ -197,8 +200,14 @@ def run_coupling(
                 LIMIT 20
                 """,
                 {},
-            ).data()
-            rows = top_res  # type: ignore[assignment]
+            )
+            try:
+                rows = top_res.data()  # type: ignore[assignment]
+            except Exception:
+                try:
+                    rows = list(top_res)  # type: ignore[assignment]
+                except Exception:
+                    rows = []  # type: ignore[assignment]
         else:
             result = session.run(  # type: ignore[no-untyped-call]
                 read_query,

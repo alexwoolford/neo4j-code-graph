@@ -128,3 +128,7 @@ RETURN f.path as vulnerable_file,
        [d IN developers WHERE d.commits >= 3] as experts,
        [d IN developers WHERE d.latest_commit > datetime() - duration('P90D')] as recent_contributors
 ORDER BY f.total_lines DESC;
+
+MATCH (ed:ExternalDependency)
+RETURN ed.package AS pkg
+LIMIT 5;
