@@ -206,6 +206,7 @@ from utils.common import create_neo4j_driver, setup_logging
   - `get_neo4j_config()`; never hardcode fallbacks like `bolt://localhost:7687`.
 - If args and `.env` disagree, args win. Never silently swap to localhost.
 - Action item: avoid any default `localhost` strings in code; use `ensure_port()` on provided URI.
+- Database name must never be hardcoded (e.g., `"neo4j"`). Always resolve via CLI args or `.env` (`NEO4J_DATABASE`) using `get_neo4j_config()`. If unset, abort or pass through rather than defaulting silently.
 
 
 - All writes MUST run only after core schema constraints exist.
