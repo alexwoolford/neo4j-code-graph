@@ -552,6 +552,7 @@ def _determine_call_target(qualifier, containing_class):
 from data.graph_writer import (  # type: ignore
     create_classes as _gw_create_classes,
 )
+from data.graph_writer import create_directories as _gw_create_directories
 from data.graph_writer import (
     create_files as _gw_create_files,
 )
@@ -561,6 +562,10 @@ def create_files(
     session: Any, files_data: list[FileData], file_embeddings: list[list[float]]
 ) -> None:
     return _gw_create_files(session, files_data, file_embeddings)
+
+
+def create_directories(session: Any, files_data: list[FileData]) -> None:
+    return _gw_create_directories(session, files_data)
 
 
 def create_classes(session: Any, files_data: list[FileData]) -> None:
