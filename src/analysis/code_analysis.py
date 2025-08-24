@@ -549,27 +549,16 @@ def _determine_call_target(qualifier, containing_class):
         return qualifier, "instance"  # We'll resolve the type later if possible
 
 
-from data.graph_writer import (  # type: ignore
-    create_classes as _gw_create_classes,
-)
-from data.graph_writer import create_directories as _gw_create_directories
 from data.graph_writer import (
-    create_files as _gw_create_files,
+    bulk_create_nodes_and_relationships as _gw_bulk,
+)
+from data.graph_writer import (  # type: ignore
+    create_classes,  # noqa: F401 - re-exported for back-compat
+    create_directories,  # noqa: F401 - re-exported for back-compat
+    create_files,  # noqa: F401 - re-exported for back-compat
 )
 
-
-def create_files(
-    session: Any, files_data: list[FileData], file_embeddings: list[list[float]]
-) -> None:
-    return _gw_create_files(session, files_data, file_embeddings)
-
-
-def create_directories(session: Any, files_data: list[FileData]) -> None:
-    return _gw_create_directories(session, files_data)
-
-
-def create_classes(session: Any, files_data: list[FileData]) -> None:
-    return _gw_create_classes(session, files_data)
+# Re-exported: create_files, create_directories, create_classes (imported above)
 
 
 def create_methods(
@@ -1022,9 +1011,7 @@ def bulk_create_nodes_and_relationships(
     method_embeddings: list[list[float]],
     dependency_versions: dict[str, str] | None = None,
 ) -> None:
-    from data.graph_writer import bulk_create_nodes_and_relationships as _bulk
-
-    _bulk(session, files_data, file_embeddings, method_embeddings, dependency_versions)
+    _gw_bulk(session, files_data, file_embeddings, method_embeddings, dependency_versions)
 
 
 def main():
