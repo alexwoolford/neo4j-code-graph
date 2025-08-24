@@ -82,8 +82,6 @@ KNOWN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "out_degree": "Number of distinct outgoing CALLS.",
         "total_degree": "Sum of in_degree and out_degree.",
         "similarityCommunity": "Community id from similarity clustering (Louvain).",
-        "hits_auth": "HITS authority score (if computed).",
-        "hits_hub": "HITS hub score (if computed).",
     },
     "Class": {
         "name": "Class name (unique with file).",

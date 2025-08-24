@@ -6,7 +6,6 @@ This script implements the centrality analysis outlined in the enhancement plan:
 - PageRank: Find methods that are central in the call ecosystem
 - Betweenness Centrality: Identify bottlenecks and critical connectors
 - Degree Centrality: Find hub methods (high out-degree) and authority methods (high in-degree)
-- HITS: Distinguish between hubs (orchestrators) and authorities (utilities)
 
 Based on Neo4j Graph Data Science algorithms to highlight structurally important code.
 """
@@ -62,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--algorithms",
         nargs="+",
-        choices=["pagerank", "betweenness", "degree", "hits"],
+        choices=["pagerank", "betweenness", "degree"],
         default=["pagerank", "betweenness", "degree"],
         help="Centrality algorithms to run",
     )
@@ -310,91 +309,13 @@ def run_degree_analysis(
     return result
 
 
-def run_hits_analysis(gds: GraphDataScience, graph: Any, top_n: int = 20, write_back: bool = False):
-    """Run HITS algorithm to distinguish hubs (orchestrators) vs authorities (utilities)."""
-    logger.info("🔍 Running HITS analysis...")
-    start_time = perf_counter()
-
-    # Note: Check if HITS is available in your GDS version
-    try:
-        if write_back:
-            result = gds.alpha.hits.write(graph, writeProperty="hits", hitsIterations=20)
-
-            query = """
-            MATCH (m:Method)
-            WHERE m.hits_auth IS NOT NULL
-            RETURN m.name as method_name, m.class_name as class_name, m.file as file,
-                   m.hits_auth as authority_score, m.hits_hub as hub_score
-            ORDER BY m.hits_auth DESC
-            LIMIT $top_n
-            """
-            authorities = gds.run_cypher(query, {"top_n": top_n})
-
-            query = """
-            MATCH (m:Method)
-            WHERE m.hits_hub IS NOT NULL
-            RETURN m.name as method_name, m.class_name as class_name, m.file as file,
-                   m.hits_auth as authority_score, m.hits_hub as hub_score
-            ORDER BY m.hits_hub DESC
-            LIMIT $top_n
-            """
-            hubs = gds.run_cypher(query, {"top_n": top_n})
-
-        else:
-            result = gds.alpha.hits.stream(graph, hitsIterations=20)
-
-            # Get top authorities
-            authorities = result.nlargest(top_n, "auth")
-            hubs = result.nlargest(top_n, "hub")
-
-            # Enrich with method details
-            if not authorities.empty:
-                auth_ids = authorities["nodeId"].tolist()
-                query = """
-                UNWIND $nodeIds as nodeId
-                MATCH (m:Method) WHERE id(m) = nodeId
-                RETURN id(m) as nodeId, m.name as method_name,
-                       m.class_name as class_name, m.file as file
-                """
-                auth_details = gds.run_cypher(query, {"nodeIds": auth_ids})
-                authorities = authorities.merge(auth_details, on="nodeId")
-
-            if not hubs.empty:
-                hub_ids = hubs["nodeId"].tolist()
-                hub_details = gds.run_cypher(query, {"nodeIds": hub_ids})
-                hubs = hubs.merge(hub_details, on="nodeId")
-
-        analysis_time = perf_counter() - start_time
-        logger.info(f"HITS completed in {analysis_time:.2f}s")
-
-        print("\n🎯 TOP AUTHORITY METHODS (Called by Many - Utilities):")
-        print("-" * 80)
-        auth_col = "authority_score" if "authority_score" in authorities.columns else "auth"
-        for _, row in authorities.iterrows():
-            class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(f"  {row[auth_col]:.6f} | {class_name}.{row['method_name']} ({row['file']})")
-
-        print("\n🎯 TOP HUB METHODS (Call Many Others - Orchestrators):")
-        print("-" * 80)
-        hub_col = "hub_score" if "hub_score" in hubs.columns else "hub"
-        for _, row in hubs.iterrows():
-            class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(f"  {row[hub_col]:.6f} | {class_name}.{row['method_name']} ({row['file']})")
-
-        return authorities, hubs
-
-    except Exception as e:
-        logger.warning(f"HITS algorithm not available or failed: {e}")
-        logger.warning("This may require a newer version of Neo4j GDS")
-        return None, None
+# HITS analysis removed: not part of the pipeline and requires alpha API availability
 
 
 def summarize_analysis(
     pagerank_results,
     betweenness_results,
     degree_results,
-    hits_authorities=None,
-    hits_hubs=None,
 ):
     """Provide a summary of key findings from centrality analysis."""
     print("\n" + "=" * 80)
@@ -476,8 +397,7 @@ def main() -> None:
             pagerank_results = None
             betweenness_results = None
             degree_results = None
-            hits_authorities = None
-            hits_hubs = None
+            # HITS removed
 
             if "pagerank" in args.algorithms:
                 pagerank_results = run_pagerank_analysis(gds, graph, args.top_n, args.write_back)
@@ -490,18 +410,13 @@ def main() -> None:
             if "degree" in args.algorithms:
                 degree_results = run_degree_analysis(gds, graph, args.top_n, args.write_back)
 
-            if "hits" in args.algorithms:
-                hits_authorities, hits_hubs = run_hits_analysis(
-                    gds, graph, args.top_n, args.write_back
-                )
+            # HITS removed
 
             # Provide summary
             summarize_analysis(
                 pagerank_results,
                 betweenness_results,
                 degree_results,
-                hits_authorities,
-                hits_hubs,
             )
 
             # Cleanup
