@@ -541,7 +541,7 @@ def code_graph_flow(
     gds_info: dict[str, object] = gds_info_obj if isinstance(gds_info_obj, dict) else {}
     apoc_ok = bool(apoc_info.get("available", False))
     gds_ok = bool(gds_info.get("available", False))
-    gds_proj_ok = bool(gds_info.get("projection_ok", False))
+    # gds_proj_ok is informational; no longer gates execution
     if cleanup:
         cleanup_task(uri, username, password, database)
 
@@ -575,8 +575,9 @@ def code_graph_flow(
 
     # Run similarity then Louvain (explicit dependency). Capture futures and block at the end
     # to ensure the flow does not finish before downstream tasks complete.
-    # Skip GDS stages if GDS missing or projection not supported
-    if gds_ok and gds_proj_ok:
+    # Run GDS stages if GDS is available. The projection probe can be overly strict;
+    # attempt to run and let tasks handle errors gracefully.
+    if gds_ok:
         # Run via .submit to match tests that stub .submit and to be consistent
         sim_state = similarity_task.submit(uri, username, password, database)
         louv_state = louvain_task.submit(uri, username, password, database)
@@ -591,12 +592,7 @@ def code_graph_flow(
         cve_state = cve_task.submit(uri, username, password, database)
     else:
         logger = get_run_logger()
-        if not gds_ok:
-            logger.warning("GDS not available; skipping similarity, Louvain, and centrality stages")
-        else:
-            logger.warning(
-                "GDS projection procedures not usable; skipping similarity, Louvain, and centrality stages"
-            )
+        logger.warning("GDS not available; skipping similarity, Louvain, and centrality stages")
         # No sim/louvain/centrality; proceed to CVE directly
         cve_state = cve_task.submit(uri, username, password, database)
     # Explicitly wait for the final task to complete to avoid early flow completion in some runners
