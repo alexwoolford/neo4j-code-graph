@@ -18,6 +18,8 @@ This document captures hard requirements and conventions for agents contributing
 - Only consider `ExternalDependency` nodes where `version IS NOT NULL` for `AFFECTS` queries and relationships.
 - Ignore CVEs without version constraints for linkage (both precise and fuzzy paths).
 - Cache CVE queries persistently; resume partial searches; respect TTL for complete caches to avoid redundant work.
+- Strict policy: NEVER link a CVE to a dependency that lacks a version. Even if names/path look right, skip until a concrete dependency version is available.
+- CVE range evaluation must be based on explicit semantic/comparable versions; fall back to "no link" if version parsing fails.
 
 ## NVD searches (coverage and rate limiting)
 - 100% coverage: when running the end-to-end pipeline, the NVD search MUST cover all relevant external dependencies detected in the graph (not a subset).
