@@ -530,8 +530,10 @@ def code_graph_flow(
     logger = get_run_logger()
     logger.info("Starting flow for repo: %s", repo_url)
 
-    setup_schema_task(uri, username, password, database)
+    # Preflight first: detect capabilities before any writes (including schema)
     caps: dict[str, object] = preflight_task(uri, username, password, database)
+    # Proceed with schema only after preflight
+    setup_schema_task(uri, username, password, database)
     apoc_info_obj = caps.get("apoc")
     gds_info_obj = caps.get("gds")
     apoc_info: dict[str, object] = apoc_info_obj if isinstance(apoc_info_obj, dict) else {}
