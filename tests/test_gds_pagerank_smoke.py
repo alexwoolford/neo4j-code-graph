@@ -48,12 +48,10 @@ def test_pagerank_smoke_projection_and_stream():
     except Exception:
         pytest.skip("Neo4j not reachable for GDS test")
 
+    gds.run_cypher("CREATE (:Method {name:'A'}), (:Method {name:'B'}), (:Method {name:'C'})")
     gds.run_cypher(
-        """
-        CREATE (:Method {name:'A'}), (:Method {name:'B'}), (:Method {name:'C'});
-        MATCH (a:Method {name:'A'}), (b:Method {name:'B'}), (c:Method {name:'C'})
-        CREATE (a)-[:CALLS]->(b), (a)-[:CALLS]->(c), (b)-[:CALLS]->(c);
-        """
+        "MATCH (a:Method {name:'A'}), (b:Method {name:'B'}), (c:Method {name:'C'}) "
+        "CREATE (a)-[:CALLS]->(b), (a)-[:CALLS]->(c), (b)-[:CALLS]->(c)"
     )
 
     # Project and run PageRank - skip if client method signature differs
