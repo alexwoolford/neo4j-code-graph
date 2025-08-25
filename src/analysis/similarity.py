@@ -172,8 +172,8 @@ def _extract_count(df: Any, preferred_column: str) -> int:
 def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     """Run the KNN algorithm and create SIMILAR relationships."""
     base_config = {
-        # Use the property name in the projected in-memory graph (alias below)
-        "nodeProperties": "embedding",
+        # Use the actual property name set on :Method
+        "nodeProperties": EMBEDDING_PROPERTY,
         "topK": top_k,
         "similarityCutoff": cutoff,
         "writeRelationshipType": "SIMILAR",
@@ -227,14 +227,8 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     if exists:
         gds.graph.drop(graph_name)
 
-    graph, _ = gds.graph.project.cypher(
-        graph_name,
-        (
-            f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
-            f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS embedding"
-        ),
-        "RETURN null AS source, null AS target LIMIT 0",
-    )
+    # Prefer native projection; no relationships needed for kNN on node vectors
+    graph, _ = gds.graph.project(graph_name, {"Method": {"properties": [EMBEDDING_PROPERTY]}}, {})
 
     start = perf_counter()
     gds.knn.write(graph, **base_config)
