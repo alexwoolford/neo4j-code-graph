@@ -549,7 +549,7 @@ def _determine_call_target(qualifier, containing_class):
         return qualifier, "instance"  # We'll resolve the type later if possible
 
 
-from data.graph_writer import (  # type: ignore
+from src.data.graph_writer import (  # type: ignore
     bulk_create_nodes_and_relationships,  # noqa: F401 - re-exported for back-compat
     create_classes,  # noqa: F401 - re-exported for back-compat
     create_directories,  # noqa: F401 - re-exported for back-compat
