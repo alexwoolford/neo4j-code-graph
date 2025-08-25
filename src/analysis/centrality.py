@@ -172,10 +172,10 @@ def run_pagerank_analysis(
         if not result.empty:
             method_ids = result["nodeId"].tolist()
             query = """
-            UNWIND $nodeIds as nodeId
-            MATCH (m:Method) WHERE id(m) = nodeId
-            RETURN id(m) as nodeId, m.name as method_name,
-                   m.class_name as class_name, m.file as file
+            UNWIND $nodeIds AS nodeId
+            WITH nodeId, gds.util.asNode(nodeId) AS m
+            RETURN nodeId, m.name AS method_name,
+                   m.class_name AS class_name, m.file AS file
             """
             method_details = gds.run_cypher(query, {"nodeIds": method_ids})
             top_results = result.merge(method_details, on="nodeId")
@@ -228,10 +228,10 @@ def run_betweenness_analysis(
         if not result.empty:
             method_ids = result["nodeId"].tolist()
             query = """
-            UNWIND $nodeIds as nodeId
-            MATCH (m:Method) WHERE id(m) = nodeId
-            RETURN id(m) as nodeId, m.name as method_name,
-                   m.class_name as class_name, m.file as file
+            UNWIND $nodeIds AS nodeId
+            WITH nodeId, gds.util.asNode(nodeId) AS m
+            RETURN nodeId, m.name AS method_name,
+                   m.class_name AS class_name, m.file AS file
             """
             method_details = gds.run_cypher(query, {"nodeIds": method_ids})
             top_results = result.merge(method_details, on="nodeId")
@@ -267,7 +267,7 @@ def run_degree_analysis(
     OPTIONAL MATCH (m)-[out:CALLS]->()
     OPTIONAL MATCH ()-[in:CALLS]->(m)
     WITH m, count(DISTINCT out) as out_degree, count(DISTINCT in) as in_degree
-    RETURN id(m) as nodeId, m.name as method_name, m.class_name as class_name,
+    RETURN m.name as method_name, m.class_name as class_name,
            m.file as file, out_degree, in_degree,
            (out_degree + in_degree) as total_degree
     ORDER BY total_degree DESC

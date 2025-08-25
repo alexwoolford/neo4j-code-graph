@@ -209,7 +209,7 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     except Exception:
         node_q = (
             f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
-            f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS {EMBEDDING_PROPERTY}"
+            f"RETURN gds.util.asNode(id(m)) AS id, m.{EMBEDDING_PROPERTY} AS {EMBEDDING_PROPERTY}"
         )
         rel_q = "RETURN null AS source, null AS target LIMIT 0"
         graph, _ = gds.graph.project.cypher(graph_name, node_q, rel_q)

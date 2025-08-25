@@ -151,10 +151,10 @@ def check_capabilities(session: Any) -> dict[str, object]:
         try:
             session.run(
                 """
-                CALL gds.graph.project.cypher(
+                CALL gds.graph.project(
                   'cg_probe_cap',
-                  'MATCH (n) RETURN id(n) AS id',
-                  'MATCH (n)-[r]->(m) RETURN id(n) AS source, id(m) AS target'
+                  ['Method'],
+                  ['CALLS']
                 ) YIELD graphName
                 """
             ).single()
