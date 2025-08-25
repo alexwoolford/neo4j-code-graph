@@ -15,16 +15,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from neo4j import Driver
-
-from src.security.cve_cache_manager import CVECacheManager
-from src.security.types import CleanCVE
+from src.security.core import CVEAnalyzerCore
+from src.security.graph_writer import create_vulnerability_graph, link_cves_to_dependencies
+from src.security.report import generate_impact_report
 from src.utils.common import create_neo4j_driver, setup_logging
-from src.utils.neo4j_utils import get_neo4j_config
 
 # Avoid sys.path hacks; modules should be importable via package installation or repo context
 
@@ -32,234 +28,16 @@ from src.utils.neo4j_utils import get_neo4j_config
 logger = logging.getLogger(__name__)
 
 
-class CVEAnalyzer:
-    """Language-agnostic CVE analyzer that works with any codebase."""
+class CVEAnalyzer(CVEAnalyzerCore):
+    """Facade over core + graph writes and reporting."""
 
-    def __init__(self, driver: Driver | None = None, database: str | None = None):
-        self.driver: Driver | None = driver
-        if database is None:
-            _, _, _, database = get_neo4j_config()
-        self.database: str = database
-        self.cve_manager = CVECacheManager()
-
-    # Internal helper to obtain a session without requiring neo4j imports at runtime in tests
-    from contextlib import contextmanager
-
-    @contextmanager
-    def _session(self):  # type: ignore[no-untyped-def]
-        if self.driver is not None:
-            with self.driver.session(database=self.database) as s:  # type: ignore[reportUnknownMemberType]
-                yield s
-        else:
-            uri, username, password, database = get_neo4j_config()
-            from src.utils.common import create_neo4j_driver
-
-            with create_neo4j_driver(uri, username, password) as drv:
-                with drv.session(database=database) as s:  # type: ignore[reportUnknownMemberType]
-                    yield s
-
-    def load_cve_data(self, file_path: str):
-        """Load CVE data from a file."""
-        import json
-
-        with open(file_path) as f:
-            return json.load(f)
-
-    def get_cache_status(self):
-        """Get current cache status for user feedback."""
-        stats = self.cve_manager.get_cache_stats()
-
-        print("\n📊 **CVE CACHE STATUS**")
-        print("=" * 50)
-        print(f"Complete caches: {stats['complete_caches']}")
-        print(f"Partial caches:  {stats['partial_caches']}")
-        print(f"Total size:      {stats['total_size_mb']} MB")
-        print(f"Cache location:  {stats['cache_dir']}")
-
-        if stats["partial_caches"] > 0:
-            print("\n🔄 **RESUMABLE DOWNLOADS AVAILABLE**")
-            print("You can resume interrupted downloads!")
-
-        return stats
-
-    def extract_codebase_dependencies(self) -> tuple[dict[str, set[str]], set[str]]:
-        """Extract all dependencies from any codebase in the graph."""
-        logger.info("🔍 Extracting dependencies from codebase...")
-
+    def create_vulnerability_graph(self, cve_data: list[dict[str, Any]]) -> int:
         with self._session() as session:
-            # Get all external dependencies regardless of language
-            result = session.run(
-                "MATCH (ed:ExternalDependency) "
-                "RETURN DISTINCT ed.package AS dependency_path, ed.language AS language, "
-                "ed.ecosystem AS ecosystem, ed.version AS version "
-                "ORDER BY dependency_path"
-            )
-            dependencies_by_ecosystem: dict[str, set[str]] = {}
+            return create_vulnerability_graph(session, cve_data)
 
-            for record in result:
-                rec: Mapping[str, Any] = dict(record)
-                dep_path = str(rec.get("dependency_path", ""))
-                language = str(rec.get("language", "unknown"))
-                ecosystem = str(rec.get("ecosystem", "unknown"))
-                version_val = rec.get("version")
-                version = str(version_val) if version_val is not None else None
-
-                # Group by ecosystem for targeted CVE searching
-                key = f"{language}:{ecosystem}" if language != "unknown" else "unknown"
-                if key not in dependencies_by_ecosystem:
-                    dependencies_by_ecosystem[key] = set()
-
-                # Include version info if available
-                dep_info = dep_path
-                if version:
-                    dep_info = f"{dep_path}:{version}"
-
-                dependencies_by_ecosystem[key].add(dep_info)
-
-            # Also extract from file analysis for languages without explicit dependency tracking
-            result = session.run(
-                "MATCH (f:File) "
-                "WHERE f.path =~ '.*\\.(py|js|ts|go|rs|cpp|c|h|java|cs|php|rb)$' "
-                "RETURN DISTINCT f.path AS file_path, f.language AS language "
-                "LIMIT 1000"
-            )
-            file_languages: set[str] = set()
-            for record in result:
-                rec = dict(record)
-                lang = rec.get("language")
-                if isinstance(lang, str) and lang:
-                    file_languages.add(lang.lower())
-
-            logger.info(f"📊 Found dependencies in {len(dependencies_by_ecosystem)} ecosystems")
-            logger.info(f"📊 Detected languages: {file_languages}")
-
-            return dependencies_by_ecosystem, file_languages
-
-    def create_universal_component_search_terms(
-        self, dependencies: dict[str, set[str]]
-    ) -> set[str]:
-        """Create language-agnostic search terms from any dependency structure."""
-        search_terms: set[str] = set()
-        specific_vendor_terms: set[str] = set()  # Track specific vendor terms to avoid generic ones
-
-        for _ecosystem, deps in dependencies.items():
-            for dep in deps:
-                # Universal patterns that work across languages
-                if dep:
-                    search_terms.add(dep.lower())
-
-                # Extract meaningful parts from different naming conventions
-                parts: list[str] = []
-
-                # Java/C#: com.vendor.product or org.vendor.product
-                if "." in dep:
-                    parts.extend(dep.split("."))
-
-                    # Track specific vendor.product combinations to avoid generic vendor terms
-                    if any(
-                        vendor in dep.lower()
-                        for vendor in ["jetbrains", "springframework", "fasterxml"]
-                    ):
-                        # Mark this as a specific dependency
-                        vendor_parts = [
-                            p
-                            for p in dep.split(".")
-                            if p.lower() in ["jetbrains", "springframework", "fasterxml"]
-                        ]
-                        for vendor_part in vendor_parts:
-                            specific_vendor_terms.add(vendor_part.lower())
-
-                # Python/Node: vendor-product or vendor_product
-                if "-" in dep:
-                    parts.extend(dep.split("-"))
-                if "_" in dep:
-                    parts.extend(dep.split("_"))
-
-                # Go: github.com/vendor/product
-                if "/" in dep:
-                    parts.extend(dep.split("/"))
-
-                # Rust: vendor::product
-                if "::" in dep:
-                    parts.extend(dep.split("::"))
-
-                # Add meaningful parts (filter out common prefixes AND vendor terms that
-                # have specific deps)
-                for part in parts:
-                    part_lower: str = str(part).lower()
-                    if (
-                        part
-                        and len(part) > 2
-                        and part not in ["com", "org", "net", "io", "www", "github"]
-                        and part_lower not in specific_vendor_terms
-                    ):  # Don't add generic vendor terms
-                        search_terms.add(part_lower)
-
-        logger.info(f"🎯 Generated {len(search_terms)} universal search terms")
-        logger.info(f"🚫 Excluded generic vendor terms: {specific_vendor_terms}")
-        return search_terms
-
-    def fetch_relevant_cves(
-        self,
-        search_terms: set[str],
-        api_key: str | None = None,
-        max_concurrency: int | None = None,
-    ) -> list[CleanCVE]:
-        """Fetch CVEs relevant to the extracted dependencies."""
-        logger.info("🌐 Fetching relevant CVEs from National Vulnerability Database...")
-
-        return self.cve_manager.fetch_targeted_cves(
-            api_key=api_key,
-            search_terms=search_terms,
-            max_results=2000,  # Reasonable limit for comprehensive analysis
-            days_back=365,  # One year of CVE data
-            max_concurrency=max_concurrency,
-        )
-
-    def create_vulnerability_graph(self, cve_data: list[CleanCVE]) -> int:
-        """Create CVE and vulnerability nodes in Neo4j."""
-        logger.info("📊 Creating vulnerability graph...")
-
-        if not cve_data:
-            logger.warning("No CVE data to process")
-            return 0
-
+    def _link_cves_to_dependencies(self, cve_data: list[dict[str, Any]]) -> int:
         with self._session() as session:
-            # The cve_data is already cleaned by the cache manager
-            # Create CVE nodes directly from the cleaned data
-            cve_nodes: list[dict[str, Any]] = []
-            for cve in cve_data:
-                # Use the cleaned data structure from cache manager
-                cve_nodes.append(
-                    {
-                        "cve_id": cve.get("id", ""),
-                        "description": cve.get("description", ""),
-                        "cvss_score": float(cve.get("cvss_score", 0.0)),
-                        "cvss_vector": "",  # Not in cleaned data
-                        "published": cve.get("published", ""),
-                        "severity": cve.get("severity", "UNKNOWN"),
-                    }
-                )
-
-            # Bulk create CVE nodes
-            if cve_nodes:
-                create_query = """
-                UNWIND $cve_nodes AS cve
-                MERGE (c:CVE {id: cve.cve_id})
-                SET c.description = cve.description,
-                    c.cvss_score = cve.cvss_score,
-                    c.cvss_vector = cve.cvss_vector,
-                    c.published = cve.published,
-                    c.severity = cve.severity,
-                    c.updated_at = datetime()
-                """
-                session.run(create_query, cve_nodes=cve_nodes)
-                logger.info(f"✅ Created {len(cve_nodes)} CVE nodes")
-
-            # Link CVEs to dependencies based on content matching
-            self._link_cves_to_dependencies(session, cve_data)
-
-            return len(cve_nodes)
+            return link_cves_to_dependencies(session, cve_data)
 
     # Note: legacy helper retained for backwards-compatibility in tests and docs
     def _get_severity(self, cvss_score: float) -> str:
@@ -274,145 +52,8 @@ class CVEAnalyzer:
             return "LOW"
         return "NONE"
 
-    def _link_cves_to_dependencies(self, session: Any, cve_data: list[CleanCVE]):
-        """Link CVEs to external dependencies using precise GAV matching."""
-        logger.info("🔗 Linking CVEs to codebase dependencies using precise GAV matching...")
-
-        # Get all external dependencies with GAV coordinates
-        deps_query = """
-        MATCH (ed:ExternalDependency)
-        RETURN ed.package AS import_path,
-               ed.group_id AS group_id,
-               ed.artifact_id AS artifact_id,
-               ed.version AS version
-        """
-        deps_result = session.run(deps_query)
-        dependencies: list[dict[str, Any]] = []
-
-        for record in deps_result:
-            rec = dict(record)
-            dep_info = {
-                "package": rec.get("import_path"),
-                "group_id": rec.get("group_id"),
-                "artifact_id": rec.get("artifact_id"),
-                "version": rec.get("version"),
-            }
-            dependencies.append(dep_info)
-
-        if not dependencies:
-            logger.warning("No external dependencies found in graph")
-            return
-
-        logger.info(f"Found {len(dependencies)} dependencies to match against")
-
-        # Initialize precise GAV matcher
-        try:
-            from src.security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
-
-            matcher = PreciseGAVMatcher()
-
-            # Convert dependencies to GAV coordinates for precise matching
-            gav_dependencies: list[tuple[Any, str]] = []
-            for dep in dependencies:
-                if (
-                    dep["group_id"]
-                    and dep["artifact_id"]
-                    and dep["version"]
-                    and dep["version"] != "unknown"
-                ):
-                    gav = GAVCoordinate(dep["group_id"], dep["artifact_id"], dep["version"])
-                    gav_dependencies.append((gav, dep["package"]))
-
-            logger.info(
-                f"🎯 Using precise GAV matching for {len(gav_dependencies)} dependencies with full coordinates"
-            )
-
-            # Use precise GAV matching for dependencies with full coordinates
-            precise_matches: list[dict[str, Any]] = []
-            if gav_dependencies:
-                for gav, package in gav_dependencies:
-                    for cve in cve_data:
-                        confidence = matcher.match_gav_to_cve(gav, cve)
-                        if confidence is not None:
-                            precise_matches.append(
-                                {
-                                    "cve_id": cve.get("id", ""),
-                                    "dep_package": package,
-                                    "confidence": confidence,
-                                    "match_type": "precise_gav",
-                                }
-                            )
-
-            logger.info(
-                f"🎯 Precise GAV matching found {len(precise_matches)} high-confidence matches"
-            )
-
-        except ImportError:
-            logger.warning("Precise GAV matcher not available, skipping precise matching")
-            precise_matches = []
-
-        # Strict mode: disable text fallback links to avoid false positives.
-        # We still compute a count for observability, but DO NOT create relationships from it.
-        deps_without_gav = [
-            dep
-            for dep in dependencies
-            if not (
-                dep["group_id"]
-                and dep["artifact_id"]
-                and dep["version"]
-                and dep["version"] != "unknown"
-            )
-        ]
-        if deps_without_gav:
-            logger.info(
-                f"ℹ️  Skipping text-only CVE linkage for {len(deps_without_gav)} dependencies without GAV coordinates (strict mode)"
-            )
-            # If needed, we could compute candidate counts here for reporting only.
-
-        # Combine matches: precise matches plus versioned text fallback (strict: only versioned)
-        all_matches: list[dict[str, Any]] = precise_matches
-
-        # Version-gated text fallback: link only when dependency has a concrete version
-        # to satisfy strict policy and unit tests requiring links to versioned deps only.
-        for dep in dependencies:
-            if not (dep.get("version") and dep.get("version") != "unknown"):
-                continue
-            package = str(dep.get("package") or "")
-            if not package:
-                continue
-            for cve in cve_data:
-                desc = str(cve.get("description", "")).lower()
-                # accept either full package or its last segment for matching
-                last_seg = package.split(".")[-1].lower() if "." in package else package.lower()
-                if package.lower() in desc or last_seg in desc:
-                    all_matches.append(
-                        {
-                            "cve_id": cve.get("id", ""),
-                            "dep_package": package,
-                            "confidence": 0.5,
-                            "match_type": "text_versioned",
-                        }
-                    )
-
-        # Create relationships
-        if all_matches:
-            # Only link to dependencies with a concrete version to avoid package-only false positives
-            link_query = """
-            UNWIND $links AS link
-            MATCH (cve:CVE {id: link.cve_id})
-            MATCH (ed:ExternalDependency {package: link.dep_package})
-            WHERE ed.version IS NOT NULL AND ed.version <> 'unknown'
-            MERGE (cve)-[r:AFFECTS]->(ed)
-            SET r.confidence = link.confidence,
-                r.match_type = link.match_type,
-                r.created_at = datetime()
-            """
-            session.run(link_query, links=all_matches)
-            logger.info(f"🔗 Created {len(all_matches)} CVE-dependency relationships")
-            logger.info(f"   - {len(precise_matches)} precise GAV matches")
-            logger.info("   - text fallback links included only for versioned deps")
-        else:
-            logger.info("No CVE-dependency matches found")
+    def get_cache_status(self):
+        return super().get_cache_status()
 
     # Removed unused legacy simple-matching helpers to reduce maintenance surface
 
@@ -597,26 +238,7 @@ class CVEAnalyzer:
             return vulnerabilities
 
     def generate_impact_report(self, vulnerabilities: list[dict[str, Any]]):
-        """Generate a comprehensive vulnerability impact report."""
-        if not vulnerabilities:
-            print("\n🎉 **EXCELLENT NEWS!**")
-            print("No high-risk vulnerabilities found in your codebase!")
-            print("This could mean:")
-            print("  • Your dependencies are up-to-date and secure")
-            print("  • The components you're using don't have known critical vulnerabilities")
-            print("  • Your dependency versions are newer than vulnerable ranges")
-            return
-
-        print("\n🚨 **VULNERABILITY IMPACT REPORT**")
-        print(f"Found {len(vulnerabilities)} potential security issues")
-        print("=" * 80)
-
-        for vuln in vulnerabilities[:10]:  # Show top 10
-            print(f"\n🔴 {vuln['cve_id']} (CVSS: {vuln['cvss_score']:.1f})")
-            print(f"   Severity: {vuln['severity']}")
-            print(f"   Description: {vuln['description'][:100]}...")
-            if vuln.get("affected_dependencies"):
-                print(f"   Potentially affects: {len(vuln['affected_dependencies'])} dependencies")
+        generate_impact_report(vulnerabilities)
 
         print("\n💡 **RECOMMENDATIONS:**")
         print("1. Review the high-CVSS vulnerabilities above")
