@@ -79,9 +79,27 @@ _TC_CONTAINER = None
 
 def pytest_sessionstart(session):  # type: ignore[override]
     global _TC_CONTAINER
-    if not _has_docker():
-        return
+    # If explicit env is present, attempt to bootstrap schema on that instance
     if os.getenv("NEO4J_URI") and os.getenv("NEO4J_USERNAME") and os.getenv("NEO4J_PASSWORD"):
+        try:
+            from neo4j import GraphDatabase as _GD  # type: ignore
+
+            from src.data.schema_management import setup_complete_schema  # type: ignore
+
+            drv = _GD.driver(
+                os.environ["NEO4J_URI"],
+                auth=(os.environ["NEO4J_USERNAME"], os.environ["NEO4J_PASSWORD"]),
+            )
+            try:
+                drv.verify_connectivity()
+                with drv.session(database=os.environ.get("NEO4J_DATABASE", "neo4j")) as _s:
+                    setup_complete_schema(_s)
+            finally:
+                drv.close()
+        except Exception:
+            pass
+        return
+    if not _has_docker():
         return
     try:
         from testcontainers.neo4j import Neo4jContainer  # type: ignore
