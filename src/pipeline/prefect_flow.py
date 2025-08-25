@@ -578,17 +578,25 @@ def code_graph_flow(
     # Run GDS stages if GDS is available. The projection probe can be overly strict;
     # attempt to run and let tasks handle errors gracefully.
     if gds_ok:
-        # Run via .submit to match tests that stub .submit and to be consistent
+        # Execute GDS tasks sequentially to avoid global sys.argv contention
         sim_state = similarity_task.submit(uri, username, password, database)
-        louv_state = louvain_task.submit(uri, username, password, database)
-        cent_state = centrality_task.submit(uri, username, password, database)
-        # ensure sequential dependency by waiting on previous states if needed
         try:
             _ = getattr(sim_state, "result", lambda: None)()
+        except Exception:
+            pass
+
+        louv_state = louvain_task.submit(uri, username, password, database)
+        try:
             _ = getattr(louv_state, "result", lambda: None)()
+        except Exception:
+            pass
+
+        cent_state = centrality_task.submit(uri, username, password, database)
+        try:
             _ = getattr(cent_state, "result", lambda: None)()
         except Exception:
             pass
+
         cve_state = cve_task.submit(uri, username, password, database)
     else:
         logger = get_run_logger()
