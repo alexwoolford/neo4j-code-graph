@@ -5,7 +5,6 @@ import logging
 import re
 import tempfile
 import xml.etree.ElementTree as ET
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -15,7 +14,7 @@ try:
 except Exception:
     FileData = dict  # type: ignore[misc,assignment]
 
-from tqdm import tqdm
+from src.analysis.extractor import extract_files_concurrently, list_java_files
 
 # Collect Java parse errors across threads to summarize later
 PARSE_ERRORS: list[tuple[str, str]] = []
@@ -528,7 +527,7 @@ def main():
         git.Repo.clone_from(args.repo_url, tmpdir)
         repo_root = Path(tmpdir)
 
-    java_files = list(repo_root.rglob("*.java"))
+    java_files = list_java_files(repo_root)
     logger.info("Found %d Java files to process", len(java_files))
 
     # Dependency extraction (allow artifact in/out)
@@ -581,20 +580,9 @@ def main():
         # Skip DB lookup to avoid coupling extract-only runs to Neo4j
         files_to_process = list(java_files)
         logger.info("Processing %d files", len(files_to_process))
-        if files_to_process:
-            with ThreadPoolExecutor(max_workers=args.parallel_files) as executor:
-                future_to_file = {
-                    executor.submit(extract_file_data, file_path, repo_root): file_path
-                    for file_path in files_to_process
-                }
-                for future in tqdm(
-                    as_completed(future_to_file),
-                    total=len(files_to_process),
-                    desc="Extracting files",
-                ):
-                    result = future.result()
-                    if result:
-                        files_data.append(result)  # type: ignore[arg-type]
+        files_data = extract_files_concurrently(
+            files_to_process, repo_root, extract_file_data, args.parallel_files
+        )
 
         # Persist parse errors summary if requested
         if PARSE_ERRORS:
