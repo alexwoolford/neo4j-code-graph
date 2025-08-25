@@ -73,6 +73,63 @@ def _has_docker() -> bool:
     return os.path.exists("/var/run/docker.sock") or bool(os.getenv("DOCKER_HOST"))
 
 
+# Start container and export env before test collection to avoid early wrong-auth attempts
+_TC_CONTAINER = None
+
+
+def pytest_sessionstart(session):  # type: ignore[override]
+    global _TC_CONTAINER
+    if not _has_docker():
+        return
+    if os.getenv("NEO4J_URI") and os.getenv("NEO4J_USERNAME") and os.getenv("NEO4J_PASSWORD"):
+        return
+    try:
+        from testcontainers.neo4j import Neo4jContainer  # type: ignore
+
+        _TC_CONTAINER = (
+            Neo4jContainer(image="neo4j:5.26")
+            .with_env("NEO4J_AUTH", "neo4j/Passw0rd!")
+            .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
+            .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
+        )
+        _TC_CONTAINER.start()
+        try:
+            bolt_port = _TC_CONTAINER.get_exposed_port(7687)  # type: ignore[attr-defined]
+        except Exception:
+            bolt_port = "7687"
+        os.environ["NEO4J_URI"] = f"bolt://localhost:{bolt_port}"
+        os.environ["NEO4J_USERNAME"] = "neo4j"
+        os.environ["NEO4J_PASSWORD"] = "Passw0rd!"
+        os.environ["NEO4J_DATABASE"] = "neo4j"
+        # Wait for readiness
+        try:
+            from neo4j import GraphDatabase as _GD
+
+            drv = _GD.driver(os.environ["NEO4J_URI"], auth=("neo4j", "Passw0rd!"))
+            import time as _t
+
+            for _ in range(60):
+                try:
+                    drv.verify_connectivity()
+                    break
+                except Exception:
+                    _t.sleep(2)
+            drv.close()
+        except Exception:
+            pass
+    except Exception:
+        _TC_CONTAINER = None
+
+
+def pytest_sessionfinish(session, exitstatus):  # type: ignore[override]
+    global _TC_CONTAINER
+    if _TC_CONTAINER is not None:
+        try:
+            _TC_CONTAINER.stop()
+        except Exception:
+            pass
+
+
 @pytest.fixture(scope="session")
 def neo4j_driver():
     """Session-scoped Neo4j driver using Testcontainers when available.
