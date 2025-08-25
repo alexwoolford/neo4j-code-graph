@@ -16,7 +16,7 @@ from typing import Any
 
 from packaging.version import Version
 
-from .types import CleanCVE
+from src.security.types import CleanCVE
 
 logger = logging.getLogger(__name__)
 

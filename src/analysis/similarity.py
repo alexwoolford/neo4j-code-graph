@@ -11,7 +11,7 @@ if TYPE_CHECKING:  # don't import heavy deps at module import time
 else:
     GraphDataScience = Any  # type: ignore
 
-from ..constants import (
+from src.constants import (
     COMMUNITY_PROPERTY,
     EMBEDDING_DIMENSION,
     EMBEDDING_PROPERTY,
@@ -19,7 +19,7 @@ from ..constants import (
     SIMILARITY_CUTOFF,
     SIMILARITY_TOP_K,
 )
-from ..utils.neo4j_utils import ensure_port, get_neo4j_config
+from src.utils.neo4j_utils import ensure_port, get_neo4j_config
 
 # Connection settings
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Import add_common_args - handle both script and module execution
-    from ..utils.common import add_common_args
+    from src.utils.common import add_common_args
 
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
@@ -277,7 +277,7 @@ def main() -> None:
     args = parse_args()
 
     # Use consistent logging helper - handle both script and module execution
-    from ..utils.common import setup_logging
+    from src.utils.common import setup_logging
 
     setup_logging(args.log_level, args.log_file)
 

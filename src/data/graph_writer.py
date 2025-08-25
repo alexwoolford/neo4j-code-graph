@@ -7,11 +7,8 @@ from typing import Any
 
 from tqdm import tqdm
 
-try:
-    from ..analysis.types import FileData
-except Exception:  # pragma: no cover - test/env import fallback
-    from src.analysis.types import FileData  # type: ignore
-from ..constants import (
+from src.analysis.types import FileData
+from src.constants import (
     DB_BATCH_SIMPLE,
     DB_BATCH_WITH_EMBEDDINGS,
     EMBEDDING_TYPE,

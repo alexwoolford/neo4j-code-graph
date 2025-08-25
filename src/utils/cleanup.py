@@ -14,7 +14,7 @@ import logging
 import sys
 import time
 
-from .common import add_common_args
+from src.utils.common import add_common_args
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def cleanup_graph_projections(session: Session, dry_run: bool = False) -> None:
     try:
         from graphdatascience import GraphDataScience
 
-        from .common import get_neo4j_config
+        from src.utils.common import get_neo4j_config
 
         # Create GDS client using proper Python client
         uri, username, password, database = get_neo4j_config()
@@ -436,13 +436,13 @@ def main():
     args = parse_args()
 
     # Use consistent logging helper
-    from .common import setup_logging
+    from src.utils.common import setup_logging
 
     setup_logging(args.log_level, args.log_file)
 
     try:
         # Use consistent Neo4j connection helper
-        from .common import create_neo4j_driver
+        from src.utils.common import create_neo4j_driver
 
         with create_neo4j_driver(args.uri, args.username, args.password) as driver:
             logger.info("Connected to Neo4j at %s", args.uri)

@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from neo4j import Driver
 
-from ..utils.common import create_neo4j_driver, setup_logging
-from ..utils.neo4j_utils import get_neo4j_config
-from .cve_cache_manager import CVECacheManager
-from .types import CleanCVE
+from src.security.cve_cache_manager import CVECacheManager
+from src.security.types import CleanCVE
+from src.utils.common import create_neo4j_driver, setup_logging
+from src.utils.neo4j_utils import get_neo4j_config
 
 # Avoid sys.path hacks; modules should be importable via package installation or repo context
 
@@ -307,7 +307,7 @@ class CVEAnalyzer:
 
         # Initialize precise GAV matcher
         try:
-            from .gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
+            from src.security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
 
             matcher = PreciseGAVMatcher()
 
@@ -653,7 +653,7 @@ Examples:
     try:
         from utils.common import add_common_args
     except ImportError:
-        from ..utils.common import add_common_args
+        from src.utils.common import add_common_args
 
     add_common_args(
         parser

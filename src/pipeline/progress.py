@@ -8,7 +8,7 @@ import argparse
 import logging
 from typing import Any
 
-from ..utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
+from src.utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
 
 logger = logging.getLogger(__name__)
 

@@ -30,7 +30,7 @@ from tqdm import tqdm
 try:
     from security.types import CleanCVE
 except Exception:  # pragma: no cover - fallback for module execution context
-    from .types import CleanCVE
+    from src.security.types import CleanCVE
 
 logger = logging.getLogger(__name__)
 

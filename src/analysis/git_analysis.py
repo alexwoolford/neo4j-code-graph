@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 from git import Repo
 
-from ..utils.neo4j_utils import get_neo4j_config
+from src.utils.neo4j_utils import get_neo4j_config
 
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Load git history into Neo4j")
 
     # Import add_common_args - handle both script and module execution
-    from ..utils.common import add_common_args
+    from src.utils.common import add_common_args
 
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
@@ -443,7 +443,7 @@ def load_history(
             try:
                 from utils.common import create_neo4j_driver
             except ImportError:
-                from ..utils.common import create_neo4j_driver
+                from src.utils.common import create_neo4j_driver
 
             with create_neo4j_driver(uri, username, password) as driver:
                 # Fail-fast: ensure constraints before writing
@@ -480,7 +480,7 @@ def main() -> None:
     args = parse_args()
 
     # Setup logging using consistent helper
-    from ..utils.common import setup_logging
+    from src.utils.common import setup_logging
 
     setup_logging(args.log_level, args.log_file)
 
@@ -499,7 +499,7 @@ def main() -> None:
         )
     else:
         try:
-            from ..utils.common import create_neo4j_driver
+            from src.utils.common import create_neo4j_driver
 
             with create_neo4j_driver(args.uri, args.username, args.password) as _:
                 logger.info(f"Connected to Neo4j at {args.uri}")

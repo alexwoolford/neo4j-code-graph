@@ -438,7 +438,7 @@ def main():
     try:
         from utils.common import add_common_args, create_neo4j_driver, setup_logging
     except ImportError:
-        from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
+        from src.utils.common import add_common_args, create_neo4j_driver, setup_logging
 
     parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)

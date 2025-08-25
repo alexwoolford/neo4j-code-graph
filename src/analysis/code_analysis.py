@@ -12,7 +12,7 @@ from time import perf_counter
 from typing import Any
 
 try:
-    from .types import FileData
+    from src.analysis.types import FileData
 except Exception:
     FileData = dict  # type: ignore[misc,assignment]
 
@@ -420,12 +420,9 @@ def extract_file_data(file_path: Path, repo_root: Path):
     payload so the caller can continue gracefully.
     """
     try:
-        from . import java_treesitter as _jt  # type: ignore
-    except Exception:  # pragma: no cover - fallback import for direct src run
-        try:
-            from src.analysis import java_treesitter as _jt  # type: ignore
-        except Exception:
-            _jt = None  # type: ignore
+        from src.analysis import java_treesitter as _jt  # type: ignore
+    except Exception:
+        _jt = None  # type: ignore
 
     if _jt is not None and hasattr(_jt, "extract_file_data"):
         try:
@@ -1045,7 +1042,7 @@ def main():
         dependency_versions = json.loads(_Path(args.in_dependencies).read_text(encoding="utf-8"))
     else:
         try:
-            from .dependency_extraction import extract_enhanced_dependencies_for_neo4j
+            from src.analysis.dependency_extraction import extract_enhanced_dependencies_for_neo4j
         except ImportError:
             extract_enhanced_dependencies_for_neo4j = None  # type: ignore
 
@@ -1252,21 +1249,16 @@ def main():
 
     logger.info("Phase 3: Creating graph in Neo4j...")
     start_phase3 = perf_counter()
-    try:
-        from utils.common import create_neo4j_driver as _create_driver  # type: ignore
-    except Exception:
-        from ..utils.common import create_neo4j_driver as _create_driver  # type: ignore
+    from src.utils.common import create_neo4j_driver as _create_driver  # type: ignore
 
     with _create_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:  # type: ignore[reportUnknownMemberType]
             try:
                 # Ensure required constraints exist before any writes
-                try:
-                    from data.schema_management import ensure_constraints_exist_or_fail as _ensure
-                except Exception:
-                    from ..data.schema_management import (  # type: ignore
-                        ensure_constraints_exist_or_fail as _ensure,
-                    )
+                from src.data.schema_management import (  # type: ignore
+                    ensure_constraints_exist_or_fail as _ensure,
+                )
+
                 _ensure(session)
             except Exception as _e:
                 logger.error("Constraints check failed: %s", _e)
