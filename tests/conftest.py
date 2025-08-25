@@ -114,6 +114,14 @@ def pytest_sessionstart(session):  # type: ignore[override]
                     break
                 except Exception:
                     _t.sleep(2)
+            # Ensure schema is created early for live tests that assert constraints
+            try:
+                from src.data.schema_management import setup_complete_schema  # type: ignore
+
+                with drv.session(database=os.environ.get("NEO4J_DATABASE", "neo4j")) as _s:
+                    setup_complete_schema(_s)
+            except Exception:
+                pass
             drv.close()
         except Exception:
             pass
