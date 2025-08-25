@@ -8,11 +8,8 @@ from typing import Any
 from tqdm import tqdm
 
 from src.analysis.types import FileData
-from src.constants import (
-    DB_BATCH_SIMPLE,
-    DB_BATCH_WITH_EMBEDDINGS,
-    EMBEDDING_TYPE,
-)
+from src.constants import EMBEDDING_TYPE
+from src.utils.batching import get_database_batch_size
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +17,9 @@ logger = logging.getLogger(__name__)
 def _get_database_batch_size(
     has_embeddings: bool = False, estimated_size_mb: int | None = None
 ) -> int:
-    if has_embeddings:
-        return DB_BATCH_WITH_EMBEDDINGS
-    elif estimated_size_mb and estimated_size_mb > 1:
-        return 500
-    else:
-        return DB_BATCH_SIMPLE
+    return get_database_batch_size(
+        has_embeddings=has_embeddings, estimated_size_mb=estimated_size_mb
+    )
 
 
 def create_directories(session: Any, files_data: list[FileData]) -> None:

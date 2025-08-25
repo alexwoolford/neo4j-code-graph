@@ -42,8 +42,6 @@ JAVA_KEYWORDS_TO_SKIP = {
 logger = logging.getLogger(__name__)
 
 from src.constants import (
-    DB_BATCH_SIMPLE,
-    DB_BATCH_WITH_EMBEDDINGS,
     DEFAULT_EMBED_BATCH_CPU,
     DEFAULT_EMBED_BATCH_CUDA_LARGE,
     DEFAULT_EMBED_BATCH_CUDA_SMALL,
@@ -320,29 +318,6 @@ def build_method_signature(
         return f"{pkg}{cls}#{method_name}({params_str}):{ret}"
     # Fallback without class
     return f"{pkg}{method_name}({params_str}):{ret}"
-
-
-def get_database_batch_size(
-    has_embeddings: bool = False, estimated_size_mb: int | None = None
-) -> int:
-    """
-    Determine optimal batch size for database operations.
-
-    Args:
-        has_embeddings: Whether the data includes large embedding vectors
-        estimated_size_mb: Estimated size per item in MB
-
-    Returns:
-        Optimal batch size for Neo4j operations
-    """
-    if has_embeddings:
-        return DB_BATCH_WITH_EMBEDDINGS
-    elif estimated_size_mb and estimated_size_mb > 1:
-        # Large data items - reduce batch size
-        return 500
-    else:
-        # Standard batch size for simple operations
-        return DB_BATCH_SIMPLE
 
 
 # compute_embeddings_bulk is imported from analysis.embeddings

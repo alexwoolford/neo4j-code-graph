@@ -29,3 +29,19 @@ def run_in_batches(
         if not batch:
             continue
         session.run(query, **{param_key: batch})
+
+
+def get_database_batch_size(
+    has_embeddings: bool = False, estimated_size_mb: int | None = None
+) -> int:
+    """Choose an appropriate batch size for Neo4j writes.
+
+    - Smaller batches when embeddings are present or data is large
+    - Larger batches for simple operations
+    """
+    if has_embeddings:
+        # Embeddings payloads are large; prefer smaller batches to avoid memory pressure
+        return 250
+    if estimated_size_mb and estimated_size_mb > 1:
+        return 500
+    return 1000
