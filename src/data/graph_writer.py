@@ -494,6 +494,59 @@ def create_methods(
             rels=batch,
         )
 
+    # Build Class->Method and Interface->Method relationships
+    method_class_rels: list[dict[str, Any]] = []
+    method_interface_rels: list[dict[str, Any]] = []
+
+    for file_data in files_data:
+        for method in file_data.get("methods", []):
+            cls_name = method.get("class_name")
+            if not cls_name:
+                continue
+            if (method.get("containing_type") or "class") == "interface":
+                method_interface_rels.append(
+                    {
+                        "method_name": method.get("name"),
+                        "method_file": method.get("file"),
+                        "method_line": method.get("line"),
+                        "interface_name": cls_name,
+                    }
+                )
+            else:
+                method_class_rels.append(
+                    {
+                        "method_name": method.get("name"),
+                        "method_file": method.get("file"),
+                        "method_line": method.get("line"),
+                        "class_name": cls_name,
+                    }
+                )
+
+    if method_class_rels:
+        logger.info("Creating %d method-to-class relationships..." % len(method_class_rels))
+        for i in tqdm(range(0, len(method_class_rels), batch_size), desc="Method->Class rels"):
+            batch = method_class_rels[i : i + batch_size]
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
+                "MATCH (c:Class {name: rel.class_name, file: rel.method_file}) "
+                "MERGE (c)-[:CONTAINS_METHOD]->(m)",
+                rels=batch,
+            )
+    if method_interface_rels:
+        logger.info("Creating %d method-to-interface relationships..." % len(method_interface_rels))
+        for i in tqdm(
+            range(0, len(method_interface_rels), batch_size), desc="Method->Interface rels"
+        ):
+            batch = method_interface_rels[i : i + batch_size]
+            session.run(
+                "UNWIND $rels AS rel "
+                "MATCH (m:Method {name: rel.method_name, file: rel.method_file, line: rel.method_line}) "
+                "MATCH (i:Interface {name: rel.interface_name, file: rel.method_file}) "
+                "MERGE (i)-[:CONTAINS_METHOD]->(m)",
+                rels=batch,
+            )
+
 
 def create_imports(
     session: Any, files_data: list[FileData], dependency_versions: dict[str, str] | None = None
