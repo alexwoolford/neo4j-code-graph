@@ -114,6 +114,30 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 )
 
     # Class, interface, and record declarations
+    def _extract_return_type(mnode) -> str:
+        """Extract method return type from a method_declaration node."""
+        # Find the identifier child to bound the search
+        ident = _child_by_type(mnode, "identifier")
+        ident_start = ident.start_byte if ident is not None else mnode.start_byte
+        candidates = []
+        for ch in mnode.children:
+            if ch.end_byte <= ident_start and ch.type in (
+                "void_type",
+                "type",
+                "type_identifier",
+                "scoped_type_identifier",
+                "integral_type",
+                "floating_point_type",
+                "boolean_type",
+                "array_type",
+            ):
+                candidates.append(ch)
+        if not candidates:
+            return "void"
+        node = candidates[-1]
+        text = _node_text(source_bytes, node).strip()
+        return text if text else "void"
+
     def walk(node, ancestors: list):
         if node.type in ("class_declaration", "interface_declaration", "record_declaration"):
             identifier = _child_by_type(node, "identifier")
@@ -172,7 +196,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "is_final": False,
                     "is_private": False,
                     "is_public": False,
-                    "return_type": "void",  # Simplified; refined by downstream if needed
+                    "return_type": _extract_return_type(node),
                     "parameters": [],
                     "code": "\n".join(method_code),
                     # Best-effort call extraction from AST (method_invocation nodes)
@@ -195,10 +219,21 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     else:
                         mname = name_part.strip()
                         qualifier = ""
+                    # Classify call type
+                    if qualifier == "this":
+                        call_type = "this"
+                    elif qualifier == "super":
+                        call_type = "super"
+                    elif qualifier == "":
+                        call_type = "same_class"
+                    elif qualifier and qualifier[:1].isupper():
+                        call_type = "static"
+                    else:
+                        call_type = "instance"
                     call_entry = {
                         "method_name": mname,
                         "target_class": None,
-                        "call_type": "other" if qualifier not in ("this", "super") else qualifier,
+                        "call_type": call_type,
                         "qualifier": qualifier,
                     }
                     calls_list.append(call_entry)

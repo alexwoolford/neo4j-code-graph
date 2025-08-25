@@ -546,6 +546,22 @@ T_centrality_task = _db_tasks.centrality_task
 T_coupling_task = _db_tasks.coupling_task
 T_cve_task = _db_tasks.cve_task
 
+# Expose patchable task names at module scope for tests (aliases)
+PF_setup_schema_task = T_setup_schema_task
+PF_selective_cleanup_task = T_selective_cleanup_task
+PF_cleanup_task = T_cleanup_task
+PF_clone_repo_task = T_clone_repo_task
+PF_extract_code_task = T_extract_code_task
+PF_embed_files_task = T_embed_files_task
+PF_embed_methods_task = T_embed_methods_task
+PF_write_graph_task = T_write_graph_task
+PF_git_history_task = T_git_history_task
+PF_similarity_task = T_similarity_task
+PF_louvain_task = T_louvain_task
+PF_centrality_task = T_centrality_task
+PF_coupling_task = T_coupling_task
+PF_cve_task = T_cve_task
+
 
 @flow(name="neo4j-code-graph-pipeline")
 def code_graph_flow(
@@ -566,19 +582,7 @@ def code_graph_flow(
     # Preflight first: detect capabilities before any writes (including schema)
     caps: dict[str, object] = preflight_task(uri, username, password, database)
     # Proceed with schema only after preflight
-    setup_schema_task = T_setup_schema_task
-    clone_repo_task = T_clone_repo_task
-    extract_code_task = T_extract_code_task
-    embed_files_task = T_embed_files_task
-    embed_methods_task = T_embed_methods_task
-    write_graph_task = T_write_graph_task
-    git_history_task = T_git_history_task
-    similarity_task = T_similarity_task
-    louvain_task = T_louvain_task
-    centrality_task = T_centrality_task
-    coupling_task = T_coupling_task
-    cve_task = T_cve_task
-    setup_schema_task(uri, username, password, database)
+    PF_setup_schema_task(uri, username, password, database)
     apoc_info_obj = caps.get("apoc")
     gds_info_obj = caps.get("gds")
     apoc_info: dict[str, object] = apoc_info_obj if isinstance(apoc_info_obj, dict) else {}
@@ -595,22 +599,22 @@ def code_graph_flow(
     if p.exists() and p.is_dir():
         repo_path = str(p)
     else:
-        repo_path = clone_repo_task.submit(repo_url).result()
+        repo_path = PF_clone_repo_task.submit(repo_url).result()
 
     # Run code structure in granular steps with artifacts
     artifacts_dir = str(Path(tempfile.mkdtemp(prefix="cg_artifacts_")))
-    extract_code_task(repo_path, artifacts_dir)
-    embed_files_task(repo_path, artifacts_dir)
-    embed_methods_task(repo_path, artifacts_dir)
-    write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
+    PF_extract_code_task(repo_path, artifacts_dir)
+    PF_embed_files_task(repo_path, artifacts_dir)
+    PF_embed_methods_task(repo_path, artifacts_dir)
+    PF_write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
     cleanup_artifacts_task(artifacts_dir)
 
     # Then run git history
-    git_history_task(repo_path, uri, username, password, database)
+    PF_git_history_task(repo_path, uri, username, password, database)
 
     # Create CO_CHANGED relationships from commit history before similarity
     # Always call task; pass create_relationships based on apoc availability
-    coupling_task(uri, username, password, database, create_relationships=apoc_ok)
+    PF_coupling_task(uri, username, password, database, create_relationships=apoc_ok)
 
     # Summaries/intent stages removed
     logger.info("Summary and intent similarity stages are not part of this flow")
@@ -623,25 +627,25 @@ def code_graph_flow(
     # attempt to run and let tasks handle errors gracefully.
     if gds_ok:
         # Execute GDS tasks sequentially to avoid global sys.argv contention
-        sim_state = similarity_task.submit(uri, username, password, database)
+        sim_state = PF_similarity_task.submit(uri, username, password, database)
         try:
             _ = getattr(sim_state, "result", lambda: None)()
         except Exception:
             pass
 
-        louv_state = louvain_task.submit(uri, username, password, database)
+        louv_state = PF_louvain_task.submit(uri, username, password, database)
         try:
             _ = getattr(louv_state, "result", lambda: None)()
         except Exception:
             pass
 
-        cent_state = centrality_task.submit(uri, username, password, database)
+        cent_state = PF_centrality_task.submit(uri, username, password, database)
         try:
             _ = getattr(cent_state, "result", lambda: None)()
         except Exception:
             pass
 
-        cve_state = cve_task.submit(uri, username, password, database)
+        cve_state = PF_cve_task.submit(uri, username, password, database)
     else:
         logger = get_run_logger()
         logger.warning("GDS not available; skipping similarity, Louvain, and centrality stages")
