@@ -688,21 +688,13 @@ def preflight_task(
     logger = get_run_logger()
     try:
         from utils.common import create_neo4j_driver as _drv
+        from utils.common import resolve_neo4j_args as _resolve
     except Exception:
         from src.utils.common import create_neo4j_driver as _drv  # type: ignore
+        from src.utils.common import resolve_neo4j_args as _resolve  # type: ignore
 
-    # Resolve connection like cleanup_task
-    try:
-        from utils.neo4j_utils import get_neo4j_config as _get_cfg
-    except Exception:
-        from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
-
-    if uri and username and password:
-        _uri, _user, _pwd, _db = uri, username, password, database
-    else:
-        _uri, _user, _pwd, _db = _get_cfg()
-        if database:
-            _db = database
+    # Resolve final connection settings (explicit args override .env)
+    _uri, _user, _pwd, _db = _resolve(uri, username, password, database)
 
     try:
         with _drv(_uri, _user, _pwd) as driver:

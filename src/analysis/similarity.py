@@ -19,7 +19,7 @@ from src.constants import (
     SIMILARITY_CUTOFF,
     SIMILARITY_TOP_K,
 )
-from src.utils.neo4j_utils import ensure_port, get_neo4j_config
+from src.utils.neo4j_utils import get_neo4j_config
 
 # Connection settings
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
@@ -283,14 +283,14 @@ def main() -> None:
 
     from graphdatascience import GraphDataScience as _GDS  # local import
 
-    gds = _GDS(
-        ensure_port(args.uri),
-        auth=(args.username, args.password),
-        database=args.database,
-        arrow=False,
+    from src.utils.common import resolve_neo4j_args
+
+    _uri, _user, _pwd, _db = resolve_neo4j_args(
+        args.uri, args.username, args.password, args.database
     )
+    gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
     gds.run_cypher("RETURN 1")  # verify connectivity
-    logger.info("Connected to Neo4j at %s", ensure_port(args.uri))
+    logger.info("Connected to Neo4j at %s", _uri)
     create_index(gds)
     if not args.no_knn:
         run_knn(gds, args.top_k, args.cutoff)

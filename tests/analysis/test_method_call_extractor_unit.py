@@ -1,4 +1,4 @@
-from src.analysis.code_analysis import _extract_method_calls
+from src.analysis.calls import extract_method_calls as _extract_method_calls
 
 
 def test_extract_method_calls_various_patterns():

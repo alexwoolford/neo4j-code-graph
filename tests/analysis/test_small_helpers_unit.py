@@ -35,13 +35,13 @@ def test_get_database_batch_size_variants():
     ],
 )
 def test_build_method_signature_cases(pkg, cls, method, params, ret, expected):
-    from src.analysis.code_analysis import build_method_signature
+    from src.analysis.parser import build_method_signature
 
     assert build_method_signature(pkg, cls, method, params, ret) == expected
 
 
 def test_extract_method_calls_simple_patterns():
-    from src.analysis.code_analysis import _extract_method_calls
+    from src.analysis.calls import extract_method_calls as _extract_method_calls
 
     code = """
 class C {

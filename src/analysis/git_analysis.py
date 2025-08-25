@@ -150,7 +150,10 @@ def load_history(
             except ImportError:
                 from src.utils.common import create_neo4j_driver
 
-            with create_neo4j_driver(uri, username, password) as driver:
+            from src.utils.common import resolve_neo4j_args
+
+            _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, None)
+            with create_neo4j_driver(_uri, _user, _pwd) as driver:
                 # Fail-fast: ensure constraints before writing
                 try:
                     from src.data.schema_management import (  # type: ignore
@@ -206,9 +209,12 @@ def main() -> None:
         )
     else:
         try:
-            from src.utils.common import create_neo4j_driver
+            from src.utils.common import create_neo4j_driver, resolve_neo4j_args
 
-            with create_neo4j_driver(args.uri, args.username, args.password) as _:
+            _uri, _user, _pwd, _db = resolve_neo4j_args(
+                args.uri, args.username, args.password, args.database
+            )
+            with create_neo4j_driver(_uri, _user, _pwd) as _:
                 logger.info(f"Connected to Neo4j at {args.uri}")
                 load_history(
                     args.repo_url,

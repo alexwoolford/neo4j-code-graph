@@ -79,6 +79,30 @@ def create_neo4j_driver(uri: str, username: str, password: str) -> Driver:
         raise
 
 
+def resolve_neo4j_args(
+    explicit_uri: str | None,
+    explicit_username: str | None,
+    explicit_password: str | None,
+    explicit_database: str | None,
+) -> tuple[str, str, str, str]:
+    """Resolve final Neo4j connection settings from explicit args over env/.env.
+
+    - Reads defaults via get_neo4j_config()
+    - Overrides each field if an explicit value is provided (non-empty)
+    - Ensures the URI has a port
+    """
+    uri, user, pwd, db = get_neo4j_config()
+    if explicit_uri:
+        uri = ensure_port(explicit_uri)
+    if explicit_username:
+        user = explicit_username
+    if explicit_password:
+        pwd = explicit_password
+    if explicit_database:
+        db = explicit_database
+    return uri, user, pwd, db
+
+
 def add_common_args(parser: argparse.ArgumentParser) -> None:
     """Add common command-line arguments to an ArgumentParser.
 

@@ -361,7 +361,12 @@ Examples:
         return
 
     # Connect to Neo4j using consistent args (which now come from .env via add_common_args)
-    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
+    from src.utils.common import resolve_neo4j_args
+
+    _uri, _user, _pwd, _db = resolve_neo4j_args(
+        args.uri, args.username, args.password, args.database
+    )
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
         analyzer = CVEAnalyzer(driver, args.database)
 
         # Handle cache management

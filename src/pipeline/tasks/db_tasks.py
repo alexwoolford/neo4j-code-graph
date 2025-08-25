@@ -10,8 +10,7 @@ from src.analysis.similarity import main as similarity_main
 from src.analysis.temporal_analysis import main as temporal_main
 from src.data.schema_management import main as schema_main
 from src.security.cve_analysis import main as cve_main
-from src.utils.common import create_neo4j_driver
-from src.utils.neo4j_utils import get_neo4j_config
+from src.utils.common import create_neo4j_driver, resolve_neo4j_args
 
 
 def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> list[str]:
@@ -76,12 +75,7 @@ def selective_cleanup_task(
             from src.utils.cleanup import selective_cleanup as _sel  # type: ignore
         except Exception:  # pragma: no cover
             from utils.cleanup import selective_cleanup as _sel  # type: ignore
-        if uri and username and password:
-            _uri, _user, _pwd, _db = uri, username, password, database
-        else:
-            _uri, _user, _pwd, _db = get_neo4j_config()
-            if database:
-                _db = database
+        _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
         with create_neo4j_driver(_uri, _user, _pwd) as driver:
             with driver.session(database=_db) as session:  # type: ignore[reportUnknownMemberType]
                 _sel(session, dry_run=False)
@@ -145,12 +139,7 @@ def write_graph_task(
     try:
         from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
-        if uri and username and password:
-            _uri, _user, _pwd, _db = uri, username, password, database
-        else:
-            _uri, _user, _pwd, _db = get_neo4j_config()
-            if database:
-                _db = database
+        _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
         from src.constants import EMBEDDING_PROPERTY as _EMB
 
         gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
@@ -199,7 +188,7 @@ def similarity_task(
     logger = get_run_logger()
     logger.info("Running similarity (kNN + optional Louvain)")
     base = ["prog"]
-    overrides: dict[str, str] = {"--top-k": "5", "--cutoff": "0.8"}
+    overrides: dict[str, object] = {"--top-k": "5", "--cutoff": "0.8"}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -225,7 +214,7 @@ def louvain_task(
     logger = get_run_logger()
     logger.info("Running community detection (Louvain)")
     base = ["prog"]
-    overrides: dict[str, str | bool | float] = {"--no-knn": True, "--community-threshold": 0.8}
+    overrides: dict[str, object] = {"--no-knn": True, "--community-threshold": 0.8}
     if uri:
         overrides["--uri"] = uri
     if username:
@@ -335,7 +324,7 @@ def cve_task(
         logger.warning("NVD_API_KEY not set; skipping CVE analysis")
         return
     base = ["prog", "--risk-threshold", "7.0", "--max-hops", "4"]
-    overrides: dict[str, str] = {}
+    overrides: dict[str, object] = {}
     if uri:
         overrides["--uri"] = uri
     if username:

@@ -351,20 +351,23 @@ def main() -> None:
 
     setup_logging(args.log_level, args.log_file)
 
-    with create_neo4j_driver(args.uri, args.username, args.password) as _:
+    from src.utils.common import resolve_neo4j_args
+
+    _uri, _user, _pwd, _db = resolve_neo4j_args(
+        args.uri, args.username, args.password, args.database
+    )
+    with create_neo4j_driver(_uri, _user, _pwd) as _:
         try:
             # Prefer patched symbol in tests; otherwise use real client
             try:
                 GDSClass = GraphDataScience  # type: ignore[assignment]
-                gds = GDSClass(
-                    args.uri, auth=(args.username, args.password), database=args.database
-                )
+                gds = GDSClass(_uri, auth=(_user, _pwd), database=_db)
             except Exception:
                 from graphdatascience import GraphDataScience as _GDS
 
-                gds = _GDS(args.uri, auth=(args.username, args.password), database=args.database)
+                gds = _GDS(_uri, auth=(_user, _pwd), database=_db)
 
-            logger.info("Connected to Neo4j GDS at %s", args.uri)
+            logger.info("Connected to Neo4j GDS at %s", _uri)
 
             # Check if we have enough data
             call_count, method_count = check_call_graph_exists(gds)

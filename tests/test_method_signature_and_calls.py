@@ -11,7 +11,7 @@ def add_src_to_path() -> None:
 
 def test_build_method_signature_formats():
     add_src_to_path()
-    from analysis.code_analysis import build_method_signature
+    from analysis.parser import build_method_signature
 
     sig1 = build_method_signature(
         "com.example", "Hello", "add", [{"type": "int"}, {"type": "int"}], "int"
@@ -27,7 +27,7 @@ def test_build_method_signature_formats():
 
 def test_extract_method_calls_regex():
     add_src_to_path()
-    from analysis.code_analysis import _extract_method_calls
+    from analysis.calls import extract_method_calls as _extract_method_calls
 
     code = """
     public class Hello {

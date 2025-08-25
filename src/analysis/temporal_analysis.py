@@ -334,7 +334,12 @@ def run_hotspots(
 def main() -> None:
     args = parse_args()
     setup_logging(args.log_level, args.log_file)
-    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
+    from src.utils.common import resolve_neo4j_args
+
+    _uri, _user, _pwd, _db = resolve_neo4j_args(
+        args.uri, args.username, args.password, args.database
+    )
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
         if args.command == "coupling":
             run_coupling(
                 driver,

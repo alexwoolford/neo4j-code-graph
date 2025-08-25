@@ -176,10 +176,12 @@ def create_schema_constraints_and_indexes(session: Any) -> None:
     # UNIQUE CONSTRAINTS (enforce natural key uniqueness)
     # =============================================================================
 
-    for constraint_name, node_type, key_desc, cypher in SCHEMA_CONSTRAINTS:
+    from src.data.cypher_builders import iter_schema_constraint_cypher
+
+    for constraint_name, cypher in iter_schema_constraint_cypher():
         try:
             session.run(cypher)
-            logger.info(f"✅ Created constraint {constraint_name}: {node_type}({key_desc})")
+            logger.info(f"✅ Created constraint {constraint_name}")
         except Exception as e:
             if "already exists" in str(e).lower() or "equivalent" in str(e).lower():
                 logger.debug(f"  ⚠️  Constraint {constraint_name} already exists")
@@ -190,10 +192,12 @@ def create_schema_constraints_and_indexes(session: Any) -> None:
     # PERFORMANCE INDEXES (for commonly queried properties)
     # =============================================================================
 
-    for index_name, node_type, cypher in SCHEMA_INDEXES:
+    from src.data.cypher_builders import iter_schema_index_cypher
+
+    for index_name, cypher in iter_schema_index_cypher():
         try:
             session.run(cypher)
-            logger.info(f"✅ Created index {index_name} on {node_type}")
+            logger.info(f"✅ Created index {index_name}")
         except Exception as e:
             if "already exists" in str(e).lower() or "equivalent" in str(e).lower():
                 logger.debug(f"  ⚠️  Index {index_name} already exists")
