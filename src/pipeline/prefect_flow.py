@@ -13,11 +13,24 @@ from __future__ import annotations
 
 import argparse
 import os
+
+# Ensure both repo and installed contexts can import modules consistently
+import sys
 import tempfile
 from collections.abc import Mapping
 from pathlib import Path
+from pathlib import Path as _PathForPathFix
 
 from prefect import flow, get_run_logger, task
+
+_this_file = _PathForPathFix(__file__).resolve()
+_repo_root = _this_file.parents[2] if len(_this_file.parents) >= 3 else None
+if _repo_root is not None:
+    # Add project root (so 'src' package is importable) and 'src' (so 'analysis.*' works)
+    _src_dir = _repo_root / "src"
+    for p in (str(_repo_root), str(_src_dir)):
+        if p not in sys.path:
+            sys.path.insert(0, p)
 
 # Consistent relative imports within the package
 try:
