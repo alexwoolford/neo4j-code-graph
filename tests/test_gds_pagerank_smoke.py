@@ -49,9 +49,9 @@ def test_pagerank_smoke_projection_and_stream():
         pytest.skip("Neo4j not reachable for GDS test")
 
     gds.run_cypher(
-        "CREATE (:Method {name:'A', method_signature:'A#a():void'}), "
-        "(:Method {name:'B', method_signature:'B#b():void'}), "
-        "(:Method {name:'C', method_signature:'C#c():void'})"
+        "CREATE (:Method {id:1, name:'A', method_signature:'A#a():void'}), "
+        "(:Method {id:2, name:'B', method_signature:'B#b():void'}), "
+        "(:Method {id:3, name:'C', method_signature:'C#c():void'})"
     )
     gds.run_cypher(
         "MATCH (a:Method {name:'A'}), (b:Method {name:'B'}), (c:Method {name:'C'}) "
