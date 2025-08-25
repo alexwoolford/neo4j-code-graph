@@ -197,8 +197,22 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     if exists:
         gds.graph.drop(graph_name)
 
-    # Prefer native projection; no relationships needed for kNN on node vectors
-    graph, _ = gds.graph.project(graph_name, {"Method": {"properties": [EMBEDDING_PROPERTY]}}, {})
+    # Prefer native projection; some GDS versions require at least one relationship type.
+    # First try with a placeholder relationship type (SIMILAR). If the server rejects the
+    # projection (e.g., due to strict checks), fall back to Cypher projection with no rels.
+    try:
+        graph, _ = gds.graph.project(
+            graph_name,
+            {"Method": {"properties": [EMBEDDING_PROPERTY]}},
+            {"SIMILAR": {"orientation": "UNDIRECTED"}},
+        )
+    except Exception:
+        node_q = (
+            f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
+            f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS {EMBEDDING_PROPERTY}"
+        )
+        rel_q = "RETURN null AS source, null AS target LIMIT 0"
+        graph, _ = gds.graph.project.cypher(graph_name, node_q, rel_q)
 
     start = perf_counter()
     gds.knn.write(graph, **base_config)
