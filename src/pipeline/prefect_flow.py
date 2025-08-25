@@ -21,6 +21,7 @@ from prefect import flow, get_run_logger, task
 
 # Consistent relative imports within the package
 try:
+    # First try repo-style imports (module paths without src prefix)
     from analysis.centrality import main as centrality_main
     from analysis.code_analysis import main as code_to_graph_main
     from analysis.git_analysis import main as git_history_main
@@ -31,6 +32,7 @@ try:
     from utils.common import setup_logging
     from utils.neo4j_utils import check_capabilities as _check_caps
 except Exception:
+    # Fallback to installed-package style (src-prefixed) imports
     from src.analysis.centrality import main as centrality_main  # type: ignore
     from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
     from src.analysis.git_analysis import main as git_history_main  # type: ignore

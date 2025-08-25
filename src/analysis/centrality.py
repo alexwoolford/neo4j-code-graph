@@ -26,8 +26,22 @@ if TYPE_CHECKING:
 else:
     GraphDataScience = Any  # type: ignore
 
-from src.constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
-from src.utils.common import add_common_args, create_neo4j_driver, setup_logging
+# Dual-context imports without mypy redefinition errors
+try:
+    from src import constants as _C  # type: ignore
+except Exception:  # pragma: no cover
+    import constants as _C  # type: ignore
+
+try:
+    from src.utils import common as _U  # type: ignore
+except Exception:  # pragma: no cover
+    import utils.common as _U  # type: ignore
+
+PAGERANK_ALPHA = _C.PAGERANK_ALPHA
+PAGERANK_ANALYSIS_ITERATIONS = _C.PAGERANK_ANALYSIS_ITERATIONS
+add_common_args = _U.add_common_args
+create_neo4j_driver = _U.create_neo4j_driver
+setup_logging = _U.setup_logging
 
 logger = logging.getLogger(__name__)
 
