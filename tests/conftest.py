@@ -84,7 +84,12 @@ def neo4j_driver():
         try:
             from testcontainers.neo4j import Neo4jContainer  # type: ignore
 
-            with Neo4jContainer(image="neo4j:5.26") as neo4j:  # latest LTS
+            with (
+                Neo4jContainer(image="neo4j:5.26")
+                .with_env("NEO4J_AUTH", "neo4j/test")
+                .with_env("NEO4J_PLUGINS", '["gds","apoc"]')
+                .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*") as neo4j
+            ):  # latest LTS with plugins
                 with neo4j.get_driver() as driver:  # type: ignore[attr-defined]
                     # Export connection params so code under test using get_neo4j_config() works
                     import os
@@ -133,7 +138,12 @@ def _ensure_neo4j_env_for_session():
     except Exception:
         return
 
-    neo4j = Neo4jContainer(image="neo4j:5.26")
+    neo4j = (
+        Neo4jContainer(image="neo4j:5.26")
+        .with_env("NEO4J_AUTH", "neo4j/test")
+        .with_env("NEO4J_PLUGINS", '["gds","apoc"]')
+        .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
+    )
     neo4j.start()
     import os as _os
 
