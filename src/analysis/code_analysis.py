@@ -475,6 +475,20 @@ from src.data.graph_writer import (  # type: ignore
 
 ## bulk_create_nodes_and_relationships is re-exported from data.graph_writer
 
+# Back-compat re-export for tests expecting batching helper here
+try:
+    from src.utils.batching import get_database_batch_size as _get_db_batch_size
+
+    def get_database_batch_size(
+        has_embeddings: bool = False, estimated_size_mb: int | None = None
+    ) -> int:
+        return _get_db_batch_size(
+            has_embeddings=has_embeddings, estimated_size_mb=estimated_size_mb
+        )
+
+except Exception:  # pragma: no cover
+    pass
+
 
 def main():
     """Main function."""

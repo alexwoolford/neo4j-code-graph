@@ -31,6 +31,12 @@ logger = logging.getLogger(__name__)
 class CVEAnalyzer(CVEAnalyzerCore):
     """Facade over core + graph writes and reporting."""
 
+    def load_cve_data(self, file_path: str):
+        import json
+
+        with open(file_path) as f:
+            return json.load(f)
+
     def create_vulnerability_graph(self, cve_data: list[dict[str, Any]]) -> int:
         with self._session() as session:
             return create_vulnerability_graph(session, cve_data)
