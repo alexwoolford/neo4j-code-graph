@@ -503,7 +503,6 @@ from src.data.graph_writer import (  # type: ignore
 
 def main():
     """Main function."""
-    import json
     from pathlib import Path as _Path
 
     args = parse_args()
@@ -537,8 +536,10 @@ def main():
         and args.in_dependencies
         and _Path(args.in_dependencies).exists()
     ):
+        from src.analysis.io import load_dependencies_from_json
+
         logger.info("Reading dependencies from %s", args.in_dependencies)
-        dependency_versions = json.loads(_Path(args.in_dependencies).read_text(encoding="utf-8"))
+        dependency_versions = load_dependencies_from_json(_Path(args.in_dependencies))
     else:
         try:
             from src.analysis.dependency_extraction import extract_enhanced_dependencies_for_neo4j
@@ -559,10 +560,9 @@ def main():
         if not dependency_versions:
             dependency_versions = extract_dependency_versions_from_files(repo_root)
         if getattr(args, "out_dependencies", None) and args.out_dependencies:
-            _Path(args.out_dependencies).parent.mkdir(parents=True, exist_ok=True)
-            _Path(args.out_dependencies).write_text(
-                json.dumps(dependency_versions, ensure_ascii=False), encoding="utf-8"
-            )
+            from src.analysis.io import save_dependencies_to_json
+
+            save_dependencies_to_json(_Path(args.out_dependencies), dependency_versions)
 
     # Phase 1: Extract file data (allow artifact in/out)
     logger.info("Phase 1: Extracting file data...")
@@ -574,8 +574,10 @@ def main():
         and args.in_files_data
         and _Path(args.in_files_data).exists()
     ):
+        from src.analysis.io import read_files_data
+
         logger.info("Reading files data from %s", args.in_files_data)
-        files_data = json.loads(_Path(args.in_files_data).read_text(encoding="utf-8"))
+        files_data = read_files_data(_Path(args.in_files_data))
     else:
         # Skip DB lookup to avoid coupling extract-only runs to Neo4j
         files_to_process = list(java_files)
@@ -604,10 +606,9 @@ def main():
                 )
 
         if getattr(args, "out_files_data", None) and args.out_files_data:
-            _Path(args.out_files_data).parent.mkdir(parents=True, exist_ok=True)
-            _Path(args.out_files_data).write_text(
-                json.dumps(files_data, ensure_ascii=False), encoding="utf-8"
-            )
+            from src.analysis.io import write_files_data
+
+            write_files_data(_Path(args.out_files_data), files_data)
 
     phase1_time = perf_counter() - start_phase1
     logger.info("Phase 1 completed in %.2fs", phase1_time)
@@ -633,8 +634,9 @@ def main():
         and _Path(args.in_file_embeddings).exists()
     ):
         try:
-            # Keep as numpy array to avoid expensive upfront Python list conversion
-            file_embeddings = _np().load(args.in_file_embeddings, allow_pickle=False)
+            from src.analysis.io import load_embeddings
+
+            file_embeddings = load_embeddings(_Path(args.in_file_embeddings))
             files_loaded = True
             logger.info("Loaded file embeddings from %s", args.in_file_embeddings)
         except Exception:
@@ -645,8 +647,9 @@ def main():
         and _Path(args.in_method_embeddings).exists()
     ):
         try:
-            # Keep as numpy array to avoid expensive upfront Python list conversion
-            method_embeddings = _np().load(args.in_method_embeddings, allow_pickle=False)
+            from src.analysis.io import load_embeddings
+
+            method_embeddings = load_embeddings(_Path(args.in_method_embeddings))
             methods_loaded = True
             logger.info("Loaded method embeddings from %s", args.in_method_embeddings)
         except Exception:
@@ -704,16 +707,18 @@ def main():
 
     # Persist artifacts if requested
     if getattr(args, "out_file_embeddings", None) and args.out_file_embeddings and file_embeddings:
-        _Path(args.out_file_embeddings).parent.mkdir(parents=True, exist_ok=True)
-        _np().save(args.out_file_embeddings, _np().array(file_embeddings, dtype="float32"))
+        from src.analysis.io import save_embeddings
+
+        save_embeddings(_Path(args.out_file_embeddings), file_embeddings)  # type: ignore[arg-type]
         logger.info("Wrote file embeddings to %s", args.out_file_embeddings)
     if (
         getattr(args, "out_method_embeddings", None)
         and args.out_method_embeddings
         and method_embeddings
     ):
-        _Path(args.out_method_embeddings).parent.mkdir(parents=True, exist_ok=True)
-        _np().save(args.out_method_embeddings, _np().array(method_embeddings, dtype="float32"))
+        from src.analysis.io import save_embeddings
+
+        save_embeddings(_Path(args.out_method_embeddings), method_embeddings)  # type: ignore[arg-type]
         logger.info("Wrote method embeddings to %s", args.out_method_embeddings)
 
     phase2_time = 0.0 if getattr(args, "skip_embed", False) else (perf_counter() - start_phase2)
