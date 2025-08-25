@@ -32,6 +32,19 @@ def neo4j_session():
 
     uri, user, pwd, database = get_neo4j_config()
     with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
+        # Retry connect in case DB is still starting
+        try:
+            driver.verify_connectivity()
+        except Exception:
+            import time as _t
+
+            for _ in range(30):
+                _t.sleep(2)
+                try:
+                    driver.verify_connectivity()
+                    break
+                except Exception:
+                    continue
         with driver.session(database=database) as session:
             yield session
 
