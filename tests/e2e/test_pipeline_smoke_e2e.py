@@ -41,17 +41,16 @@ def test_builds_minimal_graph(neo4j_driver, tmp_path: Path):
         )
 
         # Invariants: nodes exist and identities are unique
-        counts = dict(
-            s.run(
-                """
-                CALL { RETURN 'File' AS lbl UNION ALL RETURN 'Method' UNION ALL RETURN 'Class' }
-                WITH lbl
-                CALL apoc.cypher.run("MATCH (n:`" + lbl + "`) RETURN count(n) AS c", {}) YIELD value
-                RETURN lbl, value.c AS c
-                """
-            ).data()
-        )
-        assert any(v["c"] > 0 for v in counts.values())
+        rows = s.run(
+            """
+            CALL { RETURN 'File' AS lbl UNION ALL RETURN 'Method' AS lbl UNION ALL RETURN 'Class' AS lbl }
+            WITH lbl
+            CALL apoc.cypher.run("MATCH (n:`" + lbl + "`) RETURN count(n) AS c", {}) YIELD value
+            RETURN lbl, value.c AS c
+            """
+        ).data()
+        counts = {r["lbl"]: r["c"] for r in rows}
+        assert any(v > 0 for v in counts.values())
 
         # Required properties on Method
         res = s.run(
@@ -61,10 +60,7 @@ def test_builds_minimal_graph(neo4j_driver, tmp_path: Path):
 
         # Key relationships exist
         rels = s.run(
-            """
-            RETURN
-              (SELECT count(*) FROM (MATCH (:File)-[:DECLARES]->(:Method) RETURN 1)) AS file_declares,
-              (SELECT count(*) FROM (MATCH (:Class)-[:CONTAINS_METHOD]->(:Method) RETURN 1)) AS class_contains
-            """
+            "MATCH (:File)-[:DECLARES]->(:Method) WITH count(*) AS file_declares "
+            "MATCH (:Class)-[:CONTAINS_METHOD]->(:Method) RETURN file_declares, count(*) AS class_contains"
         ).data()[0]
         assert rels["file_declares"] >= 0  # presence check (query runs)

@@ -253,10 +253,15 @@ def neo4j_driver():
 @pytest.fixture(scope="session", autouse=True)
 def _ensure_neo4j_env_for_session():
     if not _has_docker():
+        # No Docker available; do not attempt to start a container
+        # but still yield to satisfy fixture contract
+        yield
         return
     try:
         from testcontainers.neo4j import Neo4jContainer  # type: ignore
     except Exception:
+        # testcontainers not installed/usable; no-op
+        yield
         return
 
     neo4j = (
@@ -306,13 +311,29 @@ def _ensure_neo4j_env_for_session():
 
 # Ensure schema exists for all live tests, regardless of how the DB is provided
 @pytest.fixture(scope="session", autouse=True)
-def _ensure_schema_for_live_tests(neo4j_driver):
+def _ensure_schema_for_live_tests():
+    """Ensure schema exists for live tests without depending on fixture scope.
+
+    This avoids scope conflicts with class-scoped neo4j_driver fixtures in some tests.
+    """
     try:
         import os as _os
 
+        from neo4j import GraphDatabase as _GD  # type: ignore
+
         from src.data.schema_management import setup_complete_schema  # type: ignore
 
-        with neo4j_driver.session(database=_os.getenv("NEO4J_DATABASE", "neo4j")) as _s:
-            setup_complete_schema(_s)
+        uri = _os.getenv("NEO4J_URI")
+        user = _os.getenv("NEO4J_USERNAME")
+        pwd = _os.getenv("NEO4J_PASSWORD")
+        db = _os.getenv("NEO4J_DATABASE", "neo4j")
+        if not (uri and user and pwd):
+            return
+        drv = _GD.driver(uri, auth=(user, pwd))
+        try:
+            with drv.session(database=db) as _s:
+                setup_complete_schema(_s)
+        finally:
+            drv.close()
     except Exception:
         pass

@@ -41,9 +41,22 @@ class CVEAnalyzer(CVEAnalyzerCore):
         with self._session() as session:
             return create_vulnerability_graph(session, cve_data)
 
-    def _link_cves_to_dependencies(self, cve_data: list[dict[str, Any]]) -> int:
-        with self._session() as session:
+    def _link_cves_to_dependencies(self, *args: Any) -> int:
+        """Link CVEs to dependencies.
+
+        Backward-compatible signature:
+        - Preferred: _link_cves_to_dependencies(cve_data)
+        - Legacy (tests/docs): _link_cves_to_dependencies(session, cve_data)
+        """
+        if len(args) == 1:
+            cve_data = args[0]
+            with self._session() as session:
+                return link_cves_to_dependencies(session, cve_data)
+        elif len(args) == 2:
+            session, cve_data = args
             return link_cves_to_dependencies(session, cve_data)
+        else:
+            raise TypeError("_link_cves_to_dependencies expects (cve_data) or (session, cve_data)")
 
     # Note: legacy helper retained for backwards-compatibility in tests and docs
     def _get_severity(self, cvss_score: float) -> str:

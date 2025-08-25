@@ -172,10 +172,10 @@ def run_pagerank_analysis(
         if not result.empty:
             method_ids = result["nodeId"].tolist()
             query = """
-            UNWIND $nodeIds AS nodeId
-            WITH nodeId, gds.util.asNode(nodeId) AS m
-            RETURN nodeId, m.name AS method_name,
-                   m.class_name AS class_name, m.file AS file
+            UNWIND $nodeIds as nodeId
+            WITH nodeId, gds.util.asNode(nodeId) as m
+            RETURN nodeId, m.name as method_name,
+                   m.class_name as class_name, m.file as file
             """
             method_details = gds.run_cypher(query, {"nodeIds": method_ids})
             top_results = result.merge(method_details, on="nodeId")
@@ -228,10 +228,10 @@ def run_betweenness_analysis(
         if not result.empty:
             method_ids = result["nodeId"].tolist()
             query = """
-            UNWIND $nodeIds AS nodeId
-            WITH nodeId, gds.util.asNode(nodeId) AS m
-            RETURN nodeId, m.name AS method_name,
-                   m.class_name AS class_name, m.file AS file
+            UNWIND $nodeIds as nodeId
+            WITH nodeId, gds.util.asNode(nodeId) as m
+            RETURN nodeId, m.name as method_name,
+                   m.class_name as class_name, m.file as file
             """
             method_details = gds.run_cypher(query, {"nodeIds": method_ids})
             top_results = result.merge(method_details, on="nodeId")

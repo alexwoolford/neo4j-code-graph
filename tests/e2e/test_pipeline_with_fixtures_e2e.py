@@ -31,15 +31,14 @@ def test_builds_graph_from_toy_java_fixtures(neo4j_driver):
 
         # Expect at least one class and two methods
         res = s.run(
-            "RETURN (SELECT count(*) FROM (MATCH (:Class) RETURN 1)) AS classes,"
-            "       (SELECT count(*) FROM (MATCH (:Method) RETURN 1)) AS methods"
+            "MATCH (c:Class) WITH count(c) AS classes MATCH (m:Method) RETURN classes, count(m) AS methods"
         ).data()[0]
         assert res["classes"] >= 1 and res["methods"] >= 2
 
         # Check CONTAINS_METHOD and DECLARES edges are present
         edges = s.run(
-            "RETURN (SELECT count(*) FROM (MATCH (:Class)-[:CONTAINS_METHOD]->(:Method) RETURN 1)) AS cm,"
-            "       (SELECT count(*) FROM (MATCH (:File)-[:DECLARES]->(:Method) RETURN 1)) AS fm"
+            "MATCH (:Class)-[:CONTAINS_METHOD]->(:Method) WITH count(*) AS cm "
+            "MATCH (:File)-[:DECLARES]->(:Method) RETURN cm, count(*) AS fm"
         ).data()[0]
         assert edges["cm"] >= 1 and edges["fm"] >= 2
 
