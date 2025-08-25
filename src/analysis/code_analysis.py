@@ -595,10 +595,7 @@ def main():
     file_embeddings: list[list[float]] = []
     method_embeddings: list[list[float]] = []
 
-    def _np():  # lazy numpy import
-        import numpy as _numpy  # type: ignore
-
-        return _numpy
+    # removed lazy numpy helper; IO helpers load embeddings when needed
 
     # Always attempt to read provided embeddings artifacts first
     files_loaded = False
