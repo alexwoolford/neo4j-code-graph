@@ -88,7 +88,7 @@ def pytest_sessionstart(session):  # type: ignore[override]
 
         _TC_CONTAINER = (
             Neo4jContainer(image="neo4j:5.26")
-            .with_env("NEO4J_AUTH", "neo4j/Passw0rd!")
+            .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
             .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
             .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
         )
@@ -178,9 +178,9 @@ def neo4j_driver():
                         bolt_port = neo4j.get_exposed_port(7687)  # type: ignore[attr-defined]
                     except Exception:
                         bolt_port = "7687"
-                    os.environ["NEO4J_URI"] = f"bolt://localhost:{bolt_port}"
+                    os.environ["NEO4J_URI"] = f"bolt://127.0.0.1:{bolt_port}"
                     os.environ["NEO4J_USERNAME"] = "neo4j"
-                    os.environ["NEO4J_PASSWORD"] = "Passw0rd!"
+                    os.environ["NEO4J_PASSWORD"] = "neo4j12345"
                     os.environ["NEO4J_DATABASE"] = "neo4j"
                     # Wait for DB to be ready
                     try:
@@ -252,7 +252,7 @@ def _ensure_neo4j_env_for_session():
     try:
         from neo4j import GraphDatabase as _GD
 
-        _drv = _GD.driver(_os.environ["NEO4J_URI"], auth=("neo4j", "Passw0rd!"))
+        _drv = _GD.driver(_os.environ["NEO4J_URI"], auth=("neo4j", "neo4j12345"))
         import time as _t
 
         for i in range(60):

@@ -54,13 +54,29 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
     pass_env = os.getenv("NEO4J_PASSWORD")
     db_env = os.getenv("NEO4J_DATABASE")
 
-    # Do not silently default to localhost in production paths; prefer explicit config.
-    # Fall back to localhost only if absolutely nothing provided (e.g., developer convenience).
-    uri = ensure_port(uri_env or "bolt://localhost:7687")
-    username = user_env or "neo4j"
-    # Default to standard developer password; CI/live will override via env
-    password = pass_env or "neo4j"
-    database = db_env or "neo4j"
+    # Hard rule: no implicit defaults for connection credentials.
+    # All of NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE must be set
+    # via environment or CLI (which should export to env before calling here).
+    missing: list[str] = []
+    if not uri_env:
+        missing.append("NEO4J_URI")
+    if not user_env:
+        missing.append("NEO4J_USERNAME")
+    if not pass_env:
+        missing.append("NEO4J_PASSWORD")
+    if not db_env:
+        missing.append("NEO4J_DATABASE")
+    if missing:
+        raise RuntimeError(
+            f"Missing required Neo4j settings: {', '.join(missing)}. "
+            "Provide via environment variables or CLI."
+        )
+
+    # mypy/pyright: env vars proven non-None above
+    uri = ensure_port(uri_env or "")
+    username = str(user_env)
+    password = str(pass_env)
+    database = str(db_env)
     # Optional diagnostic if database is defaulting
     if not db_env:
         try:

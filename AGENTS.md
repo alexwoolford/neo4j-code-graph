@@ -212,6 +212,8 @@ from utils.common import create_neo4j_driver, setup_logging
 - Action item: avoid any default `localhost` strings in code; use `ensure_port()` on provided URI.
 - Database name must never be hardcoded (e.g., `"neo4j"`). Always resolve via CLI args or `.env` (`NEO4J_DATABASE`) using `get_neo4j_config()`. If unset, abort or pass through rather than defaulting silently.
 
+- Never assume a default password. The project must not fall back to `"neo4j"` or any other value for `NEO4J_PASSWORD`. All connection settings (`NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`) are required and must come from CLI args or environment. Code that connects to Neo4j MUST error out if any are missing instead of using implicit defaults.
+
 
 - All writes MUST run only after core schema constraints exist.
 - The pipeline performs a fail-fast check at the start of each write stage. If constraints are missing, it will attempt to create the schema; if still missing, it aborts the run.
