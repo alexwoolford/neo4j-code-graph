@@ -58,8 +58,8 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
     # Fall back to localhost only if absolutely nothing provided (e.g., developer convenience).
     uri = ensure_port(uri_env or "bolt://localhost:7687")
     username = user_env or "neo4j"
-    # Prefer strong default if none provided to satisfy password policy in containers
-    password = pass_env or "Passw0rd!"
+    # Default to standard developer password; CI/live will override via env
+    password = pass_env or "neo4j"
     database = db_env or "neo4j"
     # Optional diagnostic if database is defaulting
     if not db_env:
