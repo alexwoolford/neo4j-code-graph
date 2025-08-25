@@ -80,6 +80,29 @@ def neo4j_driver():
     Falls back to environment-driven connection (NEO4J_*) if Docker is not available.
     Skips politely if neither is configured.
     """
+    # If autouse fixture already exported env, prefer that to avoid starting
+    # a second container. This keeps one DB per session.
+    import os as _os_mod
+
+    if (
+        _os_mod.getenv("NEO4J_URI")
+        and _os_mod.getenv("NEO4J_USERNAME")
+        and _os_mod.getenv("NEO4J_PASSWORD")
+    ):
+        try:
+            from neo4j import GraphDatabase  # type: ignore
+
+            uri = _os_mod.environ["NEO4J_URI"]
+            user = _os_mod.environ["NEO4J_USERNAME"]
+            pwd = _os_mod.environ["NEO4J_PASSWORD"]
+            drv = GraphDatabase.driver(uri, auth=(user, pwd))
+            drv.verify_connectivity()
+            yield drv
+            drv.close()
+            return
+        except Exception:
+            pass
+
     if _has_docker():
         try:
             from testcontainers.neo4j import Neo4jContainer  # type: ignore
@@ -87,7 +110,7 @@ def neo4j_driver():
             with (
                 Neo4jContainer(image="neo4j:5.26")
                 .with_env("NEO4J_AUTH", "neo4j/Passw0rd!")
-                .with_env("NEO4J_PLUGINS", '["gds","apoc"]')
+                .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
                 .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*") as neo4j
             ):  # latest LTS with plugins
                 with neo4j.get_driver() as driver:  # type: ignore[attr-defined]
@@ -102,6 +125,19 @@ def neo4j_driver():
                     os.environ["NEO4J_USERNAME"] = "neo4j"
                     os.environ["NEO4J_PASSWORD"] = "Passw0rd!"
                     os.environ["NEO4J_DATABASE"] = "neo4j"
+                    # Wait for DB to be ready
+                    try:
+                        driver.verify_connectivity()
+                    except Exception:
+                        import time as _t
+
+                        for _ in range(60):
+                            _t.sleep(2)
+                            try:
+                                driver.verify_connectivity()
+                                break
+                            except Exception:
+                                continue
                     yield driver
                 return
         except Exception as e:  # fall through to env-based driver
@@ -141,7 +177,7 @@ def _ensure_neo4j_env_for_session():
     neo4j = (
         Neo4jContainer(image="neo4j:5.26")
         .with_env("NEO4J_AUTH", "neo4j/Passw0rd!")
-        .with_env("NEO4J_PLUGINS", '["gds","apoc"]')
+        .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
         .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
     )
     neo4j.start()
@@ -155,6 +191,24 @@ def _ensure_neo4j_env_for_session():
     _os.environ["NEO4J_USERNAME"] = "neo4j"
     _os.environ["NEO4J_PASSWORD"] = "Passw0rd!"
     _os.environ["NEO4J_DATABASE"] = "neo4j"
+    # Wait for DB to be ready (emit periodic progress)
+    try:
+        from neo4j import GraphDatabase as _GD
+
+        _drv = _GD.driver(_os.environ["NEO4J_URI"], auth=("neo4j", "Passw0rd!"))
+        import time as _t
+
+        for i in range(60):
+            try:
+                _drv.verify_connectivity()
+                break
+            except Exception:
+                if i % 10 == 0:
+                    print("[tests] Waiting for Neo4j container...")
+                _t.sleep(2)
+        _drv.close()
+    except Exception:
+        pass
     try:
         yield
     finally:
