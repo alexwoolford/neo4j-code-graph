@@ -86,7 +86,7 @@ def neo4j_driver():
 
             with (
                 Neo4jContainer(image="neo4j:5.26")
-                .with_env("NEO4J_AUTH", "neo4j/test")
+                .with_env("NEO4J_AUTH", "neo4j/Passw0rd!")
                 .with_env("NEO4J_PLUGINS", '["gds","apoc"]')
                 .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*") as neo4j
             ):  # latest LTS with plugins
@@ -100,7 +100,7 @@ def neo4j_driver():
                         bolt_port = "7687"
                     os.environ["NEO4J_URI"] = f"bolt://localhost:{bolt_port}"
                     os.environ["NEO4J_USERNAME"] = "neo4j"
-                    os.environ["NEO4J_PASSWORD"] = "test"
+                    os.environ["NEO4J_PASSWORD"] = "Passw0rd!"
                     os.environ["NEO4J_DATABASE"] = "neo4j"
                     yield driver
                 return
@@ -140,7 +140,7 @@ def _ensure_neo4j_env_for_session():
 
     neo4j = (
         Neo4jContainer(image="neo4j:5.26")
-        .with_env("NEO4J_AUTH", "neo4j/test")
+        .with_env("NEO4J_AUTH", "neo4j/Passw0rd!")
         .with_env("NEO4J_PLUGINS", '["gds","apoc"]')
         .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
     )
@@ -153,7 +153,7 @@ def _ensure_neo4j_env_for_session():
         bolt_port = "7687"
     _os.environ["NEO4J_URI"] = f"bolt://localhost:{bolt_port}"
     _os.environ["NEO4J_USERNAME"] = "neo4j"
-    _os.environ["NEO4J_PASSWORD"] = "test"
+    _os.environ["NEO4J_PASSWORD"] = "Passw0rd!"
     _os.environ["NEO4J_DATABASE"] = "neo4j"
     try:
         yield
