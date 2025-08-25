@@ -86,6 +86,17 @@ def neo4j_driver():
 
             with Neo4jContainer(image="neo4j:5.26") as neo4j:  # latest LTS
                 with neo4j.get_driver() as driver:  # type: ignore[attr-defined]
+                    # Export connection params so code under test using get_neo4j_config() works
+                    import os
+
+                    try:
+                        bolt_port = neo4j.get_exposed_port(7687)  # type: ignore[attr-defined]
+                    except Exception:
+                        bolt_port = "7687"
+                    os.environ["NEO4J_URI"] = f"bolt://localhost:{bolt_port}"
+                    os.environ["NEO4J_USERNAME"] = "neo4j"
+                    os.environ["NEO4J_PASSWORD"] = "test"
+                    os.environ["NEO4J_DATABASE"] = "neo4j"
                     yield driver
                 return
         except Exception as e:  # fall through to env-based driver
@@ -109,3 +120,35 @@ def neo4j_driver():
             drv.close()
     except Exception:
         pytest.skip("Neo4j not available and Docker not usable for Testcontainers")
+
+
+# Start a Neo4j container for the whole session and export NEO4J_* so tests that
+# don't request the driver still connect to a live DB (autouse to avoid localhost fallbacks)
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_neo4j_env_for_session():
+    if not _has_docker():
+        return
+    try:
+        from testcontainers.neo4j import Neo4jContainer  # type: ignore
+    except Exception:
+        return
+
+    neo4j = Neo4jContainer(image="neo4j:5.26")
+    neo4j.start()
+    import os as _os
+
+    try:
+        bolt_port = neo4j.get_exposed_port(7687)  # type: ignore[attr-defined]
+    except Exception:
+        bolt_port = "7687"
+    _os.environ["NEO4J_URI"] = f"bolt://localhost:{bolt_port}"
+    _os.environ["NEO4J_USERNAME"] = "neo4j"
+    _os.environ["NEO4J_PASSWORD"] = "test"
+    _os.environ["NEO4J_DATABASE"] = "neo4j"
+    try:
+        yield
+    finally:
+        try:
+            neo4j.stop()
+        except Exception:
+            pass

@@ -183,6 +183,33 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             end_line = node.end_point[0] + 1
             method_code = code.splitlines()[start_line - 1 : end_line]
 
+            # Extract parameters
+            params_list: list[dict] = []
+            formal_params = _child_by_type(node, "formal_parameters")
+            if formal_params is not None:
+                # formal_parameters -> '(' parameter_list? ')'
+                for ch in formal_params.children:
+                    if ch.type in ("formal_parameter", "receiver_parameter", "spread_parameter"):
+                        # Extract type
+                        type_node = (
+                            _child_by_type(ch, "type")
+                            or _child_by_type(ch, "type_identifier")
+                            or _child_by_type(ch, "scoped_type_identifier")
+                            or _child_by_type(ch, "integral_type")
+                            or _child_by_type(ch, "floating_point_type")
+                            or _child_by_type(ch, "boolean_type")
+                            or _child_by_type(ch, "array_type")
+                        )
+                        type_text = _node_text(source_bytes, type_node).strip() if type_node else ""
+                        # Extract name (identifier possibly inside variable_declarator_id)
+                        name_node = _child_by_type(ch, "identifier")
+                        if name_node is None:
+                            vdid = _child_by_type(ch, "variable_declarator_id")
+                            if vdid is not None:
+                                name_node = _child_by_type(vdid, "identifier")
+                        name_text = _node_text(source_bytes, name_node).strip() if name_node else ""
+                        params_list.append({"name": name_text, "type": type_text})
+
             methods.append(
                 {
                     "name": method_name,
@@ -197,7 +224,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "is_private": False,
                     "is_public": False,
                     "return_type": _extract_return_type(node),
-                    "parameters": [],
+                    "parameters": params_list,
                     "code": "\n".join(method_code),
                     # Best-effort call extraction from AST (method_invocation nodes)
                     "calls": [],
