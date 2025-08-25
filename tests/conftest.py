@@ -299,3 +299,17 @@ def _ensure_neo4j_env_for_session():
             neo4j.stop()
         except Exception:
             pass
+
+
+# Ensure schema exists for all live tests, regardless of how the DB is provided
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_schema_for_live_tests(neo4j_driver):
+    try:
+        import os as _os
+
+        from src.data.schema_management import setup_complete_schema  # type: ignore
+
+        with neo4j_driver.session(database=_os.getenv("NEO4J_DATABASE", "neo4j")) as _s:
+            setup_complete_schema(_s)
+    except Exception:
+        pass
