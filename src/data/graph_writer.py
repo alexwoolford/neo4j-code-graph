@@ -7,26 +7,12 @@ from typing import Any
 
 from tqdm import tqdm
 
-try:
-    # Prefer direct imports when running as a package
-    from constants import (
-        DB_BATCH_SIMPLE,
-        DB_BATCH_WITH_EMBEDDINGS,
-        EMBEDDING_TYPE,
-    )
-except Exception:  # pragma: no cover
-    # Fallback for src-prefixed imports
-    from src.constants import (  # type: ignore
-        DB_BATCH_SIMPLE,
-        DB_BATCH_WITH_EMBEDDINGS,
-        EMBEDDING_TYPE,
-    )
-
-try:
-    from analysis.types import FileData
-except Exception:  # pragma: no cover
-    from src.analysis.types import FileData  # type: ignore
-
+from ..analysis.types import FileData
+from ..constants import (
+    DB_BATCH_SIMPLE,
+    DB_BATCH_WITH_EMBEDDINGS,
+    EMBEDDING_TYPE,
+)
 
 logger = logging.getLogger(__name__)
 

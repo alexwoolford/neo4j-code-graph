@@ -21,22 +21,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from neo4j import Driver
 
-# Handle both script and module execution contexts
-try:
-    # Try absolute imports when called from CLI wrapper
-    from security.cve_cache_manager import CVECacheManager
-    from utils.common import create_neo4j_driver, setup_logging
-    from utils.neo4j_utils import get_neo4j_config
-except ImportError:
-    # Fallback to relative imports when used as module
-    from ..utils.common import create_neo4j_driver, setup_logging
-    from ..utils.neo4j_utils import get_neo4j_config
-    from .cve_cache_manager import CVECacheManager
-
-try:
-    from security.types import CleanCVE
-except ImportError:
-    from .types import CleanCVE
+from ..utils.common import create_neo4j_driver, setup_logging
+from ..utils.neo4j_utils import get_neo4j_config
+from .cve_cache_manager import CVECacheManager
+from .types import CleanCVE
 
 # Avoid sys.path hacks; modules should be importable via package installation or repo context
 

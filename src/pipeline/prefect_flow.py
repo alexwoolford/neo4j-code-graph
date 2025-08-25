@@ -19,27 +19,16 @@ from pathlib import Path
 
 from prefect import flow, get_run_logger, task
 
-# Import sibling packages in both contexts: installed package (top-level) and repo run (with 'src.')
-try:
-    from analysis.centrality import main as centrality_main
-    from analysis.code_analysis import main as code_to_graph_main
-    from analysis.git_analysis import main as git_history_main
-    from analysis.similarity import main as similarity_main
-    from analysis.temporal_analysis import main as temporal_main
-    from data.schema_management import main as schema_main
-    from security.cve_analysis import main as cve_main
-    from utils.common import setup_logging
-    from utils.neo4j_utils import check_capabilities as _check_caps
-except Exception:  # pragma: no cover - fallback path for direct repo execution
-    from src.analysis.centrality import main as centrality_main  # type: ignore
-    from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
-    from src.analysis.git_analysis import main as git_history_main  # type: ignore
-    from src.analysis.similarity import main as similarity_main  # type: ignore
-    from src.analysis.temporal_analysis import main as temporal_main  # type: ignore
-    from src.data.schema_management import main as schema_main  # type: ignore
-    from src.security.cve_analysis import main as cve_main  # type: ignore
-    from src.utils.common import setup_logging  # type: ignore
-    from src.utils.neo4j_utils import check_capabilities as _check_caps  # type: ignore
+# Consistent relative imports within the package
+from ..analysis.centrality import main as centrality_main
+from ..analysis.code_analysis import main as code_to_graph_main
+from ..analysis.git_analysis import main as git_history_main
+from ..analysis.similarity import main as similarity_main
+from ..analysis.temporal_analysis import main as temporal_main
+from ..data.schema_management import main as schema_main
+from ..security.cve_analysis import main as cve_main
+from ..utils.common import setup_logging
+from ..utils.neo4j_utils import check_capabilities as _check_caps
 
 
 def _build_args(base: list[str], overrides: Mapping[str, object] | None = None) -> list[str]:
@@ -109,17 +98,11 @@ def selective_cleanup_task(
         # We pass no flags; the cleanup script's default path now exposes a selective cleanup helper
         sys.argv = _build_args(base, overrides)
         # Import and call the selective cleanup flow directly to avoid CLI arg plumbing
-        try:
-            from src.utils.cleanup import selective_cleanup as _sel
-        except Exception:
-            from utils.cleanup import selective_cleanup as _sel  # type: ignore
-        # Import driver and config helpers for both contexts (installed package vs repo path)
-        try:
-            from utils.common import create_neo4j_driver as _drv
-            from utils.neo4j_utils import get_neo4j_config as _get_cfg
-        except Exception:  # pragma: no cover - fallback when running as module
-            from src.utils.common import create_neo4j_driver as _drv  # type: ignore
-            from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
+        from ..utils.cleanup import selective_cleanup as _sel
+
+        # Driver and config helpers
+        from ..utils.common import create_neo4j_driver as _drv
+        from ..utils.neo4j_utils import get_neo4j_config as _get_cfg
 
         # Resolve connection: prefer explicit args; otherwise use .env/.environment
         if uri and username and password:
@@ -638,16 +621,10 @@ def preflight_task(
 ) -> dict[str, object]:
     """Probe DB for APOC/GDS and return a capabilities map for downstream tasks."""
     logger = get_run_logger()
-    try:
-        from utils.common import create_neo4j_driver as _drv
-    except Exception:
-        from src.utils.common import create_neo4j_driver as _drv  # type: ignore
+    from ..utils.common import create_neo4j_driver as _drv
 
     # Resolve connection like cleanup_task
-    try:
-        from utils.neo4j_utils import get_neo4j_config as _get_cfg
-    except Exception:
-        from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
+    from ..utils.neo4j_utils import get_neo4j_config as _get_cfg
 
     if uri and username and password:
         _uri, _user, _pwd, _db = uri, username, password, database

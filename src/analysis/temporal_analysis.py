@@ -10,11 +10,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-try:
-    from utils.common import add_common_args, create_neo4j_driver, setup_logging
-except ImportError:
-    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
-
+from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
 
 logger = logging.getLogger(__name__)
 

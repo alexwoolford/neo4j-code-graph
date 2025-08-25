@@ -11,42 +11,15 @@ if TYPE_CHECKING:  # don't import heavy deps at module import time
 else:
     GraphDataScience = Any  # type: ignore
 
-try:
-    # When 'src' is on sys.path and importing as top-level package
-    from constants import (
-        COMMUNITY_PROPERTY,
-        EMBEDDING_DIMENSION,
-        EMBEDDING_PROPERTY,
-        EMBEDDING_TYPE,
-        SIMILARITY_CUTOFF,
-        SIMILARITY_TOP_K,
-    )
-except Exception:
-    try:
-        # Package name import
-        from src.constants import (
-            COMMUNITY_PROPERTY,
-            EMBEDDING_DIMENSION,
-            EMBEDDING_PROPERTY,
-            EMBEDDING_TYPE,
-            SIMILARITY_CUTOFF,
-            SIMILARITY_TOP_K,
-        )
-    except Exception:
-        # Relative import when used as module inside package
-        from ..constants import COMMUNITY_PROPERTY as COMMUNITY_PROPERTY
-        from ..constants import EMBEDDING_DIMENSION as EMBEDDING_DIMENSION
-        from ..constants import EMBEDDING_PROPERTY as EMBEDDING_PROPERTY
-        from ..constants import EMBEDDING_TYPE as EMBEDDING_TYPE
-        from ..constants import SIMILARITY_CUTOFF as SIMILARITY_CUTOFF
-        from ..constants import SIMILARITY_TOP_K as SIMILARITY_TOP_K
-
-try:
-    # Try absolute import when called from CLI wrapper
-    from utils.neo4j_utils import ensure_port, get_neo4j_config
-except ImportError:
-    # Fallback to relative import when used as module
-    from ..utils.neo4j_utils import ensure_port, get_neo4j_config
+from ..constants import (
+    COMMUNITY_PROPERTY,
+    EMBEDDING_DIMENSION,
+    EMBEDDING_PROPERTY,
+    EMBEDDING_TYPE,
+    SIMILARITY_CUTOFF,
+    SIMILARITY_TOP_K,
+)
+from ..utils.neo4j_utils import ensure_port, get_neo4j_config
 
 # Connection settings
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
@@ -67,10 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Import add_common_args - handle both script and module execution
-    try:
-        from utils.common import add_common_args
-    except ImportError:
-        from ..utils.common import add_common_args
+    from ..utils.common import add_common_args
 
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
@@ -293,10 +263,7 @@ def main() -> None:
     args = parse_args()
 
     # Use consistent logging helper - handle both script and module execution
-    try:
-        from utils.common import setup_logging
-    except ImportError:
-        from ..utils.common import setup_logging
+    from ..utils.common import setup_logging
 
     setup_logging(args.log_level, args.log_file)
 
