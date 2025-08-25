@@ -433,12 +433,8 @@ def main():
     import argparse
 
     # Imports below support both installed package and repo run contexts
-
-    # Handle both script and module execution contexts
-    try:
-        from utils.common import add_common_args, create_neo4j_driver, setup_logging
-    except ImportError:
-        from src.utils.common import add_common_args, create_neo4j_driver, setup_logging
+    # Use absolute imports to avoid context-dependent failures
+    from src.utils.common import add_common_args, create_neo4j_driver, setup_logging
 
     parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)

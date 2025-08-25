@@ -354,12 +354,9 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
 
     # Drop managed schema if requested via env guard
     try:
-        from src.data.schema_management import drop_managed_schema as _drop_schema
+        from src.data.schema_management import drop_managed_schema as _drop_schema  # type: ignore
     except Exception:
-        try:
-            from ..data.schema_management import drop_managed_schema as _drop_schema  # type: ignore
-        except Exception:
-            _drop_schema = None  # type: ignore
+        _drop_schema = None  # type: ignore
 
     if _drop_schema is not None and not dry_run:
         logger.info("⏳ Dropping managed schema (constraints/indexes) created by this project...")

@@ -21,8 +21,8 @@ from tqdm import tqdm
 # Collect Java parse errors across threads to summarize later
 PARSE_ERRORS: list[tuple[str, str]] = []
 
-from analysis.embeddings import compute_embeddings_bulk
-from utils.common import add_common_args, setup_logging
+from src.analysis.embeddings import compute_embeddings_bulk
+from src.utils.common import add_common_args, setup_logging
 
 # Constants for method call parsing
 JAVA_KEYWORDS_TO_SKIP = {
@@ -42,7 +42,7 @@ JAVA_KEYWORDS_TO_SKIP = {
 
 logger = logging.getLogger(__name__)
 
-from constants import (
+from src.constants import (
     DB_BATCH_SIMPLE,
     DB_BATCH_WITH_EMBEDDINGS,
     DEFAULT_EMBED_BATCH_CPU,
@@ -585,7 +585,7 @@ def create_methods(
                 except Exception:
                     emb_value = None
 
-            from constants import EMBEDDING_PROPERTY as _EMB_PROP
+            from src.constants import EMBEDDING_PROPERTY as _EMB_PROP
 
             method_node = {
                 "name": method["name"],

@@ -52,7 +52,7 @@ class CVEAnalyzer:
                 yield s
         else:
             uri, username, password, database = get_neo4j_config()
-            from utils.common import create_neo4j_driver
+            from src.utils.common import create_neo4j_driver
 
             with create_neo4j_driver(uri, username, password) as drv:
                 with drv.session(database=database) as s:  # type: ignore[reportUnknownMemberType]

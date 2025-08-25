@@ -26,24 +26,8 @@ if TYPE_CHECKING:
 else:
     GraphDataScience = Any  # type: ignore
 
-try:
-    # When 'src' is on sys.path (top-level import)
-    from constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
-except Exception:
-    try:
-        # Package name import
-        from src.constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
-    except Exception:
-        # Relative import when used as module inside package
-        from ..constants import PAGERANK_ALPHA as PAGERANK_ALPHA
-        from ..constants import PAGERANK_ANALYSIS_ITERATIONS as PAGERANK_ANALYSIS_ITERATIONS
-
-try:
-    # Try absolute import when called from CLI wrapper
-    from utils.common import add_common_args, create_neo4j_driver, setup_logging
-except ImportError:
-    # Fallback to relative import when used as module
-    from ..utils.common import add_common_args, create_neo4j_driver, setup_logging
+from src.constants import PAGERANK_ALPHA, PAGERANK_ANALYSIS_ITERATIONS
+from src.utils.common import add_common_args, create_neo4j_driver, setup_logging
 
 logger = logging.getLogger(__name__)
 
