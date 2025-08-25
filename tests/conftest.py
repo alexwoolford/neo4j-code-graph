@@ -105,7 +105,8 @@ def pytest_sessionstart(session):  # type: ignore[override]
         from testcontainers.neo4j import Neo4jContainer  # type: ignore
 
         _TC_CONTAINER = (
-            Neo4jContainer(image="neo4j:5.26")
+            Neo4jContainer(image="neo4j:5.26-enterprise")
+            .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
             .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
             .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
             .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
@@ -191,7 +192,8 @@ def neo4j_driver():
             from testcontainers.neo4j import Neo4jContainer  # type: ignore
 
             with (
-                Neo4jContainer(image="neo4j:5.26")
+                Neo4jContainer(image="neo4j:5.26-enterprise")
+                .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
                 .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
                 .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
                 .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*") as neo4j
@@ -258,7 +260,8 @@ def _ensure_neo4j_env_for_session():
         return
 
     neo4j = (
-        Neo4jContainer(image="neo4j:5.26")
+        Neo4jContainer(image="neo4j:5.26-enterprise")
+        .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
         .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
         .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
         .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
