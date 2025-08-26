@@ -438,7 +438,12 @@ def main():
 
     # Imports below support both installed package and repo run contexts
     # Use absolute imports to avoid context-dependent failures
-    from src.utils.common import add_common_args, create_neo4j_driver, setup_logging
+    from src.utils.common import (
+        add_common_args,
+        create_neo4j_driver,
+        resolve_neo4j_args,
+        setup_logging,
+    )
 
     parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)
@@ -456,8 +461,11 @@ def main():
     args = parser.parse_args()
     setup_logging(args.log_level, args.log_file)
 
-    with create_neo4j_driver(args.uri, args.username, args.password) as driver:
-        with driver.session(database=args.database) as session:
+    _uri, _user, _pwd, _db = resolve_neo4j_args(
+        args.uri, args.username, args.password, args.database
+    )
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
+        with driver.session(database=_db) as session:
             if args.validate:
                 validate_schema_consistency(session)
             elif args.verify_only:

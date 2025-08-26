@@ -433,7 +433,7 @@ def main():
     args = parse_args()
 
     # Use consistent logging helper
-    from src.utils.common import setup_logging
+    from src.utils.common import resolve_neo4j_args, setup_logging
 
     setup_logging(args.log_level, args.log_file)
 
@@ -441,10 +441,13 @@ def main():
         # Use consistent Neo4j connection helper
         from src.utils.common import create_neo4j_driver
 
-        with create_neo4j_driver(args.uri, args.username, args.password) as driver:
-            logger.info("Connected to Neo4j at %s", args.uri)
+        _uri, _user, _pwd, _db = resolve_neo4j_args(
+            args.uri, args.username, args.password, args.database
+        )
+        with create_neo4j_driver(_uri, _user, _pwd) as driver:
+            logger.info("Connected to Neo4j at %s", _uri)
 
-            with driver.session(database=args.database) as session:
+            with driver.session(database=_db) as session:
                 if args.complete:
                     # Complete database reset
                     if args.confirm or args.dry_run:
