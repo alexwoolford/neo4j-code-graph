@@ -5,11 +5,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from tqdm import tqdm
-
 from src.analysis.types import FileData
 from src.constants import EMBEDDING_TYPE
 from src.utils.batching import get_database_batch_size
+from src.utils.progress import progress_range
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +68,8 @@ def create_methods(
     total_batches = (len(method_nodes) + batch_size - 1) // batch_size
     logger.info(f"Creating {len(method_nodes)} method nodes in {total_batches} batches...")
 
-    for i in tqdm(
-        range(0, len(method_nodes), batch_size),
-        total=total_batches,
-        desc="Method nodes",
+    for i in progress_range(
+        0, len(method_nodes), batch_size, total=total_batches, desc="Method nodes"
     ):
         batch = method_nodes[i : i + batch_size]
 
@@ -126,10 +123,8 @@ def create_methods(
         % (len(method_file_rels), total_rel_batches)
     )
 
-    for i in tqdm(
-        range(0, len(method_file_rels), batch_size),
-        total=total_rel_batches,
-        desc="Method-File rels",
+    for i in progress_range(
+        0, len(method_file_rels), batch_size, total=total_rel_batches, desc="Method-File rels"
     ):
         batch = method_file_rels[i : i + batch_size]
 
@@ -168,7 +163,7 @@ def create_methods(
 
     if method_class_rels:
         logger.info("Creating %d method-to-class relationships..." % len(method_class_rels))
-        for i in tqdm(range(0, len(method_class_rels), batch_size), desc="Method->Class rels"):
+        for i in progress_range(0, len(method_class_rels), batch_size, desc="Method->Class rels"):
             batch = method_class_rels[i : i + batch_size]
             session.run(
                 "UNWIND $rels AS rel "
@@ -179,8 +174,8 @@ def create_methods(
             )
     if method_interface_rels:
         logger.info("Creating %d method-to-interface relationships..." % len(method_interface_rels))
-        for i in tqdm(
-            range(0, len(method_interface_rels), batch_size), desc="Method->Interface rels"
+        for i in progress_range(
+            0, len(method_interface_rels), batch_size, desc="Method->Interface rels"
         ):
             batch = method_interface_rels[i : i + batch_size]
             session.run(
@@ -270,10 +265,8 @@ def create_method_calls(session: Any, files_data: list[FileData]) -> None:
             successful_calls = 0
             failed_batches = 0
 
-            for i in tqdm(
-                range(0, len(filtered_calls), batch_size2),
-                total=total_batches,
-                desc="Other calls",
+            for i in progress_range(
+                0, len(filtered_calls), batch_size2, total=total_batches, desc="Other calls"
             ):
                 batch = filtered_calls[i : i + batch_size2]
                 try:

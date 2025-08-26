@@ -5,9 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from tqdm import tqdm
-
 from src.analysis.types import FileData
+from src.utils.progress import progress_range
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +35,8 @@ def create_imports(
         total_batches = (len(all_imports) + batch_size - 1) // batch_size
         logger.info(f"Creating {len(all_imports)} import nodes in {total_batches} batches...")
 
-        for i in tqdm(
-            range(0, len(all_imports), batch_size), total=total_batches, desc="Import nodes"
+        for i in progress_range(
+            0, len(all_imports), batch_size, total=total_batches, desc="Import nodes"
         ):
             batch = all_imports[i : i + batch_size]
 
@@ -56,8 +55,8 @@ def create_imports(
             "Creating %d IMPORTS relationships in %d batches..." % (len(all_imports), total_batches)
         )
 
-        for i in tqdm(
-            range(0, len(all_imports), batch_size), total=total_batches, desc="IMPORTS rels"
+        for i in progress_range(
+            0, len(all_imports), batch_size, total=total_batches, desc="IMPORTS rels"
         ):
             batch = all_imports[i : i + batch_size]
 
