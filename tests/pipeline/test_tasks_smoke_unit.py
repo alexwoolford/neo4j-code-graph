@@ -51,6 +51,18 @@ def _resolved() -> tuple[str, str, str, str]:
     return ("bolt://x:7687", "u", "p", "neo4j")
 
 
+class _Log:
+    def info(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+    def warning(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+def _get_logger() -> Any:
+    return _Log()
+
+
 def test_setup_schema_task_invokes_setup(monkeypatch: Any) -> None:
     called = {"count": 0}
 
@@ -59,6 +71,7 @@ def test_setup_schema_task_invokes_setup(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(tasks, "setup_complete_schema", _fake_setup)
     monkeypatch.setattr(tasks, "create_neo4j_driver", _fake_driver_factory)
+    monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
 
     tasks.setup_schema_task.fn("bolt://x", "u", "p", "neo4j")
     assert called["count"] == 1
@@ -73,6 +86,7 @@ def test_selective_cleanup_task_calls_cleanup(monkeypatch: Any) -> None:
     monkeypatch.setattr(tasks, "create_neo4j_driver", _fake_driver_factory)
     monkeypatch.setattr(tasks, "resolve_neo4j_args", _resolved)
     monkeypatch.setattr("src.utils.cleanup.selective_cleanup", _fake_sel)
+    monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
 
     tasks.selective_cleanup_task.fn("bolt://x", "u", "p", "neo4j")
     assert called["count"] == 1
@@ -86,6 +100,8 @@ def test_git_history_task_passes_repo_and_creds(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(tasks, "load_history", _fake_load_history)
     monkeypatch.setattr(tasks, "resolve_neo4j_args", _resolved)
+    monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
+
     tasks.git_history_task.fn("/tmp/repo", None, None, None, None)
     assert captured["repo_url"] == "/tmp/repo"
     assert captured["uri"] == "bolt://x:7687"
@@ -129,6 +145,7 @@ def test_similarity_and_louvain_tasks_call_helpers(monkeypatch: Any) -> None:
     monkeypatch.setattr(tasks, "sim_create_index", _idx)
     monkeypatch.setattr(tasks, "sim_run_knn", _knn)
     monkeypatch.setattr(tasks, "sim_run_louvain", _louv)
+    monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
 
     tasks.similarity_task.fn(None, None, None, None)
     tasks.louvain_task.fn(None, None, None, None)
@@ -180,6 +197,7 @@ def test_centrality_task_calls_algorithms(monkeypatch: Any) -> None:
     monkeypatch.setattr(tasks, "cent_pagerank", _pr)
     monkeypatch.setattr(tasks, "cent_betweenness", _bt)
     monkeypatch.setattr(tasks, "cent_degree", _deg)
+    monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
 
     tasks.centrality_task.fn(None, None, None, None)
     assert all(v == 1 for v in calls.values())
@@ -226,6 +244,7 @@ def test_cve_task_uses_analyzer_flow(monkeypatch: Any) -> None:
     monkeypatch.setenv("NEO4J_DATABASE", "neo4j")
     monkeypatch.setattr(tasks, "CVEAnalyzer", _Analyzer)
     monkeypatch.setattr(tasks, "create_neo4j_driver", _fake_driver_factory)
+    monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
 
     tasks.cve_task.fn(None, None, None, None)
     assert called["built"] == 1 and called["impact"] == 1
