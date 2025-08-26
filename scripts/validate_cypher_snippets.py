@@ -17,8 +17,17 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys as _sys
 from collections.abc import Iterable
 from pathlib import Path
+from pathlib import Path as _Path
+
+# Ensure both repo and installed contexts can import modules consistently
+_repo_root = _Path(__file__).resolve().parents[1]
+_src_dir = _repo_root / "src"
+for _p in (str(_repo_root), str(_src_dir)):
+    if _p not in _sys.path:
+        _sys.path.insert(0, _p)
 
 from neo4j import GraphDatabase
 
