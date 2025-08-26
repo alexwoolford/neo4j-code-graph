@@ -4,6 +4,12 @@ Thin wrapper delegating to modular Prefect flow implementation.
 
 from __future__ import annotations
 
+import os
+import tempfile
+from pathlib import Path
+
+from prefect import flow, get_run_logger
+
 try:
     from src.pipeline.cli import parse_cli_args  # type: ignore
 except Exception:  # pragma: no cover
@@ -11,10 +17,8 @@ except Exception:  # pragma: no cover
 
 try:
     from src.pipeline.flows.core import build_args as core_build_args  # type: ignore
-    from src.pipeline.flows.core import code_graph_flow  # type: ignore
 except Exception:  # pragma: no cover
     from pipeline.flows.core import build_args as core_build_args  # type: ignore
-    from pipeline.flows.core import code_graph_flow  # type: ignore
 
 try:
     from src.pipeline.tasks.code_tasks import (  # type: ignore  # noqa: F401
@@ -96,6 +100,52 @@ def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> 
     Keeps prior import path stable: src.pipeline.prefect_flow._build_args
     """
     return core_build_args(base, overrides)
+
+
+@flow(name="neo4j-code-graph-pipeline")
+def code_graph_flow(
+    repo_url: str,
+    uri: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    database: str | None = None,
+    cleanup: bool = True,
+) -> None:
+    """Flow wrapper that references tasks via this module for easy monkeypatching in tests."""
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    logger = get_run_logger()
+    logger.info("Starting flow for repo: %s", repo_url)
+
+    # Setup schema first
+    setup_schema_task(uri, username, password, database)
+
+    # Optional cleanup
+    if cleanup:
+        cleanup_task(uri, username, password, database)
+
+    # Clone if needed
+    p = Path(repo_url)
+    if p.exists() and p.is_dir():
+        repo_path = str(p)
+    else:
+        repo_path = clone_repo_task.submit(repo_url).result()
+
+    # Build artifacts
+    artifacts_dir = str(Path(tempfile.mkdtemp(prefix="cg_artifacts_")))
+    extract_code_task(repo_path, artifacts_dir)
+    embed_files_task(repo_path, artifacts_dir)
+    embed_methods_task(repo_path, artifacts_dir)
+    write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
+    cleanup_artifacts_task(artifacts_dir)
+
+    # Git history
+    git_history_task(repo_path, uri, username, password, database)
+
+    # Analytics (submit/async-compatible)
+    similarity_task.submit(uri, username, password, database)
+    louvain_task.submit(uri, username, password, database)
+    centrality_task.submit(uri, username, password, database)
+    cve_task.submit(uri, username, password, database)
 
 
 def main() -> None:
