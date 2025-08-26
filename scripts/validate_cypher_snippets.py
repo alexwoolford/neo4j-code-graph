@@ -3,10 +3,10 @@
 Validate Cypher snippets by running EXPLAIN on each tagged block in .cyp files.
 
 Usage:
-  python scripts/validate_cypher_snippets.py docs/modules/ROOT/examples/queries
+  python scripts/validate_cypher_snippets.py <queries_dir> [--uri ... --username ... --password ... --database ...]
 
 Environment:
-  NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD (required)
+  If CLI args are not provided, connection defaults come from .env via get_neo4j_config()
 
 Notes:
   - Uses EXPLAIN, so no data is required and nothing is written.
@@ -15,13 +15,17 @@ Notes:
 
 from __future__ import annotations
 
-import os
+import argparse
 import re
-import sys
 from collections.abc import Iterable
 from pathlib import Path
 
 from neo4j import GraphDatabase
+
+try:
+    from src.utils.common import add_common_args, resolve_neo4j_args
+except Exception:  # pragma: no cover - repo-local fallback
+    from utils.common import add_common_args, resolve_neo4j_args  # type: ignore
 
 TAG_START_RE = re.compile(r"^\s*//\s*tag::([\w:-]+)\[\]\s*$")
 TAG_END_RE = re.compile(r"^\s*//\s*end::([\w:-]+)\[\]\s*$")
@@ -72,30 +76,33 @@ def validate_queries(
 ) -> None:
     with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
         num_validated = 0
-        session_kwargs = {"database": database} if database else {}
-        with driver.session(**session_kwargs) as session:
-            for file_path, tag, query in queries:
-                session.run(f"EXPLAIN\n{query}")
-                num_validated += 1
+        if database:
+            with driver.session(database=database) as session:
+                for _file_path, _tag, query in queries:
+                    session.run(f"EXPLAIN\n{query}")  # type: ignore[arg-type]
+                    num_validated += 1
+        else:
+            with driver.session() as session:
+                for _file_path, _tag, query in queries:
+                    session.run(f"EXPLAIN\n{query}")  # type: ignore[arg-type]
+                    num_validated += 1
     print(f"Validated {num_validated} Cypher snippets via EXPLAIN")
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print("Usage: python scripts/validate_cypher_snippets.py <queries_dir>")
-        sys.exit(2)
-    root = Path(sys.argv[1]).resolve()
+    parser = argparse.ArgumentParser(
+        description="Validate Cypher snippets (EXPLAIN) from .cyp files in a directory"
+    )
+    parser.add_argument("queries_dir", help="Directory containing .cyp files with tagged snippets")
+    add_common_args(parser)
+    args = parser.parse_args()
+
+    root = Path(args.queries_dir).resolve()
     if not root.exists():
         raise SystemExit(f"Directory not found: {root}")
 
-    uri = os.environ.get("NEO4J_URI")
-    user = os.environ.get("NEO4J_USERNAME")
-    pwd = os.environ.get("NEO4J_PASSWORD")
-    if not all([uri, user, pwd]):
-        raise SystemExit("NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD must be set")
-    database = os.environ.get("NEO4J_DATABASE")
-
-    validate_queries(uri, user, pwd, iter_queries(root), database=database)
+    uri, user, pwd, db = resolve_neo4j_args(args.uri, args.username, args.password, args.database)
+    validate_queries(uri, user, pwd, iter_queries(root), database=db)
 
 
 if __name__ == "__main__":

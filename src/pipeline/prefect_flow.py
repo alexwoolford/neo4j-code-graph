@@ -661,15 +661,16 @@ def code_graph_flow(
 
 
 def parse_cli_args() -> argparse.Namespace:
+    try:
+        from src.utils.common import add_common_args
+    except Exception:
+        from utils.common import add_common_args  # type: ignore
+
     parser = argparse.ArgumentParser(description="Run the neo4j-code-graph pipeline via Prefect")
     # Accept both optional flag and positional for repo URL for convenience
     parser.add_argument("--repo-url", dest="repo_url", help="Repository URL or local path")
     parser.add_argument("pos_repo_url", nargs="?", help="Repository URL or local path")
-    parser.add_argument("--uri", help="Neo4j URI")
-    parser.add_argument("--username", help="Neo4j username")
-    parser.add_argument("--password", help="Neo4j password")
-    # Do not default database here; let tooling read from .env / env via add_common_args
-    parser.add_argument("--database", help="Neo4j database (overrides .env if set)")
+    add_common_args(parser)
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup stage")
     args = parser.parse_args()
     # Normalize: prefer flag, fallback to positional

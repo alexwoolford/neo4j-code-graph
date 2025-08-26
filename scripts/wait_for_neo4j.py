@@ -2,23 +2,24 @@
 """
 Wait for a Neo4j instance to become ready.
 
-Reads configuration from environment variables:
-  - NEO4J_URI (e.g., bolt://127.0.0.1:7687)
-  - NEO4J_USERNAME
-  - NEO4J_PASSWORD
-  - NEO4J_DATABASE (optional)
-  - NEO4J_WAIT_TIMEOUT_SECONDS (optional, default: 420)
+You can pass connection settings via CLI flags or rely on .env/env defaults:
+  --uri, --username, --password, --database (optional)
+  --timeout-seconds (optional, default: 420)
 
 Exit code 0 on success; non-zero on timeout/failure.
 """
 
 from __future__ import annotations
 
-import os
-import sys
+import argparse
 import time
 
 from neo4j import GraphDatabase
+
+try:
+    from src.utils.common import add_common_args, resolve_neo4j_args
+except Exception:  # pragma: no cover - repo-local fallback
+    from utils.common import add_common_args, resolve_neo4j_args  # type: ignore
 
 
 def wait_for_neo4j(
@@ -33,9 +34,12 @@ def wait_for_neo4j(
     while time.time() < deadline:
         try:
             with GraphDatabase.driver(uri, auth=(username, password)) as driver:
-                session_kwargs = {"database": database} if database else {}
-                with driver.session(**session_kwargs) as session:
-                    session.run("RETURN 1").consume()
+                if database:
+                    with driver.session(database=database) as session:
+                        session.run("RETURN 1").consume()
+                else:
+                    with driver.session() as session:
+                        session.run("RETURN 1").consume()
             print("Neo4j is ready")
             return
         except Exception as exc:  # noqa: BLE001 - bubble up only after timeout
@@ -45,19 +49,15 @@ def wait_for_neo4j(
 
 
 def main() -> None:
-    uri = os.environ.get("NEO4J_URI")
-    username = os.environ.get("NEO4J_USERNAME")
-    password = os.environ.get("NEO4J_PASSWORD")
-    database = os.environ.get("NEO4J_DATABASE")
-    timeout_str = os.environ.get("NEO4J_WAIT_TIMEOUT_SECONDS", "420")
-    if not (uri and username and password):
-        print("NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD must be set", file=sys.stderr)
-        raise SystemExit(2)
-    try:
-        timeout = int(timeout_str)
-    except ValueError:
-        timeout = 420
-    wait_for_neo4j(uri, username, password, database=database, timeout_seconds=timeout)
+    parser = argparse.ArgumentParser(description="Wait for Neo4j to become ready")
+    add_common_args(parser)
+    parser.add_argument(
+        "--timeout-seconds", type=int, default=420, help="Timeout in seconds (default: 420)"
+    )
+    args = parser.parse_args()
+
+    uri, user, pwd, db = resolve_neo4j_args(args.uri, args.username, args.password, args.database)
+    wait_for_neo4j(uri, user, pwd, database=db, timeout_seconds=int(args.timeout_seconds))
 
 
 if __name__ == "__main__":
