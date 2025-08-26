@@ -21,13 +21,12 @@ def main() -> int:
 
     from neo4j import GraphDatabase
 
-    from src.utils.common import setup_logging
-    from src.utils.neo4j_utils import get_neo4j_config
+    from src.utils.common import resolve_neo4j_args, setup_logging
 
     setup_logging("INFO")
     logger = logging.getLogger(__name__)
 
-    uri, username, password, _ = get_neo4j_config()
+    uri, username, password, _ = resolve_neo4j_args(None, None, None, None)
     with GraphDatabase.driver(uri, auth=(username, password)) as driver:
         with driver.session() as session:
             try:
