@@ -203,6 +203,18 @@ from utils.common import create_neo4j_driver, setup_logging
   - Live tests for behaviors that depend on Neo4j/GDS (use the existing Testcontainers/CI live job).
 - Avoid brittle tests that assert internal implementation details; assert externally visible effects (created nodes/relationships, properties, query results).
 
+### Testing Philosophy and Use of Test Doubles (MANDATORY)
+
+- Default stance: test real code paths. Do not write “placeholder” tests that merely assert that mocks were called.
+- Avoid MagicMock/monkeypatch unless absolutely necessary. Acceptable cases:
+  - Isolating hard external boundaries (e.g., network/NVD API rate limits, filesystem hazards).
+  - Bypassing optional/unsupported runtime dependencies in specific CI jobs (e.g., Arrow/tqdm.auto path in GDS) while the same behavior is covered in live/integration tests elsewhere.
+  - Creating small value-preserving fakes (minimal objects that act like real ones) instead of loose mocks for complex protocols.
+- Prefer live or realistic integration tests for critical paths (Neo4j schema, writers, GDS projections/algorithms). Use Testcontainers/Neo4j for these.
+- When a test double is unavoidable:
+  - Scope it narrowly, assert real outputs or side effects (Cypher issued, properties set), and avoid asserting on call counts alone.
+  - Document the rationale in the test (why a real dependency isn’t feasible) and ensure a live/integration counterpart exists covering the same behavior.
+
 
 - Single source of truth for Neo4j connection is `.env` loaded via `src/utils/neo4j_utils.get_neo4j_config()`.
 - All stages (CLI, Prefect tasks, GDS helpers) must use either:
