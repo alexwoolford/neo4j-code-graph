@@ -28,7 +28,7 @@ from src.analysis.similarity import (
 )
 from src.analysis.temporal_analysis import run_coupling
 from src.data.schema_management import setup_complete_schema
-from src.security.cve_analysis import main as cve_main
+from src.security.cve_analysis import CVEAnalyzer
 from src.utils.common import create_neo4j_driver, resolve_neo4j_args
 
 
@@ -259,24 +259,25 @@ def cve_task(
     import os
 
     logger.info("Running CVE analysis (optional if NVD_API_KEY is present)")
-    if not os.getenv("NVD_API_KEY"):
+    api_key = os.getenv("NVD_API_KEY")
+    if not api_key:
         logger.warning("NVD_API_KEY not set; skipping CVE analysis")
         return
-    base = ["prog", "--risk-threshold", "7.0", "--max-hops", "4"]
-    overrides: dict[str, object] = {}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    import sys
-
-    old_argv = sys.argv
-    try:
-        sys.argv = _build_args(base, overrides)
-        cve_main()
-    finally:
-        sys.argv = old_argv
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
+        analyzer = CVEAnalyzer(driver, _db)
+        # Show cache, then fetch and build graph; rely on defaults for scope/limits
+        analyzer.get_cache_status()
+        deps_by_ecosystem, _langs = analyzer.extract_codebase_dependencies()
+        search_terms = analyzer.create_universal_component_search_terms(deps_by_ecosystem)
+        cve_data = analyzer.cve_manager.fetch_targeted_cves(  # type: ignore[attr-defined]
+            api_key=api_key,
+            search_terms=search_terms,
+            max_results=2000,
+            days_back=365,
+            max_concurrency=None,
+        )
+        if cve_data:
+            analyzer.create_vulnerability_graph(list(cve_data))  # type: ignore[arg-type]
+            impact = analyzer.analyze_vulnerability_impact(risk_threshold=7.0, max_hops=4)
+            analyzer.generate_impact_report(impact)
