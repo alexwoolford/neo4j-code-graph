@@ -5,10 +5,10 @@ from pathlib import Path
 from prefect import get_run_logger, task
 
 from src.analysis.centrality import main as centrality_main
-from src.analysis.git_analysis import main as git_history_main
+from src.analysis.git_analysis import load_history
 from src.analysis.similarity import main as similarity_main
-from src.analysis.temporal_analysis import main as temporal_main
-from src.data.schema_management import main as schema_main
+from src.analysis.temporal_analysis import run_coupling
+from src.data.schema_management import setup_complete_schema
 from src.security.cve_analysis import main as cve_main
 from src.utils.common import create_neo4j_driver, resolve_neo4j_args
 
@@ -31,24 +31,10 @@ def setup_schema_task(
 ) -> None:
     logger = get_run_logger()
     logger.info("Setting up database schema...")
-    import sys
-
-    base = ["prog"]
-    overrides: dict[str, object] = {}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    old_argv = sys.argv
-    try:
-        sys.argv = _build_args(base, overrides)
-        schema_main()
-    finally:
-        sys.argv = old_argv
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
+        with driver.session(database=_db) as session:  # type: ignore[reportUnknownMemberType]
+            setup_complete_schema(session)
 
 
 @task(retries=0)
@@ -57,30 +43,14 @@ def selective_cleanup_task(
 ) -> None:
     logger = get_run_logger()
     logger.info("Selective cleanup before similarity/community stages...")
-    import sys
-
-    # Build overrides for connection args
-    overrides: dict[str, object] = {}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    old_argv = sys.argv
     try:
-        try:
-            from src.utils.cleanup import selective_cleanup as _sel  # type: ignore
-        except Exception:  # pragma: no cover
-            from utils.cleanup import selective_cleanup as _sel  # type: ignore
-        _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
-        with create_neo4j_driver(_uri, _user, _pwd) as driver:
-            with driver.session(database=_db) as session:  # type: ignore[reportUnknownMemberType]
-                _sel(session, dry_run=False)
-    finally:
-        sys.argv = old_argv
+        from src.utils.cleanup import selective_cleanup as _sel  # type: ignore
+    except Exception:  # pragma: no cover
+        from utils.cleanup import selective_cleanup as _sel  # type: ignore
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
+        with driver.session(database=_db) as session:  # type: ignore[reportUnknownMemberType]
+            _sel(session, dry_run=False)
 
 
 # Backward-compatible alias expected by some unit tests
@@ -161,24 +131,19 @@ def git_history_task(
 ) -> None:
     logger = get_run_logger()
     logger.info("Loading git history from %s", repo_path)
-    base = ["prog", repo_path]
-    overrides: dict[str, object] = {}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    import sys
-
-    old_argv = sys.argv
-    try:
-        sys.argv = _build_args(base, overrides)
-        git_history_main()
-    finally:
-        sys.argv = old_argv
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    load_history(
+        repo_url=repo_path,
+        branch="master",
+        uri=_uri,
+        username=_user,
+        password=_pwd,
+        database=_db,
+        csv_export=None,
+        max_commits=None,
+        skip_file_changes=False,
+        file_changes_only=False,
+    )
 
 
 @task(retries=1)
@@ -284,32 +249,15 @@ def coupling_task(
         min_support,
         confidence_threshold,
     )
-    global_base = ["prog"]
-    subcommand = [
-        "coupling",
-        *(["--create-relationships"] if create_relationships else []),
-        "--min-support",
-        str(min_support),
-        "--confidence-threshold",
-        str(confidence_threshold),
-    ]
-    overrides: dict[str, object] = {}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    import sys
-
-    old_argv = sys.argv
-    try:
-        sys.argv = _build_args(global_base, overrides) + subcommand
-        temporal_main()
-    finally:
-        sys.argv = old_argv
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
+        run_coupling(
+            driver,
+            database=_db,
+            min_support=int(min_support),
+            confidence_threshold=float(confidence_threshold),
+            write=bool(create_relationships),
+        )
 
 
 @task(retries=0)
