@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from prefect import flow
 
 import src.pipeline.tasks.db_tasks as tasks
 
@@ -21,12 +20,9 @@ def test_setup_schema_and_cleanup_integration(neo4j_driver: Any) -> None:
     db = os.environ.get("NEO4J_DATABASE", "neo4j")
     assert uri and user and pwd
 
-    @flow
-    def _run():
-        tasks.setup_schema_task(uri, user, pwd, db)
-        tasks.selective_cleanup_task(uri, user, pwd, db)
-
-    _run()
+    # Call task functions directly (no Prefect engine) to avoid ephemeral server in CI
+    tasks.setup_schema_task.fn(uri, user, pwd, db)
+    tasks.selective_cleanup_task.fn(uri, user, pwd, db)
 
     # Sanity: SHOW CONSTRAINTS should return without error
     with neo4j_driver.session(database=db) as s:  # type: ignore[reportUnknownMemberType]
@@ -50,11 +46,7 @@ def test_git_history_task_imports_minimal_repo(neo4j_driver: Any) -> None:
     repo.index.add([str(p)])  # type: ignore[arg-type]
     repo.index.commit("init")
 
-    @flow
-    def _run():
-        tasks.git_history_task(str(tmpdir), uri, user, pwd, db)
-
-    _run()
+    tasks.git_history_task.fn(str(tmpdir), uri, user, pwd, db)
 
     with neo4j_driver.session(database=db) as s:  # type: ignore[reportUnknownMemberType]
         res = s.run("MATCH (c:Commit) RETURN count(c) AS n").single()  # type: ignore[reportUnknownMemberType]

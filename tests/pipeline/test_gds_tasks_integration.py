@@ -6,7 +6,6 @@ import os
 from typing import Any
 
 import pytest
-from prefect import flow
 
 import src.pipeline.tasks.db_tasks as tasks
 
@@ -42,12 +41,9 @@ def test_similarity_and_louvain_tasks_integration(neo4j_driver: Any) -> None:
     db = os.environ.get("NEO4J_DATABASE", "neo4j")
     assert uri and user and pwd
 
-    @flow
-    def _run():
-        tasks.similarity_task(uri, user, pwd, db)
-        tasks.louvain_task(uri, user, pwd, db)
-
-    _run()
+    # Avoid Prefect ephemeral server in CI: call task functions directly
+    tasks.similarity_task.fn(uri, user, pwd, db)
+    tasks.louvain_task.fn(uri, user, pwd, db)
 
 
 @pytest.mark.integration
@@ -61,8 +57,4 @@ def test_centrality_task_integration(neo4j_driver: Any) -> None:
     db = os.environ.get("NEO4J_DATABASE", "neo4j")
     assert uri and user and pwd
 
-    @flow
-    def _run():
-        tasks.centrality_task(uri, user, pwd, db)
-
-    _run()
+    tasks.centrality_task.fn(uri, user, pwd, db)
