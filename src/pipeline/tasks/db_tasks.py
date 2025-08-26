@@ -6,7 +6,15 @@ from prefect import get_run_logger, task
 
 from src.analysis.centrality import main as centrality_main
 from src.analysis.git_analysis import load_history
-from src.analysis.similarity import main as similarity_main
+from src.analysis.similarity import (
+    create_index as sim_create_index,
+)
+from src.analysis.similarity import (
+    run_knn as sim_run_knn,
+)
+from src.analysis.similarity import (
+    run_louvain as sim_run_louvain,
+)
 from src.analysis.temporal_analysis import run_coupling
 from src.data.schema_management import setup_complete_schema
 from src.security.cve_analysis import main as cve_main
@@ -152,24 +160,17 @@ def similarity_task(
 ) -> None:
     logger = get_run_logger()
     logger.info("Running similarity (kNN + optional Louvain)")
-    base = ["prog"]
-    overrides: dict[str, object] = {"--top-k": "5", "--cutoff": "0.8"}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    import sys
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    # Use direct GDS calls to avoid CLI shims
+    from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
-    old_argv = sys.argv
+    gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
     try:
-        sys.argv = _build_args(base, overrides)
-        similarity_main()
+        gds.run_cypher("RETURN 1")
+        sim_create_index(gds)
+        sim_run_knn(gds, top_k=5, cutoff=0.8)
     finally:
-        sys.argv = old_argv
+        gds.close()
 
 
 @task(retries=1)
@@ -178,24 +179,15 @@ def louvain_task(
 ) -> None:
     logger = get_run_logger()
     logger.info("Running community detection (Louvain)")
-    base = ["prog"]
-    overrides: dict[str, object] = {"--no-knn": True, "--community-threshold": 0.8}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    import sys
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
-    old_argv = sys.argv
+    gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
     try:
-        sys.argv = _build_args(base, overrides)
-        similarity_main()
+        gds.run_cypher("RETURN 1")
+        sim_run_louvain(gds, threshold=0.8)
     finally:
-        sys.argv = old_argv
+        gds.close()
 
 
 @task(retries=1)
