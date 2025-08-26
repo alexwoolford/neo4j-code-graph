@@ -337,3 +337,71 @@ def _ensure_schema_for_live_tests():
             drv.close()
     except Exception:
         pass
+
+
+# Mini graph fixture for Method/CALLS
+@pytest.fixture
+def mini_method_call_graph(neo4j_driver):
+    """Create a tiny Method/CALLS graph and yield signatures.
+
+    Nodes:
+      - com.example.A#a():void (id=1)
+      - com.example.B#b():void (id=2)
+      - com.example.C#c():void (id=3)
+    Relationships:
+      - A CALLS B
+      - A CALLS C
+    """
+    with neo4j_driver.session() as s:
+        s.run("MATCH (n) DETACH DELETE n").consume()
+        s.run(
+            """
+            UNWIND $rows AS r
+            MERGE (m:Method {method_signature: r.sig})
+            ON CREATE SET m.id = r.id, m.name = r.name, m.class_name = r.cls, m.file = r.file
+            """,
+            rows=[
+                {
+                    "sig": "com.example.A#a():void",
+                    "id": 1,
+                    "name": "a",
+                    "cls": "A",
+                    "file": "src/main/java/com/example/A.java",
+                },
+                {
+                    "sig": "com.example.B#b():void",
+                    "id": 2,
+                    "name": "b",
+                    "cls": "B",
+                    "file": "src/main/java/com/example/B.java",
+                },
+                {
+                    "sig": "com.example.C#c():void",
+                    "id": 3,
+                    "name": "c",
+                    "cls": "C",
+                    "file": "src/main/java/com/example/C.java",
+                },
+            ],
+        ).consume()
+        s.run(
+            """
+            MATCH (a:Method {method_signature:$a}), (b:Method {method_signature:$b})
+            MERGE (a)-[:CALLS]->(b)
+            """,
+            a="com.example.A#a():void",
+            b="com.example.B#b():void",
+        ).consume()
+        s.run(
+            """
+            MATCH (a:Method {method_signature:$a}), (c:Method {method_signature:$c})
+            MERGE (a)-[:CALLS]->(c)
+            """,
+            a="com.example.A#a():void",
+            c="com.example.C#c():void",
+        ).consume()
+    yield {
+        "A": "com.example.A#a():void",
+        "B": "com.example.B#b():void",
+        "C": "com.example.C#c():void",
+    }
