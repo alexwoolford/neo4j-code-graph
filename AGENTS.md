@@ -264,7 +264,7 @@ Tests use mocked database connections for execution without requiring a running 
 
 ## Dependency Management
 
-- **GraphDataScience version**: Ensure GDS version matches `requirements.txt`
+- **GraphDataScience version**: Ensure GDS version matches `config/requirements.txt`
 - **PyArrow compatibility**: Must be `>=17.0,<21.0` for GDS compatibility
 - **CUDA/MPS support**: PyTorch automatically detects GPU acceleration
 

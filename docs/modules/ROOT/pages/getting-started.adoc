@@ -9,6 +9,8 @@ This guide shows how to install, configure, and run the Neo4j Code Graph pipelin
 git clone https://github.com/alexwoolford/neo4j-code-graph
 cd neo4j-code-graph
 pip install -e '.[dev]'
+# Optional: pin to repo-compatible versions
+pip install -e '.[dev]' -c config/requirements.txt
 ----
 
 == Configuration

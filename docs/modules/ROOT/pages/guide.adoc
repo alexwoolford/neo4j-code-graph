@@ -9,6 +9,8 @@ This guide shows how to install, configure, and run the Neo4j Code Graph pipelin
 git clone https://github.com/alexwoolford/neo4j-code-graph
 cd neo4j-code-graph
 pip install -e '.[dev]'
+# Optional: pin to repo-compatible versions
+pip install -e '.[dev]' -c config/requirements.txt
 ----
 
 == Configuration
@@ -51,6 +53,17 @@ code-graph-pipeline-prefect --repo-url https://github.com/your-org/your-repo
 
 # Or run the module directly
 python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo
+----
+
+== Makefile shortcuts
+
+[source,bash]
+----
+# Install runtime deps
+make install
+
+# Install dev tools, pins, and pre-commit hooks
+make install-dev
 ----
 
 == Monitor runs with Prefect UI
