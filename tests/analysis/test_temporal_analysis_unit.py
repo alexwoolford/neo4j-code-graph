@@ -38,6 +38,13 @@ class _RecordingSession:
             return _Result(self._read_rows)
         return _Result()
 
+    # Add context manager protocol to match driver.session usage
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
 
 class _Driver:
     def __init__(self, session: _RecordingSession):
