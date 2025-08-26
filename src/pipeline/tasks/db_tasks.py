@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from prefect import get_run_logger, task
@@ -48,7 +49,10 @@ def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> 
 def setup_schema_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> None:
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
     logger.info("Setting up database schema...")
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     with create_neo4j_driver(_uri, _user, _pwd) as driver:
@@ -60,7 +64,10 @@ def setup_schema_task(
 def selective_cleanup_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> None:
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
     logger.info("Selective cleanup before similarity/community stages...")
     try:
         from src.utils.cleanup import selective_cleanup as _sel  # type: ignore
@@ -85,7 +92,10 @@ def write_graph_task(
     password: str | None,
     database: str | None,
 ) -> None:
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
     logger.info("Writing extracted data and embeddings to Neo4j from %s", artifacts_dir)
     in_files = str(Path(artifacts_dir) / "files_data.json")
     in_deps = str(Path(artifacts_dir) / "dependencies.json")
@@ -148,7 +158,10 @@ def git_history_task(
     password: str | None,
     database: str | None,
 ) -> None:
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
     logger.info("Loading git history from %s", repo_path)
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     load_history(
@@ -169,7 +182,10 @@ def git_history_task(
 def similarity_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> None:
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
     logger.info("Running similarity (kNN + optional Louvain)")
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     from graphdatascience import GraphDataScience as _GDS  # type: ignore
@@ -187,7 +203,10 @@ def similarity_task(
 def louvain_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> None:
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
     logger.info("Running community detection (Louvain)")
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     from graphdatascience import GraphDataScience as _GDS  # type: ignore

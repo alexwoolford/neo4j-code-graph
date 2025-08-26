@@ -178,7 +178,7 @@ class CVECacheManager:
             lock = asyncio.Lock()
             stop_event = asyncio.Event()
 
-            client: NVDClientProtocol = NVDClient(api_key)
+            client: NVDClientProtocol = cast(NVDClientProtocol, NVDClient(api_key))
             async with aiohttp.ClientSession() as session:
 
                 async def fetch_query(idx: int, query_term: str, original_terms: set[str]) -> None:
@@ -204,7 +204,7 @@ class CVECacheManager:
                             )
                             if data_opt is None:
                                 return
-                            data: dict[str, Any] = data_opt
+                            data: dict[str, Any] = cast(dict[str, Any], data_opt)
                         except Exception as e:  # pragma: no cover - network errors
                             logger.error(f"❌ Error searching '{query_term}': {e}")
                             return
@@ -592,3 +592,11 @@ class CVECacheManager:
 
     def clear_cache(self, keep_complete: bool = True) -> None:
         self.store.clear(keep_complete=keep_complete)
+
+    # --- Thin compatibility layer for legacy tests ---
+    def is_cve_relevant(self, cve: Mapping[str, Any], components: set[str]) -> bool:  # type: ignore[override]
+        return self._is_relevant_to_terms(cve, components)
+
+    def get_cache_file_path(self, cache_key: str) -> str:  # pragma: no cover (compat shim)
+        # Mirror previous API: path of the complete cache file in current store
+        return str((self.cache_dir / f"{cache_key}_complete.json.gz").resolve())
