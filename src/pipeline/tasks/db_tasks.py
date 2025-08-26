@@ -4,7 +4,18 @@ from pathlib import Path
 
 from prefect import get_run_logger, task
 
-from src.analysis.centrality import main as centrality_main
+from src.analysis.centrality import (
+    create_call_graph_projection as cent_create_graph,
+)
+from src.analysis.centrality import (
+    run_betweenness_analysis as cent_betweenness,
+)
+from src.analysis.centrality import (
+    run_degree_analysis as cent_degree,
+)
+from src.analysis.centrality import (
+    run_pagerank_analysis as cent_pagerank,
+)
 from src.analysis.git_analysis import load_history
 from src.analysis.similarity import (
     create_index as sim_create_index,
@@ -161,7 +172,6 @@ def similarity_task(
     logger = get_run_logger()
     logger.info("Running similarity (kNN + optional Louvain)")
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
-    # Use direct GDS calls to avoid CLI shims
     from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
     gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
@@ -196,33 +206,22 @@ def centrality_task(
 ) -> None:
     logger = get_run_logger()
     logger.info("Running centrality analysis")
-    base = [
-        "prog",
-        "--algorithms",
-        "pagerank",
-        "betweenness",
-        "degree",
-        "--top-n",
-        "15",
-        "--write-back",
-    ]
-    overrides: dict[str, object] = {}
-    if uri:
-        overrides["--uri"] = uri
-    if username:
-        overrides["--username"] = username
-    if password:
-        overrides["--password"] = password
-    if database:
-        overrides["--database"] = database
-    import sys
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
-    old_argv = sys.argv
+    gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
     try:
-        sys.argv = _build_args(base, overrides)
-        centrality_main()
+        gds.run_cypher("RETURN 1")
+        graph = cent_create_graph(gds)
+        cent_pagerank(gds, graph, top_n=15, write_back=True)
+        cent_betweenness(gds, graph, top_n=15, write_back=True)
+        cent_degree(gds, graph, top_n=15, write_back=True)
+        try:
+            graph.drop()
+        except Exception:
+            pass
     finally:
-        sys.argv = old_argv
+        gds.close()
 
 
 @task(retries=0)
