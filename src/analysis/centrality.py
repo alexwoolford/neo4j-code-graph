@@ -157,14 +157,10 @@ def run_pagerank_analysis(
 
         # Enrich with method details
         if not result.empty:
+            from src.analysis.gds_helpers import enrich_node_ids_with_method_details
+
             method_ids = result["nodeId"].tolist()
-            query = """
-            UNWIND $nodeIds as nodeId
-            WITH nodeId, gds.util.asNode(nodeId) as m
-            RETURN nodeId, m.name as method_name,
-                   m.class_name as class_name, m.file as file
-            """
-            method_details = gds.run_cypher(query, {"nodeIds": method_ids})
+            method_details = enrich_node_ids_with_method_details(gds, method_ids)
             top_results = result.merge(method_details, on="nodeId")
 
     analysis_time = perf_counter() - start_time
@@ -213,14 +209,10 @@ def run_betweenness_analysis(
         result = gds.betweenness.stream(graph).head(top_n)
 
         if not result.empty:
+            from src.analysis.gds_helpers import enrich_node_ids_with_method_details
+
             method_ids = result["nodeId"].tolist()
-            query = """
-            UNWIND $nodeIds as nodeId
-            WITH nodeId, gds.util.asNode(nodeId) as m
-            RETURN nodeId, m.name as method_name,
-                   m.class_name as class_name, m.file as file
-            """
-            method_details = gds.run_cypher(query, {"nodeIds": method_ids})
+            method_details = enrich_node_ids_with_method_details(gds, method_ids)
             top_results = result.merge(method_details, on="nodeId")
 
     analysis_time = perf_counter() - start_time

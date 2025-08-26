@@ -197,15 +197,23 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     if exists:
         gds.graph.drop(graph_name)
 
-    # Prefer native projection; some GDS versions require at least one relationship type.
-    # First try with a placeholder relationship type (SIMILAR). If the server rejects the
-    # projection (e.g., due to strict checks), fall back to Cypher projection with no rels.
+    # Use standardized helper for projection creation
     try:
-        graph, _ = gds.graph.project(
-            graph_name,
-            {"Method": {"properties": [EMBEDDING_PROPERTY]}},
-            {"SIMILAR": {"orientation": "UNDIRECTED"}},
-        )
+        # For kNN, we only need nodes with embeddings; relationships are irrelevant here.
+        # We'll create an empty-edges projection via Cypher for strict servers.
+        try:
+            graph, _ = gds.graph.project(
+                graph_name,
+                {"Method": {"properties": [EMBEDDING_PROPERTY]}},
+                {"SIMILAR": {"orientation": "UNDIRECTED"}},
+            )
+        except Exception:
+            node_q = (
+                f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
+                f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS embedding"
+            )
+            rel_q = "RETURN null AS source, null AS target LIMIT 0"
+            graph, _ = gds.graph.project.cypher(graph_name, node_q, rel_q)
     except Exception:
         node_q = (
             f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
@@ -248,19 +256,9 @@ def run_louvain(
     if exists:
         gds.graph.drop(graph_name)
 
-    node_query = "MATCH (m:Method) RETURN id(m) AS id"
-    rel_query = (
-        "MATCH (m1:Method)-[s:SIMILAR]->(m2:Method) "
-        "WHERE s.score >= $threshold "
-        "RETURN id(m1) AS source, id(m2) AS target, s.score AS score"
-    )
+    from src.analysis.gds_helpers import create_similarity_projection
 
-    graph, _ = gds.graph.project.cypher(
-        graph_name,
-        node_query,
-        rel_query,
-        parameters={"threshold": threshold},
-    )
+    graph, _ = create_similarity_projection(gds, threshold, graph_name)
 
     start = perf_counter()
     gds.louvain.write(graph, writeProperty=community_property)
