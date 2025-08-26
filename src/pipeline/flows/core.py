@@ -37,6 +37,18 @@ from src.pipeline.tasks.db_tasks import (
 )
 
 
+def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> list[str]:
+    args = list(base)
+    if overrides:
+        for key, value in overrides.items():
+            if isinstance(value, bool):
+                if value:
+                    args.append(str(key))
+            else:
+                args.extend([str(key), str(value)])
+    return args
+
+
 @flow(name="neo4j-code-graph-pipeline")
 def code_graph_flow(
     repo_url: str,

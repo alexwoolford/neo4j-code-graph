@@ -2,7 +2,7 @@
 
 
 def test_build_args_adds_flags_and_key_values() -> None:
-    from src.pipeline.prefect_flow import _build_args
+    from src.pipeline.flows.core import _build_args
 
     base = ["prog"]
     overrides = {"--uri": "bolt://localhost:7687", "--write-back": True, "--top-k": 5}

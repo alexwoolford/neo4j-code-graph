@@ -14,15 +14,13 @@ Features:
 from __future__ import annotations
 
 import asyncio
-import gzip
 import hashlib
-import json
 import logging
 import time
 from collections.abc import Mapping
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 import aiohttp
 from tqdm import tqdm
@@ -31,6 +29,45 @@ try:
     from security.types import CleanCVE
 except Exception:  # pragma: no cover - fallback for module execution context
     from src.security.types import CleanCVE
+
+try:  # runtime import with fallback for both repo and installed contexts
+    from security.cve_cache_store import CVECacheStore  # type: ignore
+except Exception:  # pragma: no cover
+    from src.security.cve_cache_store import CVECacheStore  # type: ignore
+
+try:
+    from security.nvd_client import NVDClient  # type: ignore
+except Exception:  # pragma: no cover
+    from src.security.nvd_client import NVDClient  # type: ignore
+
+
+class CVECacheStoreProtocol(Protocol):
+    def load_complete(self, cache_key: str) -> list[dict[str, Any]] | None: ...
+
+    def load_partial(self, cache_key: str) -> tuple[list[dict[str, Any]], set[str]]: ...
+
+    def save_partial(
+        self, cache_key: str, cves: list[dict[str, Any]], completed_terms: set[str]
+    ) -> None: ...
+
+    def cleanup_partial(self, cache_key: str) -> None: ...
+
+    def save_complete(self, cache_key: str, data: list[dict[str, Any]]) -> None: ...
+
+    def stats(self) -> dict[str, Any]: ...
+
+    def clear(self, keep_complete: bool = True) -> None: ...
+
+
+class NVDClientProtocol(Protocol):
+    async def fetch(
+        self,
+        session: aiohttp.ClientSession,
+        params: dict[str, Any],
+        on_rate_limit: Any,
+        timeout_s: int = 30,
+    ) -> dict[str, Any] | None: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +79,9 @@ class CVECacheManager:
         self.cache_dir: Path = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_ttl: timedelta = timedelta(hours=cache_ttl_hours)
+        self.store: CVECacheStoreProtocol = cast(
+            CVECacheStoreProtocol, CVECacheStore(str(self.cache_dir), self.cache_ttl)
+        )
 
         # NVD API Rate Limits (published rates)
         # Without API key: 5 requests per 30 seconds
@@ -87,13 +127,17 @@ class CVECacheManager:
         cache_key = f"targeted_cves_{terms_hash}_{days_back}d_{max_results}"
 
         # Check for existing complete cache
-        cached_data = self.load_complete_cache(cache_key)
-        if cached_data:
+        store = self.store
+        cached_data_obj = store.load_complete(cache_key)
+        if cached_data_obj:
+            cached_data = cast(list[CleanCVE], cached_data_obj)
             logger.info(f"📦 Loaded {len(cached_data)} CVEs from complete cache")
             return cached_data
 
         # Check for partial cache
-        partial_data, completed_terms = self.load_partial_targeted_cache(cache_key)
+        partial_raw, completed_raw = store.load_partial(cache_key)
+        partial_data: list[CleanCVE] = cast(list[CleanCVE], partial_raw)
+        completed_terms: set[str] = completed_raw
         remaining_terms: set[str] = search_terms - completed_terms
 
         if partial_data:
@@ -106,12 +150,8 @@ class CVECacheManager:
             partial_data = []
             remaining_terms = search_terms
 
-        # Setup API
-        base_url = "https://services.nvd.nist.gov/rest/json/cves/2.0"
-        headers = {"User-Agent": "neo4j-code-graph/1.0"}
-
+        # API key note
         if api_key:
-            headers["apiKey"] = api_key
             logger.info("🔑 Using NVD API key for faster searches")
 
         all_cves: list[CleanCVE] = list(partial_data)
@@ -119,7 +159,7 @@ class CVECacheManager:
 
         # Convert search terms to effective search queries; we will generate as many as needed
         # to cover 100% of dependencies (not capped), while honoring rate limits.
-        search_queries = self._prepare_search_queries(remaining_terms)
+        search_queries: list[tuple[str, set[str]]] = self._prepare_search_queries(remaining_terms)
 
         # If grouping returned fewer queries than terms, generate any remaining single-term queries
         # to guarantee 100% coverage.
@@ -138,6 +178,7 @@ class CVECacheManager:
             lock = asyncio.Lock()
             stop_event = asyncio.Event()
 
+            client: NVDClientProtocol = NVDClient(api_key)
             async with aiohttp.ClientSession() as session:
 
                 async def fetch_query(idx: int, query_term: str, original_terms: set[str]) -> None:
@@ -146,7 +187,7 @@ class CVECacheManager:
                     async with semaphore:
                         await self._async_enforce_rate_limit(max_requests_per_window)
 
-                        params = {
+                        params: dict[str, Any] = {
                             "keywordSearch": query_term,
                             "resultsPerPage": 100,
                             "startIndex": 0,
@@ -155,15 +196,15 @@ class CVECacheManager:
                         pbar.set_description(f"Searching: {query_term[:30]}...")
 
                         try:
-                            async with session.get(
-                                base_url, headers=headers, params=params, timeout=30
-                            ) as resp:
-                                if resp.status == 429:
-                                    await self._async_handle_rate_limit(resp)
-                                    return
-
-                                resp.raise_for_status()
-                                data = cast(dict[str, Any], await resp.json())
+                            data_opt: dict[str, Any] | None = await client.fetch(
+                                session=session,
+                                params=params,
+                                on_rate_limit=self._async_handle_rate_limit,
+                                timeout_s=30,
+                            )
+                            if data_opt is None:
+                                return
+                            data: dict[str, Any] = data_opt
                         except Exception as e:  # pragma: no cover - network errors
                             logger.error(f"❌ Error searching '{query_term}': {e}")
                             return
@@ -188,8 +229,8 @@ class CVECacheManager:
                         pbar.set_postfix(postfix)
 
                         if (idx + 1) % 5 == 0:
-                            self._save_partial_targeted_cache(
-                                cache_key, all_cves, completed_terms_set
+                            store.save_partial(
+                                cache_key, cast(list[dict[str, Any]], all_cves), completed_terms_set
                             )
                             logger.debug(
                                 f"💾 Checkpoint: {len(all_cves)} CVEs, "
@@ -212,7 +253,9 @@ class CVECacheManager:
                 asyncio.run(_run_async())
             except KeyboardInterrupt:
                 logger.warning("⚠️  Search interrupted - saving progress...")
-                self._save_partial_targeted_cache(cache_key, all_cves, completed_terms_set)
+                store.save_partial(
+                    cache_key, cast(list[dict[str, Any]], all_cves), completed_terms_set
+                )
                 logger.info(
                     f"💾 Saved {len(all_cves)} CVEs, " f"{len(completed_terms_set)} terms completed"
                 )
@@ -239,8 +282,8 @@ class CVECacheManager:
         )
 
         # Save final results
-        self._save_complete_cache(cache_key, unique_cves)
-        self._cleanup_partial_targeted_cache(cache_key)
+        store.save_complete(cache_key, cast(list[dict[str, Any]], unique_cves))
+        store.cleanup_partial(cache_key)
 
         return unique_cves
 
@@ -455,89 +498,6 @@ class CVECacheManager:
 
             self.request_times.append(time.time())
 
-    def _save_partial_targeted_cache(
-        self, cache_key: str, cves: list[CleanCVE], completed_terms: set[str]
-    ) -> None:
-        """Save partial progress for targeted searches."""
-        partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
-        try:
-            cache_data: dict[str, Any] = {
-                "cves": cves,
-                "completed_terms": list(completed_terms),
-                "timestamp": datetime.now().isoformat(),
-                "count": len(cves),
-                "completed_count": len(completed_terms),
-            }
-
-            with gzip.open(partial_file, "wt", encoding="utf-8") as f:
-                json.dump(cache_data, f, indent=2)
-
-            logger.debug(f"💾 Saved {len(cves)} CVEs, {len(completed_terms)} completed terms")
-
-        except Exception as e:
-            logger.warning(f"Failed to save partial cache: {e}")
-
-    def load_partial_targeted_cache(self, cache_key: str) -> tuple[list[CleanCVE], set[str]]:
-        """Load partial cache for targeted searches."""
-        partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
-
-        if not partial_file.exists():
-            return [], set()
-
-        try:
-            with gzip.open(partial_file, "rt", encoding="utf-8") as f:
-                cache_data = json.load(f)
-
-            # Check if cache is recent enough
-            timestamp = datetime.fromisoformat(cache_data["timestamp"])
-            if datetime.now() - timestamp > self.cache_ttl:
-                logger.info("⏰ Partial cache expired, starting fresh")
-                return [], set()
-
-            cves = cast(list[CleanCVE], cache_data.get("cves", []))
-            completed_terms = set(cast(list[str], cache_data.get("completed_terms", [])))
-
-            logger.info(
-                f"📦 Partial cache: {len(cves)} CVEs, {len(completed_terms)} terms completed"
-            )
-            return cves, completed_terms
-
-        except Exception as e:
-            logger.warning(f"Failed to load partial cache: {e}")
-            return [], set()
-
-    def _cleanup_partial_targeted_cache(self, cache_key: str) -> None:
-        """Clean up partial cache files after successful completion."""
-        partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
-        if partial_file.exists():
-            try:
-                partial_file.unlink()
-                logger.debug("🗑️  Cleaned up partial cache file")
-            except Exception as e:
-                logger.debug(f"Failed to cleanup partial cache: {e}")
-
-    def _handle_rate_limit(self, response: Any) -> None:
-        """Handle 429 rate limit responses intelligently."""
-        # Check for Retry-After header
-        retry_after = response.headers.get("Retry-After")
-        if retry_after:
-            try:
-                wait_time = int(retry_after)
-                logger.warning(f"⏰ API rate limited - waiting {wait_time}s (from server)")
-                time.sleep(wait_time)
-                return
-            except ValueError:
-                pass
-
-        # Default wait - respect the rate limit window
-        wait_time = (
-            self.request_window / self.requests_per_30s_with_key
-            if self.has_api_key
-            else self.request_window / self.requests_per_30s_no_key
-        )
-        logger.warning(f"⏰ Rate limited - waiting {wait_time:.1f}s")
-        time.sleep(wait_time)
-
     async def _async_handle_rate_limit(self, response: Any) -> None:
         """Asynchronous rate limit handling."""
         retry_after = response.headers.get("Retry-After")
@@ -607,105 +567,28 @@ class CVECacheManager:
             logger.debug(f"Error extracting CVE data: {e}")
             return None
 
+    # Delegate cache operations to the store
+    def _save_partial_targeted_cache(
+        self, cache_key: str, cves: list[CleanCVE], completed_terms: set[str]
+    ) -> None:
+        self.store.save_partial(cache_key, cast(list[dict[str, Any]], cves), completed_terms)
+
+    def load_partial_targeted_cache(self, cache_key: str) -> tuple[list[CleanCVE], set[str]]:
+        cves, completed = self.store.load_partial(cache_key)
+        return cast(list[CleanCVE], cves), completed
+
+    def _cleanup_partial_targeted_cache(self, cache_key: str) -> None:
+        self.store.cleanup_partial(cache_key)
+
     def _save_complete_cache(self, cache_key: str, data: list[CleanCVE]) -> None:
-        """Save complete dataset to permanent cache."""
-        cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
-        try:
-            cache_data: dict[str, Any] = {
-                "data": data,
-                "timestamp": datetime.now().isoformat(),
-                "count": len(data),
-                "version": "2.0",
-            }
-
-            with gzip.open(cache_file, "wt", encoding="utf-8") as f:
-                json.dump(cache_data, f, indent=2)
-
-            size_kb = cache_file.stat().st_size / 1024
-            logger.info(f"💾 Saved complete cache: {len(data)} CVEs ({size_kb:.1f} KB)")
-
-        except Exception as e:
-            logger.error(f"Failed to save complete cache: {e}")
+        self.store.save_complete(cache_key, cast(list[dict[str, Any]], data))
 
     def load_complete_cache(self, cache_key: str) -> list[CleanCVE] | None:
-        """Load complete cached CVE data."""
-        cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
-
-        if not cache_file.exists():
-            return None
-
-        try:
-            # Check file age
-            file_time = datetime.fromtimestamp(cache_file.stat().st_mtime)
-            if datetime.now() - file_time > self.cache_ttl:
-                logger.info("⏰ Complete cache expired")
-                return None
-
-            with gzip.open(cache_file, "rt", encoding="utf-8") as f:
-                cache_data = json.load(f)
-
-            data = cast(list[CleanCVE], cache_data.get("data", []))
-            logger.info(f"📦 Loaded complete cache: {len(data)} CVEs")
-            return data
-
-        except Exception as e:
-            logger.warning(f"Failed to load complete cache: {e}")
-            return None
+        data = self.store.load_complete(cache_key)
+        return cast(list[CleanCVE], data) if data is not None else None
 
     def get_cache_stats(self) -> dict[str, Any]:
-        """Get comprehensive cache statistics."""
-        cache_files = list(self.cache_dir.glob("*_complete.json.gz"))
-        partial_files = list(self.cache_dir.glob("*_partial.json.gz"))
-
-        total_size = sum(f.stat().st_size for f in cache_files + partial_files)
-
-        stats: dict[str, Any] = {
-            "complete_caches": len(cache_files),
-            "partial_caches": len(partial_files),
-            "total_size_mb": round(total_size / (1024 * 1024), 2),
-            "cache_dir": str(self.cache_dir),
-        }
-
-        # Get details of each cache
-        for cache_file in cache_files:
-            try:
-                with gzip.open(cache_file, "rt", encoding="utf-8") as f:
-                    cache_data = json.load(f)
-                stats[cache_file.stem] = {
-                    "count": cache_data.get("count", 0),
-                    "timestamp": cache_data.get("timestamp", ""),
-                    "size_kb": round(cache_file.stat().st_size / 1024, 1),
-                }
-            except Exception:
-                pass
-
-        return stats
+        return self.store.stats()
 
     def clear_cache(self, keep_complete: bool = True) -> None:
-        """Clear cache files with option to keep complete caches."""
-        if keep_complete:
-            # Only clear partial caches
-            partial_files = list(self.cache_dir.glob("*_partial.json.gz"))
-            for cache_file in partial_files:
-                try:
-                    cache_file.unlink()
-                except Exception as e:
-                    logger.warning(f"Failed to delete {cache_file}: {e}")
-            logger.info(f"🗑️  Cleared {len(partial_files)} partial cache files")
-        else:
-            # Clear all cache files
-            cache_files = list(self.cache_dir.glob("*.json.gz"))
-            for cache_file in cache_files:
-                try:
-                    cache_file.unlink()
-                except Exception as e:
-                    logger.warning(f"Failed to delete {cache_file}: {e}")
-            logger.info(f"🗑️  Cleared {len(cache_files)} cache files")
-
-    def is_cve_relevant(self, cve: dict[str, Any], components: set[str]) -> bool:
-        """Check if a CVE is relevant to the given components."""
-        return self._is_relevant_to_terms(cve, components)
-
-    def get_cache_file_path(self, cache_key: str) -> Path:
-        """Get the cache file path for a given cache key."""
-        return self.cache_dir / f"{cache_key}.json.gz"
+        self.store.clear(keep_complete=keep_complete)
