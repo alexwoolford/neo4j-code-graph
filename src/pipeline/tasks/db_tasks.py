@@ -194,6 +194,14 @@ def similarity_task(
     try:
         gds.run_cypher("RETURN 1")
         sim_create_index(gds)
+        # Guard: only run when nodes with embeddings exist to avoid 'Node-Query returned no nodes'
+        from src.constants import EMBEDDING_PROPERTY as _EMB
+
+        df = gds.run_cypher(f"MATCH (m:Method) WHERE m.{_EMB} IS NOT NULL RETURN count(m) AS c")
+        count = int(df.iloc[0]["c"]) if not df.empty else 0
+        if count == 0:
+            logger.info("No methods with embeddings present; skipping kNN")
+            return
         sim_run_knn(gds, top_k=5, cutoff=0.8)
     finally:
         gds.close()
@@ -223,7 +231,10 @@ def louvain_task(
 def centrality_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> None:
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
     logger.info("Running centrality analysis")
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     from graphdatascience import GraphDataScience as _GDS  # type: ignore

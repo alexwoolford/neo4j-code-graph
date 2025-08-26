@@ -5,7 +5,7 @@ Thin wrapper delegating to modular Prefect flow implementation.
 from __future__ import annotations
 
 from src.pipeline.cli import parse_cli_args
-from src.pipeline.flows.core import _build_args as _core_build_args
+from src.pipeline.flows.core import build_args as core_build_args
 from src.pipeline.flows.core import code_graph_flow
 from src.pipeline.tasks.code_tasks import (  # noqa: F401
     cleanup_artifacts_task,
@@ -18,6 +18,7 @@ from src.pipeline.tasks.code_tasks import (  # noqa: F401
 # Re-export Prefect tasks for legacy tests that patch attributes on this module
 from src.pipeline.tasks.db_tasks import (  # noqa: F401
     centrality_task,
+    coupling_task,
     cve_task,
     git_history_task,
     louvain_task,
@@ -43,6 +44,7 @@ __all__ = [
     "louvain_task",
     "centrality_task",
     "cve_task",
+    "coupling_task",
     # Code tasks
     "clone_repo_task",
     "extract_code_task",
@@ -57,7 +59,7 @@ def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> 
 
     Keeps prior import path stable: src.pipeline.prefect_flow._build_args
     """
-    return _core_build_args(base, overrides)
+    return core_build_args(base, overrides)
 
 
 def main() -> None:

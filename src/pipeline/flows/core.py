@@ -37,7 +37,7 @@ from src.pipeline.tasks.db_tasks import (
 )
 
 
-def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> list[str]:
+def build_args(base: list[str], overrides: dict[str, object] | None = None) -> list[str]:
     args = list(base)
     if overrides:
         for key, value in overrides.items():

@@ -204,7 +204,7 @@ class CVECacheManager:
                             )
                             if data_opt is None:
                                 return
-                            data: dict[str, Any] = cast(dict[str, Any], data_opt)
+                            data: dict[str, Any] = data_opt
                         except Exception as e:  # pragma: no cover - network errors
                             logger.error(f"❌ Error searching '{query_term}': {e}")
                             return
@@ -597,6 +597,6 @@ class CVECacheManager:
     def is_cve_relevant(self, cve: Mapping[str, Any], components: set[str]) -> bool:  # type: ignore[override]
         return self._is_relevant_to_terms(cve, components)
 
-    def get_cache_file_path(self, cache_key: str) -> str:  # pragma: no cover (compat shim)
+    def get_cache_file_path(self, cache_key: str) -> Path:  # pragma: no cover (compat shim)
         # Mirror previous API: path of the complete cache file in current store
-        return str((self.cache_dir / f"{cache_key}_complete.json.gz").resolve())
+        return (self.cache_dir / f"{cache_key}_complete.json.gz").resolve()
