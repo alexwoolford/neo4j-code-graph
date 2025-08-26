@@ -141,6 +141,9 @@ def code_graph_flow(
     # Git history
     git_history_task(repo_path, uri, username, password, database)
 
+    # Coupling (call directly so tests can monkeypatch a plain function)
+    coupling_task(uri, username, password, database)
+
     # Analytics (submit/async-compatible)
     similarity_task.submit(uri, username, password, database)
     louvain_task.submit(uri, username, password, database)
