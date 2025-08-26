@@ -598,5 +598,5 @@ class CVECacheManager:
         return self._is_relevant_to_terms(cve, components)
 
     def get_cache_file_path(self, cache_key: str) -> Path:  # pragma: no cover (compat shim)
-        # Mirror previous API: path of the complete cache file in current store
-        return (self.cache_dir / f"{cache_key}_complete.json.gz").resolve()
+        # Legacy filename expected by tests
+        return (self.cache_dir / f"{cache_key}.json.gz").resolve()

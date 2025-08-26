@@ -222,6 +222,14 @@ def louvain_task(
     gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
     try:
         gds.run_cypher("RETURN 1")
+        # Guard: ensure similarity graph has nodes
+        from src.constants import EMBEDDING_PROPERTY as _EMB
+
+        df = gds.run_cypher(f"MATCH (m:Method) WHERE m.{_EMB} IS NOT NULL RETURN count(m) AS c")
+        count = int(df.iloc[0]["c"]) if not df.empty else 0
+        if count == 0:
+            logger.info("No methods with embeddings present; skipping Louvain")
+            return
         sim_run_louvain(gds, threshold=0.8)
     finally:
         gds.close()
@@ -242,6 +250,12 @@ def centrality_task(
     gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
     try:
         gds.run_cypher("RETURN 1")
+        # Guard: ensure CALLS relationships exist
+        rel_df = gds.run_cypher("MATCH ()-[r:CALLS]->() RETURN count(r) AS c")
+        rel_count = int(rel_df.iloc[0]["c"]) if not rel_df.empty else 0
+        if rel_count == 0:
+            logger.info("No CALLS relationships present; skipping centrality")
+            return
         graph = cent_create_graph(gds)
         cent_pagerank(gds, graph, top_n=15, write_back=True)
         cent_betweenness(gds, graph, top_n=15, write_back=True)
