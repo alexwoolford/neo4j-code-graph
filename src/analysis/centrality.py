@@ -106,30 +106,17 @@ def create_call_graph_projection(
     gds: GraphDataScience, graph_name: str = "method_call_graph"
 ) -> Any:
     """Create or recreate the call graph projection for analysis."""
+    from src.analysis.gds_helpers import create_method_calls_projection
 
-    # Drop existing projection if it exists
-    try:
-        gds.graph.drop(graph_name)
-        logger.info(f"Dropped existing graph projection: {graph_name}")
-    except Exception:
-        pass  # Graph doesn't exist, which is fine
-
-    # Create new projection
-    logger.info("Creating method call graph projection...")
     start_time = perf_counter()
-
-    G, result = gds.graph.project(
-        graph_name,
-        ["Method"],
-        {"CALLS": {"orientation": "NATURAL"}},  # Directed graph
-    )
-
+    G, result = create_method_calls_projection(gds, graph_name)
     creation_time = perf_counter() - start_time
-
-    logger.info(f"Graph projection created in {creation_time:.2f}s")
-    logger.info(f"  Nodes: {result['nodeCount']:,}")
-    logger.info(f"  Relationships: {result['relationshipCount']:,}")
-
+    try:
+        logger.info(f"Graph projection created in {creation_time:.2f}s")
+        logger.info(f"  Nodes: {result['nodeCount']:,}")
+        logger.info(f"  Relationships: {result['relationshipCount']:,}")
+    except Exception:
+        pass
     return G
 
 
