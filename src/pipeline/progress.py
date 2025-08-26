@@ -8,7 +8,12 @@ import argparse
 import logging
 from typing import Any
 
-from src.utils.common import create_neo4j_driver, get_neo4j_config, setup_logging
+from src.utils.common import (
+    add_common_args,
+    create_neo4j_driver,
+    resolve_neo4j_args,
+    setup_logging,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -139,23 +144,15 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check Neo4j database state")
-    parser.add_argument("--uri", help="Neo4j URI")
-    parser.add_argument("--username", help="Neo4j username")
-    parser.add_argument("--password", help="Neo4j password")
-    parser.add_argument("--database", default="neo4j", help="Neo4j database")
-    parser.add_argument("--log-level", default="INFO", help="Logging level")
+    add_common_args(parser)
     args = parser.parse_args()
 
     setup_logging(args.log_level)
 
-    # Get config
-    if args.uri:
-        config = (args.uri, args.username, args.password, args.database)
-    else:
-        config = get_neo4j_config()
+    uri, user, pwd, db = resolve_neo4j_args(args.uri, args.username, args.password, args.database)
 
-    with create_neo4j_driver(config[0], config[1], config[2]) as driver:
-        state = check_database_state(driver, config[3])
+    with create_neo4j_driver(uri, user, pwd) as driver:
+        state = check_database_state(driver, db)
 
         print("\n💡 RECOMMENDATIONS:")
         if state["files_complete"] and state["methods_complete"] and state["imports_complete"]:
