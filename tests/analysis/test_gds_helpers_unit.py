@@ -10,7 +10,8 @@ def test_enrich_node_ids_with_method_details(neo4j_driver, mini_method_call_grap
     from src.utils.neo4j_utils import get_neo4j_config
 
     uri, user, pwd, db = get_neo4j_config()
-    gds = GraphDataScience(uri, auth=(user, pwd), database=db)
+    # Disable Arrow path to avoid optional tqdm.auto import in CI
+    gds = GraphDataScience(uri, auth=(user, pwd), database=db, arrow=False)
 
     from src.analysis.gds_helpers import enrich_node_ids_with_method_details
 
