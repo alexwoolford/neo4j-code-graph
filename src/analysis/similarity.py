@@ -197,30 +197,14 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
     if exists:
         gds.graph.drop(graph_name)
 
-    # Use standardized helper for projection creation
-    try:
-        # For kNN, we only need nodes with embeddings; relationships are irrelevant here.
-        # We'll create an empty-edges projection via Cypher for strict servers.
-        try:
-            graph, _ = gds.graph.project(
-                graph_name,
-                {"Method": {"properties": [EMBEDDING_PROPERTY]}},
-                {"SIMILAR": {"orientation": "UNDIRECTED"}},
-            )
-        except Exception:
-            node_q = (
-                f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
-                f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS embedding"
-            )
-            rel_q = "RETURN null AS source, null AS target LIMIT 0"
-            graph, _ = gds.graph.project.cypher(graph_name, node_q, rel_q)
-    except Exception:
-        node_q = (
-            f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
-            f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS embedding"
-        )
-        rel_q = "RETURN null AS source, null AS target LIMIT 0"
-        graph, _ = gds.graph.project.cypher(graph_name, node_q, rel_q)
+    # Strict Cypher projection: only nodes with embeddings, and alias property to the
+    # exact name expected by the algorithm config (EMBEDDING_PROPERTY) to ensure it's loaded.
+    node_q = (
+        f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL "
+        f"RETURN id(m) AS id, m.{EMBEDDING_PROPERTY} AS {EMBEDDING_PROPERTY}"
+    )
+    rel_q = "RETURN null AS source, null AS target LIMIT 0"
+    graph, _ = gds.graph.project.cypher(graph_name, node_q, rel_q)
 
     start = perf_counter()
     gds.knn.write(graph, **base_config)
