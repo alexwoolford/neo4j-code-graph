@@ -44,83 +44,28 @@ def create_vulnerability_graph(session: Any, cve_data: list[CleanCVE]) -> int:
 
 def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
     logger.info("Linking CVEs to codebase dependencies using precise GAV matching...")
-    deps_query = """
-        MATCH (ed:ExternalDependency)
-        RETURN ed.package AS import_path,
-               ed.group_id AS group_id,
-               ed.artifact_id AS artifact_id,
-               ed.version AS version
-        """
-    deps_result = session.run(deps_query)
-    dependencies: list[dict[str, Any]] = []
-    for record in deps_result:
-        rec = dict(record)
-        dependencies.append(
-            {
-                "package": rec.get("import_path"),
-                "group_id": rec.get("group_id"),
-                "artifact_id": rec.get("artifact_id"),
-                "version": rec.get("version"),
-            }
-        )
+    from src.security.linking import (
+        compute_precise_matches,
+        compute_text_versioned_matches,
+        extract_dependencies_from_graph,
+        prepare_versioned_dependencies,
+    )
+
+    dependencies = extract_dependencies_from_graph(session)
 
     if not dependencies:
         logger.warning("No external dependencies found in graph")
         return 0
 
-    try:
-        from src.security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
-
-        matcher = PreciseGAVMatcher()
-        gav_dependencies: list[tuple[Any, str]] = []
-        for dep in dependencies:
-            if (
-                dep["group_id"]
-                and dep["artifact_id"]
-                and dep["version"]
-                and dep["version"] != "unknown"
-            ):
-                gav = GAVCoordinate(dep["group_id"], dep["artifact_id"], dep["version"])
-                gav_dependencies.append((gav, dep["package"]))
-
-        precise_matches: list[dict[str, Any]] = []
-        if gav_dependencies:
-            for gav, package in gav_dependencies:
-                for cve in cve_data:
-                    confidence = matcher.match_gav_to_cve(gav, cve)
-                    if confidence is not None:
-                        precise_matches.append(
-                            {
-                                "cve_id": cve.get("id", ""),
-                                "dep_package": package,
-                                "confidence": confidence,
-                                "match_type": "precise_gav",
-                            }
-                        )
-    except ImportError:
-        logger.warning("Precise GAV matcher not available, skipping precise matching")
-        precise_matches = []
+    versioned_for_precise = prepare_versioned_dependencies(dependencies)
+    precise_matches = compute_precise_matches(versioned_for_precise, cve_data)
 
     all_matches: list[dict[str, Any]] = precise_matches
 
-    for dep in dependencies:
-        if not (dep.get("version") and dep.get("version") != "unknown"):
-            continue
-        package = str(dep.get("package") or "")
-        if not package:
-            continue
-        for cve in cve_data:
-            desc = str(cve.get("description", "")).lower()
-            last_seg = package.split(".")[-1].lower() if "." in package else package.lower()
-            if package.lower() in desc or last_seg in desc:
-                all_matches.append(
-                    {
-                        "cve_id": cve.get("id", ""),
-                        "dep_package": package,
-                        "confidence": 0.5,
-                        "match_type": "text_versioned",
-                    }
-                )
+    version_present = [
+        dep for dep in dependencies if dep.get("version") and dep.get("version") != "unknown"
+    ]
+    all_matches.extend(compute_text_versioned_matches(version_present, cve_data))
 
     if all_matches:
         link_query = """
