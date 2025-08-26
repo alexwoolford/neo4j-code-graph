@@ -51,6 +51,13 @@ def _resolved() -> tuple[str, str, str, str]:
     return ("bolt://x:7687", "u", "p", "neo4j")
 
 
+def _resolve_neo4j_args(
+    uri: Any, username: Any, password: Any, database: Any
+) -> tuple[str, str, str, str]:
+    # ignore inputs, return a consistent resolved tuple for tests
+    return _resolved()
+
+
 class _Log:
     def info(self, *args: Any, **kwargs: Any) -> None:
         return None
@@ -84,7 +91,7 @@ def test_selective_cleanup_task_calls_cleanup(monkeypatch: Any) -> None:
         called["count"] += 1
 
     monkeypatch.setattr(tasks, "create_neo4j_driver", _fake_driver_factory)
-    monkeypatch.setattr(tasks, "resolve_neo4j_args", _resolved)
+    monkeypatch.setattr(tasks, "resolve_neo4j_args", _resolve_neo4j_args)
     monkeypatch.setattr("src.utils.cleanup.selective_cleanup", _fake_sel)
     monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
 
@@ -99,7 +106,7 @@ def test_git_history_task_passes_repo_and_creds(monkeypatch: Any) -> None:
         captured.update(kwargs)
 
     monkeypatch.setattr(tasks, "load_history", _fake_load_history)
-    monkeypatch.setattr(tasks, "resolve_neo4j_args", _resolved)
+    monkeypatch.setattr(tasks, "resolve_neo4j_args", _resolve_neo4j_args)
     monkeypatch.setattr(tasks, "get_run_logger", _get_logger)
 
     tasks.git_history_task.fn("/tmp/repo", None, None, None, None)
