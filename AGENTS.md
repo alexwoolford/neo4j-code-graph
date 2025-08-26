@@ -103,7 +103,7 @@ conda activate neo4j-code-graph
 
 # Install dependencies
 pip install -e .[dev]
-pip install -r requirements.txt
+pip install -r config/requirements.txt
 
 # Setup environment variables
 cp .env.example .env
