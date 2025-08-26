@@ -6,9 +6,8 @@ from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from tqdm import tqdm
-
 from src.analysis.types import FileData
+from src.utils.progress import progress_iter
 
 
 def list_java_files(repo_root: Path) -> list[Path]:
@@ -31,7 +30,9 @@ def extract_files_concurrently(
             executor.submit(extract_file_data, file_path, repo_root): file_path
             for file_path in files
         }
-        for future in tqdm(as_completed(future_to_file), total=len(files), desc="Extracting files"):
+        for future in progress_iter(
+            as_completed(future_to_file), total=len(files), desc="Extracting files"
+        ):
             result = future.result()
             if result:
                 files_data.append(result)  # type: ignore[arg-type]

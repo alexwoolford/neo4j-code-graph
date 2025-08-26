@@ -11,7 +11,6 @@ Usage examples:
 
 from __future__ import annotations
 
-import argparse
 import os
 
 # Ensure both repo and installed contexts can import modules consistently
@@ -26,15 +25,12 @@ from prefect import flow, get_run_logger, task
 _this_file = _PathForPathFix(__file__).resolve()
 _repo_root = _this_file.parents[2] if len(_this_file.parents) >= 3 else None
 if _repo_root is not None:
-    # Add project root (so 'src' package is importable) and 'src' (so 'analysis.*' works)
     _src_dir = _repo_root / "src"
     for p in (str(_repo_root), str(_src_dir)):
         if p not in sys.path:
             sys.path.insert(0, p)
 
-# Consistent relative imports within the package
 try:
-    # First try repo-style imports (module paths without src prefix)
     from analysis.centrality import main as centrality_main
     from analysis.code_analysis import main as code_to_graph_main
     from analysis.git_analysis import main as git_history_main
@@ -43,9 +39,7 @@ try:
     from data.schema_management import main as schema_main
     from security.cve_analysis import main as cve_main
     from utils.common import setup_logging
-    from utils.neo4j_utils import check_capabilities as _check_caps
 except Exception:
-    # Fallback to installed-package style (src-prefixed) imports
     from src.analysis.centrality import main as centrality_main  # type: ignore
     from src.analysis.code_analysis import main as code_to_graph_main  # type: ignore
     from src.analysis.git_analysis import main as git_history_main  # type: ignore
@@ -54,7 +48,10 @@ except Exception:
     from src.data.schema_management import main as schema_main  # type: ignore
     from src.security.cve_analysis import main as cve_main  # type: ignore
     from src.utils.common import setup_logging  # type: ignore
-    from src.utils.neo4j_utils import check_capabilities as _check_caps  # type: ignore
+
+# New imports
+from src.pipeline.cli import parse_cli_args
+from src.pipeline.preflight import run_preflight
 
 
 def _build_args(base: list[str], overrides: Mapping[str, object] | None = None) -> list[str]:
@@ -76,7 +73,6 @@ def setup_schema_task(
     logger = get_run_logger()
     logger.info("Setting up database schema...")
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
-    # Call CLI-style main with a sanitized argv
     base = ["prog"]
     overrides: dict[str, object] = {}
     if uri:
@@ -106,7 +102,6 @@ def selective_cleanup_task(
 ) -> None:
     logger = get_run_logger()
     logger.info("Selective cleanup before similarity/community stages...")
-    # Call the cleanup CLI in selective mode to remove analysis artifacts only
     base = ["prog", "--log-level", "INFO"]
     overrides: dict[str, object] = {}
     if uri:
@@ -121,9 +116,7 @@ def selective_cleanup_task(
 
     old_argv = sys.argv
     try:
-        # We pass no flags; the cleanup script's default path now exposes a selective cleanup helper
         sys.argv = _build_args(base, overrides)
-        # Import and call the selective cleanup flow directly to avoid CLI arg plumbing
         try:
             from utils.cleanup import selective_cleanup as _sel
             from utils.common import create_neo4j_driver as _drv
@@ -133,7 +126,6 @@ def selective_cleanup_task(
             from src.utils.common import create_neo4j_driver as _drv  # type: ignore
             from src.utils.neo4j_utils import get_neo4j_config as _get_cfg  # type: ignore
 
-        # Resolve connection: prefer explicit args; otherwise use .env/.environment
         if uri and username and password:
             _uri, _user, _pwd, _db = uri, username, password, database
         else:
@@ -148,7 +140,6 @@ def selective_cleanup_task(
         sys.argv = old_argv
 
 
-# Backward-compatible alias expected by some unit tests
 cleanup_task = selective_cleanup_task
 
 
@@ -293,11 +284,9 @@ def write_graph_task(
     finally:
         sys.argv = old_argv
 
-    # Observability: log how many methods have embeddings set
     try:
         from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
-        # Resolve connection consistently; prefer explicit args if provided
         if uri and username and password:
             _uri, _user, _pwd, _db = uri, username, password, database
         else:
@@ -315,7 +304,6 @@ def write_graph_task(
         logger.info("Methods with embeddings (%s): %d", _EMB, count)
         gds.close()
     except Exception:
-        # Best-effort logging only; do not fail the pipeline here
         pass
 
 
@@ -413,9 +401,6 @@ def louvain_task(
         sys.argv = old_argv
 
 
-## Removed summarization and intent similarity tasks
-
-
 @task(retries=1)
 def centrality_task(
     uri: str | None, username: str | None, password: str | None, database: str | None
@@ -467,8 +452,6 @@ def coupling_task(
         min_support,
         confidence_threshold,
     )
-    # Argparse requires global flags (uri/username/password/database) before the subcommand
-    # Build argv in the order: prog + globals + subcommand + its flags
     global_base = ["prog"]
     subcommand = [
         "coupling",
@@ -491,7 +474,6 @@ def coupling_task(
 
     old_argv = sys.argv
     try:
-        # Compose argv: globals first, then subcommand + flags
         sys.argv = _build_args(global_base, overrides) + subcommand
         temporal_main()
     finally:
@@ -527,7 +509,6 @@ def cve_task(
         sys.argv = old_argv
 
 
-# Delegate task implementations to modular task modules
 import src.pipeline.tasks.code_tasks as _code_tasks  # type: ignore
 import src.pipeline.tasks.db_tasks as _db_tasks  # type: ignore
 
@@ -546,7 +527,7 @@ T_centrality_task = _db_tasks.centrality_task
 T_coupling_task = _db_tasks.coupling_task
 T_cve_task = _db_tasks.cve_task
 
-# Expose patchable task names at module scope for tests (aliases)
+
 PF_setup_schema_task = T_setup_schema_task
 PF_selective_cleanup_task = T_selective_cleanup_task
 PF_cleanup_task = T_cleanup_task
@@ -572,16 +553,12 @@ def code_graph_flow(
     database: str | None = None,
     cleanup: bool = True,
 ) -> None:
-    """End-to-end pipeline as a Prefect flow."""
     setup_logging("INFO")
-    # Silence HF tokenizers fork warnings in child tasks
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     logger = get_run_logger()
     logger.info("Starting flow for repo: %s", repo_url)
 
-    # Preflight first: detect capabilities before any writes (including schema)
-    caps: dict[str, object] = preflight_task(uri, username, password, database)
-    # Proceed with schema only after preflight
+    caps: dict[str, object] = run_preflight(uri, username, password, database)
     setup_schema_task(uri, username, password, database)
     apoc_info_obj = caps.get("apoc")
     gds_info_obj = caps.get("gds")
@@ -589,11 +566,9 @@ def code_graph_flow(
     gds_info: dict[str, object] = gds_info_obj if isinstance(gds_info_obj, dict) else {}
     apoc_ok = bool(apoc_info.get("available", False))
     gds_ok = bool(gds_info.get("available", False))
-    # gds_proj_ok is informational; no longer gates execution
     if cleanup:
         cleanup_task(uri, username, password, database)
 
-    # Clone or reuse a local path
     repo_path: str
     p = Path(repo_url)
     if p.exists() and p.is_dir():
@@ -601,7 +576,6 @@ def code_graph_flow(
     else:
         repo_path = clone_repo_task.submit(repo_url).result()
 
-    # Run code structure in granular steps with artifacts
     artifacts_dir = str(Path(tempfile.mkdtemp(prefix="cg_artifacts_")))
     extract_code_task(repo_path, artifacts_dir)
     embed_files_task(repo_path, artifacts_dir)
@@ -609,24 +583,13 @@ def code_graph_flow(
     write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
     cleanup_artifacts_task(artifacts_dir)
 
-    # Then run git history
     git_history_task(repo_path, uri, username, password, database)
 
-    # Create CO_CHANGED relationships from commit history before similarity
-    # Always call task; pass create_relationships based on apoc availability
     coupling_task(uri, username, password, database, create_relationships=apoc_ok)
 
-    # Summaries/intent stages removed
     logger.info("Summary and intent similarity stages are not part of this flow")
 
-    # Redundant explicit SIMILAR purge removed; selective_cleanup_task already handles analysis artifacts
-
-    # Run similarity then Louvain (explicit dependency). Capture futures and block at the end
-    # to ensure the flow does not finish before downstream tasks complete.
-    # Run GDS stages if GDS is available. The projection probe can be overly strict;
-    # attempt to run and let tasks handle errors gracefully.
     if gds_ok:
-        # Execute GDS tasks sequentially to avoid global sys.argv contention
         sim_state = similarity_task.submit(uri, username, password, database)
         try:
             _ = getattr(sim_state, "result", lambda: None)()
@@ -647,88 +610,13 @@ def code_graph_flow(
 
         cve_state = cve_task.submit(uri, username, password, database)
     else:
-        logger = get_run_logger()
         logger.warning("GDS not available; skipping similarity, Louvain, and centrality stages")
-        # No sim/louvain/centrality; proceed to CVE directly
         cve_state = cve_task.submit(uri, username, password, database)
-    # Explicitly wait for the final task to complete to avoid early flow completion in some runners
     try:
         cve_state.result()
     except Exception:
-        # The task/flow state will capture the exception; avoid masking it here
         raise
     logger.info("Flow complete")
-
-
-def parse_cli_args() -> argparse.Namespace:
-    try:
-        from src.utils.common import add_common_args
-    except Exception:
-        from utils.common import add_common_args  # type: ignore
-
-    parser = argparse.ArgumentParser(description="Run the neo4j-code-graph pipeline via Prefect")
-    # Accept both optional flag and positional for repo URL for convenience
-    parser.add_argument("--repo-url", dest="repo_url", help="Repository URL or local path")
-    parser.add_argument("pos_repo_url", nargs="?", help="Repository URL or local path")
-    add_common_args(parser)
-    parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup stage")
-    args = parser.parse_args()
-    # Normalize: prefer flag, fallback to positional
-    if not (args.repo_url or args.pos_repo_url):
-        parser.error("repo_url is required (use --repo-url or positional)")
-    # attach normalized field for downstream use
-    args.repo_url = args.repo_url or args.pos_repo_url
-    return args
-
-
-@task(retries=0)
-def preflight_task(
-    uri: str | None, username: str | None, password: str | None, database: str | None
-) -> dict[str, object]:
-    """Probe DB for APOC/GDS and return a capabilities map for downstream tasks."""
-    logger = get_run_logger()
-    try:
-        from utils.common import create_neo4j_driver as _drv
-        from utils.common import resolve_neo4j_args as _resolve
-    except Exception:
-        from src.utils.common import create_neo4j_driver as _drv  # type: ignore
-        from src.utils.common import resolve_neo4j_args as _resolve  # type: ignore
-
-    # Resolve final connection settings (explicit args override .env)
-    _uri, _user, _pwd, _db = _resolve(uri, username, password, database)
-
-    try:
-        with _drv(_uri, _user, _pwd) as driver:
-            with driver.session(database=_db) as session:
-                caps = _check_caps(session)
-    except Exception as e:
-        logger.warning(
-            "Preflight connectivity failed (%s). Proceeding with conservative defaults.", e
-        )
-        caps = {
-            "apoc": {"available": False},
-            "gds": {"available": False, "projection_ok": False},
-        }  # type: ignore[assignment]
-
-    apoc_obj = caps.get("apoc")
-    gds_obj = caps.get("gds")
-
-    apoc: Mapping[str, object] = apoc_obj if isinstance(apoc_obj, Mapping) else {}
-    gds: Mapping[str, object] = gds_obj if isinstance(gds_obj, Mapping) else {}
-    apoc_avail = bool(apoc.get("available", False))
-    apoc_ver = apoc.get("version")
-    gds_avail = bool(gds.get("available", False))
-    gds_ver = gds.get("version")
-    gds_proj_ok = bool(gds.get("projection_ok", False))
-    logger.info(
-        "Capabilities: APOC available=%s version=%s; GDS available=%s version=%s projection_ok=%s",
-        apoc_avail,
-        apoc_ver,
-        gds_avail,
-        gds_ver,
-        gds_proj_ok,
-    )
-    return caps  # type: ignore[return-value]
 
 
 def main() -> None:

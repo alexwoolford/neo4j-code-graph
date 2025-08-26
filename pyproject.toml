@@ -77,6 +77,8 @@ code-graph-cve = "security.cve_analysis:main"
 code-graph-pipeline-prefect = "pipeline.prefect_flow:main"
 # Removed non-critical scripts to keep the codebase minimal
 code-graph-create-db = "scripts.create_database:main"
+code-graph-wait-for-neo4j = "scripts.wait_for_neo4j:main"
+code-graph-validate-cypher = "scripts.validate_cypher_snippets:main"
 
 [tool.black]
 line-length = 100
