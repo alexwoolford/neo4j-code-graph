@@ -74,6 +74,18 @@ def embed_files_task(repo_path: str, artifacts_dir: str) -> str:
     return artifacts_dir
 
 
+@task(retries=0)
+def cleanup_artifacts_task(artifacts_dir: str) -> None:
+    logger = get_run_logger()
+    try:
+        import shutil
+
+        shutil.rmtree(artifacts_dir, ignore_errors=True)
+        logger.info("Cleaned up artifacts directory: %s", artifacts_dir)
+    except Exception as e:  # pragma: no cover - non-critical cleanup
+        logger.warning("Failed to remove artifacts directory %s: %s", artifacts_dir, e)
+
+
 @task(retries=1)
 def embed_methods_task(repo_path: str, artifacts_dir: str) -> str:
     logger = get_run_logger()
