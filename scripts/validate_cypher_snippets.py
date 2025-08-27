@@ -32,11 +32,38 @@ for _p in (_REPO_ROOT, _SRC_DIR):
         sys.path.insert(0, str(_p))
 
 try:
-    from src.utils.common import add_common_args, resolve_neo4j_args
-except Exception as err:  # pragma: no cover - fail fast rather than silent fallback
-    raise SystemExit(
-        "Failed to import project utilities. Ensure 'pip install -e .' or PYTHONPATH includes repo root."
-    ) from err
+    from src.utils.common import (
+        add_common_args as _add_common_args,
+    )
+    from src.utils.common import (
+        resolve_neo4j_args as _resolve_args,
+    )
+
+    ADD_COMMON_ARGS = _add_common_args
+    RESOLVE_ARGS = _resolve_args
+except Exception:  # pragma: no cover - provide strict fallback based on env
+
+    def ADD_COMMON_ARGS(parser):  # type: ignore[no-redef]
+        parser.add_argument("--uri")
+        parser.add_argument("--username")
+        parser.add_argument("--password")
+        parser.add_argument("--database")
+        parser.add_argument("--log-level", default="INFO")
+        parser.add_argument("--log-file")
+
+    def RESOLVE_ARGS(uri, username, password, database):  # type: ignore[no-redef]
+        import os as _os
+
+        u = uri or _os.getenv("NEO4J_URI")
+        user = username or _os.getenv("NEO4J_USERNAME")
+        pwd = password or _os.getenv("NEO4J_PASSWORD")
+        db = database or _os.getenv("NEO4J_DATABASE")
+        if not (u and user and pwd):
+            raise SystemExit(
+                "Failed to import project utilities and no NEO4J_* env present; cannot resolve connection."
+            )
+        return u, user, pwd, db
+
 
 TAG_START_RE = re.compile(r"^\s*//\s*tag::([\w:-]+)\[\]\s*$")
 TAG_END_RE = re.compile(r"^\s*//\s*end::([\w:-]+)\[\]\s*$")
@@ -152,14 +179,14 @@ def main() -> None:
         description="Validate Cypher snippets (EXPLAIN) from .cyp files in a directory"
     )
     parser.add_argument("queries_dir", help="Directory containing .cyp files with tagged snippets")
-    add_common_args(parser)
+    ADD_COMMON_ARGS(parser)
     args = parser.parse_args()
 
     root = Path(args.queries_dir).resolve()
     if not root.exists():
         raise SystemExit(f"Directory not found: {root}")
 
-    uri, user, pwd, db = resolve_neo4j_args(args.uri, args.username, args.password, args.database)
+    uri, user, pwd, db = RESOLVE_ARGS(args.uri, args.username, args.password, args.database)
     validate_queries(uri, user, pwd, iter_queries(root), database=db)
 
 
