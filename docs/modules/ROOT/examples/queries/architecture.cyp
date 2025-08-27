@@ -20,19 +20,3 @@ RETURN f.path, m.class_name, m.name,
 ORDER BY m.pagerank_score DESC
 LIMIT 20
 // end::architectural_bottlenecks[]
-
-// tag::directory_call_cycles[]
-// Cross-directory call cycles using existing schema (Directory, File, Method, CALLS)
-MATCH (da:Directory)-[:CONTAINS]->(a:File),
-      (db:Directory)-[:CONTAINS]->(b:File)
-WHERE da.path <> db.path
-MATCH (a)-[:DECLARES]->(:Method)-[:CALLS]->(:Method)<-[:DECLARES]-(b)
-WITH da.path AS d1, db.path AS d2, count(*) AS calls
-WITH collect({d1:d1,d2:d2,calls:calls}) AS pairs
-UNWIND pairs AS x
-WITH x, [y IN pairs WHERE y.d1 = x.d2 AND y.d2 = x.d1] AS back
-WHERE size(back) > 0 AND x.d1 < x.d2
-RETURN x.d1 AS dir1, x.d2 AS dir2, x.calls AS calls12, back[0].calls AS calls21
-ORDER BY (x.calls + back[0].calls) DESC
-LIMIT 25
-// end::directory_call_cycles[]

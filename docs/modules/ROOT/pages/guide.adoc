@@ -87,4 +87,3 @@ image::prefect-dag.png[Prefect pipeline DAG,align=center]
 == Query your data
 
 Open Neo4j Browser or Bloom and run queries from the xref:queries/index.adoc[Queries catalog].
-If you are evaluating the project, start with xref:use-cases.adoc[Use cases] to see the top problems this solves and how to approach them.
