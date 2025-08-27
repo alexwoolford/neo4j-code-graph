@@ -23,11 +23,6 @@ def test_neo4j_connection():
     uri, username, password, database = get_neo4j_config()
 
     print("🔍 Testing Neo4j Connection...")
-    print(f"URI: {uri}")
-    print(f"Username: {username}")
-    print(f"Password: {'*' * len(password) if password else 'None'}")
-    print(f"Database: {database}")
-    print()
 
     try:
         with GraphDatabase.driver(uri, auth=(username, password)) as driver:
@@ -36,37 +31,48 @@ def test_neo4j_connection():
             with driver.session(database=database) as session:
                 result = session.run("RETURN 'Connection successful!' AS message")
                 record = result.single()
-                print(f"✅ {record['message']}")
+                msg = (
+                    record["message"]
+                    if record and "message" in record
+                    else "Connection successful!"
+                )
+                print(f"✅ {msg}")
 
             # Test if we have any data
             count_query = """
             MATCH (n)
             RETURN count(n) AS total_nodes,
-                   [label IN labels(n) | label][0] AS sample_label
+                   labels(n)[0] AS sample_label
             LIMIT 1
             """
-            result = session.run(count_query)
-            record = result.single()
-            if record and record["total_nodes"] > 0:
-                print(f"📊 Database has {record['total_nodes']} nodes")
+            with driver.session(database=database) as session:
+                result = session.run(count_query)
+                rec = result.single()
+                total_nodes = int(rec["total_nodes"]) if rec and "total_nodes" in rec else 0
+                if total_nodes > 0:
+                    print(f"📊 Database has {total_nodes} nodes")
 
-                # Check for specific node types
-                node_types = session.run(
-                    """
-                    CALL db.labels() YIELD label
-                    RETURN collect(label) AS labels
-                """
-                ).single()["labels"]
+                    labels_rec = session.run(
+                        """
+                        CALL db.labels() YIELD label
+                        RETURN collect(label) AS labels
+                        """
+                    ).single()
+                    node_types: list[str] = (
+                        list(labels_rec["labels"]) if labels_rec and "labels" in labels_rec else []
+                    )
 
-                print(f"📝 Node types: {node_types}")
+                    print(f"📝 Node types: {node_types}")
 
-                if "File" in node_types:
-                    print("✅ Code analysis data found - ready for CVE analysis!")
+                    if "File" in node_types:
+                        print("✅ Code analysis data found - ready for CVE analysis!")
+                    else:
+                        print("⚠️  No code analysis data found")
+                        print(
+                            "   Run: code-graph-pipeline-prefect --repo-url <your-repo-url> first"
+                        )
                 else:
-                    print("⚠️  No code analysis data found")
-                    print("   Run: code-graph-pipeline-prefect --repo-url <your-repo-url> first")
-            else:
-                print("📊 Database is empty - run the pipeline first")
+                    print("📊 Database is empty - run the pipeline first")
 
     except Exception as e:
         print(f"❌ Connection failed: {e}")
