@@ -12,3 +12,5 @@ pytest-mock>=3.10.0
 pytest-xdist>=3.0.0
 pytest-asyncio>=0.23
 testcontainers[neo4j]>=4.8.1
+prefect>=2.16.0
+graphviz>=0.20
