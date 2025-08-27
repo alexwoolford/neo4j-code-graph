@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 import logging
+from importlib import import_module
 from typing import Any
 
-from src.analysis.types import FileData
-from src.utils.progress import progress_range
+try:
+    _progress = import_module("src.utils.progress")
+except Exception:  # pragma: no cover
+    _progress = import_module("utils.progress")
+progress_range = _progress.progress_range
 
 logger = logging.getLogger(__name__)
 
 
 def create_imports(
-    session: Any, files_data: list[FileData], dependency_versions: dict[str, str] | None = None
+    session: Any,
+    files_data: list[dict[str, Any]],
+    dependency_versions: dict[str, str] | None = None,
 ) -> None:
     all_imports = []
     external_dependencies = set()

@@ -3,18 +3,33 @@
 from __future__ import annotations
 
 import logging
+from importlib import import_module
 from typing import Any
 
-from src.analysis.types import FileData
-from src.constants import EMBEDDING_TYPE
-from src.utils.batching import get_database_batch_size
-from src.utils.progress import progress_range
+try:
+    _constants = import_module("src.constants")
+except Exception:  # pragma: no cover
+    _constants = import_module("constants")
+EMBEDDING_TYPE = _constants.EMBEDDING_TYPE
+EMBEDDING_PROPERTY_NAME = _constants.EMBEDDING_PROPERTY
+
+try:
+    _batching = import_module("src.utils.batching")
+except Exception:  # pragma: no cover
+    _batching = import_module("utils.batching")
+get_database_batch_size = _batching.get_database_batch_size
+
+try:
+    _progress = import_module("src.utils.progress")
+except Exception:  # pragma: no cover
+    _progress = import_module("utils.progress")
+progress_range = _progress.progress_range
 
 logger = logging.getLogger(__name__)
 
 
 def create_methods(
-    session: Any, files_data: list[FileData], method_embeddings: list[list[float]]
+    session: Any, files_data: list[dict[str, Any]], method_embeddings: list[list[float]]
 ) -> None:
     method_nodes: list[dict[str, Any]] = []
     method_idx = 0
@@ -39,13 +54,15 @@ def create_methods(
                 except Exception:
                     emb_value = None
 
-            from src.constants import EMBEDDING_PROPERTY as _EMB_PROP
-
             method_node = {
                 "name": method["name"],
                 "file": method["file"],
                 "line": method["line"],
-                **({_EMB_PROP: emb_value} if has_embedding and emb_value is not None else {}),
+                **(
+                    {EMBEDDING_PROPERTY_NAME: emb_value}
+                    if has_embedding and emb_value is not None
+                    else {}
+                ),
                 "embedding_type": EMBEDDING_TYPE,
                 "estimated_lines": method.get("estimated_lines", 0),
                 "is_static": method.get("is_static", False),
@@ -73,8 +90,6 @@ def create_methods(
     ):
         batch = method_nodes[i : i + batch_size]
 
-        from src.constants import EMBEDDING_PROPERTY as _EMB_PROP
-
         session.run(
             (
                 """
@@ -84,8 +99,8 @@ def create_methods(
                     m.file = method.file,
                     m.line = method.line,
                 """
-                + f"m.{_EMB_PROP} = CASE WHEN method.{_EMB_PROP} IS NOT NULL THEN method.{_EMB_PROP} ELSE m.{_EMB_PROP} END, "
-                + f"m.embedding_type = CASE WHEN method.{_EMB_PROP} IS NOT NULL THEN method.embedding_type ELSE m.embedding_type END,"
+                + f"m.{EMBEDDING_PROPERTY_NAME} = CASE WHEN method.{EMBEDDING_PROPERTY_NAME} IS NOT NULL THEN method.{EMBEDDING_PROPERTY_NAME} ELSE m.{EMBEDDING_PROPERTY_NAME} END, "
+                + f"m.embedding_type = CASE WHEN method.{EMBEDDING_PROPERTY_NAME} IS NOT NULL THEN method.embedding_type ELSE m.embedding_type END,"
                 + """
                     m.estimated_lines = method.estimated_lines,
                     m.is_static = method.is_static,
@@ -187,7 +202,7 @@ def create_methods(
             )
 
 
-def create_method_calls(session: Any, files_data: list[FileData]) -> None:
+def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
     batch_size = 1000
     method_call_rels = []
 
