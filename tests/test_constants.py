@@ -40,6 +40,7 @@ from src.constants import (
     SUPPORTED_JAVA_EXTENSIONS,
 )
 
+from urllib.parse import urlparse
 
 class TestModelConfiguration:
     """Test model-related constants."""
@@ -119,7 +120,8 @@ class TestCVEConfiguration:
     def test_nvd_api_url_format(self):
         """Test NVD API URL is valid HTTPS."""
         assert NVD_API_BASE_URL.startswith("https://")
-        assert "nvd.nist.gov" in NVD_API_BASE_URL
+        parsed = urlparse(NVD_API_BASE_URL)
+        assert parsed.hostname == "nvd.nist.gov"
         assert "cves" in NVD_API_BASE_URL
 
     def test_cve_cache_dir_format(self):
