@@ -26,16 +26,8 @@ if TYPE_CHECKING:
 else:
     GraphDataScience = Any  # type: ignore
 
-# Dual-context imports without mypy redefinition errors
-try:
-    from src import constants as _C  # type: ignore
-except Exception:  # pragma: no cover
-    import constants as _C  # type: ignore
-
-try:
-    from src.utils import common as _U  # type: ignore
-except Exception:  # pragma: no cover
-    import utils.common as _U  # type: ignore
+from src import constants as _C
+from src.utils import common as _U
 
 PAGERANK_ALPHA = _C.PAGERANK_ALPHA
 PAGERANK_ANALYSIS_ITERATIONS = _C.PAGERANK_ANALYSIS_ITERATIONS

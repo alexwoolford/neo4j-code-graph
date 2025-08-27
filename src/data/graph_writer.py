@@ -100,10 +100,8 @@ def create_files(
             except Exception:
                 emb_value = None
 
-        try:
-            from constants import EMBEDDING_PROPERTY as _EMB_PROP
-        except Exception:  # pragma: no cover
-            from src.constants import EMBEDDING_PROPERTY as _EMB_PROP  # type: ignore
+        from src.constants import EMBEDDING_PROPERTY as _EMB_PROP
+
         file_node = {
             "path": file_path_str,
             "name": file_name_only,

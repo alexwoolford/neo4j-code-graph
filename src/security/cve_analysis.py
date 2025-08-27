@@ -269,10 +269,7 @@ Examples:
     )
 
     # Add common Neo4j connection and logging arguments
-    try:
-        from utils.common import add_common_args
-    except ImportError:
-        from src.utils.common import add_common_args
+    from src.utils.common import add_common_args
 
     add_common_args(
         parser

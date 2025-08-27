@@ -4,19 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from src.utils.common import create_neo4j_driver as _drv
+from src.utils.common import resolve_neo4j_args as _resolve
+from src.utils.neo4j_utils import check_capabilities as _check_caps
+
 
 def run_preflight(
     uri: str | None, username: str | None, password: str | None, database: str | None
 ) -> dict[str, object]:
-    try:
-        from src.utils.common import create_neo4j_driver as _drv
-        from src.utils.common import resolve_neo4j_args as _resolve
-        from src.utils.neo4j_utils import check_capabilities as _check_caps
-    except Exception:  # pragma: no cover
-        from utils.common import create_neo4j_driver as _drv  # type: ignore
-        from utils.common import resolve_neo4j_args as _resolve  # type: ignore
-        from utils.neo4j_utils import check_capabilities as _check_caps  # type: ignore
-
     _uri, _user, _pwd, _db = _resolve(uri, username, password, database)
     try:
         with _drv(_uri, _user, _pwd) as driver:

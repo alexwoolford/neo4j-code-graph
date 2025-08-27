@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Load git history into Neo4j")
 
-    # Import add_common_args - handle both script and module execution
+    # Import add_common_args from canonical package
     from src.utils.common import add_common_args
 
     add_common_args(parser)  # Adds Neo4j connection and logging args
@@ -144,25 +144,15 @@ def load_history(
         if csv_export:
             export_to_csv(commits_df, developers_df, files_df, file_changes_df, csv_export)
         else:
-            # Import create_neo4j_driver - handle both script and module execution
-            try:
-                from utils.common import create_neo4j_driver
-            except ImportError:
-                from src.utils.common import create_neo4j_driver
-
-            from src.utils.common import resolve_neo4j_args
+            from src.utils.common import create_neo4j_driver, resolve_neo4j_args
 
             _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, None)
             with create_neo4j_driver(_uri, _user, _pwd) as driver:
                 # Fail-fast: ensure constraints before writing
-                try:
-                    from src.data.schema_management import (  # type: ignore
-                        ensure_constraints_exist_or_fail as _ensure,
-                    )
-                except Exception:
-                    from src.data.schema_management import (  # type: ignore
-                        ensure_constraints_exist_or_fail as _ensure,
-                    )
+                from src.data.schema_management import (  # type: ignore
+                    ensure_constraints_exist_or_fail as _ensure,
+                )
+
                 with driver.session(database=database) as _session:  # type: ignore[reportUnknownMemberType]
                     _ensure(_session)
                 bulk_load_to_neo4j(
