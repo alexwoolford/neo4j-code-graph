@@ -3,8 +3,9 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+from prefect import get_run_logger, task
+
 from src.analysis.code_analysis import main as code_to_graph_main
-from src.pipeline.prefect_compat import get_run_logger, task
 
 
 @task(retries=1)

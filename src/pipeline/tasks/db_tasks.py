@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from prefect import get_run_logger, task
+
 from src.analysis.centrality import (
     create_call_graph_projection as cent_create_graph,
 )
@@ -27,7 +29,6 @@ from src.analysis.similarity import (
 )
 from src.analysis.temporal_analysis import run_coupling
 from src.data.schema_management import setup_complete_schema
-from src.pipeline.prefect_compat import get_run_logger, task
 from src.security.cve_analysis import CVEAnalyzer
 from src.utils.common import create_neo4j_driver, resolve_neo4j_args
 

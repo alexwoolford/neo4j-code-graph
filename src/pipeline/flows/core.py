@@ -4,8 +4,9 @@ import os
 import tempfile
 from pathlib import Path
 
+from prefect import flow, get_run_logger
+
 from src.pipeline.flows.similarity_flow import run_post_ingest_analytics
-from src.pipeline.prefect_compat import flow, get_run_logger
 from src.pipeline.preflight import run_preflight
 from src.pipeline.tasks.code_tasks import (
     cleanup_artifacts_task as T_cleanup_artifacts_task,
@@ -84,7 +85,7 @@ def code_graph_flow(
 
     T_git_history_task(repo_path, uri, username, password, database)
 
-    from src.pipeline.prefect_compat import get_run_logger as _get_log
+    from prefect import get_run_logger as _get_log
 
     _get_log().info("Summary and intent similarity stages are not part of this flow")
     run_post_ingest_analytics(uri, username, password, database, gds_available=gds_ok)
