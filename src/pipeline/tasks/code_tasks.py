@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import tempfile
+from importlib import import_module
 from pathlib import Path
 
 from prefect import get_run_logger, task
 
-from src.analysis.code_analysis import main as code_to_graph_main
+try:
+    code_to_graph_main = import_module("src.analysis.code_analysis").main  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover - installed package execution path
+    code_to_graph_main = import_module("analysis.code_analysis").main  # type: ignore[attr-defined]
 
 
 @task(retries=1)

@@ -1,36 +1,41 @@
 from __future__ import annotations
 
 import logging
+from importlib import import_module
 from pathlib import Path
 
 from prefect import get_run_logger, task
 
-from src.analysis.centrality import (
-    create_call_graph_projection as cent_create_graph,
-)
-from src.analysis.centrality import (
-    run_betweenness_analysis as cent_betweenness,
-)
-from src.analysis.centrality import (
-    run_degree_analysis as cent_degree,
-)
-from src.analysis.centrality import (
-    run_pagerank_analysis as cent_pagerank,
-)
-from src.analysis.git_analysis import load_history
-from src.analysis.similarity import (
-    create_index as sim_create_index,
-)
-from src.analysis.similarity import (
-    run_knn as sim_run_knn,
-)
-from src.analysis.similarity import (
-    run_louvain as sim_run_louvain,
-)
-from src.analysis.temporal_analysis import run_coupling
-from src.data.schema_management import setup_complete_schema
-from src.security.cve_analysis import CVEAnalyzer
-from src.utils.common import create_neo4j_driver, resolve_neo4j_args
+try:
+    _centrality = import_module("src.analysis.centrality")
+    _git_analysis = import_module("src.analysis.git_analysis")
+    _similarity = import_module("src.analysis.similarity")
+    _temporal = import_module("src.analysis.temporal_analysis")
+    _schema = import_module("src.data.schema_management")
+    _cve = import_module("src.security.cve_analysis")
+    _common = import_module("src.utils.common")
+except Exception:  # pragma: no cover - installed package execution path
+    _centrality = import_module("analysis.centrality")
+    _git_analysis = import_module("analysis.git_analysis")
+    _similarity = import_module("analysis.similarity")
+    _temporal = import_module("analysis.temporal_analysis")
+    _schema = import_module("data.schema_management")
+    _cve = import_module("security.cve_analysis")
+    _common = import_module("utils.common")
+
+cent_create_graph = _centrality.create_call_graph_projection
+cent_betweenness = _centrality.run_betweenness_analysis
+cent_degree = _centrality.run_degree_analysis
+cent_pagerank = _centrality.run_pagerank_analysis
+load_history = _git_analysis.load_history
+sim_create_index = _similarity.create_index
+sim_run_knn = _similarity.run_knn
+sim_run_louvain = _similarity.run_louvain
+run_coupling = _temporal.run_coupling
+setup_complete_schema = _schema.setup_complete_schema
+CVEAnalyzer = _cve.CVEAnalyzer
+create_neo4j_driver = _common.create_neo4j_driver
+resolve_neo4j_args = _common.resolve_neo4j_args
 
 
 def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> list[str]:
