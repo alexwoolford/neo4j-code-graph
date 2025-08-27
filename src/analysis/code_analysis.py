@@ -14,13 +14,16 @@ try:
 except Exception:
     FileData = dict  # type: ignore[misc,assignment]
 
+from src.analysis.calls import (
+    _determine_call_target as _determine_call_target,
+)  # re-export for tests
 from src.analysis.extractor import extract_files_concurrently, list_java_files
 
 # Collect Java parse errors across threads to summarize later
 PARSE_ERRORS: list[tuple[str, str]] = []
 
 from src.analysis.cli import parse_args
-from src.analysis.embeddings import compute_embeddings_bulk
+from src.analysis.embeddings import compute_embeddings_bulk, load_embedding_model
 from src.utils.common import setup_logging
 
 # Constants for method call parsing
@@ -293,11 +296,6 @@ def get_optimal_batch_size(device: Any) -> int:
         return DEFAULT_EMBED_BATCH_CPU
 
 
-from src.analysis.calls import (
-    _determine_call_target as _determine_call_target,
-)
-from src.analysis.parser import build_method_signature as build_method_signature  # re-export
-
 # compute_embeddings_bulk is imported from analysis.embeddings
 from src.analysis.parser import extract_file_data as extract_file_data  # re-export
 from src.data.graph_writer import (  # type: ignore
@@ -489,11 +487,8 @@ def main():
 
     # Only compute if not skipping embed and there is work to do
     if not getattr(args, "skip_embed", False) and (need_files or need_methods) and files_data:
-        from transformers import AutoModel, AutoTokenizer
-
         logger.info("Loading embedding model: %s", MODEL_NAME)
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-        model = AutoModel.from_pretrained(MODEL_NAME)
+        tokenizer, model = load_embedding_model()
         device = get_device()
 
         if device.type == "mps":

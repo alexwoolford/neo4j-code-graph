@@ -104,13 +104,16 @@ def pytest_sessionstart(session):  # type: ignore[override]
     try:
         from testcontainers.neo4j import Neo4jContainer  # type: ignore
 
-        _TC_CONTAINER = (
-            Neo4jContainer(image="neo4j:5.26-enterprise")
-            .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-            .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
-            .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
-            .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
-        )
+        def _make_container() -> Neo4jContainer:  # type: ignore[name-defined]
+            return (
+                Neo4jContainer(image="neo4j:5.26-enterprise")
+                .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+                .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
+                .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
+                .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
+            )
+
+        _TC_CONTAINER = _make_container()
         _TC_CONTAINER.start()
         try:
             bolt_port = _TC_CONTAINER.get_exposed_port(7687)  # type: ignore[attr-defined]
@@ -191,13 +194,16 @@ def neo4j_driver():
         try:
             from testcontainers.neo4j import Neo4jContainer  # type: ignore
 
-            with (
-                Neo4jContainer(image="neo4j:5.26-enterprise")
-                .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-                .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
-                .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
-                .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*") as neo4j
-            ):  # latest LTS with plugins
+            def _make_container() -> Neo4jContainer:  # type: ignore[name-defined]
+                return (
+                    Neo4jContainer(image="neo4j:5.26-enterprise")
+                    .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+                    .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
+                    .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
+                    .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
+                )
+
+            with _make_container() as neo4j:  # latest LTS with plugins
                 with neo4j.get_driver() as driver:  # type: ignore[attr-defined]
                     # Export connection params so code under test using get_neo4j_config() works
                     import os
@@ -264,13 +270,16 @@ def _ensure_neo4j_env_for_session():
         yield
         return
 
-    neo4j = (
-        Neo4jContainer(image="neo4j:5.26-enterprise")
-        .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-        .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
-        .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
-        .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
-    )
+    def _make_container() -> Neo4jContainer:  # type: ignore[name-defined]
+        return (
+            Neo4jContainer(image="neo4j:5.26-enterprise")
+            .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+            .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
+            .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
+            .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
+        )
+
+    neo4j = _make_container()
     neo4j.start()
     import os as _os
 
@@ -307,6 +316,16 @@ def _ensure_neo4j_env_for_session():
             neo4j.stop()
         except Exception:
             pass
+
+
+# Function-scoped cleanup to avoid per-test manual MATCH DETACH blocks
+@pytest.fixture(autouse=True)
+def _reset_db_between_tests(neo4j_driver):
+    try:
+        with neo4j_driver.session() as s:
+            s.run("MATCH (n) DETACH DELETE n").consume()
+    except Exception:
+        pass
 
 
 # Ensure schema exists for all live tests, regardless of how the DB is provided

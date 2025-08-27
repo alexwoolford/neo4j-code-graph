@@ -86,37 +86,10 @@ class CVEAnalyzer(CVEAnalyzerCore):
         """Improved dependency matching with stricter criteria to reduce false positives."""
         dep_lower = dep_path.lower()
 
-        # Direct exact match (most reliable)
         if dep_lower in cve_description:
             return True
 
-        # Extract meaningful components (avoid common words)
-        parts: list[str] = []
-        for sep in [".", "/", "-", "_"]:
-            if sep in dep_path:
-                parts.extend(
-                    part.lower()
-                    for part in dep_path.split(sep)
-                    if len(part) > 4
-                    and part
-                    not in {
-                        "java",
-                        "com",
-                        "org",
-                        "io",
-                        "net",
-                        "util",
-                        "core",
-                        "common",
-                        "main",
-                        "test",
-                        "api",
-                        "impl",
-                        "base",
-                    }
-                )
-
-        # Require at least 2 meaningful parts to match for high confidence
+        parts = _extract_meaningful_parts(dep_path)
         matches: list[str] = [part for part in parts if part in cve_description]
         return len(matches) >= 2
 
@@ -129,30 +102,7 @@ class CVEAnalyzer(CVEAnalyzerCore):
             return 0.95
 
         # Component matching with stricter scoring
-        parts: list[str] = []
-        for sep in [".", "/", "-", "_"]:
-            if sep in dep_path:
-                parts.extend(
-                    part.lower()
-                    for part in dep_path.split(sep)
-                    if len(part) > 4
-                    and part
-                    not in {
-                        "java",
-                        "com",
-                        "org",
-                        "io",
-                        "net",
-                        "util",
-                        "core",
-                        "common",
-                        "main",
-                        "test",
-                        "api",
-                        "impl",
-                        "base",
-                    }
-                )
+        parts = _extract_meaningful_parts(dep_path)
 
         if not parts:
             return 0.0
@@ -264,6 +214,34 @@ class CVEAnalyzer(CVEAnalyzerCore):
         print("2. Check if your dependency versions are in the vulnerable ranges")
         print("3. Update dependencies to patched versions")
         print("4. Run security scans regularly")
+
+
+def _extract_meaningful_parts(dep_path: str) -> list[str]:
+    parts: list[str] = []
+    for sep in [".", "/", "-", "_"]:
+        if sep in dep_path:
+            parts.extend(
+                part.lower()
+                for part in dep_path.split(sep)
+                if len(part) > 4
+                and part
+                not in {
+                    "java",
+                    "com",
+                    "org",
+                    "io",
+                    "net",
+                    "util",
+                    "core",
+                    "common",
+                    "main",
+                    "test",
+                    "api",
+                    "impl",
+                    "base",
+                }
+            )
+    return parts
 
 
 def main():

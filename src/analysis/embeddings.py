@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import lru_cache
 from typing import Any
 
 
@@ -117,3 +118,16 @@ def compute_embeddings_bulk(
             gc.collect()
 
     return all_embeddings
+
+
+@lru_cache(maxsize=1)
+def load_embedding_model() -> tuple[Any, Any]:
+    """Load and cache the tokenizer/model for reuse.
+
+    Keeps one instance cached to avoid duplicate downloads/initialization.
+    """
+    from transformers import AutoModel, AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained("microsoft/unixcoder-base")
+    model = AutoModel.from_pretrained("microsoft/unixcoder-base")
+    return tokenizer, model
