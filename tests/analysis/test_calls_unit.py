@@ -41,3 +41,29 @@ def test_extract_method_calls_skips_keywords_and_constructors() -> None:
     assert "max" in names
     assert "for" not in names
     assert "new" not in names
+
+
+def test_extract_method_calls_basic_and_filters():
+    code = """
+    void m() {
+        this.foo();
+        super.bar();
+        Helper.baz();
+        obj.qux();
+        for(i=0;i<10;i++) {}
+        return;
+        NewType();  // constructor-like call should be ignored (capitalized)
+    }
+    """
+    out = extract_method_calls(code, "Clazz")
+    names = [(c["method_name"], c["call_type"]) for c in out]
+    assert ("foo", "this") in names
+    assert ("bar", "super") in names
+    assert ("baz", "static") in names
+    assert ("qux", "instance") in names
+    # Keywords and capitalized names are filtered
+    assert all(n not in {"for", "return", "NewType"} for n, _ in names)
+
+
+def test_extract_method_calls_none_safe():
+    assert extract_method_calls(None, "C") == []

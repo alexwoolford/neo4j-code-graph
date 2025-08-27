@@ -17,15 +17,26 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from collections.abc import Iterable
 from pathlib import Path
 
 from neo4j import GraphDatabase
 
+# Ensure repository import paths are available when run from CI or scripts/
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _SCRIPT_DIR.parent
+_SRC_DIR = _REPO_ROOT / "src"
+for _p in (_REPO_ROOT, _SRC_DIR):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 try:
     from src.utils.common import add_common_args, resolve_neo4j_args
-except Exception:  # pragma: no cover - repo-local fallback
-    from utils.common import add_common_args, resolve_neo4j_args  # type: ignore
+except Exception as err:  # pragma: no cover - fail fast rather than silent fallback
+    raise SystemExit(
+        "Failed to import project utilities. Ensure 'pip install -e .' or PYTHONPATH includes repo root."
+    ) from err
 
 TAG_START_RE = re.compile(r"^\s*//\s*tag::([\w:-]+)\[\]\s*$")
 TAG_END_RE = re.compile(r"^\s*//\s*end::([\w:-]+)\[\]\s*$")
@@ -67,6 +78,51 @@ def iter_queries(root: Path) -> Iterable[tuple[Path, str, str]]:
             yield file_path, tag, query
 
 
+def _split_cypher_statements(query: str) -> list[str]:
+    """Split a string containing one or more Cypher statements into individual statements.
+
+    Uses a simple state machine to ignore semicolons inside quoted strings or backticks.
+    """
+    statements: list[str] = []
+    buf: list[str] = []
+    in_single = False
+    in_double = False
+    in_backtick = False
+    escape = False
+    for ch in query:
+        if escape:
+            buf.append(ch)
+            escape = False
+            continue
+        if ch == "\\":
+            buf.append(ch)
+            escape = True
+            continue
+        if ch == "'" and not in_double and not in_backtick:
+            in_single = not in_single
+            buf.append(ch)
+            continue
+        if ch == '"' and not in_single and not in_backtick:
+            in_double = not in_double
+            buf.append(ch)
+            continue
+        if ch == "`" and not in_single and not in_double:
+            in_backtick = not in_backtick
+            buf.append(ch)
+            continue
+        if ch == ";" and not in_single and not in_double and not in_backtick:
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            continue
+        buf.append(ch)
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
 def validate_queries(
     uri: str,
     user: str,
@@ -77,15 +133,17 @@ def validate_queries(
     with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
         num_validated = 0
         if database:
-            with driver.session(database=database) as session:
-                for _file_path, _tag, query in queries:
-                    session.run(f"EXPLAIN\n{query}")  # type: ignore[arg-type]
-                    num_validated += 1
+            with driver.session(database=database) as session:  # type: ignore[reportUnknownMemberType]
+                for file_path, tag, query in queries:
+                    for stmt in _split_cypher_statements(query):
+                        session.run(f"EXPLAIN\n{stmt}")  # type: ignore[arg-type]
+                        num_validated += 1
         else:
-            with driver.session() as session:
-                for _file_path, _tag, query in queries:
-                    session.run(f"EXPLAIN\n{query}")  # type: ignore[arg-type]
-                    num_validated += 1
+            with driver.session() as session:  # type: ignore[reportUnknownMemberType]
+                for file_path, tag, query in queries:
+                    for stmt in _split_cypher_statements(query):
+                        session.run(f"EXPLAIN\n{stmt}")  # type: ignore[arg-type]
+                        num_validated += 1
     print(f"Validated {num_validated} Cypher snippets via EXPLAIN")
 
 
