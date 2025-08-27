@@ -43,8 +43,8 @@ def extract_file_data(file_path: Path, repo_root: Path) -> dict[str, Any]:
     """
     try:
         from src.analysis import java_treesitter as _jt  # type: ignore
-    except Exception:
-        _jt = None  # type: ignore
+    except Exception:  # pragma: no cover
+        from analysis import java_treesitter as _jt  # type: ignore
 
     if _jt is not None and hasattr(_jt, "extract_file_data"):
         try:

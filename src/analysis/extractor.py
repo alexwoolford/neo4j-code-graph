@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from importlib import import_module
 from pathlib import Path
 
-from src.analysis.types import FileData
-from src.utils.progress import progress_iter
+# No FileData import here to avoid mypy redefinition; use dict annotations downstream
+
+try:
+    progress_iter = import_module("src.utils.progress").progress_iter  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    progress_iter = import_module("utils.progress").progress_iter  # type: ignore[attr-defined]
 
 
 def list_java_files(repo_root: Path) -> list[Path]:
@@ -19,8 +24,8 @@ def extract_files_concurrently(
     repo_root: Path,
     extract_file_data,
     max_workers: int,
-) -> list[FileData]:
-    files_data: list[FileData] = []
+) -> list[dict[str, object]]:
+    files_data: list[dict[str, object]] = []
     files = list(files_to_process)
     if not files:
         return files_data

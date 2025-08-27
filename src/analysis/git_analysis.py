@@ -14,7 +14,10 @@ from pathlib import Path
 import pandas as pd
 from git import Repo
 
-from src.utils.neo4j_utils import get_neo4j_config
+try:
+    from src.utils.neo4j_utils import get_neo4j_config  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from utils.neo4j_utils import get_neo4j_config  # type: ignore
 
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
@@ -26,7 +29,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Load git history into Neo4j")
 
     # Import add_common_args from canonical package
-    from src.utils.common import add_common_args
+    try:
+        from src.utils.common import add_common_args  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import add_common_args  # type: ignore
 
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
@@ -48,9 +54,21 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-from src.analysis.git_bulk_writer import bulk_load_to_neo4j
-from src.analysis.git_dataframes import create_dataframes
-from src.analysis.git_reader import extract_git_history
+from importlib import import_module as _imp
+
+try:
+    _gbw = _imp("src.analysis.git_bulk_writer")
+    _gdf = _imp("src.analysis.git_dataframes")
+    _gr = _imp("src.analysis.git_reader")
+except Exception:  # pragma: no cover
+    _gbw = _imp("analysis.git_bulk_writer")
+    _gdf = _imp("analysis.git_dataframes")
+    _gr = _imp("analysis.git_reader")
+
+# Bind public names once for tests that import them
+bulk_load_to_neo4j = _gbw.bulk_load_to_neo4j  # type: ignore[attr-defined]
+create_dataframes = _gdf.create_dataframes  # type: ignore[attr-defined]
+extract_git_history = _gr.extract_git_history  # type: ignore[attr-defined]
 
 
 def export_to_csv(
@@ -144,14 +162,25 @@ def load_history(
         if csv_export:
             export_to_csv(commits_df, developers_df, files_df, file_changes_df, csv_export)
         else:
-            from src.utils.common import create_neo4j_driver, resolve_neo4j_args
+            try:
+                from src.utils.common import (  # type: ignore[attr-defined]
+                    create_neo4j_driver,
+                    resolve_neo4j_args,
+                )
+            except Exception:  # pragma: no cover
+                from utils.common import create_neo4j_driver, resolve_neo4j_args  # type: ignore
 
             _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, None)
             with create_neo4j_driver(_uri, _user, _pwd) as driver:
                 # Fail-fast: ensure constraints before writing
-                from src.data.schema_management import (  # type: ignore
-                    ensure_constraints_exist_or_fail as _ensure,
-                )
+                try:
+                    from src.data.schema_management import (  # type: ignore[attr-defined]
+                        ensure_constraints_exist_or_fail as _ensure,
+                    )
+                except Exception:  # pragma: no cover
+                    from data.schema_management import (  # type: ignore
+                        ensure_constraints_exist_or_fail as _ensure,
+                    )
 
                 with driver.session(database=database) as _session:  # type: ignore[reportUnknownMemberType]
                     _ensure(_session)
@@ -180,7 +209,10 @@ def main() -> None:
     args = parse_args()
 
     # Setup logging using consistent helper
-    from src.utils.common import setup_logging
+    try:
+        from src.utils.common import setup_logging  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import setup_logging  # type: ignore
 
     setup_logging(args.log_level, args.log_file)
 
@@ -199,7 +231,10 @@ def main() -> None:
         )
     else:
         try:
-            from src.utils.common import create_neo4j_driver, resolve_neo4j_args
+            from src.utils.common import (  # type: ignore[attr-defined]
+                create_neo4j_driver,
+                resolve_neo4j_args,
+            )
 
             _uri, _user, _pwd, _db = resolve_neo4j_args(
                 args.uri, args.username, args.password, args.database

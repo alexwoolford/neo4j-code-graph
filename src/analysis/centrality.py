@@ -26,8 +26,12 @@ if TYPE_CHECKING:
 else:
     GraphDataScience = Any  # type: ignore
 
-from src import constants as _C
-from src.utils import common as _U
+try:
+    from src import constants as _C  # type: ignore[attr-defined]
+    from src.utils import common as _U  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    import constants as _C  # type: ignore
+    import utils.common as _U  # type: ignore
 
 PAGERANK_ALPHA = _C.PAGERANK_ALPHA
 PAGERANK_ANALYSIS_ITERATIONS = _C.PAGERANK_ANALYSIS_ITERATIONS
@@ -98,10 +102,17 @@ def create_call_graph_projection(
     gds: GraphDataScience, graph_name: str = "method_call_graph"
 ) -> Any:
     """Create or recreate the call graph projection for analysis."""
-    from src.analysis.gds_helpers import create_method_calls_projection
+    try:
+        from importlib import import_module as _imp
+
+        _gds_helpers = _imp("src.analysis.gds_helpers")
+    except Exception:  # pragma: no cover
+        from importlib import import_module as _imp
+
+        _gds_helpers = _imp("analysis.gds_helpers")
 
     start_time = perf_counter()
-    G, result = create_method_calls_projection(gds, graph_name)
+    G, result = _gds_helpers.create_method_calls_projection(gds, graph_name)
     creation_time = perf_counter() - start_time
     try:
         logger.info(f"Graph projection created in {creation_time:.2f}s")
@@ -149,10 +160,17 @@ def run_pagerank_analysis(
 
         # Enrich with method details
         if not result.empty:
-            from src.analysis.gds_helpers import enrich_node_ids_with_method_details
+            try:
+                from importlib import import_module as _imp
+
+                _gds_helpers = _imp("src.analysis.gds_helpers")
+            except Exception:  # pragma: no cover
+                from importlib import import_module as _imp
+
+                _gds_helpers = _imp("analysis.gds_helpers")
 
             method_ids = result["nodeId"].tolist()
-            method_details = enrich_node_ids_with_method_details(gds, method_ids)
+            method_details = _gds_helpers.enrich_node_ids_with_method_details(gds, method_ids)
             top_results = result.merge(method_details, on="nodeId")
 
     analysis_time = perf_counter() - start_time
@@ -201,10 +219,17 @@ def run_betweenness_analysis(
         result = gds.betweenness.stream(graph).head(top_n)
 
         if not result.empty:
-            from src.analysis.gds_helpers import enrich_node_ids_with_method_details
+            try:
+                from importlib import import_module as _imp
+
+                _gds_helpers = _imp("src.analysis.gds_helpers")
+            except Exception:  # pragma: no cover
+                from importlib import import_module as _imp
+
+                _gds_helpers = _imp("analysis.gds_helpers")
 
             method_ids = result["nodeId"].tolist()
-            method_details = enrich_node_ids_with_method_details(gds, method_ids)
+            method_details = _gds_helpers.enrich_node_ids_with_method_details(gds, method_ids)
             top_results = result.merge(method_details, on="nodeId")
 
     analysis_time = perf_counter() - start_time

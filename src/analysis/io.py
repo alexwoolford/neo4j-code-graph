@@ -6,14 +6,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.analysis.types import FileData
+FileData = dict[str, Any]  # runtime type alias (avoid mypy no-redef)
 
 
-def read_files_data(path: Path) -> list[FileData]:
+def read_files_data(path: Path) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def write_files_data(path: Path, files_data: list[FileData]) -> None:
+def write_files_data(path: Path, files_data: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(files_data, ensure_ascii=False), encoding="utf-8")
 

@@ -11,15 +11,28 @@ if TYPE_CHECKING:  # don't import heavy deps at module import time
 else:
     GraphDataScience = Any  # type: ignore
 
-from src.constants import (
-    COMMUNITY_PROPERTY,
-    EMBEDDING_DIMENSION,
-    EMBEDDING_PROPERTY,
-    EMBEDDING_TYPE,
-    SIMILARITY_CUTOFF,
-    SIMILARITY_TOP_K,
-)
-from src.utils.neo4j_utils import get_neo4j_config
+try:
+    from src.constants import (  # type: ignore[attr-defined]
+        COMMUNITY_PROPERTY,
+        EMBEDDING_DIMENSION,
+        EMBEDDING_PROPERTY,
+        EMBEDDING_TYPE,
+        SIMILARITY_CUTOFF,
+        SIMILARITY_TOP_K,
+    )
+except Exception:  # pragma: no cover
+    from constants import (  # type: ignore
+        COMMUNITY_PROPERTY,
+        EMBEDDING_DIMENSION,
+        EMBEDDING_PROPERTY,
+        EMBEDDING_TYPE,
+        SIMILARITY_CUTOFF,
+        SIMILARITY_TOP_K,
+    )
+try:
+    from src.utils.neo4j_utils import get_neo4j_config  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from utils.neo4j_utils import get_neo4j_config  # type: ignore
 
 # Connection settings
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
@@ -40,7 +53,10 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Import add_common_args - handle both script and module execution
-    from src.utils.common import add_common_args
+    try:
+        from src.utils.common import add_common_args  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import add_common_args  # type: ignore
 
     add_common_args(parser)  # Adds Neo4j connection and logging args
 
@@ -240,9 +256,17 @@ def run_louvain(
     if exists:
         gds.graph.drop(graph_name)
 
-    from src.analysis.gds_helpers import create_similarity_projection
+    # Load helper module dynamically to avoid name redefinition
+    try:
+        from importlib import import_module as _imp
 
-    graph, _ = create_similarity_projection(gds, threshold, graph_name)
+        _gds_helpers = _imp("src.analysis.gds_helpers")
+    except Exception:  # pragma: no cover
+        from importlib import import_module as _imp
+
+        _gds_helpers = _imp("analysis.gds_helpers")
+
+    graph, _ = _gds_helpers.create_similarity_projection(gds, threshold, graph_name)
 
     start = perf_counter()
     gds.louvain.write(graph, writeProperty=community_property)
@@ -259,13 +283,19 @@ def main() -> None:
     args = parse_args()
 
     # Use consistent logging helper - handle both script and module execution
-    from src.utils.common import setup_logging
+    try:
+        from src.utils.common import setup_logging  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import setup_logging  # type: ignore
 
     setup_logging(args.log_level, args.log_file)
 
     from graphdatascience import GraphDataScience as _GDS  # local import
 
-    from src.utils.common import resolve_neo4j_args
+    try:
+        from src.utils.common import resolve_neo4j_args  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import resolve_neo4j_args  # type: ignore
 
     _uri, _user, _pwd, _db = resolve_neo4j_args(
         args.uri, args.username, args.password, args.database
