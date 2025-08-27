@@ -2,8 +2,15 @@
 
 import argparse
 
-from src.constants import DEFAULT_PARALLEL_FILES
-from src.utils.common import add_common_args
+try:
+    from src.constants import DEFAULT_PARALLEL_FILES  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from constants import DEFAULT_PARALLEL_FILES  # type: ignore
+
+try:
+    from src.utils.common import add_common_args  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from utils.common import add_common_args  # type: ignore
 
 
 def parse_args() -> argparse.Namespace:
