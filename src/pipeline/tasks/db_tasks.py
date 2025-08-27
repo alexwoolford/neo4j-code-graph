@@ -134,9 +134,11 @@ def write_graph_task(
     old_argv = sys.argv
     try:
         sys.argv = _build_args(base, overrides)
-        from src.analysis.code_analysis import main as code_to_graph_main
-
-        code_to_graph_main()
+        try:
+            _code_analysis = import_module("src.analysis.code_analysis")
+        except Exception:  # pragma: no cover
+            _code_analysis = import_module("analysis.code_analysis")
+        _code_analysis.main()  # type: ignore[attr-defined]
     finally:
         sys.argv = old_argv
 
@@ -144,12 +146,18 @@ def write_graph_task(
         from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
         _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
-        from src.constants import EMBEDDING_PROPERTY as _EMB
+        try:
+            _constants = import_module("src.constants")
+        except Exception:  # pragma: no cover
+            _constants = import_module("constants")
+        _emb_name = _constants.EMBEDDING_PROPERTY
 
         gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
-        df = gds.run_cypher(f"MATCH (m:Method) WHERE m.{_EMB} IS NOT NULL RETURN count(m) AS c")
+        df = gds.run_cypher(
+            f"MATCH (m:Method) WHERE m.{_emb_name} IS NOT NULL RETURN count(m) AS c"
+        )
         count = int(df.iloc[0]["c"]) if not df.empty else 0
-        logger.info("Methods with embeddings (%s): %d", _EMB, count)
+        logger.info("Methods with embeddings (%s): %d", _emb_name, count)
         gds.close()
     except Exception:
         pass
@@ -199,10 +207,16 @@ def similarity_task(
     try:
         gds.run_cypher("RETURN 1")
         sim_create_index(gds)
-        # Guard: only run when nodes with embeddings exist to avoid 'Node-Query returned no nodes'
-        from src.constants import EMBEDDING_PROPERTY as _EMB
+        # Guard: only run when nodes with embeddings exist
+        try:
+            _constants = import_module("src.constants")
+        except Exception:  # pragma: no cover
+            _constants = import_module("constants")
+        _emb_name = _constants.EMBEDDING_PROPERTY
 
-        df = gds.run_cypher(f"MATCH (m:Method) WHERE m.{_EMB} IS NOT NULL RETURN count(m) AS c")
+        df = gds.run_cypher(
+            f"MATCH (m:Method) WHERE m.{_emb_name} IS NOT NULL RETURN count(m) AS c"
+        )
         count = int(df.iloc[0]["c"]) if not df.empty else 0
         if count == 0:
             logger.info("No methods with embeddings present; skipping kNN")
@@ -228,9 +242,15 @@ def louvain_task(
     try:
         gds.run_cypher("RETURN 1")
         # Guard: ensure similarity graph has nodes
-        from src.constants import EMBEDDING_PROPERTY as _EMB
+        try:
+            _constants = import_module("src.constants")
+        except Exception:  # pragma: no cover
+            _constants = import_module("constants")
+        _emb_name = _constants.EMBEDDING_PROPERTY
 
-        df = gds.run_cypher(f"MATCH (m:Method) WHERE m.{_EMB} IS NOT NULL RETURN count(m) AS c")
+        df = gds.run_cypher(
+            f"MATCH (m:Method) WHERE m.{_emb_name} IS NOT NULL RETURN count(m) AS c"
+        )
         count = int(df.iloc[0]["c"]) if not df.empty else 0
         if count == 0:
             logger.info("No methods with embeddings present; skipping Louvain")
