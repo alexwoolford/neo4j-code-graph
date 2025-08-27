@@ -1,0 +1,37 @@
+== Who this is for and what problems it solves
+
+This project targets experienced developers and software architects working with medium-to-large Java codebases.
+
+Primary problems we address:
+
+- Understanding structure and dependencies across a large codebase
+- Answering multi-hop questions (beyond full‑text search) using a code knowledge graph enriched with embeddings
+
+=== Top use case 1: Dependency and architecture mapping
+
+Goal: reveal hidden dependencies, cycles, and architectural bottlenecks; support refactoring and impact analysis.
+
+What you can do:
+
+- Map module/file dependencies and surface cycles
+- Identify architectural bottlenecks (high centrality) and refactor candidates
+- Trace callers/callees for impact analysis when changing a method
+
+Pointers:
+
+- See the Queries Catalog for “Refactor candidates”, “Architectural bottlenecks”, and co‑change pairs
+- Use Bloom to quickly explore dependency paths and neighborhoods
+
+=== Top use case 2: Semantic code navigation and discovery
+
+Goal: find similar functionality across the codebase even when names differ.
+
+What you can do:
+
+- Run kNN similarity (UniXcoder embeddings) to discover functionally similar methods
+- Combine structural filters (e.g., package/module) with semantic ranking for focused results
+
+Pointers:
+
+- Use the similarity pipeline tasks to build the vector index
+- See the Queries Catalog for example similarity queries (vector search)

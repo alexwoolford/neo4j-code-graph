@@ -43,6 +43,13 @@ include::example$queries/architecture.cyp[tag=refactor_candidates]
 include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
 ----
 
+=== Cross-directory call cycles (example)
+
+[source,cypher,subs=attributes+]
+----
+include::example$queries/architecture.cyp[tag=directory_call_cycles]
+----
+
 == Team & Process
 
 === Experts for a module

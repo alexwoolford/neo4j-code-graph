@@ -1,6 +1,7 @@
 * xref:index.adoc[Overview]
 * User Guide
 ** xref:guide.adoc[Guide]
+** xref:use-cases.adoc[Use cases]
 ** xref:configuration.adoc[Configuration]
 ** xref:queries/index.adoc[Queries]
 ** xref:requirements.adoc[Requirements]
