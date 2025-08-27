@@ -4,9 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from src.utils.common import create_neo4j_driver as _drv
-from src.utils.common import resolve_neo4j_args as _resolve
-from src.utils.neo4j_utils import check_capabilities as _check_caps
+try:
+    from src.utils.common import create_neo4j_driver as _drv  # type: ignore[attr-defined]
+    from src.utils.common import resolve_neo4j_args as _resolve  # type: ignore[attr-defined]
+    from src.utils.neo4j_utils import (
+        check_capabilities as _check_caps,  # type: ignore[attr-defined]
+    )
+except Exception:  # pragma: no cover
+    from utils.common import create_neo4j_driver as _drv  # type: ignore
+    from utils.common import resolve_neo4j_args as _resolve  # type: ignore
+    from utils.neo4j_utils import check_capabilities as _check_caps  # type: ignore
 
 
 def run_preflight(

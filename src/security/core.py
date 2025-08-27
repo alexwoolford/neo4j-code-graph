@@ -5,10 +5,16 @@ from collections.abc import Mapping
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
-from src.security.cve_cache_manager import CVECacheManager
-from src.security.types import CleanCVE
-from src.utils.common import create_neo4j_driver
-from src.utils.neo4j_utils import get_neo4j_config
+try:
+    from src.security.cve_cache_manager import CVECacheManager  # type: ignore[attr-defined]
+    from src.security.types import CleanCVE  # type: ignore[attr-defined]
+    from src.utils.common import create_neo4j_driver  # type: ignore[attr-defined]
+    from src.utils.neo4j_utils import get_neo4j_config  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from security.cve_cache_manager import CVECacheManager  # type: ignore
+    from security.types import CleanCVE  # type: ignore
+    from utils.common import create_neo4j_driver  # type: ignore
+    from utils.neo4j_utils import get_neo4j_config  # type: ignore
 
 if TYPE_CHECKING:
     from neo4j import Driver

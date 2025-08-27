@@ -3,7 +3,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from src.security.types import CleanCVE
+try:
+    from src.security.types import CleanCVE  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from security.types import CleanCVE  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +47,20 @@ def create_vulnerability_graph(session: Any, cve_data: list[CleanCVE]) -> int:
 
 def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
     logger.info("Linking CVEs to codebase dependencies using precise GAV matching...")
-    from src.security.linking import (
-        compute_precise_matches,
-        compute_text_versioned_matches,
-        extract_dependencies_from_graph,
-        prepare_versioned_dependencies,
-    )
+    try:
+        from src.security.linking import (  # type: ignore[attr-defined]
+            compute_precise_matches,
+            compute_text_versioned_matches,
+            extract_dependencies_from_graph,
+            prepare_versioned_dependencies,
+        )
+    except Exception:  # pragma: no cover
+        from security.linking import (  # type: ignore
+            compute_precise_matches,
+            compute_text_versioned_matches,
+            extract_dependencies_from_graph,
+            prepare_versioned_dependencies,
+        )
 
     dependencies = extract_dependencies_from_graph(session)
 

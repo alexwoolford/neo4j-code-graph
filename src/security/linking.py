@@ -43,7 +43,13 @@ def compute_precise_matches(
 ) -> list[dict[str, Any]]:
     """Compute precise GAV-based matches using the project's matcher when available."""
     try:
-        from src.security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
+        try:
+            from src.security.gav_cve_matcher import (  # type: ignore[attr-defined]
+                GAVCoordinate,
+                PreciseGAVMatcher,
+            )
+        except Exception:  # pragma: no cover
+            from security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher  # type: ignore
 
         matcher = PreciseGAVMatcher()
         precise: list[dict[str, Any]] = []

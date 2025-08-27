@@ -17,10 +17,22 @@ import argparse
 import logging
 from typing import Any
 
-from src.security.core import CVEAnalyzerCore
-from src.security.graph_writer import create_vulnerability_graph, link_cves_to_dependencies
-from src.security.report import generate_impact_report
-from src.utils.common import create_neo4j_driver, setup_logging
+try:
+    from src.security.core import CVEAnalyzerCore  # type: ignore[attr-defined]
+    from src.security.graph_writer import (  # type: ignore[attr-defined]
+        create_vulnerability_graph,
+        link_cves_to_dependencies,
+    )
+    from src.security.report import generate_impact_report  # type: ignore[attr-defined]
+    from src.utils.common import create_neo4j_driver, setup_logging  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from security.core import CVEAnalyzerCore  # type: ignore
+    from security.graph_writer import (  # type: ignore
+        create_vulnerability_graph,
+        link_cves_to_dependencies,
+    )
+    from security.report import generate_impact_report  # type: ignore
+    from utils.common import create_neo4j_driver, setup_logging  # type: ignore
 
 # Avoid sys.path hacks; modules should be importable via package installation or repo context
 
@@ -269,7 +281,10 @@ Examples:
     )
 
     # Add common Neo4j connection and logging arguments
-    from src.utils.common import add_common_args
+    try:
+        from src.utils.common import add_common_args  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import add_common_args  # type: ignore
 
     add_common_args(
         parser
@@ -336,7 +351,10 @@ Examples:
         return
 
     # Connect to Neo4j using consistent args (which now come from .env via add_common_args)
-    from src.utils.common import resolve_neo4j_args
+    try:
+        from src.utils.common import resolve_neo4j_args  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import resolve_neo4j_args  # type: ignore
 
     _uri, _user, _pwd, _db = resolve_neo4j_args(
         args.uri, args.username, args.password, args.database

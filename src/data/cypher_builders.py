@@ -10,7 +10,10 @@ def iter_schema_constraint_cypher() -> Iterable[tuple[str, str]]:
 
     Mirrors SCHEMA_CONSTRAINTS in schema_management to avoid duplication.
     """
-    from src.data.schema_management import SCHEMA_CONSTRAINTS
+    try:
+        from src.data.schema_management import SCHEMA_CONSTRAINTS  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from data.schema_management import SCHEMA_CONSTRAINTS  # type: ignore
 
     for name, _label, _props, cypher in SCHEMA_CONSTRAINTS:
         yield name, cypher
@@ -21,7 +24,10 @@ def iter_schema_index_cypher() -> Iterable[tuple[str, str]]:
 
     Mirrors SCHEMA_INDEXES in schema_management to avoid duplication.
     """
-    from src.data.schema_management import SCHEMA_INDEXES
+    try:
+        from src.data.schema_management import SCHEMA_INDEXES  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from data.schema_management import SCHEMA_INDEXES  # type: ignore
 
     for name, _label, cypher in SCHEMA_INDEXES:
         yield name, cypher

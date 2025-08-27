@@ -1,19 +1,18 @@
 from __future__ import annotations
 
+from importlib import import_module as _imp
+
 from prefect import get_run_logger
 
-from src.pipeline.tasks.db_tasks import (
-    centrality_task as T_centrality_task,
-)
-from src.pipeline.tasks.db_tasks import (
-    cve_task as T_cve_task,
-)
-from src.pipeline.tasks.db_tasks import (
-    louvain_task as T_louvain_task,
-)
-from src.pipeline.tasks.db_tasks import (
-    similarity_task as T_similarity_task,
-)
+try:
+    _dbt = _imp("src.pipeline.tasks.db_tasks")
+except Exception:  # pragma: no cover
+    _dbt = _imp("pipeline.tasks.db_tasks")
+
+T_centrality_task = _dbt.centrality_task
+T_cve_task = _dbt.cve_task
+T_louvain_task = _dbt.louvain_task
+T_similarity_task = _dbt.similarity_task
 
 
 def run_post_ingest_analytics(

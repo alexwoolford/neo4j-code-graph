@@ -16,7 +16,10 @@ from typing import Any
 
 from packaging.version import Version
 
-from src.security.types import CleanCVE
+try:
+    from src.security.types import CleanCVE  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from security.types import CleanCVE  # type: ignore
 
 logger = logging.getLogger(__name__)
 

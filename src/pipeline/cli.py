@@ -11,7 +11,13 @@ def parse_cli_args() -> argparse.Namespace:
     parser.add_argument("pos_repo_url", nargs="?", help="Repository URL or local path")
 
     # Use shared connection/logging flags with sensible defaults
-    from src.utils.common import add_common_args, resolve_neo4j_args
+    try:
+        from src.utils.common import (  # type: ignore[attr-defined]
+            add_common_args,
+            resolve_neo4j_args,
+        )
+    except Exception:  # pragma: no cover
+        from utils.common import add_common_args, resolve_neo4j_args  # type: ignore
 
     add_common_args(parser)
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup stage")

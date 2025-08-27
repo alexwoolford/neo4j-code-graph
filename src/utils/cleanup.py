@@ -14,7 +14,10 @@ import logging
 import sys
 import time
 
-from src.utils.common import add_common_args
+try:
+    from src.utils.common import add_common_args  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from utils.common import add_common_args  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -433,13 +436,19 @@ def main():
     args = parse_args()
 
     # Use consistent logging helper
-    from src.utils.common import resolve_neo4j_args, setup_logging
+    try:
+        from src.utils.common import resolve_neo4j_args, setup_logging  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import resolve_neo4j_args, setup_logging  # type: ignore
 
     setup_logging(args.log_level, args.log_file)
 
     try:
         # Use consistent Neo4j connection helper
-        from src.utils.common import create_neo4j_driver
+        try:
+            from src.utils.common import create_neo4j_driver  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            from utils.common import create_neo4j_driver  # type: ignore
 
         _uri, _user, _pwd, _db = resolve_neo4j_args(
             args.uri, args.username, args.password, args.database

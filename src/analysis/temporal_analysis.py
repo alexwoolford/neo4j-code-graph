@@ -10,7 +10,14 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-from src.utils.common import add_common_args, create_neo4j_driver, setup_logging
+try:
+    from src.utils.common import (  # type: ignore[attr-defined]
+        add_common_args,
+        create_neo4j_driver,
+        setup_logging,
+    )
+except Exception:  # pragma: no cover
+    from utils.common import add_common_args, create_neo4j_driver, setup_logging  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +341,10 @@ def run_hotspots(
 def main() -> None:
     args = parse_args()
     setup_logging(args.log_level, args.log_file)
-    from src.utils.common import resolve_neo4j_args
+    try:
+        from src.utils.common import resolve_neo4j_args  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from utils.common import resolve_neo4j_args  # type: ignore
 
     _uri, _user, _pwd, _db = resolve_neo4j_args(
         args.uri, args.username, args.password, args.database

@@ -176,7 +176,12 @@ def create_schema_constraints_and_indexes(session: Any) -> None:
     # UNIQUE CONSTRAINTS (enforce natural key uniqueness)
     # =============================================================================
 
-    from src.data.cypher_builders import iter_schema_constraint_cypher
+    try:
+        from src.data.cypher_builders import (
+            iter_schema_constraint_cypher,  # type: ignore[attr-defined]
+        )
+    except Exception:  # pragma: no cover
+        from data.cypher_builders import iter_schema_constraint_cypher  # type: ignore
 
     for constraint_name, cypher in iter_schema_constraint_cypher():
         try:
@@ -192,7 +197,10 @@ def create_schema_constraints_and_indexes(session: Any) -> None:
     # PERFORMANCE INDEXES (for commonly queried properties)
     # =============================================================================
 
-    from src.data.cypher_builders import iter_schema_index_cypher
+    try:
+        from src.data.cypher_builders import iter_schema_index_cypher  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from data.cypher_builders import iter_schema_index_cypher  # type: ignore
 
     for index_name, cypher in iter_schema_index_cypher():
         try:
@@ -438,12 +446,20 @@ def main():
 
     # Imports below support both installed package and repo run contexts
     # Use absolute imports to avoid context-dependent failures
-    from src.utils.common import (
-        add_common_args,
-        create_neo4j_driver,
-        resolve_neo4j_args,
-        setup_logging,
-    )
+    try:
+        from src.utils.common import (  # type: ignore[attr-defined]
+            add_common_args,
+            create_neo4j_driver,
+            resolve_neo4j_args,
+            setup_logging,
+        )
+    except Exception:  # pragma: no cover
+        from utils.common import (
+            add_common_args,
+            create_neo4j_driver,
+            resolve_neo4j_args,
+            setup_logging,
+        )
 
     parser = argparse.ArgumentParser(description="Setup database schema constraints and indexes")
     add_common_args(parser)
