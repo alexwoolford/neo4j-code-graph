@@ -10,7 +10,10 @@ from pathlib import Path
 
 from neo4j import Driver, GraphDatabase
 
-from src.utils.neo4j_utils import ensure_port, get_neo4j_config
+try:
+    from src.utils.neo4j_utils import ensure_port, get_neo4j_config  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from utils.neo4j_utils import ensure_port, get_neo4j_config  # type: ignore
 
 NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, NEO4J_DATABASE = get_neo4j_config()
 
