@@ -2,8 +2,8 @@
 
 import textwrap
 
+from src.analysis.calls import determine_call_target as _determine_call_target
 from src.analysis.calls import extract_method_calls as _extract_method_calls
-from src.analysis.code_analysis import _determine_call_target
 
 
 def test_determine_call_target_variants():

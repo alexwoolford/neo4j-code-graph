@@ -14,9 +14,6 @@ try:
 except Exception:
     FileData = dict  # type: ignore[misc,assignment]
 
-from src.analysis.calls import (
-    _determine_call_target as _determine_call_target,
-)  # re-export for tests
 from src.analysis.extractor import extract_files_concurrently, list_java_files
 
 # Collect Java parse errors across threads to summarize later

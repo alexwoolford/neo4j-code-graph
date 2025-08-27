@@ -2,25 +2,25 @@
 
 from __future__ import annotations
 
-from src.analysis.calls import _determine_call_target, extract_method_calls
+from src.analysis.calls import determine_call_target, extract_method_calls
 
 
 def test_determine_call_target_same_class() -> None:
-    target, call_type = _determine_call_target(None, "MyClass")
+    target, call_type = determine_call_target(None, "MyClass")
     assert target == "MyClass"
     assert call_type == "same_class"
 
 
 def test_determine_call_target_this_and_super() -> None:
-    t1, c1 = _determine_call_target("this", "C")
-    t2, c2 = _determine_call_target("super", "C")
+    t1, c1 = determine_call_target("this", "C")
+    t2, c2 = determine_call_target("super", "C")
     assert (t1, c1) == ("C", "this")
     assert (t2, c2) == ("super", "super")
 
 
 def test_determine_call_target_static_and_instance() -> None:
-    ts, cs = _determine_call_target("Math", "C")
-    ti, ci = _determine_call_target("helper", "C")
+    ts, cs = determine_call_target("Math", "C")
+    ti, ci = determine_call_target("helper", "C")
     assert (ts, cs) == ("Math", "static")
     assert (ti, ci) == ("helper", "instance")
 

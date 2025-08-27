@@ -63,10 +63,10 @@ class C {
 
 
 def test_determine_call_target_variants():
-    from src.analysis.code_analysis import _determine_call_target
+    from src.analysis.calls import determine_call_target
 
-    assert _determine_call_target(None, "C") == ("C", "same_class")
-    assert _determine_call_target("this", "C") == ("C", "this")
-    assert _determine_call_target("super", "C") == ("super", "super")
-    assert _determine_call_target("Helper", "C")[1] == "static"
-    assert _determine_call_target("obj", "C")[1] == "instance"
+    assert determine_call_target(None, "C") == ("C", "same_class")
+    assert determine_call_target("this", "C") == ("C", "this")
+    assert determine_call_target("super", "C") == ("super", "super")
+    assert determine_call_target("Helper", "C")[1] == "static"
+    assert determine_call_target("obj", "C")[1] == "instance"

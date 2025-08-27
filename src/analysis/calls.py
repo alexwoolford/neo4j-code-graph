@@ -44,7 +44,7 @@ def extract_method_calls(
             if method_name[0].isupper():
                 continue
 
-            target_class, call_type = _determine_call_target(qualifier, containing_class)
+            target_class, call_type = determine_call_target(qualifier, containing_class)
             method_calls.append(
                 {
                     "method_name": method_name,
@@ -59,7 +59,7 @@ def extract_method_calls(
     return method_calls
 
 
-def _determine_call_target(
+def determine_call_target(
     qualifier: str | None, containing_class: str | None
 ) -> tuple[str | None, str]:
     if qualifier is None:
@@ -75,4 +75,5 @@ def _determine_call_target(
 
 __all__ = [
     "extract_method_calls",
+    "determine_call_target",
 ]
