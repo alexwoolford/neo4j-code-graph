@@ -56,23 +56,15 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
 
     # Fall back to defaults from constants when env missing (tests expect this);
     # CLI args should export to env before calling here for real runs.
-    from src.constants import (
-        DEFAULT_NEO4J_DATABASE as _DB_DEF,
-    )
-    from src.constants import (
-        DEFAULT_NEO4J_PASSWORD as _PWD_DEF,
-    )
-    from src.constants import (
-        DEFAULT_NEO4J_URI as _URI_DEF,
-    )
-    from src.constants import (
-        DEFAULT_NEO4J_USERNAME as _USR_DEF,
-    )
+    try:
+        import src.constants as _K  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        import constants as _K  # type: ignore
 
-    uri = ensure_port(uri_env or _URI_DEF)
-    username = (user_env or _USR_DEF) or "neo4j"
-    password = (pass_env or _PWD_DEF) or "neo4j"
-    database = (db_env or _DB_DEF) or "neo4j"
+    uri = ensure_port(uri_env or _K.DEFAULT_NEO4J_URI)
+    username = (user_env or _K.DEFAULT_NEO4J_USERNAME) or "neo4j"
+    password = (pass_env or _K.DEFAULT_NEO4J_PASSWORD) or "neo4j"
+    database = (db_env or _K.DEFAULT_NEO4J_DATABASE) or "neo4j"
 
     return uri, username, password, database
 
