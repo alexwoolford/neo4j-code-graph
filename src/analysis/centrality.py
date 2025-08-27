@@ -346,7 +346,7 @@ def main() -> None:
 
                 gds = _GDS(_uri, auth=(_user, _pwd), database=_db)
 
-            logger.info("Connected to Neo4j GDS at %s", _uri)
+            logger.info("Connected to Neo4j GDS")
 
             # Check if we have enough data
             call_count, method_count = check_call_graph_exists(gds)

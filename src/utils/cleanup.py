@@ -445,7 +445,7 @@ def main():
             args.uri, args.username, args.password, args.database
         )
         with create_neo4j_driver(_uri, _user, _pwd) as driver:
-            logger.info("Connected to Neo4j at %s", _uri)
+            logger.info("Connected to Neo4j")
 
             with driver.session(database=_db) as session:
                 if args.complete:

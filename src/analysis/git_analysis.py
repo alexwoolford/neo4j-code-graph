@@ -215,7 +215,7 @@ def main() -> None:
                 args.uri, args.username, args.password, args.database
             )
             with create_neo4j_driver(_uri, _user, _pwd) as _:
-                logger.info(f"Connected to Neo4j at {args.uri}")
+                logger.info("Connected to Neo4j")
                 load_history(
                     args.repo_url,
                     args.branch,

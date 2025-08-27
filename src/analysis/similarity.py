@@ -272,7 +272,7 @@ def main() -> None:
     )
     gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
     gds.run_cypher("RETURN 1")  # verify connectivity
-    logger.info("Connected to Neo4j at %s", _uri)
+    logger.info("Connected to Neo4j (GDS client initialized)")
     create_index(gds)
     if not args.no_knn:
         run_knn(gds, args.top_k, args.cutoff)
