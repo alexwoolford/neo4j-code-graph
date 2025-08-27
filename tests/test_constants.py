@@ -6,6 +6,8 @@ Tests configuration values, types, and relationships between constants
 to ensure consistency and detect configuration issues early.
 """
 
+from urllib.parse import urlparse
+
 from src.constants import (
     BATCH_SIZE,
     CVE_CACHE_DIR,
@@ -40,7 +42,6 @@ from src.constants import (
     SUPPORTED_JAVA_EXTENSIONS,
 )
 
-from urllib.parse import urlparse
 
 class TestModelConfiguration:
     """Test model-related constants."""
