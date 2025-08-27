@@ -2,39 +2,43 @@ from __future__ import annotations
 
 import os
 import tempfile
+
+# Single-definition import strategy to satisfy both CLI execution forms
+from importlib import import_module
 from pathlib import Path
 
 from prefect import flow, get_run_logger
 
-from src.pipeline.flows.similarity_flow import run_post_ingest_analytics
-from src.pipeline.preflight import run_preflight
-from src.pipeline.tasks.code_tasks import (
-    cleanup_artifacts_task as T_cleanup_artifacts_task,
-)
-from src.pipeline.tasks.code_tasks import (
-    clone_repo_task as T_clone_repo_task,
-)
-from src.pipeline.tasks.code_tasks import (
-    embed_files_task as T_embed_files_task,
-)
-from src.pipeline.tasks.code_tasks import (
-    embed_methods_task as T_embed_methods_task,
-)
-from src.pipeline.tasks.code_tasks import (
-    extract_code_task as T_extract_code_task,
-)
-from src.pipeline.tasks.db_tasks import (
-    cleanup_task as T_cleanup_task,
-)
-from src.pipeline.tasks.db_tasks import (
-    git_history_task as T_git_history_task,
-)
-from src.pipeline.tasks.db_tasks import (
-    setup_schema_task as T_setup_schema_task,
-)
-from src.pipeline.tasks.db_tasks import (
-    write_graph_task as T_write_graph_task,
-)
+try:
+    _CT = import_module("src.pipeline.tasks.code_tasks")
+    _DT = import_module("src.pipeline.tasks.db_tasks")
+    _SIM = import_module("src.pipeline.flows.similarity_flow")
+    _PREF = import_module("src.pipeline.preflight")
+except Exception:  # pragma: no cover - script execution path
+    _CT = import_module("pipeline.tasks.code_tasks")
+    _DT = import_module("pipeline.tasks.db_tasks")
+    _SIM = import_module("pipeline.flows.similarity_flow")
+    _PREF = import_module("pipeline.preflight")
+
+
+# Bind names once
+def run_post_ingest_analytics(*args, **kwargs):
+    return _SIM.run_post_ingest_analytics(*args, **kwargs)
+
+
+def run_preflight(*args, **kwargs):
+    return _PREF.run_preflight(*args, **kwargs)
+
+
+T_cleanup_artifacts_task = _CT.cleanup_artifacts_task
+T_clone_repo_task = _CT.clone_repo_task
+T_embed_files_task = _CT.embed_files_task
+T_embed_methods_task = _CT.embed_methods_task
+T_extract_code_task = _CT.extract_code_task
+T_cleanup_task = _DT.cleanup_task
+T_git_history_task = _DT.git_history_task
+T_setup_schema_task = _DT.setup_schema_task
+T_write_graph_task = _DT.write_graph_task
 
 
 def build_args(base: list[str], overrides: dict[str, object] | None = None) -> list[str]:
