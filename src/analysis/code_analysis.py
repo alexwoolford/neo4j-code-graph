@@ -1,27 +1,45 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import gc
 import logging
 import re
 import tempfile
 import xml.etree.ElementTree as ET
+from importlib import import_module
 from pathlib import Path
 from time import perf_counter
 from typing import Any
 
-try:
-    from src.analysis.types import FileData
-except Exception:
-    FileData = dict  # type: ignore[misc,assignment]
+# FileData typing removed to avoid mypy redefinition; use dict[str, Any] locally where needed
 
-from src.analysis.extractor import extract_files_concurrently, list_java_files
+try:
+    _extractor = import_module("src.analysis.extractor")
+except Exception:  # pragma: no cover - installed package execution path
+    _extractor = import_module("analysis.extractor")
+
+extract_files_concurrently = _extractor.extract_files_concurrently
+list_java_files = _extractor.list_java_files
 
 # Collect Java parse errors across threads to summarize later
 PARSE_ERRORS: list[tuple[str, str]] = []
 
-from src.analysis.cli import parse_args
-from src.analysis.embeddings import compute_embeddings_bulk, load_embedding_model
-from src.utils.common import setup_logging
+try:
+    parse_args = import_module("src.analysis.cli").parse_args  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    parse_args = import_module("analysis.cli").parse_args  # type: ignore[attr-defined]
+
+try:
+    _emb = import_module("src.analysis.embeddings")
+except Exception:  # pragma: no cover
+    _emb = import_module("analysis.embeddings")
+compute_embeddings_bulk = _emb.compute_embeddings_bulk
+load_embedding_model = _emb.load_embedding_model
+
+try:
+    setup_logging = import_module("src.utils.common").setup_logging  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    setup_logging = import_module("utils.common").setup_logging  # type: ignore[attr-defined]
 
 # Constants for method call parsing
 JAVA_KEYWORDS_TO_SKIP = {
@@ -41,14 +59,16 @@ JAVA_KEYWORDS_TO_SKIP = {
 
 logger = logging.getLogger(__name__)
 
-from src.constants import (
-    DEFAULT_EMBED_BATCH_CPU,
-    DEFAULT_EMBED_BATCH_CUDA_LARGE,
-    DEFAULT_EMBED_BATCH_CUDA_SMALL,
-    DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE,
-    DEFAULT_EMBED_BATCH_MPS,
-    MODEL_NAME,
-)
+try:
+    _const = import_module("src.constants")
+except Exception:  # pragma: no cover
+    _const = import_module("constants")
+DEFAULT_EMBED_BATCH_CPU = _const.DEFAULT_EMBED_BATCH_CPU
+DEFAULT_EMBED_BATCH_CUDA_LARGE = _const.DEFAULT_EMBED_BATCH_CUDA_LARGE
+DEFAULT_EMBED_BATCH_CUDA_SMALL = _const.DEFAULT_EMBED_BATCH_CUDA_SMALL
+DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = _const.DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE
+DEFAULT_EMBED_BATCH_MPS = _const.DEFAULT_EMBED_BATCH_MPS
+MODEL_NAME = _const.MODEL_NAME
 
 
 def extract_dependency_versions_from_files(repo_root: Path) -> dict[str, str]:
@@ -294,16 +314,22 @@ def get_optimal_batch_size(device: Any) -> int:
 
 
 # compute_embeddings_bulk is imported from analysis.embeddings
-from src.analysis.parser import extract_file_data as extract_file_data  # re-export
-from src.data.graph_writer import (  # type: ignore
-    bulk_create_nodes_and_relationships,  # noqa: F401 - re-exported for back-compat
-    create_classes,  # noqa: F401 - re-exported for back-compat
-    create_directories,  # noqa: F401 - re-exported for back-compat
-    create_files,  # noqa: F401 - re-exported for back-compat
-    create_imports,  # noqa: F401 - re-exported for back-compat
-    create_method_calls,  # noqa: F401 - re-exported for back-compat
-    create_methods,  # noqa: F401 - re-exported for back-compat
-)
+try:
+    extract_file_data = import_module("src.analysis.parser").extract_file_data  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    extract_file_data = import_module("analysis.parser").extract_file_data  # type: ignore[attr-defined]
+
+try:
+    _writer = import_module("src.data.graph_writer")
+except Exception:  # pragma: no cover
+    _writer = import_module("data.graph_writer")
+bulk_create_nodes_and_relationships = _writer.bulk_create_nodes_and_relationships  # noqa: F401
+create_classes = _writer.create_classes  # noqa: F401
+create_directories = _writer.create_directories  # noqa: F401
+create_files = _writer.create_files  # noqa: F401
+create_imports = _writer.create_imports  # noqa: F401
+create_method_calls = _writer.create_method_calls  # noqa: F401
+create_methods = _writer.create_methods  # noqa: F401
 
 # Re-exported: create_files, create_directories, create_classes (imported above)
 
@@ -315,17 +341,21 @@ from src.data.graph_writer import (  # type: ignore
 
 # Back-compat re-export for tests expecting batching helper here
 try:
-    from src.utils.batching import get_database_batch_size as _get_db_batch_size
+    _batching = import_module("src.utils.batching")
+except Exception:  # pragma: no cover
+    try:
+        _batching = import_module("utils.batching")
+    except Exception:  # pragma: no cover
+        _batching = None
+
+if _batching is not None:
 
     def get_database_batch_size(
         has_embeddings: bool = False, estimated_size_mb: int | None = None
     ) -> int:
-        return _get_db_batch_size(
+        return _batching.get_database_batch_size(
             has_embeddings=has_embeddings, estimated_size_mb=estimated_size_mb
         )
-
-except Exception:  # pragma: no cover
-    pass
 
 
 def main():
@@ -363,15 +393,27 @@ def main():
         and args.in_dependencies
         and _Path(args.in_dependencies).exists()
     ):
-        from src.analysis.io import load_dependencies_from_json
+        try:
+            load_dependencies_from_json = import_module(
+                "src.analysis.io"
+            ).load_dependencies_from_json  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            load_dependencies_from_json = import_module("analysis.io").load_dependencies_from_json  # type: ignore[attr-defined]
 
         logger.info("Reading dependencies from %s", args.in_dependencies)
         dependency_versions = load_dependencies_from_json(_Path(args.in_dependencies))
     else:
         try:
-            from src.analysis.dependency_extraction import extract_enhanced_dependencies_for_neo4j
-        except ImportError:
-            extract_enhanced_dependencies_for_neo4j = None  # type: ignore
+            extract_enhanced_dependencies_for_neo4j = import_module(
+                "src.analysis.dependency_extraction"
+            ).extract_enhanced_dependencies_for_neo4j  # type: ignore[attr-defined]
+        except Exception:
+            try:
+                extract_enhanced_dependencies_for_neo4j = import_module(
+                    "analysis.dependency_extraction"
+                ).extract_enhanced_dependencies_for_neo4j  # type: ignore[attr-defined]
+            except Exception:
+                extract_enhanced_dependencies_for_neo4j = None  # type: ignore
 
         if extract_enhanced_dependencies_for_neo4j is not None:
             try:
@@ -387,7 +429,12 @@ def main():
         if not dependency_versions:
             dependency_versions = extract_dependency_versions_from_files(repo_root)
         if getattr(args, "out_dependencies", None) and args.out_dependencies:
-            from src.analysis.io import save_dependencies_to_json
+            try:
+                save_dependencies_to_json = import_module(
+                    "src.analysis.io"
+                ).save_dependencies_to_json  # type: ignore[attr-defined]
+            except Exception:  # pragma: no cover
+                save_dependencies_to_json = import_module("analysis.io").save_dependencies_to_json  # type: ignore[attr-defined]
 
             save_dependencies_to_json(_Path(args.out_dependencies), dependency_versions)
 
@@ -395,13 +442,16 @@ def main():
     logger.info("Phase 1: Extracting file data...")
     start_phase1 = perf_counter()
 
-    files_data: list[FileData] = []  # type: ignore[assignment]
+    files_data: list[dict[str, Any]] = []
     if (
         getattr(args, "in_files_data", None)
         and args.in_files_data
         and _Path(args.in_files_data).exists()
     ):
-        from src.analysis.io import read_files_data
+        try:
+            read_files_data = import_module("src.analysis.io").read_files_data  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            read_files_data = import_module("analysis.io").read_files_data  # type: ignore[attr-defined]
 
         logger.info("Reading files data from %s", args.in_files_data)
         files_data = read_files_data(_Path(args.in_files_data))
@@ -433,7 +483,10 @@ def main():
                 )
 
         if getattr(args, "out_files_data", None) and args.out_files_data:
-            from src.analysis.io import write_files_data
+            try:
+                write_files_data = import_module("src.analysis.io").write_files_data  # type: ignore[attr-defined]
+            except Exception:  # pragma: no cover
+                write_files_data = import_module("analysis.io").write_files_data  # type: ignore[attr-defined]
 
             write_files_data(_Path(args.out_files_data), files_data)
 
@@ -458,9 +511,12 @@ def main():
         and _Path(args.in_file_embeddings).exists()
     ):
         try:
-            from src.analysis.io import load_embeddings
+            _io = import_module("src.analysis.io")
+        except Exception:  # pragma: no cover
+            _io = import_module("analysis.io")
 
-            file_embeddings = load_embeddings(_Path(args.in_file_embeddings))
+        try:
+            file_embeddings = _io.load_embeddings(_Path(args.in_file_embeddings))
             files_loaded = True
             logger.info("Loaded file embeddings from %s", args.in_file_embeddings)
         except Exception:
@@ -471,9 +527,12 @@ def main():
         and _Path(args.in_method_embeddings).exists()
     ):
         try:
-            from src.analysis.io import load_embeddings
+            _io2 = import_module("src.analysis.io")
+        except Exception:  # pragma: no cover
+            _io2 = import_module("analysis.io")
 
-            method_embeddings = load_embeddings(_Path(args.in_method_embeddings))
+        try:
+            method_embeddings = _io2.load_embeddings(_Path(args.in_method_embeddings))
             methods_loaded = True
             logger.info("Loaded method embeddings from %s", args.in_method_embeddings)
         except Exception:
@@ -528,7 +587,10 @@ def main():
 
     # Persist artifacts if requested
     if getattr(args, "out_file_embeddings", None) and args.out_file_embeddings and file_embeddings:
-        from src.analysis.io import save_embeddings
+        try:
+            save_embeddings = import_module("src.analysis.io").save_embeddings  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            save_embeddings = import_module("analysis.io").save_embeddings  # type: ignore[attr-defined]
 
         save_embeddings(_Path(args.out_file_embeddings), file_embeddings)  # type: ignore[arg-type]
         logger.info("Wrote file embeddings to %s", args.out_file_embeddings)
@@ -537,9 +599,12 @@ def main():
         and args.out_method_embeddings
         and method_embeddings
     ):
-        from src.analysis.io import save_embeddings
+        try:
+            save_embeddings2 = import_module("src.analysis.io").save_embeddings  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            save_embeddings2 = import_module("analysis.io").save_embeddings  # type: ignore[attr-defined]
 
-        save_embeddings(_Path(args.out_method_embeddings), method_embeddings)  # type: ignore[arg-type]
+        save_embeddings2(_Path(args.out_method_embeddings), method_embeddings)  # type: ignore[arg-type]
         logger.info("Wrote method embeddings to %s", args.out_method_embeddings)
 
     phase2_time = 0.0 if getattr(args, "skip_embed", False) else (perf_counter() - start_phase2)
@@ -563,17 +628,25 @@ def main():
 
     logger.info("Phase 3: Creating graph in Neo4j...")
     start_phase3 = perf_counter()
-    from src.utils.common import create_neo4j_driver as _create_driver  # type: ignore
+    try:
+        _create_driver = import_module("src.utils.common").create_neo4j_driver  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        _create_driver = import_module("utils.common").create_neo4j_driver  # type: ignore[attr-defined]
 
     with _create_driver(args.uri, args.username, args.password) as driver:
         with driver.session(database=args.database) as session:  # type: ignore[reportUnknownMemberType]
             try:
                 # Ensure required constraints exist before any writes
-                from src.data.schema_management import (  # type: ignore
-                    ensure_constraints_exist_or_fail as _ensure,
-                )
+                try:
+                    _ensure = import_module(
+                        "src.data.schema_management"
+                    ).ensure_constraints_exist_or_fail  # type: ignore[attr-defined]
+                except Exception:  # pragma: no cover
+                    _ensure = import_module(
+                        "data.schema_management"
+                    ).ensure_constraints_exist_or_fail  # type: ignore[attr-defined]
 
-                _ensure(session)
+                _ensure(session)  # type: ignore[misc]
             except Exception as _e:
                 logger.error("Constraints check failed: %s", _e)
                 raise
