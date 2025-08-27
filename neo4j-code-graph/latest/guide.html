@@ -125,7 +125,9 @@
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git clone https://github.com/alexwoolford/neo4j-code-graph
 cd neo4j-code-graph
-pip install -e '.[dev]'</code></pre>
+pip install -e '.[dev]'
+# Optional: pin to repo-compatible versions
+pip install -e '.[dev]' -c config/requirements.txt</code></pre>
 </div>
 </div>
 </div>
@@ -192,6 +194,20 @@ code-graph-pipeline-prefect --repo-url https://github.com/your-org/your-repo
 
 # Or run the module directly
 python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-repo</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_makefile_shortcuts"><a class="anchor" href="#_makefile_shortcuts"></a>Makefile shortcuts</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Install runtime deps
+make install
+
+# Install dev tools, pins, and pre-commit hooks
+make install-dev</code></pre>
 </div>
 </div>
 </div>
