@@ -5,10 +5,20 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from src.analysis.types import FileData
-from src.constants import EMBEDDING_TYPE
-from src.utils.batching import get_database_batch_size
-from src.utils.progress import progress_range
+try:
+    from src.constants import EMBEDDING_TYPE  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from constants import EMBEDDING_TYPE  # type: ignore
+
+try:
+    from src.utils.batching import get_database_batch_size  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from utils.batching import get_database_batch_size  # type: ignore
+
+try:
+    from src.utils.progress import progress_range  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from utils.progress import progress_range  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +31,7 @@ def _get_database_batch_size(
     )
 
 
-def create_directories(session: Any, files_data: list[FileData]) -> None:
+def create_directories(session: Any, files_data: list[dict[str, Any]]) -> None:
     batch_size = 1000
 
     directories = set()
@@ -71,7 +81,7 @@ def create_directories(session: Any, files_data: list[FileData]) -> None:
 
 
 def create_files(
-    session: Any, files_data: list[FileData], file_embeddings: list[list[float]]
+    session: Any, files_data: list[dict[str, Any]], file_embeddings: list[list[float]]
 ) -> None:
     batch_size = _get_database_batch_size(has_embeddings=True)
 
@@ -100,7 +110,10 @@ def create_files(
             except Exception:
                 emb_value = None
 
-        from src.constants import EMBEDDING_PROPERTY as _EMB_PROP
+        try:
+            from src.constants import EMBEDDING_PROPERTY as _EMB_PROP  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            from constants import EMBEDDING_PROPERTY as _EMB_PROP  # type: ignore
 
         file_node = {
             "path": file_path_str,
@@ -182,7 +195,7 @@ def create_files(
             )
 
 
-def create_classes(session: Any, files_data: list[FileData]) -> None:
+def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
     batch_size = 1000
 
     all_classes = []
@@ -362,33 +375,50 @@ def create_classes(session: Any, files_data: list[FileData]) -> None:
 
 
 def create_methods(
-    session: Any, files_data: list[FileData], method_embeddings: list[list[float]]
+    session: Any, files_data: list[dict[str, Any]], method_embeddings: list[list[float]]
 ) -> None:
     """Delegate to writers.methods.create_methods to avoid duplication."""
-    from src.data.writers.methods import create_methods as _create_methods
+    try:
+        from src.data.writers.methods import (
+            create_methods as _create_methods,  # type: ignore[attr-defined]
+        )
+    except Exception:  # pragma: no cover
+        from data.writers.methods import create_methods as _create_methods  # type: ignore
 
     _create_methods(session, files_data, method_embeddings)
 
 
 def create_imports(
-    session: Any, files_data: list[FileData], dependency_versions: dict[str, str] | None = None
+    session: Any,
+    files_data: list[dict[str, Any]],
+    dependency_versions: dict[str, str] | None = None,
 ) -> None:
     """Delegate to writers.imports.create_imports to avoid duplication."""
-    from src.data.writers.imports import create_imports as _create_imports
+    try:
+        from src.data.writers.imports import (
+            create_imports as _create_imports,  # type: ignore[attr-defined]
+        )
+    except Exception:  # pragma: no cover
+        from data.writers.imports import create_imports as _create_imports  # type: ignore
 
     _create_imports(session, files_data, dependency_versions)
 
 
-def create_method_calls(session: Any, files_data: list[FileData]) -> None:
+def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
     """Delegate to writers.methods.create_method_calls to avoid duplication."""
-    from src.data.writers.methods import create_method_calls as _create_method_calls
+    try:
+        from src.data.writers.methods import (
+            create_method_calls as _create_method_calls,  # type: ignore[attr-defined]
+        )
+    except Exception:  # pragma: no cover
+        from data.writers.methods import create_method_calls as _create_method_calls  # type: ignore
 
     _create_method_calls(session, files_data)
 
 
 def bulk_create_nodes_and_relationships(
     session: Any,
-    files_data: list[FileData],
+    files_data: list[dict[str, Any]],
     file_embeddings: list[list[float]],
     method_embeddings: list[list[float]],
     dependency_versions: dict[str, str] | None = None,
