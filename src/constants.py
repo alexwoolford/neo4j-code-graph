@@ -27,7 +27,7 @@ DEFAULT_CVSS_THRESHOLD = 7.0
 DEFAULT_MAX_HOPS = 4
 DEFAULT_CVE_DAYS_BACK = 30
 DEFAULT_MAX_RESULTS = 1000
-NVD_API_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+NVD_API_BASE_URL = "https://nvd.nist.gov/rest/json/cves/2.0"
 CVE_CACHE_DIR = "data/cve_cache"
 
 # File Processing

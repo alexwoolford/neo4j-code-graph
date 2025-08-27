@@ -14,20 +14,17 @@ def add_src_to_path() -> None:
 @pytest.mark.integration
 def test_write_imports_and_calls_end_to_end():
     add_src_to_path()
-    from analysis.code_analysis import (
-        build_method_signature,
+    from src.analysis.parser import build_method_signature
+    from src.data.graph_writer import (
         create_directories,
         create_files,
         create_imports,
         create_method_calls,
         create_methods,
     )
-    from utils.common import create_neo4j_driver
+    from src.utils.common import create_neo4j_driver
+    from src.utils.neo4j_utils import get_neo4j_config
 
-    try:
-        from utils.neo4j_utils import get_neo4j_config
-    except Exception:
-        pytest.skip("Utilities not available")
     uri, username, password, database = get_neo4j_config()
 
     files_data = [
