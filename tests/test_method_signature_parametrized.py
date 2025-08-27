@@ -15,7 +15,7 @@ def add_src_to_path() -> None:
 
 add_src_to_path()
 
-from analysis.code_analysis import build_method_signature  # noqa: E402
+from analysis.parser import build_method_signature  # noqa: E402
 
 
 @pytest.mark.parametrize(
