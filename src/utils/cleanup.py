@@ -144,7 +144,10 @@ def cleanup_graph_projections(session: Session, dry_run: bool = False) -> None:
     try:
         from graphdatascience import GraphDataScience
 
-        from src.utils.common import get_neo4j_config
+        try:
+            from src.utils.common import get_neo4j_config  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            from utils.common import get_neo4j_config  # type: ignore
 
         # Create GDS client using proper Python client
         uri, username, password, database = get_neo4j_config()
@@ -357,9 +360,14 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
 
     # Drop managed schema if requested via env guard
     try:
-        from src.data.schema_management import drop_managed_schema as _drop_schema  # type: ignore
+        from src.data.schema_management import (
+            drop_managed_schema as _drop_schema,  # type: ignore[attr-defined]
+        )
     except Exception:
-        _drop_schema = None  # type: ignore
+        try:
+            from data.schema_management import drop_managed_schema as _drop_schema  # type: ignore
+        except Exception:
+            _drop_schema = None  # type: ignore
 
     if _drop_schema is not None and not dry_run:
         logger.info("⏳ Dropping managed schema (constraints/indexes) created by this project...")
