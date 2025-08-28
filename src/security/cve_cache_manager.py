@@ -604,6 +604,9 @@ class CVECacheManager:
             if cvss_score < 4.0:
                 return None
 
+            # Preserve configurations for precise CPE/GAV matching
+            configurations = vuln_entry.get("configurations", [])
+
             return {
                 "id": cve_id,
                 "description": description,
@@ -611,6 +614,7 @@ class CVECacheManager:
                 "severity": severity,
                 "published": cve.get("published", ""),
                 "modified": cve.get("lastModified", ""),
+                "configurations": configurations,
             }
 
         except Exception as e:
