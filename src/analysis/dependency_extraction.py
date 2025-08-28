@@ -141,8 +141,8 @@ class EnhancedDependencyExtractor:
 
         return dependencies
 
+    @staticmethod
     def _parse_maven_dependency(
-        self,
         dependency,
         namespace: dict,
         properties: dict[str, str],
