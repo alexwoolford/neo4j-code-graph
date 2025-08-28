@@ -193,54 +193,73 @@ class CVECacheManager:
                     async with semaphore:
                         await self._async_enforce_rate_limit(max_requests_per_window)
 
-                        # Build base params. Use wide time window when requested and paginate.
-                        start_dt = datetime.now(timezone.utc) - timedelta(days=days_back)
-                        pub_start = start_dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+                        # NVD requires pubStartDate and pubEndDate within a 120-day window.
+                        now_utc = datetime.now(timezone.utc)
+                        earliest = now_utc - timedelta(days=days_back)
+                        window_days = 120
+
                         params_base: dict[str, Any] = {
                             "keywordSearch": query_term,
-                            "resultsPerPage": 2000,  # max allowed by NVD API
+                            "resultsPerPage": 2000,
                             "startIndex": 0,
-                            "pubStartDate": pub_start,
                         }
 
                         pbar.set_description(f"Searching: {query_term[:30]}...")
 
                         try:
-                            # Iterate all pages for this query until we reach max_results or run out of results
-                            start_index = 0
                             local_found: list[CleanCVE] = []
-                            total_results: int | None = None
-                            while not stop_event.is_set():
-                                params = dict(params_base)
-                                params["startIndex"] = start_index
-                                data_opt: dict[str, Any] | None = await client.fetch(
-                                    session=session,
-                                    params=params,
-                                    on_rate_limit=self._async_handle_rate_limit,
-                                    timeout_s=30,
-                                )
-                                if data_opt is None:
-                                    break
-                                data: dict[str, Any] = data_opt
-                                total_results = cast(int, data.get("totalResults", 0))
-                                vulnerabilities = cast(
-                                    list[dict[str, Any]], data.get("vulnerabilities", [])
-                                )
-                                if not vulnerabilities:
-                                    break
-                                for vuln in vulnerabilities:
-                                    clean_cve = self._extract_clean_cve_data(vuln)
-                                    if clean_cve and self._is_relevant_to_terms(
-                                        clean_cve, original_terms
-                                    ):
-                                        local_found.append(clean_cve)
-                                # Stop if we have fetched all results for this query
-                                start_index += int(params_base["resultsPerPage"])  # type: ignore[arg-type]
-                                if total_results is not None and start_index >= total_results:
-                                    break
-                                # Also stop early if global cap reached
-                                if len(all_cves) + len(local_found) >= max_results:
-                                    break
+
+                            # Walk backwards in time in 120-day slices
+                            slice_end = now_utc
+                            while not stop_event.is_set() and slice_end > earliest:
+                                slice_start = max(earliest, slice_end - timedelta(days=window_days))
+
+                                def _fmt(dt: datetime) -> str:
+                                    # NVD expects Zulu with milliseconds
+                                    return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+                                start_index = 0
+                                total_results: int | None = None
+                                while not stop_event.is_set():
+                                    params = dict(params_base)
+                                    params.update(
+                                        {
+                                            "startIndex": start_index,
+                                            "pubStartDate": _fmt(slice_start),
+                                            "pubEndDate": _fmt(slice_end),
+                                        }
+                                    )
+                                    data_opt: dict[str, Any] | None = await client.fetch(
+                                        session=session,
+                                        params=params,
+                                        on_rate_limit=self._async_handle_rate_limit,
+                                        timeout_s=30,
+                                    )
+                                    if data_opt is None:
+                                        break
+                                    data: dict[str, Any] = data_opt
+                                    total_results = cast(int, data.get("totalResults", 0))
+                                    vulnerabilities = cast(
+                                        list[dict[str, Any]], data.get("vulnerabilities", [])
+                                    )
+                                    if not vulnerabilities:
+                                        break
+                                    for vuln in vulnerabilities:
+                                        clean_cve = self._extract_clean_cve_data(vuln)
+                                        if clean_cve and self._is_relevant_to_terms(
+                                            clean_cve, original_terms
+                                        ):
+                                            local_found.append(clean_cve)
+
+                                    start_index += int(params_base["resultsPerPage"])  # type: ignore[arg-type]
+                                    if total_results is not None and start_index >= total_results:
+                                        break
+                                    if len(all_cves) + len(local_found) >= max_results:
+                                        break
+
+                                # Next slice
+                                slice_end = slice_start
+
                         except Exception as e:  # pragma: no cover - network errors
                             logger.error(f"❌ Error searching '{query_term}': {e}")
                             return
