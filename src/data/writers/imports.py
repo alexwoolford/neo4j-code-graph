@@ -175,16 +175,42 @@ def create_imports(
                         if version is None and gav_key in dependency_versions:
                             version = dependency_versions[gav_key]
 
-            dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
+            # If Jackson generic package, emit both core and databind nodes when versions are known
+            if dep == "com.fasterxml.jackson":
+                jackson_variants = []
+                for art in ("jackson-core", "jackson-databind"):
+                    g = "com.fasterxml.jackson.core"
+                    v = None
+                    gav_key = f"{g}:{art}"
+                    # Prefer full GAV with version
+                    for k, val in (dependency_versions or {}).items():
+                        if isinstance(k, str) and k.startswith(gav_key + ":"):
+                            v = val
+                            break
+                    if v is None and dependency_versions and gav_key in dependency_versions:
+                        v = dependency_versions[gav_key]
+                    jackson_variants.append(
+                        {
+                            "package": dep,
+                            "language": "java",
+                            "ecosystem": "maven",
+                            "group_id": g,
+                            "artifact_id": art,
+                            **({"version": v} if v else {}),
+                        }
+                    )
+                dependency_nodes.extend(jackson_variants)
+            else:
+                dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
 
-            if group_id:
-                dependency_node["group_id"] = group_id
-            if artifact_id:
-                dependency_node["artifact_id"] = artifact_id
-            if version:
-                dependency_node["version"] = version
+                if group_id:
+                    dependency_node["group_id"] = group_id
+                if artifact_id:
+                    dependency_node["artifact_id"] = artifact_id
+                if version:
+                    dependency_node["version"] = version
 
-            dependency_nodes.append(dependency_node)
+                dependency_nodes.append(dependency_node)
 
         session.run(
             """
