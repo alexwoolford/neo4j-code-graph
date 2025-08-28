@@ -31,9 +31,29 @@ def create_imports(
                 import_path = import_info["import_path"]
                 if "." in import_path:
                     parts = import_path.split(".")
+                    # Choose the most specific base package (3..5 segments),
+                    # preferring keys that appear in dependency_versions.
+                    candidate = None
                     if len(parts) >= 3:
-                        base_package = ".".join(parts[:3])
-                        external_dependencies.add(base_package)
+                        for k in range(min(len(parts), 5), 2, -1):
+                            base = ".".join(parts[:k])
+                            if dependency_versions and (
+                                base in dependency_versions
+                                or any(
+                                    (dv_key.startswith(base) or base.startswith(dv_key))
+                                    for dv_key in dependency_versions.keys()
+                                    if ":" not in dv_key
+                                )
+                            ):
+                                candidate = base
+                                break
+                        if candidate is None:
+                            candidate = (
+                                ".".join(parts[: min(4, len(parts))])
+                                if len(parts) >= 4
+                                else ".".join(parts[:3])
+                            )
+                        external_dependencies.add(candidate)
 
     if all_imports:
         logger.info(f"Creating {len(all_imports)} import nodes...")
@@ -84,25 +104,44 @@ def create_imports(
             artifact_id = None
 
             if dependency_versions:
+                # 1) Exact group match
                 if dep in dependency_versions:
                     version = dependency_versions[dep]
-                else:
+                # 2) Longest group prefix match
+                if version is None:
+                    longest = ""
+                    longest_ver = None
                     for dep_key, dep_version in dependency_versions.items():
+                        if ":" in dep_key:
+                            continue
                         if dep.startswith(dep_key) or dep_key.startswith(dep):
-                            version = dep_version
-                            break
+                            if len(dep_key) > len(longest):
+                                longest = dep_key
+                                longest_ver = dep_version
+                    if longest_ver is not None:
+                        version = longest_ver
 
+                # 3) Artifact-aware match using GAV keys
+                #    Prefer group:artifact that semantically matches the base package.
+                best_len = -1
+                best_triplet: tuple[str, str, str] | None = None
                 for dep_key, dep_version in dependency_versions.items():
                     if ":" in dep_key and len(dep_key.split(":")) == 3:
-                        parts = dep_key.split(":")
-                        potential_group = parts[0]
-                        potential_artifact = parts[1]
-
-                        if dep.startswith(potential_group) or potential_group in dep:
-                            group_id = potential_group
-                            artifact_id = potential_artifact
-                            version = dep_version
-                            break
+                        g, a, v = dep_key.split(":")
+                        # Heuristic: base package should start with group; if the last segment
+                        # of the base looks like an artifact family (e.g., core/databind),
+                        # bias toward that artifact.
+                        if dep.startswith(g) or g.startswith(dep):
+                            score = len(g)
+                            last_seg = dep.split(".")[-1].lower()
+                            if last_seg in a.lower():
+                                score += 10
+                            if score > best_len:
+                                best_len = score
+                                best_triplet = (g, a, v)
+                if best_triplet is not None:
+                    group_id, artifact_id, version_candidate = best_triplet
+                    version = version_candidate or version
 
             dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
 
