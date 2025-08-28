@@ -20,7 +20,8 @@ from src.security.gav_cve_matcher import AffectedProduct, GAVCoordinate, Precise
 class TestGAVCoordinate:
     """Test GAV coordinate handling."""
 
-    def test_gav_coordinate_creation(self):
+    @staticmethod
+    def test_gav_coordinate_creation():
         """Test GAV coordinate creation and properties."""
         gav = GAVCoordinate("org.apache.commons", "commons-lang3", "3.12.0")
 
@@ -30,7 +31,8 @@ class TestGAVCoordinate:
         assert gav.full_coordinate == "org.apache.commons:commons-lang3:3.12.0"
         assert gav.package_key == "org.apache.commons:commons-lang3"
 
-    def test_version_range_handling(self):
+    @staticmethod
+    def test_version_range_handling():
         """Test version range handling for GAVCoordinate."""
         gav1 = GAVCoordinate("org.apache.logging.log4j", "log4j-core", "2.14.1")
 

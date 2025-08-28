@@ -20,7 +20,8 @@ class _Result:
     def data(self) -> list[dict[str, Any]]:
         return list(self._rows)
 
-    def consume(self) -> None:  # for write queries that return summary
+    @staticmethod
+    def consume() -> None:  # for write queries that return summary
         return None
 
 
