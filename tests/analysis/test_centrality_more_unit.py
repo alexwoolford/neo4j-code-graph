@@ -90,7 +90,7 @@ def test_run_degree_analysis_query_and_writeback():
 
     gds, calls = _fake_gds_degree(write_back=False)
     res = run_degree_analysis(gds, graph=object(), top_n=1, write_back=False)
-    assert not res.empty and set(["total_degree", "in_degree", "out_degree"]).issubset(res.columns)
+    assert not res.empty and {"total_degree", "in_degree", "out_degree"}.issubset(res.columns)
 
     # Write-back triggers second cypher with SET
     gds2, calls2 = _fake_gds_degree(write_back=True)

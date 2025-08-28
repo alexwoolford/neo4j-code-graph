@@ -86,14 +86,14 @@ def check_call_graph_exists(gds: GraphDataScience) -> tuple[int, int]:
     RETURN count(r) as call_count
     """
     result = gds.run_cypher(query)
-    call_count = result.iloc[0]["call_count"]
+    call_count = int(result.iloc[0]["call_count"]) if hasattr(result, "iloc") else 0
 
     query = """
     MATCH (m:Method)
     RETURN count(m) as method_count
     """
     result = gds.run_cypher(query)
-    method_count = result.iloc[0]["method_count"]
+    method_count = int(result.iloc[0]["method_count"]) if hasattr(result, "iloc") else 0
 
     return call_count, method_count
 
