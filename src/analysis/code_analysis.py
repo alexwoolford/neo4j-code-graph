@@ -104,7 +104,7 @@ def extract_dependency_versions_from_files(repo_root: Path) -> dict[str, str]:
     for gradle_file in repo_root.rglob("build.gradle*"):
         try:
             logger.debug(f"Processing Gradle file: {gradle_file}")
-            versions = _extract_gradle_dependencies(gradle_file)
+            versions = extract_gradle_dependencies(gradle_file)
             dependency_versions.update(versions)
         except Exception as e:
             logger.debug(f"Error processing {gradle_file}: {e}")
@@ -182,7 +182,7 @@ def _extract_maven_dependencies(pom_file: Path) -> dict[str, str]:
     return dependency_versions
 
 
-def _extract_gradle_dependencies(gradle_file: Path) -> dict[str, str]:
+def extract_gradle_dependencies(gradle_file: Path) -> dict[str, str]:
     """Extract dependency versions from Gradle build files."""
     dependency_versions: dict[str, str] = {}
 
@@ -239,6 +239,10 @@ def _extract_gradle_dependencies(gradle_file: Path) -> dict[str, str]:
         logger.debug(f"Error processing Gradle file {gradle_file}: {e}")
 
     return dependency_versions
+
+
+# Backward-compatible private alias for tests that may import the old name
+_extract_gradle_dependencies = extract_gradle_dependencies
 
 
 def get_device() -> Any:

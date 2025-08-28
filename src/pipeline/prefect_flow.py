@@ -75,6 +75,7 @@ __all__ = [
     "code_graph_flow",
     "main",
     "_build_args",
+    "parse_cli_args",
     # DB tasks
     "setup_schema_task",
     "cleanup_task",
