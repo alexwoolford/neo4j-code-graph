@@ -142,6 +142,14 @@ def create_imports(
                 if best_triplet is not None:
                     group_id, artifact_id, version_candidate = best_triplet
                     version = version_candidate or version
+                    # Also allow two-part GAV key mapping (group:artifact -> version)
+                    two_part_key = f"{group_id}:{artifact_id}"
+                    if (
+                        version is None
+                        and dependency_versions
+                        and two_part_key in dependency_versions
+                    ):
+                        version = dependency_versions[two_part_key]
 
                 # Explicit mapping for common Jackson packages
                 if (
@@ -164,6 +172,8 @@ def create_imports(
                             if isinstance(k, str) and k.startswith(gav_key + ":"):
                                 version = v
                                 break
+                        if version is None and gav_key in dependency_versions:
+                            version = dependency_versions[gav_key]
 
             dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
 
