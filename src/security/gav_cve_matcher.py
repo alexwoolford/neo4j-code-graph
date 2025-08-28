@@ -186,9 +186,14 @@ class PreciseGAVMatcher:
         expected_cpe_pattern = self.cpe_patterns[package_key]
         cpe_matches = PreciseGAVMatcher.extract_cpe_from_cve(cve_data)
 
+        def _norm(s: str) -> str:
+            return s.lower().replace("-", "").replace("_", "")
+
+        exp_norm = _norm(expected_cpe_pattern)
+
         for cpe_uri, affected_product in cpe_matches:
-            # Check if CPE matches our expected pattern
-            if expected_cpe_pattern in cpe_uri.lower():
+            # Check if CPE matches our expected pattern (normalize '-' vs '_')
+            if exp_norm in _norm(cpe_uri):
                 # Require version constraints in the CVE; reject versionless CVEs
                 has_any_version_constraint = any(
                     [
