@@ -20,10 +20,12 @@ class _Session:
                 for n in self._names:
                     yield {"name": n}
 
-            def single(self):  # not used in this test
+            @staticmethod
+            def single():  # not used in this test
                 return None
 
-            def consume(self):
+            @staticmethod
+            def consume():
                 return None
 
         if query.strip().upper().startswith("SHOW CONSTRAINTS"):

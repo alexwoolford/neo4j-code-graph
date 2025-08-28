@@ -8,10 +8,12 @@ from types import SimpleNamespace
 def _fake_gds_exists_true():
     # exists() returns something truthy
     class _Graph:
-        def exists(self, name):
+        @staticmethod
+        def exists(name):
             return True
 
-        def drop(self, name):
+        @staticmethod
+        def drop(name):
             return None
 
         class project:
@@ -35,7 +37,8 @@ def _fake_gds_exists_true():
             self.knn = _Knn()
             self.louvain = _Louvain()
 
-        def run_cypher(self, q, params=None):
+        @staticmethod
+        def run_cypher(q, params=None):
             from pandas import DataFrame
 
             if "RETURN count(m) AS missing" in q:

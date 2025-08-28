@@ -26,7 +26,8 @@ def test_flow_wiring_smoke(tmp_path):
 
     # Patch Prefect tasks' .submit/.result for the ones using async submission
     class _DummyFuture:
-        def result(self):
+        @staticmethod
+        def result():
             return None
 
     def _submit_stub(*_a, **_k):

@@ -8,7 +8,8 @@ class _FakeSession:
         self.fail_on = fail_on
 
     class _Res:
-        def consume(self):
+        @staticmethod
+        def consume():
             return None
 
     def run(self, query: str, **params):

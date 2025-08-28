@@ -2,7 +2,8 @@ def test_degree_query_shape():
     from src.analysis.centrality import run_degree_analysis
 
     class FakeGDS:
-        def run_cypher(self, query, params=None):  # minimal shape
+        @staticmethod
+        def run_cypher(query, params=None):  # minimal shape
             import pandas as pd
 
             # Return a tiny, deterministic frame mimicking Neo4j results

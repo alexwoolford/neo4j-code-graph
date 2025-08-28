@@ -11,7 +11,8 @@ class _FakeSession:
         self.calls.append(" ".join(q.split()))
 
         class _R:
-            def consume(self):
+            @staticmethod
+            def consume():
                 return None
 
         return _R()
