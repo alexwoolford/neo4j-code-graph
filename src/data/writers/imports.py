@@ -121,7 +121,7 @@ def create_imports(
                     if longest_ver is not None:
                         version = longest_ver
 
-                # 3) Artifact-aware match using GAV keys
+                # 3) Artifact-aware match using GAV keys, including known Jackson mapping
                 #    Prefer group:artifact that semantically matches the base package.
                 best_len = -1
                 best_triplet: tuple[str, str, str] | None = None
@@ -142,6 +142,28 @@ def create_imports(
                 if best_triplet is not None:
                     group_id, artifact_id, version_candidate = best_triplet
                     version = version_candidate or version
+
+                # Explicit mapping for common Jackson packages
+                if (
+                    group_id is None
+                    and artifact_id is None
+                    and dep.startswith("com.fasterxml.jackson")
+                ):
+                    # Group for both core and databind artifacts
+                    group_id = "com.fasterxml.jackson.core"
+                    # Any package under 'com.fasterxml.jackson.core' → jackson-core
+                    if dep.startswith("com.fasterxml.jackson.core"):
+                        artifact_id = "jackson-core"
+                    # Any package under 'com.fasterxml.jackson.databind' → jackson-databind
+                    elif dep.startswith("com.fasterxml.jackson.databind"):
+                        artifact_id = "jackson-databind"
+                    # Look up version from extracted dependency_versions using GAV
+                    if artifact_id is not None:
+                        gav_key = f"{group_id}:{artifact_id}"
+                        for k, v in dependency_versions.items():
+                            if isinstance(k, str) and k.startswith(gav_key + ":"):
+                                version = v
+                                break
 
             dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
 

@@ -50,14 +50,12 @@ def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
     try:
         from src.security.linking import (  # type: ignore[attr-defined]
             compute_precise_matches,
-            compute_text_versioned_matches,
             extract_dependencies_from_graph,
             prepare_versioned_dependencies,
         )
     except Exception:  # pragma: no cover
         from security.linking import (  # type: ignore
             compute_precise_matches,
-            compute_text_versioned_matches,
             extract_dependencies_from_graph,
             prepare_versioned_dependencies,
         )
@@ -71,12 +69,9 @@ def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
     versioned_for_precise = prepare_versioned_dependencies(dependencies)
     precise_matches = compute_precise_matches(versioned_for_precise, cve_data)
 
+    # Strict policy: Only precise GAV-based matches are allowed. Heuristic text matches are disabled
+    # to avoid false positives unrelated to the actual dependency coordinates.
     all_matches: list[dict[str, Any]] = precise_matches
-
-    version_present = [
-        dep for dep in dependencies if dep.get("version") and dep.get("version") != "unknown"
-    ]
-    all_matches.extend(compute_text_versioned_matches(version_present, cve_data))
 
     if all_matches:
         link_query = """
