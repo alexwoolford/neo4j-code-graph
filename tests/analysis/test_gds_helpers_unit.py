@@ -72,7 +72,9 @@ def test_enrich_node_ids_with_method_details_runs_cypher():
 def test_create_similarity_projection_calls_project_cypher():
     class FakeProject:
         def cypher(self, name: str, node_q: str, rel_q: str, parameters: dict[str, Any]):
-            self.args = (name, node_q, rel_q, parameters)
+            # store on local variable to avoid IDE warning about defining attrs outside __init__
+            args = (name, node_q, rel_q, parameters)
+            self._args = args
             return (object(), {"name": name, "params": parameters})
 
     class GDSWithCypher:

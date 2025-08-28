@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from src.analysis.code_analysis import _extract_gradle_dependencies
+from src.analysis.code_analysis import extract_gradle_dependencies as _extract_gradle_dependencies
 
 
 def test_standard_dependency(tmp_path):

@@ -26,19 +26,22 @@ def run_post_ingest_analytics(
     if gds_available:
         sim_state = T_similarity_task.submit(uri, username, password, database)
         try:
-            _ = getattr(sim_state, "result", lambda: None)()
+            if hasattr(sim_state, "result"):
+                sim_state.result()  # type: ignore[attr-defined]
         except Exception:
             pass
 
         louv_state = T_louvain_task.submit(uri, username, password, database)
         try:
-            _ = getattr(louv_state, "result", lambda: None)()
+            if hasattr(louv_state, "result"):
+                louv_state.result()  # type: ignore[attr-defined]
         except Exception:
             pass
 
         cent_state = T_centrality_task.submit(uri, username, password, database)
         try:
-            _ = getattr(cent_state, "result", lambda: None)()
+            if hasattr(cent_state, "result"):
+                cent_state.result()  # type: ignore[attr-defined]
         except Exception:
             pass
     else:
