@@ -115,7 +115,8 @@ class PreciseGAVMatcher:
     def __init__(self):
         self.cpe_patterns = self._load_known_cpe_patterns()
 
-    def _load_known_cpe_patterns(self) -> dict[str, str]:
+    @staticmethod
+    def _load_known_cpe_patterns() -> dict[str, str]:
         """Load known GAV to CPE mappings."""
         return {
             # Apache Commons
@@ -136,9 +137,8 @@ class PreciseGAVMatcher:
             # Add more as needed
         }
 
-    def extract_cpe_from_cve(
-        self, cve_data: Mapping[str, Any]
-    ) -> list[tuple[str, AffectedProduct]]:
+    @staticmethod
+    def extract_cpe_from_cve(cve_data: Mapping[str, Any]) -> list[tuple[str, AffectedProduct]]:
         """Extract CPE matches and version constraints from CVE data."""
         affected_products: list[tuple[str, AffectedProduct]] = []
 
@@ -184,7 +184,7 @@ class PreciseGAVMatcher:
             return self._fuzzy_cpe_match(gav, cve_data)
 
         expected_cpe_pattern = self.cpe_patterns[package_key]
-        cpe_matches = self.extract_cpe_from_cve(cve_data)
+        cpe_matches = PreciseGAVMatcher.extract_cpe_from_cve(cve_data)
 
         for cpe_uri, affected_product in cpe_matches:
             # Check if CPE matches our expected pattern
@@ -206,9 +206,10 @@ class PreciseGAVMatcher:
 
         return None
 
-    def _fuzzy_cpe_match(self, gav: GAVCoordinate, cve_data: Mapping[str, Any]) -> float | None:
+    @staticmethod
+    def _fuzzy_cpe_match(gav: GAVCoordinate, cve_data: Mapping[str, Any]) -> float | None:
         """Fuzzy matching for unknown packages - much more conservative."""
-        cpe_matches = self.extract_cpe_from_cve(cve_data)
+        cpe_matches = PreciseGAVMatcher.extract_cpe_from_cve(cve_data)
 
         # Extract meaningful parts from GAV
         artifact_lower = gav.artifact_id.lower()
@@ -278,7 +279,8 @@ class PreciseGAVMatcher:
 
         return matches
 
-    def _extract_description(self, cve_data: Mapping[str, Any]) -> str:
+    @staticmethod
+    def _extract_description(cve_data: Mapping[str, Any]) -> str:
         """Extract English description from CVE data."""
         if "descriptions" in cve_data:
             for desc in cve_data["descriptions"]:
@@ -286,7 +288,8 @@ class PreciseGAVMatcher:
                     return desc.get("value", "")
         return cve_data.get("description", "")
 
-    def _extract_cvss_score(self, cve_data: Mapping[str, Any]) -> float:
+    @staticmethod
+    def _extract_cvss_score(cve_data: Mapping[str, Any]) -> float:
         """Extract CVSS score from CVE data."""
         metrics = cve_data.get("metrics", {})
 
@@ -307,9 +310,10 @@ class PreciseGAVMatcher:
 
         return 0.0
 
-    def _extract_severity(self, cve_data: Mapping[str, Any]) -> str:
+    @staticmethod
+    def _extract_severity(cve_data: Mapping[str, Any]) -> str:
         """Extract severity from CVE data."""
-        cvss_score = self._extract_cvss_score(cve_data)
+        cvss_score = PreciseGAVMatcher._extract_cvss_score(cve_data)
 
         if cvss_score >= 9.0:
             return "CRITICAL"

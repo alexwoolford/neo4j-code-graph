@@ -289,7 +289,8 @@ class CVECacheManager:
 
         return unique_cves
 
-    def _prepare_search_queries(self, search_terms: set[str]) -> list[tuple[str, set[str]]]:
+    @staticmethod
+    def _prepare_search_queries(search_terms: set[str]) -> list[tuple[str, set[str]]]:
         """Convert dependency names into effective NVD search queries."""
         queries: list[tuple[str, set[str]]] = []
 
@@ -349,12 +350,13 @@ class CVECacheManager:
             if "." in t and any(t.startswith(prefix) for prefix in ["com.", "org.", "io.", "net."])
         ]
         if java_terms:
-            compound_searches = self._create_compound_searches(java_terms)
+            compound_searches = CVECacheManager._create_compound_searches(java_terms)
             queries.extend(compound_searches)
 
         return queries
 
-    def _create_compound_searches(self, java_terms: list[str]) -> list[tuple[str, set[str]]]:
+    @staticmethod
+    def _create_compound_searches(java_terms: list[str]) -> list[tuple[str, set[str]]]:
         """Create compound search terms for better Java library detection."""
         compounds: list[tuple[str, set[str]]] = []
 
@@ -373,7 +375,8 @@ class CVECacheManager:
 
         return compounds
 
-    def _is_relevant_to_terms(self, cve: Mapping[str, Any], terms: set[str]) -> bool:
+    @staticmethod
+    def _is_relevant_to_terms(cve: Mapping[str, Any], terms: set[str]) -> bool:
         """Check if a CVE is relevant to the given search terms with precise matching."""
         # Extract text from multiple possible locations
         description_text = ""
@@ -452,7 +455,8 @@ class CVECacheManager:
 
         return False
 
-    def _deduplicate_cves(self, cves: list[CleanCVE]) -> list[CleanCVE]:
+    @staticmethod
+    def _deduplicate_cves(cves: list[CleanCVE]) -> list[CleanCVE]:
         """Remove duplicate CVEs based on ID."""
         seen_ids: set[str] = set()
         unique_cves: list[CleanCVE] = []
@@ -520,7 +524,8 @@ class CVECacheManager:
         logger.warning(f"⏰ Rate limited - waiting {wait_time:.1f}s")
         await asyncio.sleep(wait_time)
 
-    def _extract_clean_cve_data(self, vuln_entry: dict[str, Any]) -> CleanCVE | None:
+    @staticmethod
+    def _extract_clean_cve_data(vuln_entry: dict[str, Any]) -> CleanCVE | None:
         """Extract clean, normalized CVE data."""
         try:
             cve = vuln_entry.get("cve", {})

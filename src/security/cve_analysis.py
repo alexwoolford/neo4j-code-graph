@@ -48,7 +48,8 @@ logger = logging.getLogger(__name__)
 class CVEAnalyzer(CVEAnalyzerCore):
     """Facade over core + graph writes and reporting."""
 
-    def load_cve_data(self, file_path: str):
+    @staticmethod
+    def load_cve_data(file_path: str):
         import json
 
         with open(file_path) as f:
@@ -76,7 +77,8 @@ class CVEAnalyzer(CVEAnalyzerCore):
             raise TypeError("_link_cves_to_dependencies expects (cve_data) or (session, cve_data)")
 
     # Note: legacy helper retained for backwards-compatibility in tests and docs
-    def _get_severity(self, cvss_score: float) -> str:
+    @staticmethod
+    def _get_severity(cvss_score: float) -> str:
         """Get severity level from CVSS score."""
         if cvss_score >= 9.0:
             return "CRITICAL"
@@ -99,7 +101,8 @@ class CVEAnalyzer(CVEAnalyzerCore):
 
     # Removed unused legacy universal-matching helper to reduce maintenance surface
 
-    def _is_dependency_affected_improved(self, dep_path: str, cve_description: str) -> bool:
+    @staticmethod
+    def _is_dependency_affected_improved(dep_path: str, cve_description: str) -> bool:
         """Improved dependency matching with stricter criteria to reduce false positives."""
         dep_lower = dep_path.lower()
 
@@ -110,7 +113,8 @@ class CVEAnalyzer(CVEAnalyzerCore):
         matches: list[str] = [part for part in parts if part in cve_description]
         return len(matches) >= 2
 
-    def _calculate_match_confidence_improved(self, dep_path: str, cve_description: str) -> float:
+    @staticmethod
+    def _calculate_match_confidence_improved(dep_path: str, cve_description: str) -> float:
         """Calculate confidence with stricter criteria."""
         dep_lower = dep_path.lower()
 
@@ -223,7 +227,8 @@ class CVEAnalyzer(CVEAnalyzerCore):
             logger.info(f"🎯 Found {len(vulnerabilities)} potential vulnerabilities")
             return vulnerabilities
 
-    def generate_impact_report(self, vulnerabilities: list[dict[str, Any]]):
+    @staticmethod
+    def generate_impact_report(vulnerabilities: list[dict[str, Any]]):
         generate_impact_report(vulnerabilities)
 
         print("\n💡 **RECOMMENDATIONS:**")

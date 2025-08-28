@@ -336,7 +336,8 @@ class EnhancedDependencyExtractor:
 class PropertyResolver:
     """Resolves Maven/Gradle property references."""
 
-    def resolve_version(self, version: str, properties: dict[str, str]) -> str:
+    @staticmethod
+    def resolve_version(version: str, properties: dict[str, str]) -> str:
         """Resolve version property references."""
         if not version or not version.startswith("${"):
             return version
