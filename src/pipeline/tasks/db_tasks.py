@@ -339,14 +339,45 @@ def cve_task(
         analyzer.get_cache_status()
         deps_by_ecosystem, _langs = analyzer.extract_codebase_dependencies()
         search_terms = analyzer.create_universal_component_search_terms(deps_by_ecosystem)
+        # Allow wider time window via env override (default 365)
+        try:
+            days_back_env = int(os.getenv("NVD_DAYS_BACK", "365"))
+        except ValueError:
+            days_back_env = 365
+
         cve_data = analyzer.cve_manager.fetch_targeted_cves(  # type: ignore[attr-defined]
             api_key=api_key,
             search_terms=search_terms,
             max_results=2000,
-            days_back=365,
+            days_back=days_back_env,
             max_concurrency=None,
         )
         if cve_data:
-            analyzer.create_vulnerability_graph(list(cve_data))  # type: ignore[arg-type]
+            # Create CVE nodes
+            num_nodes = analyzer.create_vulnerability_graph(list(cve_data))  # type: ignore[arg-type]
+            logger.info("Created %d CVE nodes", num_nodes)
+
+            # Diagnostic: counts to ensure we're in the right database and that versions exist
+            with driver.session(database=_db) as s:
+                rec = s.run("MATCH (c:CVE) RETURN count(c) AS c").single()
+                logger.info("CVE nodes currently in DB: %s", (rec["c"] if rec else 0))
+                rec2 = s.run(
+                    "MATCH (e:ExternalDependency) RETURN count(e) AS total, count{(e.version IS NOT NULL AND e.version <> 'unknown')} AS versioned"
+                ).single()
+                if rec2:
+                    logger.info(
+                        "ExternalDependency totals: total=%s, versioned=%s",
+                        rec2.get("total"),
+                        rec2.get("versioned"),
+                    )
+
+            # Link CVEs strictly to versioned dependencies
+            try:
+                num_links = analyzer._link_cves_to_dependencies(list(cve_data))  # type: ignore[arg-type]
+                logger.info("Created %d AFFECTS relationships", num_links)
+            except Exception as link_err:
+                logger.warning("Linking failed: %s", link_err)
+
+            # Impact analysis (HIGH and above by default)
             impact = analyzer.analyze_vulnerability_impact(risk_threshold=7.0, max_hops=4)
             analyzer.generate_impact_report(impact)
