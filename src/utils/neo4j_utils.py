@@ -1,3 +1,4 @@
+from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 
@@ -67,9 +68,6 @@ def get_neo4j_config() -> tuple[str, str, str, str]:
     database = (db_env or _K.DEFAULT_NEO4J_DATABASE) or "neo4j"
 
     return uri, username, password, database
-
-
-from typing import Any
 
 
 def check_capabilities(session: Any) -> dict[str, object]:

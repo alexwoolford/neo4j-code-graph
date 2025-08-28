@@ -7,6 +7,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+try:
+    from src.security.types import CleanCVE  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from security.types import CleanCVE  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,9 +21,7 @@ class CVECacheStore:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_ttl = cache_ttl
 
-    def save_partial(
-        self, cache_key: str, cves: list[dict[str, Any]], completed_terms: set[str]
-    ) -> None:
+    def save_partial(self, cache_key: str, cves: list[CleanCVE], completed_terms: set[str]) -> None:
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
         try:
             cache_data: dict[str, Any] = {
@@ -33,7 +36,7 @@ class CVECacheStore:
         except Exception as e:  # pragma: no cover - IO errors are logged
             logger.warning(f"Failed to save partial cache: {e}")
 
-    def load_partial(self, cache_key: str) -> tuple[list[dict[str, Any]], set[str]]:
+    def load_partial(self, cache_key: str) -> tuple[list[CleanCVE], set[str]]:
         partial_file = self.cache_dir / f"{cache_key}_partial.json.gz"
         if not partial_file.exists():
             return [], set()
@@ -46,7 +49,7 @@ class CVECacheStore:
             if datetime.now() - timestamp > self.cache_ttl:
                 logger.info("⏰ Partial cache expired, starting fresh")
                 return [], set()
-            cves = cast(list[dict[str, Any]], cache_data.get("cves", []))
+            cves = cast(list[CleanCVE], cache_data.get("cves", []))
             completed_terms = set(cast(list[str], cache_data.get("completed_terms", [])))
             return cves, completed_terms
         except Exception as e:  # pragma: no cover
@@ -61,7 +64,7 @@ class CVECacheStore:
             except Exception as e:
                 logger.debug(f"Failed to cleanup partial cache: {e}")
 
-    def save_complete(self, cache_key: str, data: list[dict[str, Any]]) -> None:
+    def save_complete(self, cache_key: str, data: list[CleanCVE]) -> None:
         cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
         try:
             cache_data: dict[str, Any] = {
@@ -75,7 +78,7 @@ class CVECacheStore:
         except Exception as e:  # pragma: no cover
             logger.error(f"Failed to save complete cache: {e}")
 
-    def load_complete(self, cache_key: str) -> list[dict[str, Any]] | None:
+    def load_complete(self, cache_key: str) -> list[CleanCVE] | None:
         cache_file = self.cache_dir / f"{cache_key}_complete.json.gz"
         if not cache_file.exists():
             return None
@@ -86,7 +89,7 @@ class CVECacheStore:
                 return None
             with gzip.open(cache_file, "rt", encoding="utf-8") as f:
                 cache_data = json.load(f)
-            data = cast(list[dict[str, Any]], cache_data.get("data", []))
+            data = cast(list[CleanCVE], cache_data.get("data", []))
             return data
         except Exception as e:  # pragma: no cover
             logger.warning(f"Failed to load complete cache: {e}")

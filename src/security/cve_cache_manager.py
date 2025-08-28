@@ -42,17 +42,17 @@ except Exception:  # pragma: no cover
 
 
 class CVECacheStoreProtocol(Protocol):
-    def load_complete(self, cache_key: str) -> list[dict[str, Any]] | None: ...
+    def load_complete(self, cache_key: str) -> list[CleanCVE] | None: ...
 
-    def load_partial(self, cache_key: str) -> tuple[list[dict[str, Any]], set[str]]: ...
+    def load_partial(self, cache_key: str) -> tuple[list[CleanCVE], set[str]]: ...
 
     def save_partial(
-        self, cache_key: str, cves: list[dict[str, Any]], completed_terms: set[str]
+        self, cache_key: str, cves: list[CleanCVE], completed_terms: set[str]
     ) -> None: ...
 
     def cleanup_partial(self, cache_key: str) -> None: ...
 
-    def save_complete(self, cache_key: str, data: list[dict[str, Any]]) -> None: ...
+    def save_complete(self, cache_key: str, data: list[CleanCVE]) -> None: ...
 
     def stats(self) -> dict[str, Any]: ...
 
@@ -136,15 +136,13 @@ class CVECacheManager:
 
         # Check for existing complete cache
         store = self.store
-        cached_data_obj = store.load_complete(cache_key)
-        if cached_data_obj:
-            cached_data = cast(list[CleanCVE], cached_data_obj)
+        cached_data = store.load_complete(cache_key)
+        if cached_data:
             logger.info(f"📦 Loaded {len(cached_data)} CVEs from complete cache")
             return cached_data
 
         # Check for partial cache
-        partial_raw, completed_raw = store.load_partial(cache_key)
-        partial_data: list[CleanCVE] = cast(list[CleanCVE], partial_raw)
+        partial_data, completed_raw = store.load_partial(cache_key)
         completed_terms: set[str] = completed_raw
         remaining_terms: set[str] = search_terms - completed_terms
 
@@ -237,9 +235,7 @@ class CVECacheManager:
                         pbar.set_postfix(postfix)
 
                         if (idx + 1) % 5 == 0:
-                            store.save_partial(
-                                cache_key, cast(list[dict[str, Any]], all_cves), completed_terms_set
-                            )
+                            store.save_partial(cache_key, all_cves, completed_terms_set)
                             logger.debug(
                                 f"💾 Checkpoint: {len(all_cves)} CVEs, "
                                 f"{len(completed_terms_set)} terms completed"
@@ -261,9 +257,7 @@ class CVECacheManager:
                 asyncio.run(_run_async())
             except KeyboardInterrupt:
                 logger.warning("⚠️  Search interrupted - saving progress...")
-                store.save_partial(
-                    cache_key, cast(list[dict[str, Any]], all_cves), completed_terms_set
-                )
+                store.save_partial(cache_key, all_cves, completed_terms_set)
                 logger.info(
                     f"💾 Saved {len(all_cves)} CVEs, " f"{len(completed_terms_set)} terms completed"
                 )
@@ -290,7 +284,7 @@ class CVECacheManager:
         )
 
         # Save final results
-        store.save_complete(cache_key, cast(list[dict[str, Any]], unique_cves))
+        store.save_complete(cache_key, unique_cves)
         store.cleanup_partial(cache_key)
 
         return unique_cves
@@ -579,7 +573,7 @@ class CVECacheManager:
     def _save_partial_targeted_cache(
         self, cache_key: str, cves: list[CleanCVE], completed_terms: set[str]
     ) -> None:
-        self.store.save_partial(cache_key, cast(list[dict[str, Any]], cves), completed_terms)
+        self.store.save_partial(cache_key, cves, completed_terms)
 
     def load_partial_targeted_cache(self, cache_key: str) -> tuple[list[CleanCVE], set[str]]:
         cves, completed = self.store.load_partial(cache_key)
@@ -589,11 +583,10 @@ class CVECacheManager:
         self.store.cleanup_partial(cache_key)
 
     def _save_complete_cache(self, cache_key: str, data: list[CleanCVE]) -> None:
-        self.store.save_complete(cache_key, cast(list[dict[str, Any]], data))
+        self.store.save_complete(cache_key, data)
 
     def load_complete_cache(self, cache_key: str) -> list[CleanCVE] | None:
-        data = self.store.load_complete(cache_key)
-        return cast(list[CleanCVE], data) if data is not None else None
+        return self.store.load_complete(cache_key)
 
     def get_cache_stats(self) -> dict[str, Any]:
         return self.store.stats()

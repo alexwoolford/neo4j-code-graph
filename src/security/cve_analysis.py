@@ -18,6 +18,11 @@ import logging
 from typing import Any
 
 try:
+    from src.security.types import CleanCVE  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from security.types import CleanCVE  # type: ignore
+
+try:
     from src.security.core import CVEAnalyzerCore  # type: ignore[attr-defined]
     from src.security.graph_writer import (  # type: ignore[attr-defined]
         create_vulnerability_graph,
@@ -49,7 +54,7 @@ class CVEAnalyzer(CVEAnalyzerCore):
         with open(file_path) as f:
             return json.load(f)
 
-    def create_vulnerability_graph(self, cve_data: list[dict[str, Any]]) -> int:
+    def create_vulnerability_graph(self, cve_data: list[CleanCVE]) -> int:
         with self._session() as session:
             return create_vulnerability_graph(session, cve_data)
 
