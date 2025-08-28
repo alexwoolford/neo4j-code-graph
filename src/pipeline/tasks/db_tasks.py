@@ -362,7 +362,9 @@ def cve_task(
                 rec = s.run("MATCH (c:CVE) RETURN count(c) AS c").single()
                 logger.info("CVE nodes currently in DB: %s", (rec["c"] if rec else 0))
                 rec2 = s.run(
-                    "MATCH (e:ExternalDependency) RETURN count(e) AS total, count{(e.version IS NOT NULL AND e.version <> 'unknown')} AS versioned"
+                    "MATCH (e:ExternalDependency) "
+                    "RETURN count(e) AS total, "
+                    "sum(CASE WHEN e.version IS NOT NULL AND e.version <> 'unknown' THEN 1 ELSE 0 END) AS versioned"
                 ).single()
                 if rec2:
                     logger.info(
