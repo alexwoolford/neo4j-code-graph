@@ -459,8 +459,15 @@ Examples:
             # Create vulnerability graph
             print("\n📊 **CREATING VULNERABILITY GRAPH**")
             num_cves = analyzer.create_vulnerability_graph(cve_data)
-            # Report CVE nodes separately from relationships; linking is strict and may be zero
             print(f"✅ Created {num_cves} CVE nodes")
+
+            # Link CVEs to versioned ExternalDependency nodes (strict policy)
+            try:
+                print("🔗 Linking CVEs to dependencies (versioned only)...")
+                num_links = analyzer._link_cves_to_dependencies(cve_data)  # type: ignore[arg-type]
+                print(f"✅ Created {num_links} AFFECTS relationships")
+            except Exception as link_err:
+                logger.warning(f"Linking step failed or created no links: {link_err}")
 
             # Analyze impact
             impact_summary = analyzer.analyze_vulnerability_impact(
