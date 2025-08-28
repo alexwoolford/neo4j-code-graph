@@ -84,9 +84,8 @@ class CVEAnalyzerCore:
 
             return dependencies_by_ecosystem, file_languages
 
-    def create_universal_component_search_terms(
-        self, dependencies: dict[str, set[str]]
-    ) -> set[str]:
+    @staticmethod
+    def create_universal_component_search_terms(dependencies: dict[str, set[str]]) -> set[str]:
         search_terms: set[str] = set()
         specific_vendor_terms: set[str] = set()
         for _ecosystem, deps in dependencies.items():

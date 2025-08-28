@@ -275,7 +275,8 @@ class EnhancedDependencyExtractor:
 
         return dependencies
 
-    def _extract_gradle_scope(self, dependency_line: str) -> str:
+    @staticmethod
+    def _extract_gradle_scope(dependency_line: str) -> str:
         """Extract scope from Gradle dependency line."""
         if "testImplementation" in dependency_line or "testCompile" in dependency_line:
             return "test"
@@ -284,7 +285,8 @@ class EnhancedDependencyExtractor:
         else:
             return "compile"
 
-    def _get_maven_namespace(self, root) -> dict[str, str]:
+    @staticmethod
+    def _get_maven_namespace(root) -> dict[str, str]:
         """Get Maven namespace from root element."""
         namespace = {"maven": "http://maven.apache.org/POM/4.0.0"}
         if root.tag.startswith("{"):
@@ -292,7 +294,8 @@ class EnhancedDependencyExtractor:
             namespace = {"maven": ns}
         return namespace
 
-    def _extract_maven_properties(self, root, namespace: dict[str, str]) -> dict[str, str]:
+    @staticmethod
+    def _extract_maven_properties(root, namespace: dict[str, str]) -> dict[str, str]:
         """Extract Maven properties for version resolution."""
         properties = {}
 
@@ -313,7 +316,8 @@ class EnhancedDependencyExtractor:
 
         return properties
 
-    def _deduplicate_dependencies(self, dependencies: list[DependencyInfo]) -> list[DependencyInfo]:
+    @staticmethod
+    def _deduplicate_dependencies(dependencies: list[DependencyInfo]) -> list[DependencyInfo]:
         """Remove duplicate dependencies, keeping the one with highest scope priority."""
         scope_priority = {"compile": 3, "runtime": 2, "test": 1, "dependencyManagement": 0}
 
