@@ -191,17 +191,8 @@ class CVEAnalyzer(CVEAnalyzerCore):
         logger.info("🎯 Analyzing vulnerability impact...")
 
         with self._session() as session:
-            # First, let's check if we have any CVE data at all
-            cve_count_query = "MATCH (cve:CVE) RETURN count(cve) as total"
-            cve_result = session.run(cve_count_query)
-            cve_single = cve_result.single()
-            cve_count = int(cve_single["total"]) if cve_single and "total" in cve_single else 0
-
-            if cve_count == 0:
-                logger.info("ℹ️  No CVE nodes present; skipping impact analysis.")
-                return []
-
-            # Simple analysis query - just look for CVEs that might affect our dependencies
+            # Run analysis directly; if there are no CVEs or no links, result will be empty.
+            # This avoids false negatives caused by transactional timing issues on the count guard.
             result = session.run(
                 """
                 MATCH (cve:CVE)
