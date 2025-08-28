@@ -130,6 +130,7 @@ def run_pagerank_analysis(
     logger.info("🔍 Running PageRank analysis...")
     start_time = perf_counter()
 
+    top_results = None
     if write_back:
         result = gds.pageRank.write(
             graph,
@@ -159,7 +160,7 @@ def run_pagerank_analysis(
         ).head(top_n)
 
         # Enrich with method details
-        if not result.empty:
+        if not getattr(result, "empty", True):
             try:
                 from importlib import import_module as _imp
 
@@ -183,12 +184,15 @@ def run_pagerank_analysis(
 
     print("\n🏆 TOP PAGE RANK METHODS (Most Central in Call Ecosystem):")
     print("-" * 80)
-    for _, row in top_results.iterrows():
-        score = row.get("score", row.get("pagerank_score"))
-        class_name = row.get("class_name") or "Unknown"
-        method_name = row.get("method_name", "Unknown")
-        file = row.get("file", "Unknown")
-        print(f"  {score:.6f} | {class_name}.{method_name} ({file})")
+    if top_results is not None and hasattr(top_results, "iterrows"):
+        for _, row in top_results.iterrows():
+            score = row.get("score", row.get("pagerank_score"))
+            class_name = row.get("class_name") or "Unknown"
+            method_name = row.get("method_name", "Unknown")
+            file = row.get("file", "Unknown")
+            print(f"  {score:.6f} | {class_name}.{method_name} ({file})")
+    else:
+        top_results = result if result is not None else None
 
     return top_results
 
@@ -201,7 +205,7 @@ def run_betweenness_analysis(
     start_time = perf_counter()
 
     if write_back:
-        result = gds.betweenness.write(graph, writeProperty="betweenness_score")
+        gds.betweenness.write(graph, writeProperty="betweenness_score")
 
         query = """
         MATCH (m:Method)
@@ -238,14 +242,13 @@ def run_betweenness_analysis(
 
     print("\n🌉 TOP BETWEENNESS METHODS (Critical Connectors & Bottlenecks):")
     print("-" * 80)
-    if "score" in top_results.columns:
+    if hasattr(top_results, "iterrows"):
         for _, row in top_results.iterrows():
-            class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
-    else:
-        for _, row in top_results.iterrows():
-            class_name = row["class_name"] if row["class_name"] else "Unknown"
-            print(f"  {row['score']:.6f} | {class_name}.{row['method_name']} ({row['file']})")
+            class_name = row.get("class_name") if row.get("class_name") else "Unknown"
+            score_val = row.get("score", row.get("betweenness_score", 0.0))
+            print(
+                f"  {float(score_val):.6f} | {class_name}.{row.get('method_name')} ({row.get('file')})"
+            )
 
     return top_results
 

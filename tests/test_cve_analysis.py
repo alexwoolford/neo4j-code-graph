@@ -261,7 +261,8 @@ class TestCVEAnalyzer:
                     component in extracted
                 ), f"Expected {component} in {extracted} for {dependency}"
 
-    def _extract_universal_components(self, dependency_path: str):
+    @staticmethod
+    def _extract_universal_components(dependency_path: str):
         """Helper method to test universal component extraction."""
         components = set()
         components.add(dependency_path.lower())

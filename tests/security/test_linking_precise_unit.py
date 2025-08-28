@@ -14,7 +14,8 @@ class _FakeGAV:
 
 
 class _FakeMatcher:
-    def match_gav_to_cve(self, gav: _FakeGAV, cve: dict[str, Any]) -> float | None:  # noqa: D401
+    @staticmethod
+    def match_gav_to_cve(gav: _FakeGAV, cve: dict[str, Any]) -> float | None:  # noqa: D401
         # return a confidence only for a specific ID
         return 0.9 if cve.get("id") == "CVE-OK" and gav.a == "json" else None
 

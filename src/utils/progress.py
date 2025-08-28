@@ -18,7 +18,7 @@ def _tqdm_available() -> bool:
 
 
 def _progress_disabled(explicit_disable: bool | None) -> bool:
-    if explicit_disable is True:
+    if explicit_disable:
         return True
     flag = os.getenv("CODEGRAPH_PROGRESS", "").lower().strip()
     return flag in {"0", "false", "off", "no"}
@@ -71,21 +71,20 @@ def progress_iter(
                 pbar.close()
             except Exception:
                 pass
-        return
-
-    # No total provided: delegate iteration to tqdm wrapper but handle failures.
-    try:
-        _tqdm_iter_func: Callable[..., Any] = cast(Callable[..., Any], _tqdm)
-        iter_kwargs: dict[str, Any] = {}
-        if desc is not None:
-            iter_kwargs["desc"] = desc
-        if unit is not None:
-            iter_kwargs["unit"] = unit
-        for item in _tqdm_iter_func(iterable, **iter_kwargs):  # type: ignore[call-arg]
-            yield item
-    except Exception:
-        for item in iterable:
-            yield item
+    else:
+        # No total provided: delegate iteration to tqdm wrapper but handle failures.
+        try:
+            _tqdm_iter_func: Callable[..., Any] = cast(Callable[..., Any], _tqdm)
+            iter_kwargs: dict[str, Any] = {}
+            if desc is not None:
+                iter_kwargs["desc"] = desc
+            if unit is not None:
+                iter_kwargs["unit"] = unit
+            for item in _tqdm_iter_func(iterable, **iter_kwargs):  # type: ignore[call-arg]
+                yield item
+        except Exception:
+            for item in iterable:
+                yield item
 
 
 def progress_range(

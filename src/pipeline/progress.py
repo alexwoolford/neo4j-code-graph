@@ -106,14 +106,14 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
         # Status summary
         print("\n✅ STATUS ASSESSMENT:")
 
-        if total_files > 0 and files_with_embeddings == total_files:
+        if 0 < total_files == files_with_embeddings:
             print("  ✅ File processing: COMPLETE")
         elif total_files > 0:
             print(f"  ⚠️  File processing: PARTIAL ({files_with_embeddings}/{total_files})")
         else:
             print("  ❌ File processing: NOT STARTED")
 
-        if total_methods > 0 and methods_with_embeddings == total_methods:
+        if 0 < total_methods == methods_with_embeddings:
             print("  ✅ Method processing: COMPLETE")
         elif total_methods > 0:
             print(f"  ⚠️  Method processing: PARTIAL ({methods_with_embeddings}/{total_methods})")
@@ -135,8 +135,8 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
             "rel_types": rel_types,
             "total_nodes": total_nodes,
             "total_rels": total_rels,
-            "files_complete": total_files > 0 and files_with_embeddings == total_files,
-            "methods_complete": total_methods > 0 and methods_with_embeddings == total_methods,
+            "files_complete": 0 < total_files == files_with_embeddings,
+            "methods_complete": 0 < total_methods == methods_with_embeddings,
             "imports_complete": imports_count > 0,
             "calls_partial": calls_count > 0,
         }

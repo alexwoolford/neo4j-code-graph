@@ -19,7 +19,8 @@ class _FakeSession:
     def __init__(self, script: dict[str, object]):
         self._script = script
 
-    def run(self, query: str, *args, **kwargs):  # noqa: D401
+    @staticmethod
+    def run(query: str, *args, **kwargs):  # noqa: D401
         q = " ".join(query.split())
         # Switch on key substrings
         if "CALL db.labels()" in q:

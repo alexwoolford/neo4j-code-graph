@@ -211,12 +211,11 @@ def _collect_properties_offline() -> Mapping[str, list[tuple[str, tuple[str, ...
 
 
 def _render_asciidoc(collected: Mapping[str, list[tuple[str, tuple[str, ...]]]]) -> str:
-    lines: list[str] = []
-    lines.append("\n== Node properties (generated)\n")
-    lines.append(
-        "These property lists are generated from the live database via `db.schema.nodeTypeProperties()` and annotated with descriptions."
-    )
-    lines.append("")
+    lines: list[str] = [
+        "\n== Node properties (generated)\n",
+        "These property lists are generated from the live database via `db.schema.nodeTypeProperties()` and annotated with descriptions.",
+        "",
+    ]
     for label in _labels_order():
         if label not in collected:
             continue

@@ -22,7 +22,7 @@ async def test_async_rate_limit_enforcement(monkeypatch):
 
     # Pretend we already hit the window limit
     now = time.time()
-    m.request_times = [now - 1] * (m.requests_per_30s_no_key)
+    m.request_times = [now - 1] * m.requests_per_30s_no_key
 
     start = time.time()
     await m._async_enforce_rate_limit(m.requests_per_30s_no_key)

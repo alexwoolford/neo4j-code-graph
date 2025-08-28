@@ -9,7 +9,8 @@ def _fake_gds_for_pagerank(write_back: bool):
     calls = {"pageRank.write": [], "pageRank.stream": [], "graph.project": []}
 
     class _GraphObj:
-        def name(self):
+        @staticmethod
+        def name():
             return "method_call_graph"
 
     class _Graph:

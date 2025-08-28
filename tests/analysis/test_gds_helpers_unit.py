@@ -22,7 +22,7 @@ class _FakeGraphAPI:
 
     def project(self, name: str, nodes: list[str], rels: dict[str, Any]):  # type: ignore[no-untyped-def]
         self.projected.append((name, nodes, rels))
-        return (object(), {"name": name})
+        return object(), {"name": name}
 
     class project_cypher:
         @staticmethod
@@ -77,7 +77,7 @@ def test_create_similarity_projection_calls_project_cypher():
 
         def cypher(self, name: str, node_q: str, rel_q: str, parameters: dict[str, Any]):
             self._args = (name, node_q, rel_q, parameters)
-            return (object(), {"name": name, "params": parameters})
+            return object(), {"name": name, "params": parameters}
 
     class GDSWithCypher:
         def __init__(self):
