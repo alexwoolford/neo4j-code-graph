@@ -108,6 +108,14 @@ class CVECacheManager:
 
         Parameters
         ----------
+        api_key : Optional[str]
+            NVD API key to use higher rate limits; if None, low limits apply.
+        search_terms : set[str]
+            Component names to search for (e.g., "org.apache.commons:commons-lang3").
+        max_results : int, default 1000
+            Upper bound on total CVEs to collect across all queries.
+        days_back : int, default 365
+            Time window for targeted cache key; affects cache grouping.
         max_concurrency : Optional[int]
             Maximum number of concurrent requests. Defaults to the API rate
             limit if not provided.

@@ -86,7 +86,7 @@ def test_run_pagerank_analysis_respects_constants_write_and_stream_paths():
     # Stream path
     gds_s, calls_s = _fake_gds_for_pagerank(write_back=False)
     res_s = run_pagerank_analysis(gds_s, graph, top_n=2, write_back=False)
-    assert not res_s.empty and set(["nodeId", "method_name", "class_name", "file"]).issubset(
+    assert not res_s.empty and {"nodeId", "method_name", "class_name", "file"}.issubset(
         res_s.columns
     )
     kw2 = calls_s["pageRank.stream"][0]

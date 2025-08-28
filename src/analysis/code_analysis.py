@@ -70,6 +70,9 @@ DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = _const.DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE
 DEFAULT_EMBED_BATCH_MPS = _const.DEFAULT_EMBED_BATCH_MPS
 MODEL_NAME = _const.MODEL_NAME
 
+# Module-level default for quiet parse flag, set by main() based on CLI args
+_QUIET_PARSE: bool = False
+
 
 def extract_dependency_versions_from_files(repo_root: Path) -> dict[str, str]:
     """Extract dependency versions from pom.xml, build.gradle, and other dependency files.

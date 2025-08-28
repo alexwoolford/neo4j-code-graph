@@ -48,7 +48,7 @@ def test_run_betweenness_analysis_stream_and_write_paths():
     # Stream path
     gds_s, calls_s = _fake_gds_betweenness(write_back=False)
     res_s = run_betweenness_analysis(gds_s, graph, top_n=2, write_back=False)
-    assert not res_s.empty and set(["method_name", "class_name", "file"]).issubset(res_s.columns)
+    assert not res_s.empty and {"method_name", "class_name", "file"}.issubset(res_s.columns)
     assert calls_s["betweenness.stream"] == 1
 
     # Write path
