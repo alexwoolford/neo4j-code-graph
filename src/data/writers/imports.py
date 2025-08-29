@@ -301,11 +301,17 @@ def create_imports(
         )
 
         session.run(
-            "MATCH (i:Import) "
-            "WHERE i.import_type = 'external' "
-            "WITH i, SPLIT(i.import_path, '.') AS parts "
-            "WHERE SIZE(parts) >= 3 "
-            "WITH i, parts[0] + '.' + parts[1] + '.' + parts[2] AS base_package "
-            "MATCH (e:ExternalDependency {package: base_package}) "
-            "MERGE (i)-[:DEPENDS_ON]->(e)"
+            """
+            MATCH (i:Import)
+            WHERE i.import_type = 'external'
+            WITH i, SPLIT(i.import_path, '.') AS parts
+            WITH i,
+                 CASE WHEN SIZE(parts) >= 4 THEN parts[0]+'.'+parts[1]+'.'+parts[2]+'.'+parts[3] ELSE NULL END AS p4,
+                 CASE WHEN SIZE(parts) >= 3 THEN parts[0]+'.'+parts[1]+'.'+parts[2] ELSE NULL END AS p3,
+                 CASE WHEN SIZE(parts) >= 2 THEN parts[0]+'.'+parts[1] ELSE NULL END AS p2
+            MATCH (e:ExternalDependency)
+            WHERE (e.package IS NOT NULL AND e.package IN [p4, p3, p2])
+               OR (e.group_id IS NOT NULL AND e.group_id IN [p4, p3, p2])
+            MERGE (i)-[:DEPENDS_ON]->(e)
+            """
         )

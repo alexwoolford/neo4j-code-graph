@@ -428,40 +428,6 @@ def bulk_create_nodes_and_relationships(
     method_embeddings: list[list[float]],
     dependency_versions: dict[str, str] | None = None,
 ) -> None:
-    # Create explicit dependency nodes from extracted GAV versions first
-    if dependency_versions:
-        dep_nodes: list[dict[str, Any]] = []
-        for key, ver in dependency_versions.items():
-            # Expect keys like group:artifact:version
-            parts = str(key).split(":")
-            if len(parts) == 3:
-                group_id, artifact_id, version = parts
-                if version and version == ver:
-                    dep_nodes.append(
-                        {
-                            # Use a unique package key based on group:artifact to avoid collisions
-                            "package": f"{group_id}.{artifact_id}",
-                            "language": "java",
-                            "ecosystem": "maven",
-                            "group_id": group_id,
-                            "artifact_id": artifact_id,
-                            "version": version,
-                        }
-                    )
-        if dep_nodes:
-            session.run(
-                """
-                UNWIND $dependencies AS dep
-                MERGE (e:ExternalDependency {package: dep.package})
-                SET e.language = dep.language,
-                    e.ecosystem = dep.ecosystem,
-                    e.group_id = dep.group_id,
-                    e.artifact_id = dep.artifact_id,
-                    e.version = dep.version
-                """,
-                dependencies=dep_nodes,
-            )
-
     create_directories(session, files_data)
     create_files(session, files_data, file_embeddings)
     create_classes(session, files_data)
