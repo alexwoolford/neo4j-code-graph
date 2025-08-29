@@ -64,7 +64,10 @@ def compute_precise_matches(
                     precise.append(
                         {
                             "cve_id": cve.get("id", ""),
+                            # Keep package for display, but match on group/artifact downstream
                             "dep_package": package,
+                            "dep_group_id": gav.group_id,
+                            "dep_artifact_id": gav.artifact_id,
                             "confidence": confidence,
                             "match_type": "precise_gav",
                         }

@@ -175,6 +175,14 @@ from utils.common import create_neo4j_driver, setup_logging
 - **`utils.py`**: Core utility functions (port handling, config)
 
 
+## Provider-Agnostic Policy (Git Hosting)
+
+- Do not add GitHub-, GitLab-, Bitbucket-, or other vendor-specific integrations to the pipeline logic.
+- The pipeline must work with any Git repository URL; no hard dependencies on vendor APIs.
+- External vulnerability data must come from provider-neutral sources (NVD) only.
+- Vendor-specific data may be used for validation in ad-hoc scripts, but must not be required for pipeline execution.
+
+
 ## Neo4j Aura Compatibility Policy
 
 - **Scope**: All database interactions must be compatible with Neo4j Aura.

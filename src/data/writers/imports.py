@@ -20,8 +20,13 @@ def create_imports(
     files_data: list[dict[str, Any]],
     dependency_versions: dict[str, str] | None = None,
 ) -> None:
-    all_imports = []
-    external_dependencies = set()
+    # Establish a strongly-typed view of dependency versions for mypy
+    if dependency_versions is None:
+        dep_versions: dict[str, str] = {}
+    else:
+        dep_versions = dependency_versions
+    all_imports: list[dict[str, Any]] = []
+    external_dependencies: set[str] = set()
 
     for file_data in files_data:
         for import_info in file_data.get("imports", []):
@@ -31,29 +36,34 @@ def create_imports(
                 import_path = import_info["import_path"]
                 if "." in import_path:
                     parts = import_path.split(".")
-                    # Choose the most specific base package (3..5 segments),
-                    # preferring keys that appear in dependency_versions.
+                    # Choose a sensible base package, trimming trailing class-name segments
+                    # (those that start with an uppercase letter) and preferring matches that
+                    # exist in dependency_versions (group keys without ':').
                     candidate = None
-                    if len(parts) >= 3:
-                        for k in range(min(len(parts), 5), 2, -1):
-                            base = ".".join(parts[:k])
-                            if dependency_versions and (
-                                base in dependency_versions
-                                or any(
-                                    (dv_key.startswith(base) or base.startswith(dv_key))
-                                    for dv_key in dependency_versions.keys()
-                                    if ":" not in dv_key
-                                )
+                    group_keys: set[str] = set(dep_versions.keys()) if dep_versions else set()
+                    group_keys = {k for k in group_keys if ":" not in k}
+                    if len(parts) >= 2:
+                        for idx in range(min(len(parts), 5), 1, -1):
+                            base_parts = parts[:idx]
+                            # Trim trailing capitalized segments (likely class names)
+                            while len(base_parts) >= 2 and base_parts[-1][:1].isupper():
+                                base_parts = base_parts[:-1]
+                            if len(base_parts) < 2:
+                                continue
+                            base = ".".join(base_parts)
+                            if group_keys and base in group_keys:
+                                candidate = base
+                                break
+                            # Also allow prefix compatibility with known group keys
+                            if group_keys and any(
+                                (g.startswith(base) or base.startswith(g)) for g in group_keys
                             ):
                                 candidate = base
                                 break
-                        if candidate is None:
-                            candidate = (
-                                ".".join(parts[: min(4, len(parts))])
-                                if len(parts) >= 4
-                                else ".".join(parts[:3])
-                            )
-                        external_dependencies.add(candidate)
+                    if candidate is None:
+                        # Sensible fallback: first 3 segments if available, else first 2
+                        candidate = ".".join(parts[:3]) if len(parts) >= 3 else ".".join(parts[:2])
+                    external_dependencies.add(candidate)
 
     if all_imports:
         logger.info(f"Creating {len(all_imports)} import nodes...")
@@ -96,22 +106,22 @@ def create_imports(
 
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
-        dependency_nodes = []
+        dependency_nodes: list[dict[str, Any]] = []
 
         for dep in external_dependencies:
             version = None
             group_id = None
             artifact_id = None
 
-            if dependency_versions:
+            if dep_versions:
                 # 1) Exact group match
-                if dep in dependency_versions:
-                    version = dependency_versions[dep]
+                if dep in dep_versions:
+                    version = dep_versions[dep]
                 # 2) Longest group prefix match
                 if version is None:
                     longest = ""
                     longest_ver = None
-                    for dep_key, dep_version in dependency_versions.items():
+                    for dep_key, dep_version in dep_versions.items():
                         if ":" in dep_key:
                             continue
                         if dep.startswith(dep_key) or dep_key.startswith(dep):
@@ -125,9 +135,9 @@ def create_imports(
                 #    Prefer group:artifact that semantically matches the base package.
                 best_len = -1
                 best_triplet: tuple[str, str, str] | None = None
-                for dep_key, dep_version in dependency_versions.items():
+                for dep_key, dep_version in dep_versions.items():
                     if ":" in dep_key and len(dep_key.split(":")) == 3:
-                        g, a, v = dep_key.split(":")
+                        g, a, ver = str(dep_key).split(":")
                         # Heuristic: base package should start with group; if the last segment
                         # of the base looks like an artifact family (e.g., core/databind),
                         # bias toward that artifact.
@@ -138,18 +148,14 @@ def create_imports(
                                 score += 10
                             if score > best_len:
                                 best_len = score
-                                best_triplet = (g, a, v)
+                                best_triplet = (g, a, ver)
                 if best_triplet is not None:
                     group_id, artifact_id, version_candidate = best_triplet
                     version = version_candidate or version
                     # Also allow two-part GAV key mapping (group:artifact -> version)
                     two_part_key = f"{group_id}:{artifact_id}"
-                    if (
-                        version is None
-                        and dependency_versions
-                        and two_part_key in dependency_versions
-                    ):
-                        version = dependency_versions[two_part_key]
+                    if version is None and two_part_key in dep_versions:
+                        version = dep_versions[two_part_key]
 
                 # Explicit mapping for common Jackson packages
                 if (
@@ -168,27 +174,92 @@ def create_imports(
                     # Look up version from extracted dependency_versions using GAV
                     if artifact_id is not None:
                         gav_key = f"{group_id}:{artifact_id}"
-                        for k, v in dependency_versions.items():
-                            if isinstance(k, str) and k.startswith(gav_key + ":"):
-                                version = v
+                        for k, val in dep_versions.items():
+                            if k.startswith(gav_key + ":"):
+                                version = val
                                 break
-                        if version is None and gav_key in dependency_versions:
-                            version = dependency_versions[gav_key]
+                        if version is None and gav_key in dep_versions:
+                            version = dep_versions[gav_key]
+
+                # Targeted mappings for known libraries whose import packages differ from Maven groupIds
+                if (
+                    group_id is None
+                    and artifact_id is None
+                    and dep.startswith("com.salesforce.emp")
+                ):
+                    # Map Salesforce EMP connector imports -> com.pontusvision.salesforce:emp-connector
+                    group_id = "com.pontusvision.salesforce"
+                    artifact_id = "emp-connector"
+                    gav_key = f"{group_id}:{artifact_id}"
+                    # Prefer full GAV with version
+                    for k, val in dep_versions.items():
+                        if k.startswith(gav_key + ":"):
+                            version = val
+                            break
+                    if version is None and gav_key in dep_versions:
+                        version = dep_versions[gav_key]
+
+                if group_id is None and artifact_id is None and dep.startswith("org.cometd."):
+                    # Map CometD client imports -> org.cometd.java:cometd-java-client
+                    group_id = "org.cometd.java"
+                    artifact_id = "cometd-java-client"
+                    gav_key = f"{group_id}:{artifact_id}"
+                    for k, val in dep_versions.items():
+                        if k.startswith(gav_key + ":"):
+                            version = val
+                            break
+                    if version is None and gav_key in dep_versions:
+                        version = dep_versions[gav_key]
+
+                # Additional targeted mappings for common ecosystems
+                if group_id is None and artifact_id is None:
+                    prefix_to_gav: list[tuple[str, tuple[str, str]]] = [
+                        ("org.apache.kafka.clients", ("org.apache.kafka", "kafka-clients")),
+                        ("org.apache.kafka.common", ("org.apache.kafka", "kafka-clients")),
+                        ("org.slf4j", ("org.slf4j", "slf4j-api")),
+                        (
+                            "org.springframework.boot.autoconfigure",
+                            ("org.springframework.boot", "spring-boot-autoconfigure"),
+                        ),
+                        ("org.springframework.boot", ("org.springframework.boot", "spring-boot")),
+                        ("org.springframework.context", ("org.springframework", "spring-context")),
+                        ("org.springframework.beans", ("org.springframework", "spring-beans")),
+                        (
+                            "org.springframework.stereotype",
+                            ("org.springframework", "spring-context"),
+                        ),
+                        (
+                            "org.springframework.kafka",
+                            ("org.springframework.kafka", "spring-kafka"),
+                        ),
+                    ]
+                    for prefix, (g, a) in prefix_to_gav:
+                        if dep.startswith(prefix):
+                            group_id, artifact_id = g, a
+                            gav_key = f"{group_id}:{artifact_id}"
+                            # Prefer full GAV with version
+                            for k, val in dep_versions.items():
+                                if k.startswith(gav_key + ":"):
+                                    version = val
+                                    break
+                            if version is None and gav_key in dep_versions:
+                                version = dep_versions[gav_key]
+                            break
 
             # If Jackson generic package, emit both core and databind nodes when versions are known
             if dep == "com.fasterxml.jackson":
                 jackson_variants = []
                 for art in ("jackson-core", "jackson-databind"):
                     g = "com.fasterxml.jackson.core"
-                    v = None
+                    v: str | None = None
                     gav_key = f"{g}:{art}"
                     # Prefer full GAV with version
-                    for k, val in (dependency_versions or {}).items():
-                        if isinstance(k, str) and k.startswith(gav_key + ":"):
+                    for k, val in dep_versions.items():
+                        if k.startswith(gav_key + ":"):
                             v = val
                             break
-                    if v is None and dependency_versions and gav_key in dependency_versions:
-                        v = dependency_versions[gav_key]
+                    if v is None and gav_key in dep_versions:
+                        v = dep_versions[gav_key]
                     jackson_variants.append(
                         {
                             "package": dep,
@@ -201,7 +272,11 @@ def create_imports(
                     )
                 dependency_nodes.extend(jackson_variants)
             else:
-                dependency_node = {"package": dep, "language": "java", "ecosystem": "maven"}
+                dependency_node: dict[str, Any] = {
+                    "package": dep,
+                    "language": "java",
+                    "ecosystem": "maven",
+                }
 
                 if group_id:
                     dependency_node["group_id"] = group_id

@@ -10,13 +10,15 @@ def test_affects_only_links_to_versioned_dependencies(neo4j_driver):
 
     with neo4j_driver.session() as s:
         s.run("MATCH (n) DETACH DELETE n").consume()
-        # Unversioned dep
-        s.run("MERGE (ed:ExternalDependency {package:'com.example.Example'})").consume()
-        # Versioned dep
+        # Unversioned dep (should never be linked)
+        s.run(
+            "MERGE (ed:ExternalDependency {package:'com.example.example', language:'java', ecosystem:'maven'})"
+        ).consume()
+        # Versioned dep with GAV fields for precise matching
         s.run(
             """
-            MERGE (ed:ExternalDependency {package:'org.reflections.Reflections'})
-            SET ed.language='java', ed.ecosystem='maven', ed.version='0.10.2'
+            MERGE (ed:ExternalDependency {package:'org.reflections.reflections'})
+            SET ed.language='java', ed.ecosystem='maven', ed.group_id='org.reflections', ed.artifact_id='reflections', ed.version='0.10.2'
             """
         ).consume()
 
@@ -25,10 +27,38 @@ def test_affects_only_links_to_versioned_dependencies(neo4j_driver):
         s.run("MERGE (:CVE {id:'CVE-TEXT-1'})").consume()
         s.run("MERGE (:CVE {id:'CVE-TEXT-2'})").consume()
 
-        # Minimal cve_data dicts; descriptions mention both deps
+        # CVE data with precise CPE configurations matching the versioned dependency only
         cve_data = [
-            {"id": "CVE-TEXT-1", "description": "Issue in org.reflections Reflections library"},
-            {"id": "CVE-TEXT-2", "description": "Problem affects com.example Example module"},
+            {
+                "id": "CVE-TEXT-1",
+                "descriptions": [
+                    {"lang": "en", "value": "Issue in org.reflections reflections library"}
+                ],
+                "configurations": [
+                    {
+                        "nodes": [
+                            {
+                                "cpeMatch": [
+                                    {
+                                        # Vendor/product align with group_id/artifact_id
+                                        "criteria": "cpe:2.3:a:org.reflections:reflections:*:*:*:*:*:*:*:*",
+                                        "versionStartIncluding": "0.1.0",
+                                        "versionEndExcluding": "0.10.3",
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+            },
+            {
+                "id": "CVE-TEXT-2",
+                "descriptions": [
+                    {"lang": "en", "value": "Problem affects com.example example module"}
+                ],
+                # No configurations for com.example -> should not match
+                "configurations": [],
+            },
         ]
 
         # Run linking
@@ -39,5 +69,5 @@ def test_affects_only_links_to_versioned_dependencies(neo4j_driver):
             "MATCH (c:CVE)-[:AFFECTS]->(ed:ExternalDependency) RETURN c.id AS id, ed.package AS pkg"
         ).data()
         pkgs = {r["pkg"] for r in rows}
-        assert "org.reflections.Reflections" in pkgs
-        assert "com.example.Example" not in pkgs
+        assert "org.reflections.reflections" in pkgs
+        assert "com.example.example" not in pkgs

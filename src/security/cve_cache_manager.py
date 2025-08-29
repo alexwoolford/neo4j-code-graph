@@ -238,7 +238,7 @@ class CVECacheManager:
                                     if data_opt is None:
                                         break
                                     data: dict[str, Any] = data_opt
-                                    total_results = cast(int, data.get("totalResults", 0))
+                                    total_results = cast(int | None, data.get("totalResults"))
                                     vulnerabilities = cast(
                                         list[dict[str, Any]], data.get("vulnerabilities", [])
                                     )
@@ -252,7 +252,9 @@ class CVECacheManager:
                                             local_found.append(clean_cve)
 
                                     start_index += int(params_base["resultsPerPage"])  # type: ignore[arg-type]
-                                    if total_results is not None and start_index >= total_results:
+                                    if total_results is not None and start_index >= int(
+                                        total_results
+                                    ):
                                         break
                                     if len(all_cves) + len(local_found) >= max_results:
                                         break
@@ -415,42 +417,75 @@ class CVECacheManager:
         for lib_name, related_terms in library_patterns.items():
             if related_terms:
                 compounds.append((lib_name, set(related_terms)))
+                # For Jackson, add explicit artifact/vendor-focused queries to capture
+                # jackson-databind/core CVEs that may not match generic keywords.
+                if lib_name == "jackson":
+                    # Common focused variants
+                    for key in [
+                        "jackson-databind",
+                        "jackson core",
+                        "jackson-core",
+                        "fasterxml jackson-databind",
+                        "fasterxml jackson-core",
+                    ]:
+                        compounds.append((key, set(related_terms)))
 
         return compounds
 
     @staticmethod
     def _is_relevant_to_terms(cve: Mapping[str, Any], terms: set[str]) -> bool:
-        """Check if a CVE is relevant to the given search terms with precise matching."""
-        # Extract text from multiple possible locations
-        description_text = ""
+        """Heuristic relevance: token-based match across description and CPE criteria.
+
+        A CVE is considered relevant if at least:
+          - For multi-token terms (split on non-alphanumerics), 2 tokens appear in the CVE text; or
+          - For single-token terms, that token appears.
+        This is provider-agnostic and works well for vendor/product names in CPEs
+        (e.g., "fasterxml", "jackson-databind").
+        """
+        import re
+
+        # Gather CVE text from descriptions and CPE criteria
+        parts: list[str] = []
         if "descriptions" in cve:
             for desc in cve["descriptions"]:
-                if desc.get("lang") == "en":
-                    description_text += desc.get("value", "")
-        description_text += cve.get("description", "")
-
-        # Also check configurations for CPE matches
-        config_text = ""
+                if isinstance(desc, Mapping) and desc.get("lang") == "en":
+                    parts.append(str(desc.get("value", "")))
+        parts.append(str(cve.get("description", "")))
         if "configurations" in cve:
-            for config in cve["configurations"]:
-                for node in config.get("nodes", []):
-                    for cpe_match in node.get("cpeMatch", []):
-                        config_text += cpe_match.get("criteria", "")
+            cfg_obj = cve.get("configurations")
+            cfg_list: list[Any]
+            if isinstance(cfg_obj, list):
+                cfg_list = cfg_obj
+            elif isinstance(cfg_obj, Mapping):
+                cfg_list = [cfg_obj]
+            else:
+                cfg_list = []
+            for config in cfg_list:
+                if isinstance(config, Mapping):
+                    nodes = config.get("nodes")
+                    if isinstance(nodes, list):
+                        for node in nodes:
+                            if isinstance(node, Mapping):
+                                cpe_matches = node.get("cpeMatch")
+                                if isinstance(cpe_matches, list):
+                                    for cpe_match in cpe_matches:
+                                        if isinstance(cpe_match, Mapping):
+                                            crit = str(cpe_match.get("criteria", ""))
+                                            parts.append(crit)
+        cve_text = " ".join(parts).lower()
 
-        cve_text = f"{description_text} {cve.get('id', '')} {config_text}".lower()
+        # Build token set for CVE text
+        cve_tokens = set(t for t in re.split(r"[^a-z0-9]+", cve_text) if len(t) >= 3)
 
         for term in terms:
-            term_lower = term.lower()
-
-            # For compound library names (like org.jetbrains.annotations), be very specific
-            if "." in term and "jetbrains" in term_lower:
-                # Only match if the CVE specifically mentions annotations, not IDE tools
+            t = term.lower()
+            # JetBrains exclusion remains to avoid IDE/tool noise
+            if "jetbrains" in t and "." in t:
                 if "annotation" in cve_text:
                     return True
-                # Exclude JetBrains IDE/tool vulnerabilities
-                elif any(
-                    ide_tool in cve_text
-                    for ide_tool in [
+                if any(
+                    x in cve_text
+                    for x in [
                         "teamcity",
                         "intellij",
                         "idea",
@@ -468,33 +503,22 @@ class CVECacheManager:
                         "goland",
                     ]
                 ):
-                    return False
-                # If it's just generic "jetbrains" mention without library context, skip it
-                elif "jetbrains" in cve_text and not any(
-                    lib_term in cve_text
-                    for lib_term in ["annotation", "library", "maven", "gradle", "jar"]
+                    continue
+                if "jetbrains" in cve_text and not any(
+                    x in cve_text for x in ["annotation", "library", "maven", "gradle", "jar"]
                 ):
-                    return False
+                    continue
 
-            # For other compound terms, check more precisely
-            elif "." in term:
-                # For java packages like com.fasterxml.jackson, check for the specific library
-                parts = [p for p in term.split(".") if len(p) > 2]
+            # Tokenize the term on common separators
+            term_tokens = [tok for tok in re.split(r"[^a-z0-9]+", t) if len(tok) >= 3]
+            if not term_tokens:
+                continue
 
-                # Require at least 2 parts to match for compound names
-                if len(parts) >= 2:
-                    matches = sum(1 for part in parts if part.lower() in cve_text)
-                    if matches >= 2:  # At least 2 parts must match
-                        return True
-
-                # Also check the full term
-                if term_lower in cve_text:
-                    return True
-
-            # For simple terms, require exact match
-            else:
-                if term_lower in cve_text:
-                    return True
+            # Require at least two token hits for multi-token terms; one for single-token
+            required = 2 if len(term_tokens) >= 2 else 1
+            hits = sum(1 for tok in term_tokens if tok in cve_tokens)
+            if hits >= required:
+                return True
 
         return False
 
@@ -604,18 +628,19 @@ class CVECacheManager:
             if cvss_score < 4.0:
                 return None
 
-            # Preserve configurations for precise CPE/GAV matching
-            configurations = vuln_entry.get("configurations", [])
+            # Preserve configurations for precise CPE/GAV matching (NVD 2.0 keeps this under cve)
+            configurations = cve.get("configurations", []) or vuln_entry.get("configurations", [])
 
-            return {
-                "id": cve_id,
-                "description": description,
-                "cvss_score": cvss_score,
-                "severity": severity,
-                "published": cve.get("published", ""),
-                "modified": cve.get("lastModified", ""),
-                "configurations": configurations,
+            result: CleanCVE = {
+                "id": str(cve_id),
+                "description": str(description),
+                "cvss_score": float(cvss_score),
+                "severity": str(severity),
+                "published": str(cve.get("published", "")),
+                "modified": str(cve.get("lastModified", "")),
+                "configurations": configurations,  # type: ignore[assignment]
             }
+            return result
 
         except Exception as e:
             logger.debug(f"Error extracting CVE data: {e}")
@@ -629,7 +654,7 @@ class CVECacheManager:
 
     def load_partial_targeted_cache(self, cache_key: str) -> tuple[list[CleanCVE], set[str]]:
         cves, completed = self.store.load_partial(cache_key)
-        return cast(list[CleanCVE], cves), completed
+        return cves, completed
 
     def _cleanup_partial_targeted_cache(self, cache_key: str) -> None:
         self.store.cleanup_partial(cache_key)

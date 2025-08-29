@@ -142,11 +142,20 @@ class PreciseGAVMatcher:
         """Extract CPE matches and version constraints from CVE data."""
         affected_products: list[tuple[str, AffectedProduct]] = []
 
-        if "configurations" not in cve_data:
+        configs_raw = cve_data.get("configurations")
+        if not configs_raw:
             return affected_products
 
-        for config in cve_data["configurations"]:
-            for node in config.get("nodes", []):
+        # NVD 2.0 provides configurations as an object with nodes; normalize to list
+        if isinstance(configs_raw, dict):
+            configs = [configs_raw]
+        elif isinstance(configs_raw, list):
+            configs = configs_raw
+        else:
+            configs = []
+
+        for config in configs:
+            for node in config.get("nodes", []) if isinstance(config, dict) else []:
                 for cpe_match in node.get("cpeMatch", []):
                     cpe_uri = cpe_match.get("criteria", "")
 

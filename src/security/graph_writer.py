@@ -60,25 +60,52 @@ def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
             prepare_versioned_dependencies,
         )
 
+    # Provider-agnostic policy: do not use GHSA/Git vendor integrations in linking.
+
     dependencies = extract_dependencies_from_graph(session)
+    logger.info("Dependencies extracted for linking: %d", len(dependencies))
+    try:
+        logger.debug("Deps sample: %s", dependencies[:5])
+    except Exception:
+        pass
 
     if not dependencies:
         logger.warning("No external dependencies found in graph")
         return 0
 
     versioned_for_precise = prepare_versioned_dependencies(dependencies)
+    logger.info(
+        "Versioned dependencies eligible for precise matching: %d",
+        len(versioned_for_precise),
+    )
+    try:
+        logger.debug("Versioned deps: %s", versioned_for_precise)
+    except Exception:
+        pass
+
+    # Start with NVD precise matches
     precise_matches = compute_precise_matches(versioned_for_precise, cve_data)
 
-    # Strict policy: Only precise GAV-based matches are allowed. Heuristic text matches are disabled
+    # No GHSA augmentation; rely solely on NVD precise matches per provider-agnostic policy.
+    logger.info("Precise matches computed: %d", len(precise_matches))
+
+    # Strict policy: Only structured matches allowed. Heuristic text matches are disabled
     # to avoid false positives unrelated to the actual dependency coordinates.
     all_matches: list[dict[str, Any]] = precise_matches
 
     if all_matches:
+        # Prefer structured match on group_id + artifact_id; fall back to package only if needed
         link_query = """
             UNWIND $links AS link
             MATCH (cve:CVE {id: link.cve_id})
-            MATCH (ed:ExternalDependency {package: link.dep_package})
-            WHERE ed.version IS NOT NULL AND ed.version <> 'unknown'
+            OPTIONAL MATCH (ed1:ExternalDependency)
+              WHERE ed1.group_id = link.dep_group_id AND ed1.artifact_id = link.dep_artifact_id
+                    AND ed1.version IS NOT NULL AND ed1.version <> 'unknown'
+            WITH cve, link, ed1
+            OPTIONAL MATCH (ed2:ExternalDependency {package: link.dep_package})
+              WHERE ed2.version IS NOT NULL AND ed2.version <> 'unknown'
+            WITH cve, link, coalesce(ed1, ed2) AS ed
+            WHERE ed IS NOT NULL
             MERGE (cve)-[r:AFFECTS]->(ed)
             SET r.confidence = link.confidence,
                 r.match_type = link.match_type,

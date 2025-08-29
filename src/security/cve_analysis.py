@@ -460,6 +460,68 @@ Examples:
             except Exception as link_err:
                 logger.warning(f"Linking step failed or created no links: {link_err}")
 
+            # Provider-agnostic identification parity: report CVEs without NVD CPE ranges
+            # that appear relevant to our versioned dependencies (no relationships created)
+            try:
+                try:
+                    from src.security.linking import (  # type: ignore[attr-defined]
+                        compute_text_versioned_matches,
+                        extract_dependencies_from_graph,
+                        prepare_versioned_dependencies,
+                    )
+                except Exception:  # pragma: no cover
+                    from security.linking import (  # type: ignore
+                        compute_text_versioned_matches,
+                        extract_dependencies_from_graph,
+                        prepare_versioned_dependencies,
+                    )
+
+                # Pull versioned dependencies
+                with create_neo4j_driver(_uri, _user, _pwd) as _drv:
+                    with _drv.session(database=args.database) as session:  # type: ignore[arg-type]
+                        deps = extract_dependencies_from_graph(session)
+                versioned = prepare_versioned_dependencies(deps)
+
+                # Filter CVEs that lack CPE configuration nodes in NVD data
+                def _has_any_cpe(cfg: object) -> bool:
+                    try:
+                        import json as _json
+
+                        txt = cfg if isinstance(cfg, str) else _json.dumps(cfg)
+                        return ("cpeMatch" in txt) or ("cpe:2.3:" in txt)
+                    except Exception:
+                        return False
+
+                cves_without_cpe: list[dict[str, Any]] = []
+                for c in cve_data:
+                    cfg_obj = c.get("configurations")  # type: ignore[assignment]
+                    if not _has_any_cpe(cfg_obj):
+                        cves_without_cpe.append(c)  # type: ignore[arg-type]
+
+                # Compute conservative text-based matches for reporting only
+                text_candidates = compute_text_versioned_matches(versioned, cves_without_cpe)
+
+                if text_candidates:
+                    # Remove any already linked CVEs from report by asking DB
+                    with create_neo4j_driver(_uri, _user, _pwd) as _drv:
+                        with _drv.session(database=args.database) as session:  # type: ignore[arg-type]
+                            linked_ids = {
+                                r["id"]
+                                for r in session.run(
+                                    """
+                                    MATCH (c:CVE)-[:AFFECTS]->(:ExternalDependency)
+                                    RETURN DISTINCT c.id AS id
+                                    """
+                                )
+                            }
+                    report_ids = sorted({m["cve_id"] for m in text_candidates} - linked_ids)
+                    if report_ids:
+                        print("\n📋 Relevant CVEs without NVD CPE ranges (reporting only):")
+                        for cid in report_ids:
+                            print(f"  - {cid}")
+            except Exception as e:
+                logger.debug(f"Identification parity step skipped: {e}")
+
             # Analyze impact
             impact_summary = analyzer.analyze_vulnerability_impact(
                 max_hops=args.max_hops,
