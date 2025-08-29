@@ -39,8 +39,9 @@ def create_directories(session: Any, files_data: list[dict[str, Any]]) -> None:
         from pathlib import Path
 
         path_parts = Path(file_data["path"]).parent.parts
-        for i in range(len(path_parts) + 1):
-            dir_path = str(Path(*path_parts[:i])) if i > 0 else ""
+        # Do NOT include the empty root path; only real directories
+        for i in range(1, len(path_parts) + 1):
+            dir_path = str(Path(*path_parts[:i]))
             directories.add(dir_path)
 
     directories_list = list(directories)
@@ -61,7 +62,9 @@ def create_directories(session: Any, files_data: list[dict[str, Any]]) -> None:
     for directory in directories:
         if directory:
             parent = str(_P(directory).parent) if _P(directory).parent != _P(".") else ""
-            dir_relationships.append({"parent": parent, "child": directory})
+            # Skip relationships whose parent is the empty root; we no longer create that node
+            if parent:
+                dir_relationships.append({"parent": parent, "child": directory})
 
     if dir_relationships:
         logger.info(f"Creating {len(dir_relationships)} directory relationships...")
@@ -178,7 +181,9 @@ def create_files(
             if _Path(file_data["path"]).parent != _Path(".")
             else ""
         )
-        file_dir_rels.append({"file": file_data["path"], "directory": parent_dir})
+        # Skip root-level files; they have no containing directory node
+        if parent_dir:
+            file_dir_rels.append({"file": file_data["path"], "directory": parent_dir})
 
     if file_dir_rels:
         logger.info(f"Creating {len(file_dir_rels)} file-directory relationships...")
