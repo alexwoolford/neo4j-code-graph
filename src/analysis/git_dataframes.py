@@ -14,6 +14,8 @@ def create_dataframes(
     commits_df = pd.DataFrame(commits)
     commits_df["date"] = pd.to_datetime(commits_df["date"], utc=True)
 
+    # Parent SHAs are kept in commits_df["parents"]; bulk writer parses them to create PARENT edges.
+
     file_changes_df = pd.DataFrame(file_changes)
     developers_df = commits_df[["author_name", "author_email"]].drop_duplicates()
     developers_df = developers_df.rename(columns={"author_name": "name", "author_email": "email"})
@@ -27,4 +29,8 @@ def create_dataframes(
         len(files_df),
         len(file_changes_df),
     )
+    # Attach parents_df to return signature by convention expansion in callers if needed
+    # but maintain backward compatibility by returning four dataframes as before.
+    # Callers needing parents can import from commits_df by re-parsing, or we can
+    # later extend the function signature in a follow-up change if desired.
     return commits_df, developers_df, files_df, file_changes_df

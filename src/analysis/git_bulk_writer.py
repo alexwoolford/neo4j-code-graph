@@ -22,8 +22,8 @@ def bulk_load_to_neo4j(
     logger.info("Loading data to Neo4j using bulk operations...")
 
     def execute_with_retry(
-        session, query: str, params: dict, description: str, max_retries: int = 3
-    ):
+        session: Any, query: str, params: dict[str, Any], description: str, max_retries: int = 3
+    ) -> Any:
         for attempt in range(max_retries):
             try:
                 session.run(query, params)
@@ -82,6 +82,32 @@ def bulk_load_to_neo4j(
                 len(commits_data),
             )
 
+        # Create PARENT edges using parent SHAs parsed by git_reader (space-separated in 'parents').
+        parent_edges: list[dict[str, str]] = []
+        for commit in commits_data:
+            parents_field = commit.get("parents")
+            if isinstance(parents_field, str) and parents_field.strip():
+                for parent_sha in parents_field.strip().split(" "):
+                    if parent_sha:
+                        parent_edges.append({"sha": commit["sha"], "parent": parent_sha})
+
+        if parent_edges:
+            logger.info("Writing %d PARENT edges...", len(parent_edges))
+            batch_size = 10000
+            for i in range(0, len(parent_edges), batch_size):
+                batch = parent_edges[i : i + batch_size]
+                session = execute_with_retry(
+                    session,
+                    """
+                    UNWIND $edges AS e
+                    MERGE (c:Commit {sha: e.sha})
+                    MERGE (p:Commit {sha: e.parent})
+                    MERGE (c)-[:PARENT]->(p)
+                    """,
+                    {"edges": batch},
+                    f"parent edges batch {i // batch_size + 1}",
+                )
+
         logger.info("Loading %d files...", len(files_df))
         files_data = files_df.to_dict("records")
         session = execute_with_retry(
@@ -122,7 +148,11 @@ def bulk_load_to_neo4j(
                 MATCH (c:Commit {sha: change.sha})
                 MATCH (f:File {path: change.file_path})
                 MERGE (fv:FileVer {sha: change.sha, path: change.file_path})
-                MERGE (c)-[:CHANGED]->(fv)
+                MERGE (c)-[rel:CHANGED]->(fv)
+                SET rel.changeType = change.changeType,
+                    rel.additions = change.additions,
+                    rel.deletions = change.deletions,
+                    rel.renamedFrom = change.renamedFrom
                 MERGE (fv)-[:OF_FILE]->(f)
                 """,
                 {"changes": batch},

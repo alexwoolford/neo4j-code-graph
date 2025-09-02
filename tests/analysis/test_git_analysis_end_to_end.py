@@ -35,11 +35,21 @@ def test_extract_git_history_end_to_end(tmp_path: Path) -> None:
     repo.index.add([str(f1)])
     repo.index.commit("modify A")
 
+    # Rename file B -> C to exercise rename detection
+    c_path = repo_dir / "src" / "C.java"
+    c_path.write_text(f2.read_text(encoding="utf-8"), encoding="utf-8")
+    repo.index.remove([str(f2)])
+    repo.index.add([str(c_path)])
+    repo.index.commit("rename B to C")
+
     # Use HEAD to be agnostic to default branch naming
     commits, file_changes = extract_git_history(str(repo_dir), "HEAD", max_commits=None)
 
     assert len(commits) >= 3
     assert any("initial commit" in c["message"] for c in commits)
+    # Ensure parent SHAs are present (root commit may have none, later commits should)
+    assert all("parents" in c for c in commits)
+    assert any(c.get("parents", "") for c in commits[1:])
     assert any(fc["file_path"].endswith("A.java") for fc in file_changes)
     assert any(fc["file_path"].endswith("B.java") for fc in file_changes)
 
@@ -50,4 +60,13 @@ def test_extract_git_history_end_to_end(tmp_path: Path) -> None:
     assert set(files_df.columns) == {"path"}
     # Ensure both files are registered
     paths = set(files_df["path"].tolist())
-    assert "src/A.java" in paths and "src/B.java" in paths
+    assert "src/A.java" in paths and ("src/B.java" in paths or "src/C.java" in paths)
+
+    # Validate change properties presence
+    assert not file_changes_df.empty
+    assert {"sha", "file_path", "changeType", "additions", "deletions", "renamedFrom"}.issubset(
+        set(file_changes_df.columns)
+    )
+    # Ensure at least one modified and one added/renamed entry exist
+    assert (file_changes_df["changeType"] == "modified").any()
+    assert (file_changes_df["changeType"].isin(["added", "renamed"])).any()

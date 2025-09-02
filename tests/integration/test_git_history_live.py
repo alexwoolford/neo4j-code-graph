@@ -75,3 +75,15 @@ def test_git_history_live(tmp_path: Path):
                 "MATCH (:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(:File) RETURN count(*) AS c"
             ).single()
             assert rec and int(rec["c"]) >= 1
+            # New: verify at least one PARENT edge exists (second commit points to first)
+            rec = session.run("MATCH (:Commit)-[:PARENT]->(:Commit) RETURN count(*) AS c").single()
+            assert rec and int(rec["c"]) >= 1
+            # Verify CHANGED properties exist on some edge
+            rec = session.run(
+                """
+                MATCH (:Commit)-[r:CHANGED]->(:FileVer)
+                WITH collect(properties(r)) AS props
+                RETURN size(props) AS n, any(p IN props WHERE p.changeType IS NOT NULL) AS hasType
+                """
+            ).single()
+            assert rec and int(rec["n"]) >= 1 and bool(rec["hasType"]) is True

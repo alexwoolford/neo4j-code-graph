@@ -22,6 +22,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 
 // Core, high-frequency edges
 - *`(Commit)-[:CHANGED]->(FileVer)`*: Git change written by a commit.
+- *`(Commit)-[:PARENT]->(Commit)`*: Commit lineage; each commit points to its parent(s) (merge-aware).
 - *`(FileVer)-[:OF_FILE]->(File)`*: Version points to its file.
 - *`(Method)-[:CALLS]->(Method)`*: Static call graph edges.
 - *`(Method)-[:SIMILAR]->(Method)`*: Semantic similarity from embeddings (`score`).
@@ -45,6 +46,14 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 
 // Derived analyses
 - *`(File)-[:CO_CHANGED]->(File)`*: Temporal coupling (co‑change) with `support` and `confidence`.
+
+=== Relationship properties
+
+- `(:Commit)-[:CHANGED]->(:FileVer)` stores:
+  - `changeType` in {`added`,`modified`,`deleted`,`renamed`}
+  - `additions` (Integer): lines added (from git numstat)
+  - `deletions` (Integer): lines deleted (from git numstat)
+  - `renamedFrom` (String, optional): previous path when `changeType='renamed'`
 
 == Method similarity (UniXcoder)
 
