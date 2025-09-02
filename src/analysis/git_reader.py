@@ -141,21 +141,13 @@ def extract_git_history(
                         "deletions": None,
                     }
                 continue
-            # numstat: additions\tdeletions\tpath
-            if (
-                len(parts) == 3
-                and parts[0].isdigit()
-                or (parts[0] == "-" and parts[1] in {"-", "0", "1", "2", "3"})
+            # numstat: additions\tdeletions\tpath (numbers or '-' for binary)
+            if len(parts) == 3 and (
+                (parts[0].isdigit() or parts[0] == "-") and (parts[1].isdigit() or parts[1] == "-")
             ):
                 add_s, del_s, path = parts
-                try:
-                    adds = int(add_s) if add_s.isdigit() else None
-                except Exception:
-                    adds = None
-                try:
-                    dels = int(del_s) if del_s.isdigit() else None
-                except Exception:
-                    dels = None
+                adds = int(add_s) if add_s.isdigit() else None
+                dels = int(del_s) if del_s.isdigit() else None
                 if path not in status_map:
                     status_map[path] = {
                         "changeType": None,
