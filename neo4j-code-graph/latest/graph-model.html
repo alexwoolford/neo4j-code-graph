@@ -179,6 +179,9 @@
 <p><strong><code>(Commit)-[:CHANGED]&#8594;(FileVer)</code></strong>: Git change written by a commit.</p>
 </li>
 <li>
+<p><strong><code>(Commit)-[:PARENT]&#8594;(Commit)</code></strong>: Commit lineage; each commit points to its parent(s) (merge-aware).</p>
+</li>
+<li>
 <p><strong><code>(FileVer)-[:OF_FILE]&#8594;(File)</code></strong>: Version points to its file.</p>
 </li>
 <li>
@@ -242,6 +245,28 @@
 <p><strong><code>(File)-[:CO_CHANGED]&#8594;(File)</code></strong>: Temporal coupling (co‑change) with <code>support</code> and <code>confidence</code>.</p>
 </li>
 </ul>
+</div>
+<div class="sect2">
+<h3 id="_relationship_properties"><a class="anchor" href="#_relationship_properties"></a>Relationship properties</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>(:Commit)-[:CHANGED]&#8594;(:FileVer)</code> stores:</p>
+</li>
+<li>
+<p><code>changeType</code> in {<code>added</code>,<code>modified</code>,<code>deleted</code>,<code>renamed</code>}</p>
+</li>
+<li>
+<p><code>additions</code> (Integer): lines added (from git numstat)</p>
+</li>
+<li>
+<p><code>deletions</code> (Integer): lines deleted (from git numstat)</p>
+</li>
+<li>
+<p><code>renamedFrom</code> (String, optional): previous path when <code>changeType='renamed'</code></p>
+</li>
+</ul>
+</div>
 </div>
 </div>
 </div>
