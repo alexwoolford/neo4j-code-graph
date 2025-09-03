@@ -254,7 +254,7 @@
 <p><code>(:Commit)-[:CHANGED]&#8594;(:FileVer)</code> stores:</p>
 </li>
 <li>
-<p><code>changeType</code> in {<code>added</code>,<code>modified</code>,<code>deleted</code>,<code>renamed</code>}</p>
+<p><code>change_type</code> in {<code>added</code>,<code>modified</code>,<code>deleted</code>,<code>renamed</code>}</p>
 </li>
 <li>
 <p><code>additions</code> (Integer): lines added (from git numstat)</p>
@@ -263,7 +263,7 @@
 <p><code>deletions</code> (Integer): lines deleted (from git numstat)</p>
 </li>
 <li>
-<p><code>renamedFrom</code> (String, optional): previous path when <code>changeType='renamed'</code></p>
+<p><code>renamed_from</code> (String, optional): previous path when <code>change_type='renamed'</code></p>
 </li>
 </ul>
 </div>
