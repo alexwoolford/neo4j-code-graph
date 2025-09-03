@@ -17,3 +17,16 @@ RETURN f1.path, f2.path, cc.support, cc.confidence
 ORDER BY cc.confidence DESC
 LIMIT 25
 // end::cochange_pairs_simple[]
+
+// tag::top_changed_files_by_churn[]
+// Most changed files by total line churn (additions + deletions)
+MATCH (c:Commit)-[r:CHANGED]->(fv:FileVer)-[:OF_FILE]->(f:File)
+WITH f.path AS path,
+     count(*) AS changes,
+     sum(coalesce(r.additions, 0)) AS adds,
+     sum(coalesce(r.deletions, 0)) AS dels,
+     sum(coalesce(r.additions, 0) + coalesce(r.deletions, 0)) AS churn
+RETURN path, changes, adds, dels, churn
+ORDER BY churn DESC
+LIMIT 25
+// end::top_changed_files_by_churn[]

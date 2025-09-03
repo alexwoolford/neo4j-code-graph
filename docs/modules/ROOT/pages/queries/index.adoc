@@ -60,6 +60,13 @@ include::example$queries/team_process.cyp[tag=experts_for_module]
 include::example$queries/team_process.cyp[tag=cochange_pairs_simple]
 ----
 
+=== Most changed files by churn
+
+[source,cypher,subs=attributes+]
+----
+include::example$queries/team_process.cyp[tag=top_changed_files_by_churn]
+----
+
 == Executive Reporting
 
 === Technical health summary
