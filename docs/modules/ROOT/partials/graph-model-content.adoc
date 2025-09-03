@@ -17,7 +17,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *Developer*: An author; `name`, `email`.
 - *CVE*: Vulnerability record (from NVD); `id`, `cvss_score`.
 - *Directory*: A directory node used for hierarchical navigation; `path`.
-- *Doc*: Documentation snippet extracted from comments/docstrings; properties include `id` (unique), `file`, `language`, `kind`, `start_line`, `end_line`, and `text` (truncated to 1000 chars).
+- *Doc*: Documentation snippet extracted from comments/docstrings; properties include `id` (unique), `file`, `language`, `kind` (`javadoc`, `block_comment`, `line_comment`, etc.), `scope` (`file`, `class`, `method`), `start_line`, `end_line`, and `text` (truncated to 1000 chars).
 
 == Relationships
 

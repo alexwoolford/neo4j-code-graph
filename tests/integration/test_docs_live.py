@@ -63,20 +63,22 @@ def test_live_docs_created_and_linked():
                 {
                     "file": "src/A.java",
                     "language": "java",
-                    "kind": "comment",
+                    "kind": "javadoc",
                     "start_line": 1,
                     "end_line": 3,
                     "text": "Class A doc",
                     "class_name": "A",
+                    "scope": "class",
                 },
                 {
                     "file": "src/A.java",
                     "language": "java",
-                    "kind": "comment",
+                    "kind": "line_comment",
                     "start_line": 9,
                     "end_line": 9,
                     "text": "Method m1 doc",
                     "method_signature": "p.A#m1():void",
+                    "scope": "method",
                 },
             ],
         }
@@ -109,3 +111,13 @@ def test_live_docs_created_and_linked():
                 "MATCH (:Method {method_signature:'p.A#m1():void'})-[:HAS_DOC]->(:Doc {text:'Method m1 doc'}) RETURN count(*) AS c"
             ).single()
             assert rec and int(rec["c"]) == 1
+
+            # Kinds and scopes are stored
+            rec = s.run(
+                "MATCH (d:Doc {text:'Class A doc'}) RETURN d.kind AS k, d.scope AS s"
+            ).single()
+            assert rec and rec["k"] == "javadoc" and rec["s"] == "class"
+            rec = s.run(
+                "MATCH (d:Doc {text:'Method m1 doc'}) RETURN d.kind AS k, d.scope AS s"
+            ).single()
+            assert rec and rec["k"] == "line_comment" and rec["s"] == "method"

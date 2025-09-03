@@ -166,11 +166,12 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                             {
                                 "file": rel_path,
                                 "language": "java",
-                                "kind": "comment",
+                                "kind": doc.get("kind", "comment"),
                                 "start_line": doc["start"],
                                 "end_line": doc["end"],
                                 "text": doc["text"],
                                 "class_name": name,
+                                "scope": "class",
                             }
                         )
                 except Exception:
@@ -260,13 +261,14 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                         {
                             "file": rel_path,
                             "language": "java",
-                            "kind": "comment",
+                            "kind": doc.get("kind", "comment"),
                             "start_line": doc["start"],
                             "end_line": doc["end"],
                             "text": doc["text"],
                             "method_signature": None,  # will be filled downstream when signature built
                             "method_name": method_name,
                             "class_name": owner_name,
+                            "scope": "method",
                         }
                     )
             except Exception:
@@ -427,12 +429,13 @@ def _extract_naive(code: str, rel_path: str) -> JavaExtraction:
                         {
                             "file": rel_path,
                             "language": "java",
-                            "kind": "comment",
+                            "kind": doc.get("kind", "comment"),
                             "start_line": doc["start"],
                             "end_line": doc["end"],
                             "text": doc["text"],
                             "method_name": name,
                             "class_name": classes[0]["name"] if classes else None,
+                            "scope": "method",
                         }
                     )
             except Exception:
@@ -549,7 +552,7 @@ def _extract_comment_block_above(lines: list[str], start_line: int) -> dict[str,
         idx -= 1
     if idx < 0:
         return None
-    # Block comment ending at idx
+    # Block comment ending at idx (/** javadoc */ or /* block */)
     if lines[idx].strip().endswith("*/"):
         end = idx + 1
         # Find start of block
@@ -563,7 +566,8 @@ def _extract_comment_block_above(lines: list[str], start_line: int) -> dict[str,
             return None
         raw = lines[start - 1 : end]
         text = _clean_comment_text(raw)
-        return {"start": start, "end": end, "text": text}
+        kind = "javadoc" if any("/**" in ln for ln in raw) else "block_comment"
+        return {"start": start, "end": end, "text": text, "kind": kind}
     # Line comments //
     if lines[idx].lstrip().startswith("//"):
         end = idx + 1
@@ -573,7 +577,7 @@ def _extract_comment_block_above(lines: list[str], start_line: int) -> dict[str,
         start = j + 2
         raw = lines[start - 1 : end]
         text = _clean_comment_text(raw)
-        return {"start": start, "end": end, "text": text}
+        return {"start": start, "end": end, "text": text, "kind": "line_comment"}
     return None
 
 

@@ -465,6 +465,7 @@ def create_docs(session: Any, files_data: list[dict[str, Any]]) -> None:
                     "start_line": d.get("start_line"),
                     "end_line": d.get("end_line"),
                     "text": text[:1000],
+                    "scope": d.get("scope"),
                 }
             )
             file_path_val = d.get("file")
@@ -494,7 +495,8 @@ def create_docs(session: Any, files_data: list[dict[str, Any]]) -> None:
                     x.language = d.language,
                     x.start_line = d.start_line,
                     x.end_line = d.end_line,
-                    x.text = d.text
+                    x.text = d.text,
+                    x.scope = d.scope
                 """,
                 docs=batch,
             )
