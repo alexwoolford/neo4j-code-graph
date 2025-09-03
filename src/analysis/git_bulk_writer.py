@@ -125,7 +125,26 @@ def bulk_load_to_neo4j(
             return
 
         logger.info("Loading %d file changes with bulk operations...", len(file_changes_df))
-        file_changes_data = file_changes_df.to_dict("records")
+        # Coerce additions/deletions to integers and replace NaN with None to avoid float NaN in Neo4j
+        import math  # local import to avoid module-level dependency
+
+        def _as_int(val: Any) -> int | None:
+            if val is None:
+                return None
+            try:
+                # Handle pandas/numpy NaN
+                if isinstance(val, float) and math.isnan(val):
+                    return None
+                return int(val)
+            except Exception:
+                return None
+
+        raw_records: list[dict[str, Any]] = file_changes_df.to_dict("records")  # type: ignore[assignment]
+        file_changes_data: list[dict[str, Any]] = []
+        for rec in raw_records:
+            rec["additions"] = _as_int(rec.get("additions"))
+            rec["deletions"] = _as_int(rec.get("deletions"))
+            file_changes_data.append(rec)
         batch_size = 10000
         total_batches = (len(file_changes_data) + batch_size - 1) // batch_size
         logger.info("Processing in %d batches of %s records each", total_batches, f"{batch_size:,}")
