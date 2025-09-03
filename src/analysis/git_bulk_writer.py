@@ -168,10 +168,10 @@ def bulk_load_to_neo4j(
                 MATCH (f:File {path: change.file_path})
                 MERGE (fv:FileVer {sha: change.sha, path: change.file_path})
                 MERGE (c)-[rel:CHANGED]->(fv)
-                SET rel.changeType = change.changeType,
+                SET rel.change_type = change.change_type,
                     rel.additions = change.additions,
                     rel.deletions = change.deletions,
-                    rel.renamedFrom = change.renamedFrom
+                    rel.renamed_from = change.renamed_from
                 MERGE (fv)-[:OF_FILE]->(f)
                 """,
                 {"changes": batch},

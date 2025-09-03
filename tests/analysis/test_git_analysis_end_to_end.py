@@ -64,9 +64,9 @@ def test_extract_git_history_end_to_end(tmp_path: Path) -> None:
 
     # Validate change properties presence
     assert not file_changes_df.empty
-    assert {"sha", "file_path", "changeType", "additions", "deletions", "renamedFrom"}.issubset(
+    assert {"sha", "file_path", "change_type", "additions", "deletions", "renamed_from"}.issubset(
         set(file_changes_df.columns)
     )
     # Ensure at least one modified and one added/renamed entry exist
-    assert (file_changes_df["changeType"] == "modified").any()
-    assert (file_changes_df["changeType"].isin(["added", "renamed"])).any()
+    assert (file_changes_df["change_type"] == "modified").any()
+    assert (file_changes_df["change_type"].isin(["added", "renamed"])).any()

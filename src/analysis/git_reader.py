@@ -81,7 +81,7 @@ def extract_git_history(
         commits_processed / total_time if total_time > 0 else 0,
     )
 
-    # Enrich file changes with changeType/additions/deletions/renamedFrom using git show per commit.
+    # Enrich file changes with change_type/additions/deletions/renamed_from using git show per commit.
     enriched_changes: list[dict[str, str | int | None]] = []
     for c in commits:
         sha = c["sha"]
@@ -111,32 +111,32 @@ def extract_git_history(
                 old_path = parts[1]
                 new_path = parts[2]
                 status_map[new_path] = {
-                    "changeType": "renamed",
-                    "renamedFrom": old_path,
+                    "change_type": "renamed",
+                    "renamed_from": old_path,
                     "additions": None,
                     "deletions": None,
                 }
             elif code.startswith("A") and len(parts) >= 2:
                 path = parts[1]
                 status_map[path] = {
-                    "changeType": "added",
-                    "renamedFrom": None,
+                    "change_type": "added",
+                    "renamed_from": None,
                     "additions": None,
                     "deletions": None,
                 }
             elif code.startswith("M") and len(parts) >= 2:
                 path = parts[1]
                 status_map[path] = {
-                    "changeType": "modified",
-                    "renamedFrom": None,
+                    "change_type": "modified",
+                    "renamed_from": None,
                     "additions": None,
                     "deletions": None,
                 }
             elif code.startswith("D") and len(parts) >= 2:
                 path = parts[1]
                 status_map[path] = {
-                    "changeType": "deleted",
-                    "renamedFrom": None,
+                    "change_type": "deleted",
+                    "renamed_from": None,
                     "additions": None,
                     "deletions": None,
                 }
@@ -166,8 +166,8 @@ def extract_git_history(
                 dels = int(del_s) if del_s.isdigit() else None
                 if path not in status_map:
                     status_map[path] = {
-                        "changeType": None,
-                        "renamedFrom": None,
+                        "change_type": None,
+                        "renamed_from": None,
                         "additions": adds,
                         "deletions": dels,
                     }
@@ -180,10 +180,10 @@ def extract_git_history(
                 {
                     "sha": sha,
                     "file_path": path,
-                    "changeType": props.get("changeType"),
+                    "change_type": props.get("change_type"),
                     "additions": props.get("additions"),
                     "deletions": props.get("deletions"),
-                    "renamedFrom": props.get("renamedFrom"),
+                    "renamed_from": props.get("renamed_from"),
                 }
             )
 

@@ -83,7 +83,7 @@ def test_git_history_live(tmp_path: Path):
                 """
                 MATCH (:Commit)-[r:CHANGED]->(:FileVer)
                 WITH collect(properties(r)) AS props
-                RETURN size(props) AS n, any(p IN props WHERE p.changeType IS NOT NULL) AS hasType
+                RETURN size(props) AS n, any(p IN props WHERE p.change_type IS NOT NULL) AS hasType
                 """
             ).single()
             assert rec and int(rec["n"]) >= 1 and bool(rec["hasType"]) is True

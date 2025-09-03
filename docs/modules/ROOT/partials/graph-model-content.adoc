@@ -50,10 +50,10 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 === Relationship properties
 
 - `(:Commit)-[:CHANGED]->(:FileVer)` stores:
-  - `changeType` in {`added`,`modified`,`deleted`,`renamed`}
+  - `change_type` in {`added`,`modified`,`deleted`,`renamed`}
   - `additions` (Integer): lines added (from git numstat)
   - `deletions` (Integer): lines deleted (from git numstat)
-  - `renamedFrom` (String, optional): previous path when `changeType='renamed'`
+  - `renamed_from` (String, optional): previous path when `change_type='renamed'`
 
 == Method similarity (UniXcoder)
 
