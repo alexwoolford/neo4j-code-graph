@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from tree_sitter import Parser
 
@@ -29,18 +30,19 @@ except Exception:  # pragma: no cover
 @dataclass
 class JavaExtraction:
     package_name: str | None
-    imports: list[dict]
-    classes: list[dict]
-    interfaces: list[dict]
-    methods: list[dict]
+    imports: list[dict[str, Any]]
+    classes: list[dict[str, Any]]
+    interfaces: list[dict[str, Any]]
+    methods: list[dict[str, Any]]
+    docs: list[dict[str, Any]]
 
 
-def _node_text(source_bytes: bytes, node) -> str:
+def _node_text(source_bytes: bytes, node: Any) -> str:
     return source_bytes[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
 
 
-def _child_by_type(node, type_name: str):
-    for child in node.children:
+def _child_by_type(node: Any, type_name: str) -> Any | None:
+    for child in getattr(node, "children", []) or []:
         if child.type == type_name:
             return child
     return None
@@ -58,10 +60,11 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
     source_bytes = code.encode("utf-8", errors="ignore")
 
     package_name: str | None = None
-    imports: list[dict] = []
-    classes: list[dict] = []
-    interfaces: list[dict] = []
-    methods: list[dict] = []
+    imports: list[dict[str, Any]] = []
+    classes: list[dict[str, Any]] = []
+    interfaces: list[dict[str, Any]] = []
+    methods: list[dict[str, Any]] = []
+    docs: list[dict[str, Any]] = []
 
     # Collect package name
     for child in root.children:
@@ -114,7 +117,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 )
 
     # Class, interface, and record declarations
-    def _extract_return_type(mnode) -> str:
+    def _extract_return_type(mnode: Any) -> str:
         """Extract method return type from a method_declaration node."""
         # Find the identifier child to bound the search
         ident = _child_by_type(mnode, "identifier")
@@ -138,13 +141,13 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
         text = _node_text(source_bytes, node).strip()
         return text if text else "void"
 
-    def walk(node, ancestors: list):
+    def walk(node: Any, ancestors: list[Any]) -> None:
         if node.type in ("class_declaration", "interface_declaration", "record_declaration"):
             identifier = _child_by_type(node, "identifier")
             name = _node_text(source_bytes, identifier) if identifier else ""
             start_line = node.start_point[0] + 1
             end_line = node.end_point[0] + 1
-            info = {
+            info: dict[str, Any] = {
                 "name": name,
                 "file": rel_path,
                 "package": package_name,
@@ -154,6 +157,24 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             if node.type == "class_declaration":
                 info.update({"type": "class", "estimated_lines": max(0, end_line - start_line)})
                 classes.append(info)
+                # Extract comment block immediately above class
+                try:
+                    lines = code.splitlines()
+                    doc = _extract_comment_block_above(lines, start_line)
+                    if doc:
+                        docs.append(
+                            {
+                                "file": rel_path,
+                                "language": "java",
+                                "kind": "comment",
+                                "start_line": doc["start"],
+                                "end_line": doc["end"],
+                                "text": doc["text"],
+                                "class_name": name,
+                            }
+                        )
+                except Exception:
+                    pass
             elif node.type == "interface_declaration":
                 info.update({"type": "interface", "method_count": 0})
                 interfaces.append(info)
@@ -184,7 +205,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             method_code = code.splitlines()[start_line - 1 : end_line]
 
             # Extract parameters
-            params_list: list[dict] = []
+            params_list: list[dict[str, Any]] = []
             formal_params = _child_by_type(node, "formal_parameters")
             if formal_params is not None:
                 # formal_parameters -> '(' parameter_list? ')'
@@ -230,10 +251,30 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "calls": [],
                 }
             )
+            # Comment block immediately above method
+            try:
+                lines = code.splitlines()
+                doc = _extract_comment_block_above(lines, start_line)
+                if doc:
+                    docs.append(
+                        {
+                            "file": rel_path,
+                            "language": "java",
+                            "kind": "comment",
+                            "start_line": doc["start"],
+                            "end_line": doc["end"],
+                            "text": doc["text"],
+                            "method_signature": None,  # will be filled downstream when signature built
+                            "method_name": method_name,
+                            "class_name": owner_name,
+                        }
+                    )
+            except Exception:
+                pass
             # Populate calls by traversing the method subtree
-            calls_list = []
+            calls_list: list[dict[str, Any]] = []
 
-            def _walk_calls(n):
+            def _walk_calls(n: Any) -> None:
                 if n.type == "method_invocation":
                     # Extract invocation text and method name
                     inv_text = _node_text(source_bytes, n)
@@ -277,7 +318,9 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
 
     # Fix interface method counts
     for intf in interfaces:
-        intf["method_count"] = sum(1 for m in methods if m.get("class_name") == intf["name"])
+        intf["method_count"] = sum(
+            1 for m in methods if isinstance(m, dict) and m.get("class_name") == intf.get("name")
+        )
 
     return JavaExtraction(
         package_name=package_name,
@@ -285,6 +328,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
         classes=classes,
         interfaces=interfaces,
         methods=methods,
+        docs=docs,
     )
 
 
@@ -295,11 +339,12 @@ def _extract_naive(code: str, rel_path: str) -> JavaExtraction:
     import re
 
     lines = code.splitlines()
-    package_name = None
-    imports = []
-    classes = []
-    interfaces = []
-    methods = []
+    package_name: str | None = None
+    imports: list[dict[str, Any]] = []
+    classes: list[dict[str, Any]] = []
+    interfaces: list[dict[str, Any]] = []
+    methods: list[dict[str, Any]] = []
+    docs: list[dict[str, Any]] = []
 
     # package
     for i, line in enumerate(lines, start=1):
@@ -374,6 +419,24 @@ def _extract_naive(code: str, rel_path: str) -> JavaExtraction:
                     "calls": [],
                 }
             )
+            # naive doc above method
+            try:
+                doc = _extract_comment_block_above(lines, i)
+                if doc:
+                    docs.append(
+                        {
+                            "file": rel_path,
+                            "language": "java",
+                            "kind": "comment",
+                            "start_line": doc["start"],
+                            "end_line": doc["end"],
+                            "text": doc["text"],
+                            "method_name": name,
+                            "class_name": classes[0]["name"] if classes else None,
+                        }
+                    )
+            except Exception:
+                pass
 
     # fix interface method counts
     for intf in interfaces:
@@ -385,10 +448,11 @@ def _extract_naive(code: str, rel_path: str) -> JavaExtraction:
         classes=classes,
         interfaces=interfaces,
         methods=methods,
+        docs=docs,
     )
 
 
-def extract_file_data(java_file: Path, project_root: Path) -> dict:
+def extract_file_data(java_file: Path, project_root: Path) -> dict[str, Any]:
     """
     Heuristic extractor API compatible with tests expecting extract_file_data.
     Returns a dict with counts and methods/interfaces/classes similar to javalang path.
@@ -405,7 +469,11 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict:
 
     # Ensure method entries carry required fields for downstream writers
     def _build_signature(
-        pkg: str | None, cls: str | None, name: str, params: list | None, ret: str | None
+        pkg: str | None,
+        cls: str | None,
+        name: str,
+        params: list[dict[str, Any]] | None,
+        ret: str | None,
     ) -> str:
         pkg_prefix = f"{pkg}." if pkg else ""
         owner = cls or ""
@@ -413,7 +481,7 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict:
         if params:
             for p in params:
                 t = p.get("type") if isinstance(p, dict) else None
-                if t:
+                if t is not None:
                     param_types.append(str(t))
         params_sig = ",".join(param_types)
         ret_type = ret or "void"
@@ -438,6 +506,19 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict:
             # Fallback to minimal signature
             name = m.get("name", "")
             m.setdefault("method_signature", f"{m.get('class_name') or ''}#{name}():void")
+    # Attach method signatures to docs that reference method/class names
+    for d in extraction.docs:
+        if isinstance(d, dict) and d.get("method_name"):
+            # Find matching method by name and class
+            for m in extraction.methods:
+                if not isinstance(m, dict):
+                    continue
+                if m.get("name") == d.get("method_name") and m.get("class_name") == d.get(
+                    "class_name"
+                ):
+                    d["method_signature"] = m.get("method_signature")
+                    break
+
     return {
         "path": rel_path,
         "code": code,
@@ -445,6 +526,7 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict:
         "classes": extraction.classes,
         "interfaces": extraction.interfaces,
         "methods": extraction.methods,
+        "docs": extraction.docs,
         "language": "java",
         "ecosystem": "maven",
         "total_lines": len(code.splitlines()),
@@ -453,3 +535,61 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict:
         "class_count": len(extraction.classes),
         "interface_count": len(extraction.interfaces),
     }
+
+
+def _extract_comment_block_above(lines: list[str], start_line: int) -> dict[str, Any] | None:
+    """Heuristic: return contiguous comment block immediately above start_line (1-based).
+    Supports // line comments and /* ... */ blocks. Returns dict with start,end,text.
+    """
+    idx = start_line - 2
+    if idx < 0:
+        return None
+    # Skip single blank line directly above
+    if idx >= 0 and not lines[idx].strip():
+        idx -= 1
+    if idx < 0:
+        return None
+    # Block comment ending at idx
+    if lines[idx].strip().endswith("*/"):
+        end = idx + 1
+        # Find start of block
+        j = idx
+        while j >= 0:
+            if "/*" in lines[j]:
+                start = j + 1
+                break
+            j -= 1
+        else:
+            return None
+        raw = lines[start - 1 : end]
+        text = _clean_comment_text(raw)
+        return {"start": start, "end": end, "text": text}
+    # Line comments //
+    if lines[idx].lstrip().startswith("//"):
+        end = idx + 1
+        j = idx
+        while j >= 0 and lines[j].lstrip().startswith("//"):
+            j -= 1
+        start = j + 2
+        raw = lines[start - 1 : end]
+        text = _clean_comment_text(raw)
+        return {"start": start, "end": end, "text": text}
+    return None
+
+
+def _clean_comment_text(raw_lines: list[str]) -> str:
+    buf: list[str] = []
+    for ln in raw_lines:
+        s = ln.strip()
+        if s.startswith("/*"):
+            s = s[2:]
+        if s.endswith("*/"):
+            s = s[:-2]
+        s = s.lstrip("*")
+        if s.startswith("//"):
+            s = s[2:]
+        buf.append(s.strip())
+    text = "\n".join(buf).strip()
+    if len(text) > 1000:
+        text = text[:1000]
+    return text

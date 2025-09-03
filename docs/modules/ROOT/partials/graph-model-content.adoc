@@ -17,6 +17,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *Developer*: An author; `name`, `email`.
 - *CVE*: Vulnerability record (from NVD); `id`, `cvss_score`.
 - *Directory*: A directory node used for hierarchical navigation; `path`.
+- *Doc*: Documentation snippet extracted from comments/docstrings; properties include `id` (unique), `file`, `language`, `kind`, `start_line`, `end_line`, and `text` (truncated to 1000 chars).
 
 == Relationships
 
@@ -31,6 +32,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *`(Interface)-[:CONTAINS_METHOD]->(Method)`*: Method belongs to interface.
 - *`(File)-[:IMPORTS]->(Import)`*: File contains an import declaration.
 - *`(Import)-[:DEPENDS_ON]->(ExternalDependency)`*: Import maps to an external package.
+- *`(File|Class|Method)-[:HAS_DOC]->(Doc)`*: Documentation links from source elements to extracted docs.
 
 // Type and hierarchy
 - *`(Class)-[:EXTENDS]->(Class)`*: Inheritance between classes.

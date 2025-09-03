@@ -92,6 +92,12 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
         "id",
         "CREATE CONSTRAINT cve_id_unique IF NOT EXISTS FOR (cve:CVE) REQUIRE cve.id IS UNIQUE",
     ),
+    (
+        "doc_id_unique",
+        "Doc",
+        "id",
+        "CREATE CONSTRAINT doc_id_unique IF NOT EXISTS FOR (d:Doc) REQUIRE d.id IS UNIQUE",
+    ),
 ]
 
 SCHEMA_INDEXES: list[tuple[str, str, str]] = [

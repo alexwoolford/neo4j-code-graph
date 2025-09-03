@@ -67,6 +67,24 @@ include::example$queries/team_process.cyp[tag=cochange_pairs_simple]
 include::example$queries/team_process.cyp[tag=top_changed_files_by_churn]
 ----
 
+=== Find documentation attached to methods or classes
+
+Use HAS_DOC to surface docstrings/comments linked to code elements.
+
+----
+// Methods and their attached docs
+MATCH (m:Method)-[:HAS_DOC]->(d:Doc)
+RETURN m.method_signature AS method, d.text AS doc, d.start_line AS start, d.end_line AS end
+ORDER BY method, start
+----
+
+----
+// Classes and their attached docs
+MATCH (c:Class)-[:HAS_DOC]->(d:Doc)
+RETURN c.name AS class, c.file AS file, d.text AS doc, d.start_line AS start
+ORDER BY file, class, start
+----
+
 == Executive Reporting
 
 === Technical health summary

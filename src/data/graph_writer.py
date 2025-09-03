@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 try:
     from src.constants import EMBEDDING_TYPE  # type: ignore[attr-defined]
@@ -20,6 +20,11 @@ try:
 except Exception:  # pragma: no cover
     from utils.progress import progress_range  # type: ignore
 
+try:
+    from src.constants import EMBEDDING_PROPERTY as EMB_PROP  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    from constants import EMBEDDING_PROPERTY as EMB_PROP  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +39,7 @@ def _get_database_batch_size(
 def create_directories(session: Any, files_data: list[dict[str, Any]]) -> None:
     batch_size = 1000
 
-    directories = set()
+    directories: set[str] = set()
     for file_data in files_data:
         from pathlib import Path
 
@@ -44,7 +49,7 @@ def create_directories(session: Any, files_data: list[dict[str, Any]]) -> None:
             dir_path = str(Path(*path_parts[:i]))
             directories.add(dir_path)
 
-    directories_list = list(directories)
+    directories_list: list[str] = list(directories)
     if directories_list:
         logger.info(f"Creating {len(directories_list)} directory nodes...")
         for i in progress_range(0, len(directories_list), batch_size, desc="Directory nodes"):
@@ -56,7 +61,7 @@ def create_directories(session: Any, files_data: list[dict[str, Any]]) -> None:
                 directories=batch,
             )
 
-    dir_relationships = []
+    dir_relationships: list[dict[str, str]] = []
     from pathlib import Path as _P
 
     for directory in directories:
@@ -113,15 +118,10 @@ def create_files(
             except Exception:
                 emb_value = None
 
-        try:
-            from src.constants import EMBEDDING_PROPERTY as _EMB_PROP  # type: ignore[attr-defined]
-        except Exception:  # pragma: no cover
-            from constants import EMBEDDING_PROPERTY as _EMB_PROP  # type: ignore
-
         file_node = {
             "path": file_path_str,
             "name": file_name_only,
-            **({_EMB_PROP: emb_value} if has_embedding and emb_value is not None else {}),
+            **({EMB_PROP: emb_value} if has_embedding and emb_value is not None else {}),
             "embedding_type": EMBEDDING_TYPE,
             "language": file_data.get("language", "java"),
             "ecosystem": file_data.get("ecosystem", "maven"),
@@ -156,23 +156,23 @@ def create_files(
                     f.class_count = file.class_count,
                     f.interface_count = file.interface_count,
                     f."""
-                    + f"{_EMB_PROP}"
+                    + f"{EMB_PROP}"
                     + """ = CASE WHEN file."""
-                    + f"{_EMB_PROP}"
+                    + f"{EMB_PROP}"
                     + """ IS NOT NULL THEN file."""
-                    + f"{_EMB_PROP}"
+                    + f"{EMB_PROP}"
                     + """ ELSE f."""
-                    + f"{_EMB_PROP}"
+                    + f"{EMB_PROP}"
                     + """ END,
                     f.embedding_type = CASE WHEN file."""
-                    + f"{_EMB_PROP}"
+                    + f"{EMB_PROP}"
                     + """ IS NOT NULL THEN file.embedding_type ELSE f.embedding_type END
                 """
                 ),
-                files=[{**f, _EMB_PROP: f.get(_EMB_PROP)} for f in batch],
+                files=[{**f, EMB_PROP: f.get(EMB_PROP)} for f in batch],
             )
 
-    file_dir_rels = []
+    file_dir_rels: list[dict[str, str]] = []
     from pathlib import Path as _Path
 
     for file_data in files_data:
@@ -432,6 +432,105 @@ def bulk_create_nodes_and_relationships(
     create_files(session, files_data, file_embeddings)
     create_classes(session, files_data)
     create_methods(session, files_data, method_embeddings)
+    # Create Doc nodes (docstrings/comments) and HAS_DOC relationships
+    create_docs(session, files_data)
     create_imports(session, files_data, dependency_versions)
     create_method_calls(session, files_data)
     logger.info("Bulk creation completed!")
+
+
+def create_docs(session: Any, files_data: list[dict[str, Any]]) -> None:
+    """Create Doc nodes from extracted docs in files_data."""
+    docs: list[dict[str, Any]] = []
+    rels_file: list[dict[str, str]] = []
+    rels_method: list[dict[str, str]] = []
+    rels_class: list[dict[str, str]] = []
+
+    import hashlib as _hash
+
+    for fd in files_data:
+        doc_items = cast(list[dict[str, Any]], fd.get("docs", []) or [])
+        for d in doc_items:
+            text_val = d.get("text", "")
+            text: str = text_val if isinstance(text_val, str) else ""
+            # Stable id: sha256(file + kind + start + end + first 64 chars)
+            basis = f"{d.get('file')}|{d.get('kind')}|{d.get('start_line')}|{d.get('end_line')}|{text[:64]}"
+            doc_id = _hash.sha256(basis.encode("utf-8", errors="ignore")).hexdigest()
+            docs.append(
+                {
+                    "id": doc_id,
+                    "file": d.get("file"),
+                    "kind": d.get("kind"),
+                    "language": d.get("language"),
+                    "start_line": d.get("start_line"),
+                    "end_line": d.get("end_line"),
+                    "text": text[:1000],
+                }
+            )
+            file_path_val = d.get("file")
+            if isinstance(file_path_val, str):
+                rels_file.append({"file": file_path_val, "id": doc_id})
+            # Method attachment if available
+            sig_val: str | None = (
+                d.get("method_signature") if isinstance(d.get("method_signature"), str) else None
+            )
+            if sig_val:
+                rels_method.append({"sig": sig_val, "id": doc_id})
+            cls_val = d.get("class_name")
+            if isinstance(cls_val, str) and not sig_val and isinstance(file_path_val, str):
+                rels_class.append({"file": file_path_val, "name": cls_val, "id": doc_id})
+
+    if docs:
+        logger.info("Creating %d Doc nodes...", len(docs))
+        batch_size = 1000
+        for i in progress_range(0, len(docs), batch_size, desc="Doc nodes"):
+            batch = docs[i : i + batch_size]
+            session.run(
+                """
+                UNWIND $docs AS d
+                MERGE (x:Doc {id: d.id})
+                SET x.file = d.file,
+                    x.kind = d.kind,
+                    x.language = d.language,
+                    x.start_line = d.start_line,
+                    x.end_line = d.end_line,
+                    x.text = d.text
+                """,
+                docs=batch,
+            )
+    if rels_file:
+        for i in progress_range(0, len(rels_file), 2000, desc="File->Doc rels"):
+            batch = rels_file[i : i + 2000]
+            session.run(
+                """
+                UNWIND $rels AS r
+                MATCH (f:File {path:r.file})
+                MATCH (d:Doc {id:r.id})
+                MERGE (f)-[:HAS_DOC]->(d)
+                """,
+                rels=batch,
+            )
+    if rels_method:
+        for i in progress_range(0, len(rels_method), 2000, desc="Method->Doc rels"):
+            batch = rels_method[i : i + 2000]
+            session.run(
+                """
+                UNWIND $rels AS r
+                MATCH (m:Method {method_signature:r.sig})
+                MATCH (d:Doc {id:r.id})
+                MERGE (m)-[:HAS_DOC]->(d)
+                """,
+                rels=batch,
+            )
+    if rels_class:
+        for i in progress_range(0, len(rels_class), 2000, desc="Class->Doc rels"):
+            batch = rels_class[i : i + 2000]
+            session.run(
+                """
+                UNWIND $rels AS r
+                MATCH (c:Class {name:r.name, file:r.file})
+                MATCH (d:Doc {id:r.id})
+                MERGE (c)-[:HAS_DOC]->(d)
+                """,
+                rels=batch,
+            )
