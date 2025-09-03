@@ -85,63 +85,79 @@ def extract_git_history(
     enriched_changes: list[dict[str, str | int | None]] = []
     for c in commits:
         sha = c["sha"]
-        show_cmd: list[str] = [
+        status_map: dict[str, dict[str, str | int | None]] = {}
+        # Pass 1: change types and renames
+        ns_cmd = [
             "git",
             "show",
-            "--numstat",
             "--name-status",
             "-M",
             "--format=",
             sha,
         ]
-        proc = subprocess.Popen(
-            show_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        proc1 = subprocess.Popen(
+            ns_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-        assert proc.stdout is not None
-        status_map: dict[str, dict[str, str | int | None]] = {}
-        for ln in proc.stdout:
+        assert proc1.stdout is not None
+        for ln in proc1.stdout:
             ln = ln.rstrip("\n")
             if not ln:
                 continue
-            # name-status: A\tpath | M\tpath | D\tpath | Rxxx\told\tnew
             parts = ln.split("\t")
-            if parts[0] and parts[0][0] in {"A", "M", "D", "R"}:
-                code = parts[0]
-                if code.startswith("R") and len(parts) >= 3:
-                    old_path = parts[1]
-                    new_path = parts[2]
-                    status_map[new_path] = {
-                        "changeType": "renamed",
-                        "renamedFrom": old_path,
-                        "additions": None,
-                        "deletions": None,
-                    }
-                elif code.startswith("A") and len(parts) >= 2:
-                    path = parts[1]
-                    status_map[path] = {
-                        "changeType": "added",
-                        "renamedFrom": None,
-                        "additions": None,
-                        "deletions": None,
-                    }
-                elif code.startswith("M") and len(parts) >= 2:
-                    path = parts[1]
-                    status_map[path] = {
-                        "changeType": "modified",
-                        "renamedFrom": None,
-                        "additions": None,
-                        "deletions": None,
-                    }
-                elif code.startswith("D") and len(parts) >= 2:
-                    path = parts[1]
-                    status_map[path] = {
-                        "changeType": "deleted",
-                        "renamedFrom": None,
-                        "additions": None,
-                        "deletions": None,
-                    }
+            if not parts:
                 continue
-            # numstat: additions\tdeletions\tpath (numbers or '-' for binary)
+            code = parts[0]
+            if code.startswith("R") and len(parts) >= 3:
+                old_path = parts[1]
+                new_path = parts[2]
+                status_map[new_path] = {
+                    "changeType": "renamed",
+                    "renamedFrom": old_path,
+                    "additions": None,
+                    "deletions": None,
+                }
+            elif code.startswith("A") and len(parts) >= 2:
+                path = parts[1]
+                status_map[path] = {
+                    "changeType": "added",
+                    "renamedFrom": None,
+                    "additions": None,
+                    "deletions": None,
+                }
+            elif code.startswith("M") and len(parts) >= 2:
+                path = parts[1]
+                status_map[path] = {
+                    "changeType": "modified",
+                    "renamedFrom": None,
+                    "additions": None,
+                    "deletions": None,
+                }
+            elif code.startswith("D") and len(parts) >= 2:
+                path = parts[1]
+                status_map[path] = {
+                    "changeType": "deleted",
+                    "renamedFrom": None,
+                    "additions": None,
+                    "deletions": None,
+                }
+
+        # Pass 2: line counts
+        num_cmd = [
+            "git",
+            "show",
+            "--numstat",
+            "--format=",
+            sha,
+        ]
+        proc2 = subprocess.Popen(
+            num_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        assert proc2.stdout is not None
+        for ln in proc2.stdout:
+            ln = ln.rstrip("\n")
+            if not ln:
+                continue
+            parts = ln.split("\t")
             if len(parts) == 3 and (
                 (parts[0].isdigit() or parts[0] == "-") and (parts[1].isdigit() or parts[1] == "-")
             ):
