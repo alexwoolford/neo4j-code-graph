@@ -106,12 +106,12 @@ def cleanup_similarities(session: Session, dry_run: bool = False) -> int:
 
 
 def cleanup_communities(
-    session: Session, community_property: str = "similarityCommunity", dry_run: bool = False
+    session: Session, community_property: str = "similarity_community", dry_run: bool = False
 ) -> None:
     """Remove community properties from Method nodes."""
     # Count nodes with community property (static property name for strict typing)
     result = session.run(
-        "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL RETURN count(m) as count"
+        "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL RETURN count(m) as count"
     )
     single = result.single()
     count = int(single["count"]) if single and "count" in single else 0
@@ -132,7 +132,7 @@ def cleanup_communities(
 
         def _remove_prop(tx):
             tx.run(
-                "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL REMOVE m.similarityCommunity"
+                "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL REMOVE m.similarity_community"
             ).consume()
 
         session.execute_write(_remove_prop)
@@ -211,7 +211,7 @@ def selective_cleanup(session: Session, dry_run: bool = False) -> None:
     """
     logger.info("Starting selective cleanup%s...", " (DRY RUN)" if dry_run else "")
     cleanup_similarities(session, dry_run)
-    cleanup_communities(session, "similarityCommunity", dry_run)
+    cleanup_communities(session, "similarity_community", dry_run)
     cleanup_graph_projections(session, dry_run)
     cleanup_vector_index(session, dry_run)
     logger.info("Selective cleanup completed%s", " (DRY RUN)" if dry_run else "")
@@ -509,7 +509,7 @@ def main():
                     cleanup_similarities(session, args.dry_run)
 
                     # Clean up community properties
-                    cleanup_communities(session, "similarityCommunity", args.dry_run)
+                    cleanup_communities(session, "similarity_community", args.dry_run)
 
                     # Clean up GDS graph projections
                     cleanup_graph_projections(session, args.dry_run)

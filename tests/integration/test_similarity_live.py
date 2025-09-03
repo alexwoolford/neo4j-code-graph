@@ -90,12 +90,12 @@ def test_knn_and_louvain_live():
             ).consume()
 
             session.run(
-                "CALL gds.louvain.write('simComm', {writeProperty:'similarityCommunity'})"
+                "CALL gds.louvain.write('simComm', {writeProperty:'similarity_community'})"
             ).consume()
 
             # Verify at least one community assignment
             rec = session.run(
-                "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL RETURN count(m) AS c"
+                "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL RETURN count(m) AS c"
             ).single()
             assert rec and int(rec["c"]) >= 1
 
@@ -138,9 +138,9 @@ def test_similarity_module_sets_model_property_live():
         # s.model should be present on SIMILAR edges
         model_rows = gds.run_cypher("MATCH ()-[s:SIMILAR]->() RETURN count(s.model) AS c")
         assert int(model_rows.iloc[0]["c"]) >= 1
-        run_louvain(gds, threshold=0.0, community_property="similarityCommunity")
+        run_louvain(gds, threshold=0.0, community_property="similarity_community")
         comm_rows = gds.run_cypher(
-            "MATCH (m:Method) WHERE m.similarityCommunity IS NOT NULL RETURN count(m) AS c"
+            "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL RETURN count(m) AS c"
         )
         assert int(comm_rows.iloc[0]["c"]) >= 1
     finally:

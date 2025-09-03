@@ -236,7 +236,7 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
 
 
 def run_louvain(
-    gds: GraphDataScience, threshold: float = 0.8, community_property: str = "similarityCommunity"
+    gds: GraphDataScience, threshold: float = 0.8, community_property: str = "similarity_community"
 ) -> None:
     """Run Louvain on SIMILAR relationships and write communities."""
     graph_name = "similarityGraph"

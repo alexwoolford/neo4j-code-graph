@@ -155,7 +155,7 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
     (
         "method_similarity_community",
         "Method",
-        "CREATE INDEX method_similarity_community IF NOT EXISTS FOR (m:Method) ON (m.similarityCommunity)",
+        "CREATE INDEX method_similarity_community IF NOT EXISTS FOR (m:Method) ON (m.similarity_community)",
     ),
 ]
 

@@ -70,7 +70,7 @@ PAGERANK_MAX_ITERATIONS = 100  # canonical default exposed via config/tests
 PAGERANK_ANALYSIS_ITERATIONS = 20  # lighter default used by analysis scripts
 SIMILARITY_THRESHOLD = 0.8
 KNN_NEIGHBORS = 5
-COMMUNITY_PROPERTY = "similarityCommunity"
+COMMUNITY_PROPERTY = "similarity_community"
 
 # Similarity defaults (can be overridden by env)
 SIMILARITY_TOP_K = int(os.getenv("SIMILARITY_TOP_K", os.getenv("SIM_TOP_K", "5")))

@@ -116,8 +116,8 @@ def run_coupling(
       WITH CASE WHEN f1.path < f2.path THEN [f1,f2] ELSE [f2,f1] END AS p
       WITH p[0] AS f1, p[1] AS f2
       MERGE (f1)-[cc:CO_CHANGED]->(f2)
-      ON CREATE SET cc.support = 1, cc.lastUpdated = datetime()
-      ON MATCH  SET cc.support = cc.support + 1, cc.lastUpdated = datetime()
+      ON CREATE SET cc.support = 1, cc.last_updated = datetime()
+      ON MATCH  SET cc.support = cc.support + 1, cc.last_updated = datetime()
       ',
       {batchSize: 250, parallel: true, params: {days: $days, maxFilesPerCommit: $max_files}}
     )

@@ -117,7 +117,7 @@ These property lists are generated from the live database via `db.schema.nodeTyp
 - `out_degree` (Long): Number of distinct outgoing CALLS.
 - `pagerank_score` (Double): PageRank centrality score on the call graph.
 - `return_type` (String): Declared return type.
-- `similarityCommunity` (Long): Community id from similarity clustering (Louvain).
+- `similarity_community` (Long): Community id from similarity clustering (Louvain).
 - `total_degree` (Long): Sum of in_degree and out_degree.
 
 === Class

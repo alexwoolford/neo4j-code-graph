@@ -155,6 +155,6 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
                 "CALL gds.graph.project('pipeComm', ['Method'], { SIMILAR: { type: 'SIMILAR', orientation: 'UNDIRECTED' } })"
             ).consume()
             session.run(
-                "CALL gds.louvain.write('pipeComm', {writeProperty:'similarityCommunity'})"
+                "CALL gds.louvain.write('pipeComm', {writeProperty:'similarity_community'})"
             ).consume()
             session.run("CALL gds.graph.drop('pipeComm', false)").consume()
