@@ -166,6 +166,9 @@
 <li>
 <p><strong>Directory</strong>: A directory node used for hierarchical navigation; <code>path</code>.</p>
 </li>
+<li>
+<p><strong>Doc</strong>: Documentation snippet extracted from comments/docstrings; properties include <code>id</code> (unique), <code>file</code>, <code>language</code>, <code>kind</code>, <code>start_line</code>, <code>end_line</code>, and <code>text</code> (truncated to 1000 chars).</p>
+</li>
 </ul>
 </div>
 </div>
@@ -204,6 +207,9 @@
 </li>
 <li>
 <p><strong><code>(Import)-[:DEPENDS_ON]&#8594;(ExternalDependency)</code></strong>: Import maps to an external package.</p>
+</li>
+<li>
+<p><strong><code>(File|Class|Method)-[:HAS_DOC]&#8594;(Doc)</code></strong>: Documentation links from source elements to extracted docs.</p>
 </li>
 </ul>
 </div>

@@ -251,6 +251,28 @@ LIMIT 25</code></pre>
 </div>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_find_documentation_attached_to_methods_or_classes"><a class="anchor" href="#_find_documentation_attached_to_methods_or_classes"></a>Find documentation attached to methods or classes</h3>
+<div class="paragraph">
+<p>Use HAS_DOC to surface docstrings/comments linked to code elements.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>// Methods and their attached docs
+MATCH (m:Method)-[:HAS_DOC]-&gt;(d:Doc)
+RETURN m.method_signature AS method, d.text AS doc, d.start_line AS start, d.end_line AS end
+ORDER BY method, start</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>// Classes and their attached docs
+MATCH (c:Class)-[:HAS_DOC]-&gt;(d:Doc)
+RETURN c.name AS class, c.file AS file, d.text AS doc, d.start_line AS start
+ORDER BY file, class, start</pre>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
