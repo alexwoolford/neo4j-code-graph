@@ -234,6 +234,23 @@ LIMIT 25</code></pre>
 </div>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_most_changed_files_by_churn"><a class="anchor" href="#_most_changed_files_by_churn"></a>Most changed files by churn</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Most changed files by total line churn (additions + deletions)
+MATCH (c:Commit)-[r:CHANGED]-&gt;(fv:FileVer)-[:OF_FILE]-&gt;(f:File)
+WITH f.path AS path,
+     count(*) AS changes,
+     sum(coalesce(r.additions, 0)) AS adds,
+     sum(coalesce(r.deletions, 0)) AS dels,
+     sum(coalesce(r.additions, 0) + coalesce(r.deletions, 0)) AS churn
+RETURN path, changes, adds, dels, churn
+ORDER BY churn DESC
+LIMIT 25</code></pre>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
