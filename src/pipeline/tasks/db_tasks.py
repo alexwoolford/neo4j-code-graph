@@ -22,6 +22,10 @@ except Exception:  # pragma: no cover - installed package execution path
     _schema = import_module("data.schema_management")
     _cve = import_module("security.cve_analysis")
     _common = import_module("utils.common")
+try:
+    _caps_utils = import_module("src.utils.neo4j_utils")
+except Exception:  # pragma: no cover
+    _caps_utils = import_module("utils.neo4j_utils")
 
 cent_create_graph = _centrality.create_call_graph_projection
 cent_betweenness = _centrality.run_betweenness_analysis
@@ -48,6 +52,54 @@ def _build_args(base: list[str], overrides: dict[str, object] | None = None) -> 
             else:
                 args.extend([str(key), str(value)])
     return args
+
+
+def _should_run_gds(
+    uri: str | None,
+    username: str | None,
+    password: str | None,
+    database: str | None,
+    logger: logging.Logger,
+) -> bool:
+    """Return True if GDS is available on the target DB and minimal projection works.
+
+    Skips gracefully and logs a clear message otherwise (works for AuraDB, AuraDS, self-managed).
+    """
+    try:
+        _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _session():
+            drv = create_neo4j_driver(_uri, _user, _pwd)
+            try:
+                with drv.session(database=_db) as s:
+                    yield s
+            finally:
+                try:
+                    drv.close()
+                except Exception:
+                    pass
+
+        with _session() as s:  # type: ignore[reportUnknownMemberType]
+            caps = _caps_utils.check_capabilities(s)
+            gds = caps.get("gds", {}) if isinstance(caps, dict) else {}
+            available = bool(getattr(gds, "get", lambda *_: False)("available"))  # type: ignore[attr-defined]
+            projection_ok = bool(getattr(gds, "get", lambda *_: False)("projection_ok"))  # type: ignore[attr-defined]
+            if not available:
+                logger.warning(
+                    "GDS not available on target DB; skipping GDS tasks (use AuraDS or install GDS)"
+                )
+                return False
+            if not projection_ok:
+                logger.warning(
+                    "GDS present but minimal projection failed; skipping GDS tasks (server/client mismatch?)"
+                )
+                return False
+            return True
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Could not verify GDS capabilities; skipping GDS tasks: %s", e)
+        return False
 
 
 @task(retries=1, retry_delay_seconds=5)
@@ -200,6 +252,8 @@ def similarity_task(
     except Exception:
         logger = logging.getLogger(__name__)
     logger.info("Running similarity (kNN + optional Louvain)")
+    if not _should_run_gds(uri, username, password, database, logger):
+        return
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
@@ -235,6 +289,8 @@ def louvain_task(
     except Exception:
         logger = logging.getLogger(__name__)
     logger.info("Running community detection (Louvain)")
+    if not _should_run_gds(uri, username, password, database, logger):
+        return
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
@@ -269,6 +325,8 @@ def centrality_task(
     except Exception:
         logger = logging.getLogger(__name__)
     logger.info("Running centrality analysis")
+    if not _should_run_gds(uri, username, password, database, logger):
+        return
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     from graphdatascience import GraphDataScience as _GDS  # type: ignore
 
