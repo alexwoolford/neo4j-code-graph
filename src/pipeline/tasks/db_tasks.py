@@ -92,10 +92,10 @@ def _should_run_gds(
                 )
                 return False
             if not projection_ok:
-                logger.warning(
-                    "GDS present but minimal projection failed; skipping GDS tasks (server/client mismatch?)"
+                # Proceed: tasks have their own guards (embedding/CALLS checks). Probe can be flaky on empty graphs.
+                logger.info(
+                    "GDS available but projection probe failed; proceeding with GDS tasks; task-level guards apply"
                 )
-                return False
             return True
     except Exception as e:  # noqa: BLE001
         logger.warning("Could not verify GDS capabilities; skipping GDS tasks: %s", e)
