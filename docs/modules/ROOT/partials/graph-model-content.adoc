@@ -104,6 +104,7 @@ These property lists are generated from the live database via `db.schema.nodeTyp
 - `embedding_type` (String): Embedding model tag used to produce the vector.
 - `embedding_unixcoder` (DoubleArray): Vector embedding for method body (if generated).
 - `estimated_lines` (Long): Approximate number of source lines in the method.
+- `cyclomatic_complexity` (Long): McCabe complexity (1 + decision points) computed at parse time.
 - `file` (String): Repository-relative file path containing the method.
 - `id` (String): Internal identifier mirroring the signature for convenience.
 - `in_degree` (Long): Number of distinct incoming CALLS.

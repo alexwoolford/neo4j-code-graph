@@ -73,6 +73,7 @@ def create_methods(
                 "return_type": method.get("return_type", "void"),
                 "modifiers": method.get("modifiers", []),
                 "method_signature": method.get("method_signature"),
+                "cyclomatic_complexity": method.get("cyclomatic_complexity", 1),
             }
             if method.get("class_name"):
                 method_node["class_name"] = method["class_name"]
@@ -110,6 +111,7 @@ def create_methods(
                     m.is_public = method.is_public,
                     m.return_type = method.return_type,
                     m.modifiers = method.modifiers,
+                    m.cyclomatic_complexity = method.cyclomatic_complexity,
                     m.id = coalesce(m.id, method.method_signature)
                 """
                 + (

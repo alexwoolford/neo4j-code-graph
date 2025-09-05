@@ -205,6 +205,39 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             end_line = node.end_point[0] + 1
             method_code = code.splitlines()[start_line - 1 : end_line]
 
+            # Compute lightweight cyclomatic complexity (McCabe approximation)
+            # M = 1 + number of decision points inside the method
+            def _compute_cyclomatic_for_method(mnode: Any) -> int:
+                decision_kinds = {
+                    "if_statement",
+                    "while_statement",
+                    "for_statement",
+                    "enhanced_for_statement",
+                    "do_statement",
+                    "catch_clause",
+                    "conditional_expression",
+                }
+
+                def _count(n: Any) -> int:
+                    cnt = 0
+                    # Count switch cases (exclude default)
+                    if getattr(n, "type", None) == "switch_label":
+                        try:
+                            txt = _node_text(source_bytes, n).strip()
+                            if txt.startswith("case"):
+                                cnt += 1
+                        except Exception:
+                            pass
+                    if getattr(n, "type", None) in decision_kinds:
+                        cnt += 1
+                    for ch in getattr(n, "children", []) or []:
+                        cnt += _count(ch)
+                    return cnt
+
+                return _count(mnode)
+
+            cyclomatic = 1 + _compute_cyclomatic_for_method(node)
+
             # Extract parameters
             params_list: list[dict[str, Any]] = []
             formal_params = _child_by_type(node, "formal_parameters")
@@ -248,6 +281,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "return_type": _extract_return_type(node),
                     "parameters": params_list,
                     "code": "\n".join(method_code),
+                    "cyclomatic_complexity": cyclomatic,
                     # Best-effort call extraction from AST (method_invocation nodes)
                     "calls": [],
                 }

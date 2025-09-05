@@ -85,6 +85,18 @@ RETURN c.name AS class, c.file AS file, d.text AS doc, d.start_line AS start
 ORDER BY file, class, start
 ----
 
+=== Top complex methods (cyclomatic complexity)
+
+Identify potentially complex hotspots using the `cyclomatic_complexity` property.
+
+----
+MATCH (m:Method)
+WHERE m.cyclomatic_complexity IS NOT NULL
+RETURN m.name AS method, m.file AS file, m.cyclomatic_complexity AS cc
+ORDER BY cc DESC, file, method
+LIMIT 25
+----
+
 == Executive Reporting
 
 === Technical health summary

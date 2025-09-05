@@ -56,6 +56,7 @@ def test_live_docs_created_and_linked():
                     "return_type": "void",
                     "parameters": [],
                     "code": "",
+                    "cyclomatic_complexity": 1,
                 }
             ],
             # Provide docs for class and method
@@ -111,6 +112,12 @@ def test_live_docs_created_and_linked():
                 "MATCH (:Method {method_signature:'p.A#m1():void'})-[:HAS_DOC]->(:Doc {text:'Method m1 doc'}) RETURN count(*) AS c"
             ).single()
             assert rec and int(rec["c"]) == 1
+
+            # Cyclomatic complexity present on method
+            rec = s.run(
+                "MATCH (m:Method {method_signature:'p.A#m1():void'}) RETURN m.cyclomatic_complexity AS cc"
+            ).single()
+            assert rec and int(rec["cc"]) >= 1
 
             # Kinds and scopes are stored
             rec = s.run(
