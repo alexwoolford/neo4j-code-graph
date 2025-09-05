@@ -71,6 +71,7 @@ include::example$queries/team_process.cyp[tag=top_changed_files_by_churn]
 
 Use HAS_DOC to surface docstrings/comments linked to code elements.
 
+[source,cypher]
 ----
 // Methods and their attached docs
 MATCH (m:Method)-[:HAS_DOC]->(d:Doc)
@@ -78,6 +79,7 @@ RETURN m.method_signature AS method, d.text AS doc, d.start_line AS start, d.end
 ORDER BY method, start
 ----
 
+[source,cypher]
 ----
 // Classes and their attached docs
 MATCH (c:Class)-[:HAS_DOC]->(d:Doc)
@@ -89,6 +91,7 @@ ORDER BY file, class, start
 
 Identify potentially complex hotspots using the `cyclomatic_complexity` property.
 
+[source,cypher]
 ----
 MATCH (m:Method)
 WHERE m.cyclomatic_complexity IS NOT NULL
@@ -101,6 +104,7 @@ LIMIT 25
 
 Identify deprecated APIs and where they are called.
 
+[source,cypher]
 ----
 MATCH (d:Method {deprecated:true})
 OPTIONAL MATCH (caller:Method)-[:CALLS]->(d)
