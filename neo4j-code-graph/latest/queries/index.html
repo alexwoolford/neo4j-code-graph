@@ -258,18 +258,18 @@ LIMIT 25</code></pre>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>// Methods and their attached docs
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Methods and their attached docs
 MATCH (m:Method)-[:HAS_DOC]-&gt;(d:Doc)
 RETURN m.method_signature AS method, d.text AS doc, d.start_line AS start, d.end_line AS end
-ORDER BY method, start</pre>
+ORDER BY method, start</code></pre>
 </div>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>// Classes and their attached docs
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Classes and their attached docs
 MATCH (c:Class)-[:HAS_DOC]-&gt;(d:Doc)
 RETURN c.name AS class, c.file AS file, d.text AS doc, d.start_line AS start
-ORDER BY file, class, start</pre>
+ORDER BY file, class, start</code></pre>
 </div>
 </div>
 </div>
@@ -280,11 +280,11 @@ ORDER BY file, class, start</pre>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>MATCH (m:Method)
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (m:Method)
 WHERE m.cyclomatic_complexity IS NOT NULL
 RETURN m.name AS method, m.file AS file, m.cyclomatic_complexity AS cc
 ORDER BY cc DESC, file, method
-LIMIT 25</pre>
+LIMIT 25</code></pre>
 </div>
 </div>
 </div>
@@ -295,11 +295,11 @@ LIMIT 25</pre>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>MATCH (d:Method {deprecated:true})
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">MATCH (d:Method {deprecated:true})
 OPTIONAL MATCH (caller:Method)-[:CALLS]-&gt;(d)
 RETURN d.class_name AS class, d.name AS method, d.deprecated_since AS since,
        count(caller) AS callers
-ORDER BY callers DESC, class, method</pre>
+ORDER BY callers DESC, class, method</code></pre>
 </div>
 </div>
 </div>
