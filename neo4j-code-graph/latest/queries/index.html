@@ -288,6 +288,21 @@ LIMIT 25</pre>
 </div>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_deprecated_methods_and_their_callers"><a class="anchor" href="#_deprecated_methods_and_their_callers"></a>Deprecated methods and their callers</h3>
+<div class="paragraph">
+<p>Identify deprecated APIs and where they are called.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>MATCH (d:Method {deprecated:true})
+OPTIONAL MATCH (caller:Method)-[:CALLS]-&gt;(d)
+RETURN d.class_name AS class, d.name AS method, d.deprecated_since AS since,
+       count(caller) AS callers
+ORDER BY callers DESC, class, method</pre>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">

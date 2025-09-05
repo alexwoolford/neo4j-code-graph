@@ -415,6 +415,15 @@ If you change the embedding model (e.g., switching to UniXcoder or between UniXc
 <p><code>cyclomatic_complexity</code> (Long): McCabe complexity (1 + decision points) computed at parse time.</p>
 </li>
 <li>
+<p><code>deprecated</code> (Boolean): True if method is annotated <code>@Deprecated</code> or javadoc contains <code>@deprecated</code>.</p>
+</li>
+<li>
+<p><code>deprecated_since</code> (String): Free-form "since" hint parsed from javadoc when available.</p>
+</li>
+<li>
+<p><code>deprecated_message</code> (String): Javadoc text around <code>@deprecated</code> (best-effort).</p>
+</li>
+<li>
 <p><code>file</code> (String): Repository-relative file path containing the method.</p>
 </li>
 <li>
