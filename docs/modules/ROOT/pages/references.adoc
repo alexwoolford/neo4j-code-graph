@@ -1,0 +1,40 @@
+= Links and References
+
+This page collects prior art and useful background for code-centric knowledge graphs, repository graphs, and related vulnerability and LLM applications. Notes are brief signposts rather than full reviews.
+
+== Research papers and journals
+
+* link:https://yanjiezhao96.github.io/files/zhao2019knowledge.pdf[Zhao et al., 2019 — Knowledge Graphing Git Repositories] — Introduces GitGraph and a schema tying commits, files, and changed methods to enable advanced queries and exploration.
+* link:https://semantic-web-journal.net/system/files/swj2575.pdf[Abdelaziz et al., 2022 — GRAPH4CODE] — A large-scale Python code knowledge graph with usage and documentation signals.
+* link:https://arxiv.org/abs/2203.03850[Guo et al., 2022 — UniXcoder] — The embedding model paper used widely for code tasks; unified cross-modal pretraining for understanding and generation.
+
+== Preprints and recent work
+
+* link:https://arxiv.org/html/2505.14394v1[Knowledge Graph Based Repository-Level Code Generation (2025 preprint)] — Repository-level schema with File/Class/Method and description nodes for codegen.
+* link:https://arxiv.org/html/2411.11532v1[CodeGraphGPT (2024 preprint)] — Integrates code knowledge graphs with LLMs for fuzzing; function/file nodes with call edges and summaries.
+* link:https://arxiv.org/abs/2503.21710[KGCompass (2025 preprint)] — Repository-aware KG linking engineering work items (issues/PRs) and code entities.
+
+== Blogs and engineering write-ups
+
+* link:https://developers.redhat.com/blog/2021/05/10/use-knowledge-graphs-to-discover-open-source-package-vulnerabilities[Red Hat Developer (2021)] — Using knowledge graphs to discover open-source package vulnerabilities; package/CVE schema discussion.
+* link:https://medium.com/@ziche94/building-knowledge-graph-over-a-codebase-for-llm-245686917f96[Chen (2023)] — AST-based code graph example and discussion for LLM workflows.
+* link:https://fluidattacks.com/blog/code-property-graphs-for-analysis[Fluid Attacks (2018)] — Primer on code property graphs and merging AST/CFG/PDG for security analysis.
+* link:https://neo4j.com/blog/developer/codebase-knowledge-graph/[Neo4j Developer Blog (2021)] — Language-agnostic codebase knowledge graph concepts with Neo4j.
+* link:https://www.daytona.io/dotfiles/building-a-knowledge-graph-of-your-codebase[Daytona (2024)] — Overview of code content graphs and practical benefits.
+
+== Videos (talks and demos)
+
+* link:https://www.youtube.com/watch?v=Xa5Io_my9X4[YouTube: talk/demo]
+* link:https://www.youtube.com/watch?v=xFtwCuRj-Wg[YouTube: talk/demo]
+* link:https://www.youtube.com/watch?v=hSttMcYxdKQ[YouTube: talk/demo]
+* link:https://www.youtube.com/watch?v=jP1sUOZxTeU[YouTube: talk/demo]
+* link:https://www.youtube.com/watch?v=o2eQ6GBecgg[YouTube: talk/demo]
+
+== Open-source repositories
+
+* link:https://github.com/blarApp/blarify[blarApp/blarify] — Exploration tooling around graph-of-code concepts.
+* link:https://github.com/ChrisRoyse/CodeGraph[ChrisRoyse/CodeGraph] — Code graph repository and examples.
+
+== Contributing additions
+
+Have a relevant paper, blog, or implementation to include? Open a PR adding it here and, if helpful, a short one-line description. Please keep descriptions neutral and scoped to what is covered.
