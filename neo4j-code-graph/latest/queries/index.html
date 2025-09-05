@@ -273,6 +273,21 @@ ORDER BY file, class, start</pre>
 </div>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_top_complex_methods_cyclomatic_complexity"><a class="anchor" href="#_top_complex_methods_cyclomatic_complexity"></a>Top complex methods (cyclomatic complexity)</h3>
+<div class="paragraph">
+<p>Identify potentially complex hotspots using the <code>cyclomatic_complexity</code> property.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>MATCH (m:Method)
+WHERE m.cyclomatic_complexity IS NOT NULL
+RETURN m.name AS method, m.file AS file, m.cyclomatic_complexity AS cc
+ORDER BY cc DESC, file, method
+LIMIT 25</pre>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
