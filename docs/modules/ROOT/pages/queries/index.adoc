@@ -97,6 +97,18 @@ ORDER BY cc DESC, file, method
 LIMIT 25
 ----
 
+=== Deprecated methods and their callers
+
+Identify deprecated APIs and where they are called.
+
+----
+MATCH (d:Method {deprecated:true})
+OPTIONAL MATCH (caller:Method)-[:CALLS]->(d)
+RETURN d.class_name AS class, d.name AS method, d.deprecated_since AS since,
+       count(caller) AS callers
+ORDER BY callers DESC, class, method
+----
+
 == Executive Reporting
 
 === Technical health summary

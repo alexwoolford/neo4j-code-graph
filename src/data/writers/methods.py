@@ -74,6 +74,9 @@ def create_methods(
                 "modifiers": method.get("modifiers", []),
                 "method_signature": method.get("method_signature"),
                 "cyclomatic_complexity": method.get("cyclomatic_complexity", 1),
+                "deprecated": bool(method.get("deprecated", False)),
+                "deprecated_message": method.get("deprecated_message"),
+                "deprecated_since": method.get("deprecated_since"),
             }
             if method.get("class_name"):
                 method_node["class_name"] = method["class_name"]
@@ -112,6 +115,9 @@ def create_methods(
                     m.return_type = method.return_type,
                     m.modifiers = method.modifiers,
                     m.cyclomatic_complexity = method.cyclomatic_complexity,
+                    m.deprecated = method.deprecated,
+                    m.deprecated_message = CASE WHEN method.deprecated_message IS NOT NULL THEN method.deprecated_message ELSE m.deprecated_message END,
+                    m.deprecated_since = CASE WHEN method.deprecated_since IS NOT NULL THEN method.deprecated_since ELSE m.deprecated_since END,
                     m.id = coalesce(m.id, method.method_signature)
                 """
                 + (

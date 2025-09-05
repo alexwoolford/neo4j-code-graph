@@ -310,6 +310,40 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             # Populate calls by traversing the method subtree
             calls_list: list[dict[str, Any]] = []
 
+            # Detect @Deprecated annotation on the method (lightweight)
+            def _is_deprecated_annot(n: Any) -> bool:
+                if getattr(n, "type", None) == "annotation":
+                    try:
+                        txt = _node_text(source_bytes, n).strip()
+                        if "Deprecated" in txt:
+                            return True
+                    except Exception:
+                        return False
+                for ch in getattr(n, "children", []) or []:
+                    if _is_deprecated_annot(ch):
+                        return True
+                return False
+
+            deprecated_flag = _is_deprecated_annot(node)
+            deprecated_message = None
+            deprecated_since = None
+            # If doc exists and contains @deprecated, capture message/since best-effort
+            try:
+                lines = code.splitlines()
+                doc2 = _extract_comment_block_above(lines, start_line)
+                if doc2 and "@deprecated" in doc2.get("text", "").lower():
+                    deprecated_flag = True
+                    text = doc2.get("text", "")
+                    deprecated_message = text
+                    # naive extraction of "since X" token
+                    lower = text.lower()
+                    idx = lower.find("since ")
+                    if idx != -1:
+                        frag = text[idx + len("since ") :].split("\n", 1)[0].strip()
+                        deprecated_since = frag[:32]
+            except Exception:
+                pass
+
             def _walk_calls(n: Any) -> None:
                 if n.type == "method_invocation":
                     # Extract invocation text and method name
@@ -346,6 +380,11 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
 
             _walk_calls(node)
             methods[-1]["calls"] = calls_list
+            methods[-1]["deprecated"] = deprecated_flag
+            if deprecated_message:
+                methods[-1]["deprecated_message"] = deprecated_message
+            if deprecated_since:
+                methods[-1]["deprecated_since"] = deprecated_since
 
         for child in node.children:
             walk(child, ancestors + [node])
