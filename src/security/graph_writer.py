@@ -12,37 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 def create_vulnerability_graph(session: Any, cve_data: list[CleanCVE]) -> int:
-    if not cve_data:
-        logger.warning("No CVE data to process")
-        return 0
+    """Deprecated behavior: previously created all CVE nodes up front.
 
-    cve_nodes: list[dict[str, Any]] = []
-    for cve in cve_data:
-        cve_nodes.append(
-            {
-                "cve_id": cve.get("id", ""),
-                "description": cve.get("description", ""),
-                "cvss_score": float(cve.get("cvss_score", 0.0)),
-                "cvss_vector": "",
-                "published": cve.get("published", ""),
-                "severity": cve.get("severity", "UNKNOWN"),
-            }
-        )
-
-    if cve_nodes:
-        create_query = """
-            UNWIND $cve_nodes AS cve
-            MERGE (c:CVE {id: cve.cve_id})
-            SET c.description = cve.description,
-                c.cvss_score = cve.cvss_score,
-                c.cvss_vector = cve.cvss_vector,
-                c.published = cve.published,
-                c.severity = cve.severity,
-                c.updated_at = datetime()
-            """
-        session.run(create_query, cve_nodes=cve_nodes)
-        logger.info(f"Created {len(cve_nodes)} CVE nodes")
-    return len(cve_nodes)
+    To avoid disconnected CVEs, this function now no-ops and returns 0.
+    CVE nodes are created on-demand during linking only when an AFFECTS edge
+    will be written.
+    """
+    if cve_data:
+        logger.info("Skipping upfront CVE node creation; nodes will be created during linking only")
+    return 0
 
 
 def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
@@ -93,11 +71,32 @@ def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
     # to avoid false positives unrelated to the actual dependency coordinates.
     all_matches: list[dict[str, Any]] = precise_matches
 
+    # Enrich links with CVE details so we can MERGE CVE nodes only for linked IDs
+    if all_matches:
+        by_id = {str(c.get("id", "")): c for c in cve_data}
+        for link in all_matches:
+            cobj = by_id.get(str(link.get("cve_id", "")), {})
+            link["description"] = cobj.get("description", "")
+            try:
+                link["cvss_score"] = float(cobj.get("cvss_score", 0.0))
+            except Exception:
+                link["cvss_score"] = 0.0
+            link["cvss_vector"] = ""
+            link["published"] = cobj.get("published", "")
+            link["severity"] = cobj.get("severity", "UNKNOWN")
+
     if all_matches:
         # Prefer structured match on group_id + artifact_id; fall back to package only if needed
         link_query = """
             UNWIND $links AS link
-            MATCH (cve:CVE {id: link.cve_id})
+            MERGE (cve:CVE {id: link.cve_id})
+            SET  cve.description = link.description,
+                 cve.cvss_score = link.cvss_score,
+                 cve.cvss_vector = link.cvss_vector,
+                 cve.published = link.published,
+                 cve.severity = link.severity,
+                 cve.updated_at = datetime()
+            WITH cve, link
             OPTIONAL MATCH (ed1:ExternalDependency)
               WHERE ed1.group_id = link.dep_group_id AND ed1.artifact_id = link.dep_artifact_id
                     AND ed1.version IS NOT NULL AND ed1.version <> 'unknown'
