@@ -4,6 +4,7 @@ Thin wrapper delegating to modular Prefect flow implementation.
 
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -116,6 +117,12 @@ def code_graph_flow(
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     logger = get_run_logger()
     logger.info("Starting flow for repo: %s", repo_url)
+    # Also emit to standard application logger so it appears in neo4j-code-graph.log
+    try:
+        app_logger = logging.getLogger(__name__)
+        app_logger.info("Starting flow for repo: %s", repo_url)
+    except Exception:
+        pass
 
     # Setup schema first
     setup_schema_task(uri, username, password, database)
