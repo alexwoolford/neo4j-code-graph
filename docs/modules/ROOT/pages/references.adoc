@@ -24,11 +24,11 @@ This page collects prior art and useful background for code-centric knowledge gr
 
 == Videos (talks and demos)
 
-* link:https://www.youtube.com/watch?v=Xa5Io_my9X4[YouTube: talk/demo]
-* link:https://www.youtube.com/watch?v=xFtwCuRj-Wg[YouTube: talk/demo]
-* link:https://www.youtube.com/watch?v=hSttMcYxdKQ[YouTube: talk/demo]
-* link:https://www.youtube.com/watch?v=jP1sUOZxTeU[YouTube: talk/demo]
-* link:https://www.youtube.com/watch?v=o2eQ6GBecgg[YouTube: talk/demo]
+* link:https://www.youtube.com/watch?v=Xa5Io_my9X4[NODES 2024 - Knowledge Graph of Your IT Landscape: Code Is Graph Data]
+* link:https://www.youtube.com/watch?v=xFtwCuRj-Wg[NODES 2024 - The GitHub Graph: Open-Source Collaboration Patterns and Neo4j]
+* link:https://www.youtube.com/watch?v=hSttMcYxdKQ[Git Commit History - Discovering Neo4j AuraDB Free with Michael and Alexander]
+* link:https://www.youtube.com/watch?v=jP1sUOZxTeU[NODES 2024 - Graph Traversal Agent for Code Debugging]
+* link:https://www.youtube.com/watch?v=o2eQ6GBecgg[Neo4j Live: Graph-Powered Code Debugging with GenAI]
 
 == Open-source repositories
 
