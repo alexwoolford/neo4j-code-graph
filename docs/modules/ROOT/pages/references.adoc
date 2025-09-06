@@ -21,6 +21,7 @@ This page collects prior art and useful background for code-centric knowledge gr
 * link:https://fluidattacks.com/blog/code-property-graphs-for-analysis[Fluid Attacks (2018)] — Primer on code property graphs and merging AST/CFG/PDG for security analysis.
 * link:https://neo4j.com/blog/developer/codebase-knowledge-graph/[Neo4j Developer Blog (2021)] — Language-agnostic codebase knowledge graph concepts with Neo4j.
 * link:https://www.daytona.io/dotfiles/building-a-knowledge-graph-of-your-codebase[Daytona (2024)] — Overview of code content graphs and practical benefits.
+* link:https://joht.github.io/johtizen/data/2021/02/21/java-jar-dependency-analysis.html[Johannes T. (2021) — Java JAR dependency analysis] — Practical walkthrough analyzing JAR dependencies and building dependency graphs.
 
 == Videos (talks and demos)
 
@@ -35,6 +36,17 @@ This page collects prior art and useful background for code-centric knowledge gr
 * link:https://github.com/blarApp/blarify[blarApp/blarify] — Exploration tooling around graph-of-code concepts.
 * link:https://github.com/ChrisRoyse/CodeGraph[ChrisRoyse/CodeGraph] — Multi-language static analysis to Neo4j; cross-language relationships and MCP integration. [GitHub]
 * link:https://github.com/xnuinside/codegraph[xnuinside/codegraph] — Static code analyzer that builds diagrams/graphs of code structure and dependencies. [GitHub]
+* link:https://github.com/eric050828/graph-codebase-mcp[eric050828/graph-codebase-mcp] — MCP server to analyze codebases into Neo4j-first graphs and expose query tools. [GitHub]
+* link:https://github.com/jonnoc/coderag[jonnoc/coderag] — Graph/RAG over repositories for question answering and navigation. [GitHub]
+* link:https://github.com/mufasadb/code-grapher[mufasadb/code-grapher] — Python AST-based code grapher producing entity and dependency relationships. [GitHub]
+* link:https://github.com/brutski/go-code-graph[brutski/go-code-graph] — Go static analysis utility to generate code dependency graphs. [GitHub]
+* link:https://github.com/vineetshar/js-code-analyser[vineetshar/js-code-analyser] — JavaScript code analyzer that extracts AST and dependency information. [GitHub]
+* link:https://github.com/vladbatushkov/strazh[vladbatushkov/strazh] — .NET code analysis to Neo4j; language-agnostic concepts and queries. [GitHub]
+* link:https://github.com/jQAssistant/jqassistant[jQAssistant/jqassistant] — Java project scanner that stores facts in Neo4j and validates architecture via Cypher rules. [GitHub]
+
+== Thesis and academic reports
+
+* link:https://www.diva-portal.org/smash/get/diva2%3A1851736/FULLTEXT01.pdf[Master’s thesis (2024/2025)] — Applied study building and querying code knowledge graphs; included for related background.
 
 == Contributing additions
 
