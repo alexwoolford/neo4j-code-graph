@@ -20,6 +20,12 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
         "CREATE CONSTRAINT directory_path IF NOT EXISTS FOR (d:Directory) REQUIRE d.path IS UNIQUE",
     ),
     (
+        "package_name_unique",
+        "Package",
+        "name",
+        "CREATE CONSTRAINT package_name_unique IF NOT EXISTS FOR (p:Package) REQUIRE p.name IS UNIQUE",
+    ),
+    (
         "file_path",
         "File",
         "path",

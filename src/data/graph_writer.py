@@ -214,6 +214,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
             class_node = {
                 "name": class_info["name"],
                 "file": class_info["file"],
+                "package": class_info.get("package"),
                 "line": class_info.get("line"),
                 "estimated_lines": class_info.get("estimated_lines", 0),
                 "is_abstract": class_info.get("is_abstract", False),
@@ -270,7 +271,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 "MERGE (c:Class {name: class.name, file: class.file}) "
                 "SET c.line = class.line, c.estimated_lines = class.estimated_lines, "
                 "c.is_abstract = class.is_abstract, c.is_final = class.is_final, "
-                "c.modifiers = class.modifiers",
+                "c.modifiers = class.modifiers, c.package = class.package",
                 classes=batch,
             )
 
@@ -286,6 +287,31 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 "SET i.line = interface.line, i.method_count = interface.method_count, "
                 "i.modifiers = interface.modifiers",
                 interfaces=batch,
+            )
+
+    # Package -> Class relationships (and Package nodes)
+    package_class_rels: list[dict[str, str]] = []
+    for file_data in files_data:
+        for class_info in file_data.get("classes", []):
+            pkg = class_info.get("package")
+            if pkg:
+                package_class_rels.append(
+                    {"package": pkg, "name": class_info["name"], "file": class_info["file"]}
+                )
+
+    if package_class_rels:
+        logger.info(f"Linking {len(package_class_rels)} classes to Package nodes...")
+        for i in progress_range(0, len(package_class_rels), batch_size, desc="Package->Class rels"):
+            batch = package_class_rels[i : i + batch_size]
+            session.run(
+                """
+                UNWIND $rels AS r
+                MERGE (p:Package {name:r.package})
+                WITH p, r
+                MATCH (c:Class {name:r.name, file:r.file})
+                MERGE (p)-[:CONTAINS]->(c)
+                """,
+                rels=batch,
             )
 
     if class_inheritance:

@@ -133,6 +133,11 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
             # Import present and linked to dependency
             rec = session.run("MATCH (i:Import) RETURN count(i) AS c").single()
             assert rec and int(rec["c"]) >= 1
+            # New: Package nodes and relationships
+            rec = session.run(
+                "MATCH (p:Package {name:'p'})-[:CONTAINS]->(c:Class) RETURN count(c) AS c"
+            ).single()
+            assert rec and int(rec["c"]) >= 1
             # Create deps linking as loader does and assert it works for the external import
             session.run(
                 """
