@@ -7,12 +7,14 @@ This page collects prior art and useful background for code-centric knowledge gr
 * link:https://yanjiezhao96.github.io/files/zhao2019knowledge.pdf[Zhao et al., 2019 — Knowledge Graphing Git Repositories] — Introduces GitGraph and a schema tying commits, files, and changed methods to enable advanced queries and exploration.
 * link:https://semantic-web-journal.net/system/files/swj2575.pdf[Abdelaziz et al., 2022 — GRAPH4CODE] — A large-scale Python code knowledge graph with usage and documentation signals.
 * link:https://arxiv.org/abs/2203.03850[Guo et al., 2022 — UniXcoder] — The embedding model paper used widely for code tasks; unified cross-modal pretraining for understanding and generation.
+* link:https://arxiv.org/abs/2211.01224[Creager & van Antwerpen, 2022 — Stack Graphs: Name Resolution at Scale] — Incremental name-binding graphs enabling precise navigation across large, frequently changing codebases.
 
 == Preprints and recent work
 
 * link:https://arxiv.org/html/2505.14394v1[Knowledge Graph Based Repository-Level Code Generation (2025 preprint)] — Repository-level schema with File/Class/Method and description nodes for codegen.
 * link:https://arxiv.org/html/2411.11532v1[CodeGraphGPT (2024 preprint)] — Integrates code knowledge graphs with LLMs for fuzzing; function/file nodes with call edges and summaries.
 * link:https://arxiv.org/abs/2503.21710[KGCompass (2025 preprint)] — Repository-aware KG linking engineering work items (issues/PRs) and code entities.
+* link:https://arxiv.org/abs/2505.16901[Tao et al., 2025 — Code Graph Model (CGM)] — Graph-integrated LLM for repository-level tasks; integrates repository code graph structure into attention.
 
 == Blogs and engineering write-ups
 
