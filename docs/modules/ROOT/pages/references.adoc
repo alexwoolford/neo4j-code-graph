@@ -33,7 +33,8 @@ This page collects prior art and useful background for code-centric knowledge gr
 == Open-source repositories
 
 * link:https://github.com/blarApp/blarify[blarApp/blarify] — Exploration tooling around graph-of-code concepts.
-* link:https://github.com/ChrisRoyse/CodeGraph[ChrisRoyse/CodeGraph] — Code graph repository and examples.
+* link:https://github.com/ChrisRoyse/CodeGraph[ChrisRoyse/CodeGraph] — Multi-language static analysis to Neo4j; cross-language relationships and MCP integration. [GitHub]
+* link:https://github.com/xnuinside/codegraph[xnuinside/codegraph] — Static code analyzer that builds diagrams/graphs of code structure and dependencies. [GitHub]
 
 == Contributing additions
 
