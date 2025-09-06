@@ -7,7 +7,6 @@ This page collects prior art and useful background for code-centric knowledge gr
 * link:https://yanjiezhao96.github.io/files/zhao2019knowledge.pdf[Zhao et al., 2019 — Knowledge Graphing Git Repositories] — Introduces GitGraph and a schema tying commits, files, and changed methods to enable advanced queries and exploration.
 * link:https://semantic-web-journal.net/system/files/swj2575.pdf[Abdelaziz et al., 2022 — GRAPH4CODE] — A large-scale Python code knowledge graph with usage and documentation signals.
 * link:https://arxiv.org/abs/2203.03850[Guo et al., 2022 — UniXcoder] — The embedding model paper used widely for code tasks; unified cross-modal pretraining for understanding and generation.
-* link:https://arxiv.org/abs/2211.01224[Creager & van Antwerpen, 2022 — Stack Graphs: Name Resolution at Scale] — Incremental name-binding graphs enabling precise navigation across large, frequently changing codebases.
 
 == Preprints and recent work
 
