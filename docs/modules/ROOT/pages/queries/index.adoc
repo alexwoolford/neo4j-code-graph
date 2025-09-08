@@ -43,6 +43,15 @@ include::example$queries/architecture.cyp[tag=refactor_candidates]
 include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
 ----
 
+=== Churn-weighted package risk (fanout × churn)
+
+Highlights namespaces that both change frequently and depend on many other packages (integration hubs with larger blast radius).
+
+[source,cypher,subs=attributes+]
+----
+include::example$queries/architecture.cyp[tag=package_risk_churn_fanout]
+----
+
 
 == Team & Process
 

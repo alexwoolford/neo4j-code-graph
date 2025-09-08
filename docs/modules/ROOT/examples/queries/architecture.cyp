@@ -20,3 +20,18 @@ RETURN f.path, m.class_name, m.name,
 ORDER BY m.pagerank_score DESC
 LIMIT 20
 // end::architectural_bottlenecks[]
+
+// tag::package_risk_churn_fanout[]
+// Churn-weighted package risk: packages that change often and depend on many packages
+MATCH (p:Package)-[:CONTAINS]->(:Class)<-[:DEFINES]-(f:File)
+MATCH (c:Commit)-[:CHANGED]->(fv:FileVer)-[:OF_FILE]->(f)
+WITH p, count(c) AS churn
+MATCH (p)-[:CONTAINS]->(:Class)-[:CONTAINS_METHOD]->(m:Method)
+MATCH (m)-[:CALLS]->(m2:Method)
+MATCH (q:Package)-[:CONTAINS]->(:Class)-[:CONTAINS_METHOD]->(m2)
+WHERE p <> q
+WITH p, churn, count(DISTINCT q) AS fanoutPkgs
+RETURN p.name AS package, churn, fanoutPkgs, churn*fanoutPkgs AS riskScore
+ORDER BY riskScore DESC
+LIMIT 15
+// end::package_risk_churn_fanout[]

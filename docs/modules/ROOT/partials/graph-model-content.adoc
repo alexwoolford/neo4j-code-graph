@@ -11,6 +11,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *Method*: A function/method; key property `method_signature` plus `name`, `class_name`, `estimated_lines`, centrality scores.
 - *Class*: A class declaration; `name`, `file`, flags (e.g., `is_abstract`).
 - *Interface*: An interface declaration; `name`, `file`.
+- *Package*: A source namespace (e.g., Java package) grouping classes; `name` (unique).
 - *Import*: An import statement within a file; `import_path`.
 - *ExternalDependency*: A third‑party package or module referenced by the code; properties include `package`, `version`.
 - *Commit*: A Git commit; `sha`, `date`, `message`.
@@ -41,6 +42,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *`(File)-[:DEFINES]->(Class|Interface)`*: File defines type declarations.
 - *`(Directory)-[:CONTAINS]->(Directory)`*: Directory hierarchy.
 - *`(Directory)-[:CONTAINS]->(File)`*: Files within a directory.
+- *`(Package)-[:CONTAINS]->(Class)`*: Namespace grouping of class declarations.
 
 // People and security
 - *`(Developer)-[:AUTHORED]->(Commit)`*: Author authored commit.
