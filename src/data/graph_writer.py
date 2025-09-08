@@ -230,16 +230,22 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                         "child_file": class_info["file"],
                         "child_package": class_info.get("package"),
                         "parent": class_info["extends"],
+                        "parent_package": class_info.get("extends_package"),
                     }
                 )
 
-            for interface in class_info.get("implements", []):
+            for idx, interface in enumerate(class_info.get("implements", [])):
                 class_implementations.append(
                     {
                         "class": class_info["name"],
                         "class_file": class_info["file"],
                         "class_package": class_info.get("package"),
                         "interface": interface,
+                        "interface_package": (
+                            (class_info.get("implements_packages") or [None])[idx]
+                            if isinstance(class_info.get("implements_packages"), list)
+                            else class_info.get("implements_packages")
+                        ),
                     }
                 )
 
@@ -254,13 +260,18 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
             }
             all_interfaces.append(interface_node)
 
-            for extended_interface in interface_info.get("extends", []):
+            for idx, extended_interface in enumerate(interface_info.get("extends", [])):
                 interface_inheritance.append(
                     {
                         "child": interface_info["name"],
                         "child_file": interface_info["file"],
                         "child_package": interface_info.get("package"),
                         "parent": extended_interface,
+                        "parent_package": (
+                            (interface_info.get("extends_packages") or [None])[idx]
+                            if isinstance(interface_info.get("extends_packages"), list)
+                            else interface_info.get("extends_packages")
+                        ),
                     }
                 )
 
@@ -330,7 +341,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 """
                 UNWIND $inheritance AS rel
                 MATCH (child:Class {name: rel.child, file: rel.child_file})
-                OPTIONAL MATCH (parentExact:Class {name: rel.parent, package: rel.child_package})
+                OPTIONAL MATCH (parentExact:Class {name: rel.parent, package: coalesce(rel.parent_package, rel.child_package)})
                 WITH child, rel, parentExact
                 OPTIONAL MATCH (parentAny:Class {name: rel.parent})
                 WITH child, parentExact, collect(parentAny) AS anyParents
@@ -358,7 +369,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 """
                 UNWIND $inheritance AS rel
                 MATCH (child:Interface {name: rel.child, file: rel.child_file})
-                OPTIONAL MATCH (parentExact:Interface {name: rel.parent, package: rel.child_package})
+                OPTIONAL MATCH (parentExact:Interface {name: rel.parent, package: coalesce(rel.parent_package, rel.child_package)})
                 WITH child, rel, parentExact
                 OPTIONAL MATCH (parentAny:Interface {name: rel.parent})
                 WITH child, parentExact, collect(parentAny) AS anyParents
@@ -384,7 +395,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 """
                 UNWIND $implementations AS rel
                 MATCH (c:Class {name: rel.class, file: rel.class_file})
-                OPTIONAL MATCH (iExact:Interface {name: rel.interface, package: rel.class_package})
+                OPTIONAL MATCH (iExact:Interface {name: rel.interface, package: coalesce(rel.interface_package, rel.class_package)})
                 WITH c, rel, iExact
                 OPTIONAL MATCH (iAny:Interface {name: rel.interface})
                 WITH c, iExact, collect(iAny) AS anyIfaces

@@ -74,6 +74,36 @@ def _collect_type_texts(source_bytes: bytes, node: Any) -> list[str]:
     return hits
 
 
+def _strip_generics(type_text: str) -> str:
+    try:
+        left = type_text.find("<")
+        if left != -1:
+            return type_text[:left].strip()
+        return type_text
+    except Exception:
+        return type_text
+
+
+def _resolve_type_package(
+    simple_or_fqn: str, package_name: str | None, explicit_imports: dict[str, str]
+) -> str | None:
+    """Resolve a type's package using explicit imports and current package.
+
+    - If type appears fully qualified, return its package.
+    - Else if explicitly imported, return its import package.
+    - Else default to the current package (common in same-package references).
+    """
+    t = _strip_generics(simple_or_fqn)
+    if "." in t:
+        parts = t.split(".")
+        return ".".join(parts[:-1]) if len(parts) > 1 else None
+    if t in explicit_imports:
+        imp = explicit_imports[t]
+        parts = imp.split(".")
+        return ".".join(parts[:-1]) if len(parts) > 1 else None
+    return package_name
+
+
 def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
     """
     Parse Java source using Tree-sitter and return structured artifacts.
@@ -142,6 +172,15 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     }
                 )
 
+    # Build explicit import map: short name -> fully qualified
+    explicit_imports: dict[str, str] = {}
+    for imp in imports:
+        if not imp.get("is_wildcard"):
+            path = str(imp.get("import_path") or "")
+            if path:
+                short = path.split(".")[-1]
+                explicit_imports[short] = path
+
     # Class, interface, and record declarations
     def _extract_return_type(mnode: Any) -> str:
         """Extract method return type from a method_declaration node."""
@@ -187,14 +226,21 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 if ext is not None:
                     ext_types = _collect_type_texts(source_bytes, ext)
                     if ext_types:
-                        # Java allows only one superclass
-                        info["extends"] = ext_types[0]
+                        raw = ext_types[0]
+                        info["extends"] = raw
+                        info["extends_package"] = _resolve_type_package(
+                            raw, package_name, explicit_imports
+                        )
                 # implements clause (may be a list)
                 impl = _child_by_type(node, "super_interfaces")
                 if impl is not None:
                     impl_list = _collect_type_texts(source_bytes, impl)
                     if impl_list:
                         info["implements"] = impl_list
+                        info["implements_packages"] = [
+                            _resolve_type_package(t, package_name, explicit_imports)
+                            for t in impl_list
+                        ]
                 classes.append(info)
                 # Extract comment block immediately above class
                 try:
@@ -223,6 +269,10 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     ext_list = _collect_type_texts(source_bytes, impl)
                     if ext_list:
                         info["extends"] = ext_list
+                        info["extends_packages"] = [
+                            _resolve_type_package(t, package_name, explicit_imports)
+                            for t in ext_list
+                        ]
                 interfaces.append(info)
             else:  # record_declaration
                 info.update({"type": "record", "estimated_lines": max(0, end_line - start_line)})
