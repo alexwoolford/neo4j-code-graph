@@ -234,13 +234,22 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                     }
                 )
 
-            for idx, interface in enumerate(class_info.get("implements", [])):
+            # Build IMPLEMENTS relationships, capturing interface file/package when determinable
+            for idx, interface_name in enumerate(class_info.get("implements", [])):
+                # Try to resolve interface file from the same file_data block
+                inferred_iface_file = None
+                for iface in file_data.get("interfaces", []):
+                    if iface.get("name") == interface_name:
+                        inferred_iface_file = iface.get("file")
+                        break
+
                 class_implementations.append(
                     {
                         "class": class_info["name"],
                         "class_file": class_info["file"],
                         "class_package": class_info.get("package"),
-                        "interface": interface,
+                        "interface": interface_name,
+                        "interface_file": inferred_iface_file,
                         "interface_package": (
                             (class_info.get("implements_packages") or [None])[idx]
                             if isinstance(class_info.get("implements_packages"), list)
@@ -395,8 +404,11 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 """
                 UNWIND $implementations AS rel
                 MATCH (c:Class {name: rel.class, file: rel.class_file})
-                OPTIONAL MATCH (iExact:Interface {name: rel.interface, package: coalesce(rel.interface_package, rel.class_package)})
-                WITH c, rel, iExact
+                // Prefer exact package match when provided
+                OPTIONAL MATCH (iExactPkg:Interface {name: rel.interface, package: coalesce(rel.interface_package, rel.class_package)})
+                // Also try exact file match when available
+                OPTIONAL MATCH (iExactFile:Interface {name: rel.interface, file: rel.interface_file})
+                WITH c, rel, coalesce(iExactPkg, iExactFile) AS iExact
                 OPTIONAL MATCH (iAny:Interface {name: rel.interface})
                 WITH c, iExact, collect(iAny) AS anyIfaces
                 WITH c,

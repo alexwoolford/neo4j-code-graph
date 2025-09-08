@@ -170,7 +170,21 @@ def test_live_class_inheritance_and_implements():
                 {"name": "I", "file": "src/inherit/A.java", "line": 2, "extends": ["J"]}
             ],
             "methods": [],
-        }
+        },
+        # Explicitly define parent class B (referenced by A.extends)
+        {
+            "path": "src/inherit/B.java",
+            "classes": [{"name": "B", "file": "src/inherit/B.java", "line": 1, "implements": []}],
+            "interfaces": [],
+            "methods": [],
+        },
+        # Explicitly define parent interface J (referenced by I.extends)
+        {
+            "path": "src/inherit/J.java",
+            "classes": [],
+            "interfaces": [{"name": "J", "file": "src/inherit/J.java", "line": 1, "extends": []}],
+            "methods": [],
+        },
     ]
 
     driver, database = _get_driver_or_skip()
@@ -683,7 +697,7 @@ def test_live_multi_interfaces_and_multi_level_extends():
                 "MATCH (:Class {name:'C'})-[:EXTENDS]->(:Class {name:'B'})-[:EXTENDS]->(:Class {name:'A'}) RETURN count(*) AS c"
             ).single()
             assert rec and int(rec["c"]) == 1
-            # Class implements multiple interfaces
+            # Class implements multiple interfaces (I and K exist explicitly above)
             rec = s.run(
                 "MATCH (:Class {name:'D'})-[:IMPLEMENTS]->(:Interface {name:'I'}) RETURN count(*) AS c"
             ).single()
