@@ -201,8 +201,5 @@ def bulk_load_to_neo4j(
                 f"OF_FILE relationships batch {batch_num}",
             )
             _ = time.time() - step_start
-            # keep timings minimal to avoid unused variables
-            if batch_num < total_batches:
-                time.sleep(0.1)
     finally:
         session.close()
