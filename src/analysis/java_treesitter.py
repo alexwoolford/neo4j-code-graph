@@ -156,6 +156,28 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             }
             if node.type == "class_declaration":
                 info.update({"type": "class", "estimated_lines": max(0, end_line - start_line)})
+                # extends clause
+                ext = _child_by_type(node, "superclass")
+                if ext is not None:
+                    # superclass -> 'extends' type
+                    t = (
+                        _child_by_type(ext, "type")
+                        or _child_by_type(ext, "type_identifier")
+                        or _child_by_type(ext, "scoped_type_identifier")
+                    )
+                    if t is not None:
+                        info["extends"] = _node_text(source_bytes, t).strip()
+                # implements clause (may be a list)
+                impl = _child_by_type(node, "super_interfaces")
+                if impl is not None:
+                    impl_list = []
+                    for ch in getattr(impl, "children", []) or []:
+                        if ch.type in ("type", "type_identifier", "scoped_type_identifier"):
+                            txt = _node_text(source_bytes, ch).strip()
+                            if txt:
+                                impl_list.append(txt)
+                    if impl_list:
+                        info["implements"] = impl_list
                 classes.append(info)
                 # Extract comment block immediately above class
                 try:
@@ -178,6 +200,17 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     pass
             elif node.type == "interface_declaration":
                 info.update({"type": "interface", "method_count": 0})
+                # interface extends (list)
+                impl = _child_by_type(node, "super_interfaces")
+                if impl is not None:
+                    ext_list: list[str] = []
+                    for ch in getattr(impl, "children", []) or []:
+                        if ch.type in ("type", "type_identifier", "scoped_type_identifier"):
+                            txt = _node_text(source_bytes, ch).strip()
+                            if txt:
+                                ext_list.append(txt)
+                    if ext_list:
+                        info["extends"] = ext_list
                 interfaces.append(info)
             else:  # record_declaration
                 info.update({"type": "record", "estimated_lines": max(0, end_line - start_line)})

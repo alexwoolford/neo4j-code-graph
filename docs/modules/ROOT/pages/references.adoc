@@ -52,3 +52,16 @@ This page collects prior art and useful background for code-centric knowledge gr
 == Contributing additions
 
 Have a relevant paper, blog, or implementation to include? Open a PR adding it here and, if helpful, a short one-line description. Please keep descriptions neutral and scoped to what is covered.
+
+
+1.	Are there specific programming languages your code graph currently supports or is designed for (e.g. Java, Python, JS)?
+Initially, I'd like to do one language well (i.e. Java). But, ultimately, I'd like to expand this project to different languages (e.g. Python, Rust, Javascript, etc.).
+
+2.	Do you have a list of features already implemented in your graph (e.g. file, class, method nodes, call edges, etc.)?
+Please look at the docs page I have already shared to see what's already been implemented. Also, there's the actual code.
+
+3.	Are you primarily targeting static code structure (e.g., AST, dependencies) or are you also considering runtime info or developer activity (e.g., git commits, issues)?
+Git commits are certainly in-scope. Ideally, I'd like this to be Git-provider agnostic. So that starts to get tricky when we have different ways to extract the data from the Github, Bitbucker, Gitlab, etc...
+
+4.	Any preferences on types of insights you’re looking to enable with GDS algorithms (e.g. finding important methods, detecting clusters, recommending refactoring)?
+I'm open to any and all suggestions/recommendations.
