@@ -238,7 +238,7 @@ def git_history_task(
         database=_db,
         csv_export=None,
         max_commits=None,
-        skip_file_changes=False,
+        skip_file_changes=False,  # Fixed: optimized relationship creation to avoid O(n²) performance
         file_changes_only=False,
     )
 

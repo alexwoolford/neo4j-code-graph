@@ -48,6 +48,32 @@ def _child_by_type(node: Any, type_name: str) -> Any | None:
     return None
 
 
+def _collect_type_texts(source_bytes: bytes, node: Any) -> list[str]:
+    """Collect fully spelled type texts recursively under a subtree.
+
+    Tree-sitter Java nests interface lists under super_interfaces; this helper
+    descends to find any of the type-bearing nodes and returns their text.
+    """
+    if node is None:
+        return []
+    hits: list[str] = []
+    check_kinds = {
+        "type",
+        "type_identifier",
+        "scoped_type_identifier",
+    }
+    stack = [node]
+    while stack:
+        cur = stack.pop()
+        if getattr(cur, "type", None) in check_kinds:
+            txt = _node_text(source_bytes, cur).strip()
+            if txt:
+                hits.append(txt)
+        for ch in getattr(cur, "children", []) or []:
+            stack.append(ch)
+    return hits
+
+
 def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
     """
     Parse Java source using Tree-sitter and return structured artifacts.
@@ -159,23 +185,14 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 # extends clause
                 ext = _child_by_type(node, "superclass")
                 if ext is not None:
-                    # superclass -> 'extends' type
-                    t = (
-                        _child_by_type(ext, "type")
-                        or _child_by_type(ext, "type_identifier")
-                        or _child_by_type(ext, "scoped_type_identifier")
-                    )
-                    if t is not None:
-                        info["extends"] = _node_text(source_bytes, t).strip()
+                    ext_types = _collect_type_texts(source_bytes, ext)
+                    if ext_types:
+                        # Java allows only one superclass
+                        info["extends"] = ext_types[0]
                 # implements clause (may be a list)
                 impl = _child_by_type(node, "super_interfaces")
                 if impl is not None:
-                    impl_list = []
-                    for ch in getattr(impl, "children", []) or []:
-                        if ch.type in ("type", "type_identifier", "scoped_type_identifier"):
-                            txt = _node_text(source_bytes, ch).strip()
-                            if txt:
-                                impl_list.append(txt)
+                    impl_list = _collect_type_texts(source_bytes, impl)
                     if impl_list:
                         info["implements"] = impl_list
                 classes.append(info)
@@ -200,15 +217,10 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     pass
             elif node.type == "interface_declaration":
                 info.update({"type": "interface", "method_count": 0})
-                # interface extends (list)
+                # interface extends (may be a list)
                 impl = _child_by_type(node, "super_interfaces")
                 if impl is not None:
-                    ext_list: list[str] = []
-                    for ch in getattr(impl, "children", []) or []:
-                        if ch.type in ("type", "type_identifier", "scoped_type_identifier"):
-                            txt = _node_text(source_bytes, ch).strip()
-                            if txt:
-                                ext_list.append(txt)
+                    ext_list = _collect_type_texts(source_bytes, impl)
                     if ext_list:
                         info["extends"] = ext_list
                 interfaces.append(info)

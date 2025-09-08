@@ -228,6 +228,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                     {
                         "child": class_info["name"],
                         "child_file": class_info["file"],
+                        "child_package": class_info.get("package"),
                         "parent": class_info["extends"],
                     }
                 )
@@ -237,6 +238,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                     {
                         "class": class_info["name"],
                         "class_file": class_info["file"],
+                        "class_package": class_info.get("package"),
                         "interface": interface,
                     }
                 )
@@ -245,6 +247,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
             interface_node = {
                 "name": interface_info["name"],
                 "file": interface_info["file"],
+                "package": interface_info.get("package"),
                 "line": interface_info.get("line"),
                 "method_count": interface_info.get("method_count", 0),
                 "modifiers": interface_info.get("modifiers", []),
@@ -256,6 +259,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                     {
                         "child": interface_info["name"],
                         "child_file": interface_info["file"],
+                        "child_package": interface_info.get("package"),
                         "parent": extended_interface,
                     }
                 )
@@ -323,10 +327,22 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 f"Creating class inheritance batch {batch_num} ({len(batch)} relationships)"
             )
             session.run(
-                "UNWIND $inheritance AS rel "
-                "MATCH (child:Class {name: rel.child, file: rel.child_file}) "
-                "MERGE (parent:Class {name: rel.parent}) "
-                "MERGE (child)-[:EXTENDS]->(parent)",
+                """
+                UNWIND $inheritance AS rel
+                MATCH (child:Class {name: rel.child, file: rel.child_file})
+                OPTIONAL MATCH (parentExact:Class {name: rel.parent, package: rel.child_package})
+                WITH child, rel, parentExact
+                OPTIONAL MATCH (parentAny:Class {name: rel.parent})
+                WITH child, parentExact, collect(parentAny) AS anyParents
+                WITH child,
+                     CASE
+                       WHEN parentExact IS NOT NULL THEN parentExact
+                       WHEN size(anyParents) = 1 THEN head(anyParents)
+                       ELSE NULL
+                     END AS parent
+                WHERE parent IS NOT NULL
+                MERGE (child)-[:EXTENDS]->(parent)
+                """,
                 inheritance=batch,
             )
 
@@ -339,10 +355,22 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 f"Creating interface inheritance batch {batch_num} ({len(batch)} relationships)"
             )
             session.run(
-                "UNWIND $inheritance AS rel "
-                "MATCH (child:Interface {name: rel.child, file: rel.child_file}) "
-                "MERGE (parent:Interface {name: rel.parent}) "
-                "MERGE (child)-[:EXTENDS]->(parent)",
+                """
+                UNWIND $inheritance AS rel
+                MATCH (child:Interface {name: rel.child, file: rel.child_file})
+                OPTIONAL MATCH (parentExact:Interface {name: rel.parent, package: rel.child_package})
+                WITH child, rel, parentExact
+                OPTIONAL MATCH (parentAny:Interface {name: rel.parent})
+                WITH child, parentExact, collect(parentAny) AS anyParents
+                WITH child,
+                     CASE
+                       WHEN parentExact IS NOT NULL THEN parentExact
+                       WHEN size(anyParents) = 1 THEN head(anyParents)
+                       ELSE NULL
+                     END AS parent
+                WHERE parent IS NOT NULL
+                MERGE (child)-[:EXTENDS]->(parent)
+                """,
                 inheritance=batch,
             )
 
@@ -353,10 +381,22 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
             batch = class_implementations[i : i + batch_size]
             logger.debug(f"Creating implementation batch {batch_num} ({len(batch)} relationships)")
             session.run(
-                "UNWIND $implementations AS rel "
-                "MATCH (c:Class {name: rel.class, file: rel.class_file}) "
-                "MERGE (i:Interface {name: rel.interface}) "
-                "MERGE (c)-[:IMPLEMENTS]->(i)",
+                """
+                UNWIND $implementations AS rel
+                MATCH (c:Class {name: rel.class, file: rel.class_file})
+                OPTIONAL MATCH (iExact:Interface {name: rel.interface, package: rel.class_package})
+                WITH c, rel, iExact
+                OPTIONAL MATCH (iAny:Interface {name: rel.interface})
+                WITH c, iExact, collect(iAny) AS anyIfaces
+                WITH c,
+                     CASE
+                       WHEN iExact IS NOT NULL THEN iExact
+                       WHEN size(anyIfaces) = 1 THEN head(anyIfaces)
+                       ELSE NULL
+                     END AS i
+                WHERE i IS NOT NULL
+                MERGE (c)-[:IMPLEMENTS]->(i)
+                """,
                 implementations=batch,
             )
 

@@ -160,22 +160,45 @@ def bulk_load_to_neo4j(
             batch_num = i // batch_size + 1
             batch = file_changes_data[i : i + batch_size]
             step_start = time.time()
+            # Step 1: Create FileVer nodes (fast due to unique constraint)
+            session = execute_with_retry(
+                session,
+                """
+                UNWIND $changes AS change
+                MERGE (fv:FileVer {sha: change.sha, path: change.file_path})
+                """,
+                {"changes": batch},
+                f"FileVer nodes batch {batch_num}",
+            )
+
+            # Step 2: Create CHANGED relationships (use CREATE for performance)
             session = execute_with_retry(
                 session,
                 """
                 UNWIND $changes AS change
                 MATCH (c:Commit {sha: change.sha})
-                MATCH (f:File {path: change.file_path})
-                MERGE (fv:FileVer {sha: change.sha, path: change.file_path})
-                MERGE (c)-[rel:CHANGED]->(fv)
+                MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
+                CREATE (c)-[rel:CHANGED]->(fv)
                 SET rel.change_type = change.change_type,
                     rel.additions = change.additions,
                     rel.deletions = change.deletions,
                     rel.renamed_from = change.renamed_from
-                MERGE (fv)-[:OF_FILE]->(f)
                 """,
                 {"changes": batch},
-                f"FileVer creation and relationships batch {batch_num}",
+                f"CHANGED relationships batch {batch_num}",
+            )
+
+            # Step 3: Create OF_FILE relationships (use CREATE for performance)
+            session = execute_with_retry(
+                session,
+                """
+                UNWIND $changes AS change
+                MATCH (f:File {path: change.file_path})
+                MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
+                CREATE (fv)-[:OF_FILE]->(f)
+                """,
+                {"changes": batch},
+                f"OF_FILE relationships batch {batch_num}",
             )
             _ = time.time() - step_start
             # keep timings minimal to avoid unused variables
