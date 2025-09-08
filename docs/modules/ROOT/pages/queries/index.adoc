@@ -52,6 +52,33 @@ Highlights namespaces that both change frequently and depend on many other packa
 include::example$queries/architecture.cyp[tag=package_risk_churn_fanout]
 ----
 
+=== Implementations of an interface
+
+Useful when reviewing API coverage or locating implementers before refactoring.
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=interface_implementations]
+----
+
+=== Inheritance chain for a class
+
+Quickly visualize the extends hierarchy to assess where a change will ripple.
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=class_inheritance_chain]
+----
+
+=== Interfaces without implementations
+
+Find potentially dead or library-only interfaces to prune or document.
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=interfaces_without_implementations]
+----
+
 
 == Team & Process
 
