@@ -81,110 +81,113 @@ def extract_git_history(
         commits_processed / total_time if total_time > 0 else 0,
     )
 
-    # Enrich file changes with change_type/additions/deletions/renamed_from using git show per commit.
+    # Enrich file changes in a single streaming pass over git log output.
     enriched_changes: list[dict[str, str | int | None]] = []
-    for c in commits:
-        sha = c["sha"]
-        status_map: dict[str, dict[str, str | int | None]] = {}
-        # Pass 1: change types and renames
-        ns_cmd = [
-            "git",
-            "show",
-            "--name-status",
-            "-M",
-            "--format=",
-            sha,
-        ]
-        proc1 = subprocess.Popen(
-            ns_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        assert proc1.stdout is not None
-        for ln in proc1.stdout:
-            ln = ln.rstrip("\n")
-            if not ln:
-                continue
+    log_cmd = [
+        "git",
+        "log",
+        "--no-color",
+        "--date=iso",
+        "--pretty=format:__C__|%H",
+        "--name-status",
+        "-M",
+        "--numstat",
+        branch,
+    ]
+    proc = subprocess.Popen(
+        log_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    assert proc.stdout is not None
+    cur_sha: str | None = None
+    status_map: dict[str, dict[str, str | int | None]] = {}
+
+    def _flush() -> None:
+        nonlocal status_map, cur_sha
+        if cur_sha and status_map:
+            for path, props in status_map.items():
+                enriched_changes.append(
+                    {
+                        "sha": cur_sha,
+                        "file_path": path,
+                        "change_type": props.get("change_type"),
+                        "additions": props.get("additions"),
+                        "deletions": props.get("deletions"),
+                        "renamed_from": props.get("renamed_from"),
+                    }
+                )
+        status_map = {}
+
+    for ln in proc.stdout:
+        ln = ln.rstrip("\n")
+        if not ln:
+            continue
+        if ln.startswith("__C__|"):
+            # new commit boundary
+            _flush()
+            cur_sha = ln.split("|", 1)[1]
+            continue
+        # name-status line
+        if "\t" in ln:
             parts = ln.split("\t")
-            if not parts:
-                continue
-            code = parts[0]
-            if code.startswith("R") and len(parts) >= 3:
-                old_path = parts[1]
-                new_path = parts[2]
+            if len(parts) == 2:
+                code, path = parts
+                if code.startswith("R"):
+                    # rename lines are emitted as Rxx\told\tnew in other forms; handle conservatively when 2 cols
+                    status_map[path] = {
+                        "change_type": "renamed",
+                        "renamed_from": None,
+                        "additions": None,
+                        "deletions": None,
+                    }
+                elif code.startswith("A"):
+                    status_map[path] = {
+                        "change_type": "added",
+                        "renamed_from": None,
+                        "additions": None,
+                        "deletions": None,
+                    }
+                elif code.startswith("M"):
+                    status_map[path] = {
+                        "change_type": "modified",
+                        "renamed_from": None,
+                        "additions": None,
+                        "deletions": None,
+                    }
+                elif code.startswith("D"):
+                    status_map[path] = {
+                        "change_type": "deleted",
+                        "renamed_from": None,
+                        "additions": None,
+                        "deletions": None,
+                    }
+            elif len(parts) == 3 and parts[0].startswith("R"):
+                _, old_path, new_path = parts
                 status_map[new_path] = {
                     "change_type": "renamed",
                     "renamed_from": old_path,
                     "additions": None,
                     "deletions": None,
                 }
-            elif code.startswith("A") and len(parts) >= 2:
-                path = parts[1]
-                status_map[path] = {
-                    "change_type": "added",
-                    "renamed_from": None,
-                    "additions": None,
-                    "deletions": None,
-                }
-            elif code.startswith("M") and len(parts) >= 2:
-                path = parts[1]
-                status_map[path] = {
-                    "change_type": "modified",
-                    "renamed_from": None,
-                    "additions": None,
-                    "deletions": None,
-                }
-            elif code.startswith("D") and len(parts) >= 2:
-                path = parts[1]
-                status_map[path] = {
-                    "change_type": "deleted",
-                    "renamed_from": None,
-                    "additions": None,
-                    "deletions": None,
-                }
-
-        # Pass 2: line counts
-        num_cmd = [
-            "git",
-            "show",
-            "--numstat",
-            "--format=",
-            sha,
-        ]
-        proc2 = subprocess.Popen(
-            num_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        assert proc2.stdout is not None
-        for ln in proc2.stdout:
-            ln = ln.rstrip("\n")
-            if not ln:
-                continue
-            parts = ln.split("\t")
-            if len(parts) == 3 and (
-                (parts[0].isdigit() or parts[0] == "-") and (parts[1].isdigit() or parts[1] == "-")
-            ):
-                add_s, del_s, path = parts
-                adds = int(add_s) if add_s.isdigit() else None
-                dels = int(del_s) if del_s.isdigit() else None
-                if path not in status_map:
-                    status_map[path] = {
-                        "change_type": None,
-                        "renamed_from": None,
-                        "additions": adds,
-                        "deletions": dels,
-                    }
-                else:
-                    status_map[path]["additions"] = adds
-                    status_map[path]["deletions"] = dels
-        # collect
-        for path, props in status_map.items():
-            enriched_changes.append(
-                {
-                    "sha": sha,
-                    "file_path": path,
-                    "change_type": props.get("change_type"),
-                    "additions": props.get("additions"),
-                    "deletions": props.get("deletions"),
-                    "renamed_from": props.get("renamed_from"),
-                }
-            )
+            else:
+                # maybe a numstat line (adds\tdels\tpath)
+                if len(parts) == 3:
+                    add_s, del_s, path = parts
+                    if (add_s.isdigit() or add_s == "-") and (del_s.isdigit() or del_s == "-"):
+                        adds = int(add_s) if add_s.isdigit() else None
+                        dels = int(del_s) if del_s.isdigit() else None
+                        if path not in status_map:
+                            status_map[path] = {
+                                "change_type": None,
+                                "renamed_from": None,
+                                "additions": adds,
+                                "deletions": dels,
+                            }
+                        else:
+                            status_map[path]["additions"] = adds
+                            status_map[path]["deletions"] = dels
+        else:
+            # non-tabbed line; ignore
+            pass
+    _flush()
 
     return commits, enriched_changes
