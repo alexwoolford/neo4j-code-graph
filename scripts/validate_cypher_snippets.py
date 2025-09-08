@@ -157,19 +157,71 @@ def validate_queries(
     queries: Iterable[tuple[Path, str, str]],
     database: str | None = None,
 ) -> None:
+    def _infer_params_from_query(query: str) -> dict[str, object]:
+        """Infer basic parameter values for EXPLAIN from inline hints or common names.
+
+        Heuristics:
+        - Look for leading comment lines with "Param:" or "Params:" and collect $names
+        - Fallback: scan for $identifiers anywhere in the query
+        - Provide sensible demo defaults per common parameter name
+        """
+        import re as _re
+
+        params: dict[str, object] = {}
+
+        # Common sensible defaults for our docs patterns
+        defaults: dict[str, object] = {
+            "interface": "Runnable",
+            "ifaceName": "Runnable",
+            "className": "ArrayList",
+            "cls": "Main",
+            "packagePrefix": "p.",
+            "module": "src/",
+            "min_support": 1,
+            "min_confidence": 0.1,
+            "days": 7,
+        }
+
+        # Extract from leading comments if present
+        leading_comments: list[str] = []
+        for line in query.splitlines():
+            if line.strip().startswith("//"):
+                leading_comments.append(line)
+            else:
+                break
+
+        hinted: set[str] = set()
+        for line in leading_comments:
+            if "Param:" in line or "Params:" in line:
+                # Find $param tokens
+                for m in _re.finditer(r"\$(\w+)", line):
+                    hinted.add(m.group(1))
+
+        # Fallback: scan entire query for $param usage
+        if not hinted:
+            for m in _re.finditer(r"\$(\w+)", query):
+                hinted.add(m.group(1))
+
+        for name in hinted:
+            params[name] = defaults.get(name, "demo")
+
+        return params
+
     with GraphDatabase.driver(uri, auth=(user, pwd)) as driver:
         num_validated = 0
         if database:
             with driver.session(database=database) as session:  # type: ignore[reportUnknownMemberType]
                 for file_path, tag, query in queries:
                     for stmt in _split_cypher_statements(query):
-                        session.run(f"EXPLAIN\n{stmt}")  # type: ignore[arg-type]
+                        _params = _infer_params_from_query(stmt)
+                        session.run(f"EXPLAIN\n{stmt}", **_params)  # type: ignore[arg-type]
                         num_validated += 1
         else:
             with driver.session() as session:  # type: ignore[reportUnknownMemberType]
                 for file_path, tag, query in queries:
                     for stmt in _split_cypher_statements(query):
-                        session.run(f"EXPLAIN\n{stmt}")  # type: ignore[arg-type]
+                        _params = _infer_params_from_query(stmt)
+                        session.run(f"EXPLAIN\n{stmt}", **_params)  # type: ignore[arg-type]
                         num_validated += 1
     print(f"Validated {num_validated} Cypher snippets via EXPLAIN")
 
