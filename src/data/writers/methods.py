@@ -272,9 +272,12 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
         if other_calls:
             logger.info("Creating %d other method calls (best effort)...", len(other_calls))
 
+            # Only keep calls where we can identify a callee class/interface; avoid name-only scans
             filtered_calls = []
             for call in other_calls:
-                if call.get("callee_name") and len(call["callee_name"]) > 1:
+                cname = str(call.get("callee_name") or "")
+                tclass = call.get("callee_class")
+                if cname and len(cname) > 1 and tclass:
                     filtered_calls.append(call)
 
             if not filtered_calls:
@@ -283,7 +286,7 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
 
             logger.info("Filtered to %d potentially valid calls", len(filtered_calls))
 
-            batch_size2 = 500
+            batch_size2 = 1000
             total_batches = (len(filtered_calls) + batch_size2 - 1) // batch_size2
             successful_calls = 0
             failed_batches = 0
@@ -297,14 +300,13 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
                         """
                         UNWIND $calls AS call
                         MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line})
-                        WHERE EXISTS {
-                            MATCH (callee:Method {name: call.callee_name})
-                            WHERE callee.name = call.callee_name
-                        }
-                        WITH caller, call
-                        MATCH (callee:Method {name: call.callee_name})
-                        WITH caller, callee, call
-                        LIMIT 1000
+                        OPTIONAL MATCH (cls:Class {name: call.callee_class})
+                        OPTIONAL MATCH (iface:Interface {name: call.callee_class})
+                        WITH caller, call, cls, iface
+                        OPTIONAL MATCH (callee1:Method {name: call.callee_name})<-[:CONTAINS_METHOD]-(cls)
+                        OPTIONAL MATCH (callee2:Method {name: call.callee_name})<-[:CONTAINS_METHOD]-(iface)
+                        WITH caller, call, coalesce(callee1, callee2) AS callee
+                        WHERE callee IS NOT NULL
                         MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)
                         RETURN count(*) as created
                         """,
