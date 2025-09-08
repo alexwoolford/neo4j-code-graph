@@ -152,6 +152,9 @@
 <p><strong>Interface</strong>: An interface declaration; <code>name</code>, <code>file</code>.</p>
 </li>
 <li>
+<p><strong>Package</strong>: A source namespace (e.g., Java package) grouping classes; <code>name</code> (unique).</p>
+</li>
+<li>
 <p><strong>Import</strong>: An import statement within a file; <code>import_path</code>.</p>
 </li>
 <li>
@@ -235,6 +238,9 @@
 </li>
 <li>
 <p><strong><code>(Directory)-[:CONTAINS]&#8594;(File)</code></strong>: Files within a directory.</p>
+</li>
+<li>
+<p><strong><code>(Package)-[:CONTAINS]&#8594;(Class)</code></strong>: Namespace grouping of class declarations.</p>
 </li>
 </ul>
 </div>
