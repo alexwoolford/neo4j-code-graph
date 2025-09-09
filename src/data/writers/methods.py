@@ -129,6 +129,94 @@ def create_methods(
             methods=batch,
         )
 
+    # Parameter nodes and relationships
+    param_records: list[dict[str, Any]] = []
+    param_type_links: list[dict[str, Any]] = []
+    for file_data in files_data:
+        for method in file_data.get("methods", []):
+            msig = method.get("method_signature")
+            params = method.get("parameters") or []
+            for idx, p in enumerate(params):
+                pname = p.get("name") if isinstance(p, dict) else None
+                ptype = p.get("type") if isinstance(p, dict) else None
+                ppkg = p.get("type_package") if isinstance(p, dict) else None
+                param_records.append(
+                    {
+                        "method_signature": msig,
+                        "index": idx,
+                        "name": pname or f"param{idx}",
+                        "type": ptype,
+                        "type_package": ppkg,
+                        "method_file": method.get("file"),
+                        "method_line": method.get("line"),
+                        "method_name": method.get("name"),
+                        "class_name": method.get("class_name"),
+                    }
+                )
+                if ptype:
+                    param_type_links.append(
+                        {
+                            "method_signature": msig,
+                            "index": idx,
+                            "type": ptype,
+                            "type_package": ppkg,
+                        }
+                    )
+
+    if param_records:
+        logger.info("Creating %d Parameter nodes and HAS_PARAMETER rels...", len(param_records))
+        batch_size2 = get_database_batch_size(has_embeddings=False)
+        for i in progress_range(0, len(param_records), batch_size2, desc="Parameter nodes"):
+            batch = param_records[i : i + batch_size2]
+            session.run(
+                """
+                UNWIND $params AS p
+                MATCH (m:Method {method_signature:p.method_signature})
+                MERGE (param:Parameter {method_signature:p.method_signature, index:p.index})
+                SET param.name = p.name,
+                    param.type = p.type,
+                    param.type_package = p.type_package
+                MERGE (m)-[:HAS_PARAMETER]->(param)
+                """,
+                params=batch,
+            )
+
+    if param_type_links:
+        logger.info(
+            "Linking %d Parameter nodes to type Classes via OF_TYPE...", len(param_type_links)
+        )
+        batch_size3 = get_database_batch_size(has_embeddings=False)
+        for i in progress_range(0, len(param_type_links), batch_size3, desc="Param type links"):
+            batch = param_type_links[i : i + batch_size3]
+            session.run(
+                """
+                UNWIND $links AS l
+                MATCH (p:Parameter {method_signature:l.method_signature, index:l.index})
+                // Prefer exact package match when available, fallback to unique-name
+                OPTIONAL MATCH (cPkg:Class {name: l.type, package: l.type_package})
+                OPTIONAL MATCH (iPkg:Interface {name: l.type, package: l.type_package})
+                WITH p, coalesce(cPkg, iPkg) AS exact
+                CALL {
+                  WITH p, exact, l
+                  WITH p, exact
+                  WHERE exact IS NOT NULL
+                  MERGE (p)-[:OF_TYPE]->(exact)
+                  RETURN 1 AS done
+                  UNION
+                  WITH p, exact, l
+                  WHERE exact IS NULL
+                  OPTIONAL MATCH (cAny:Class {name: l.type})
+                  OPTIONAL MATCH (iAny:Interface {name: l.type})
+                  WITH p, exact, collect(coalesce(cAny,iAny)) AS any
+                  WHERE size([x IN any WHERE x IS NOT NULL]) = 1
+                  WITH p, head([x IN any WHERE x IS NOT NULL]) AS target
+                  MERGE (p)-[:OF_TYPE]->(target)
+                  RETURN 1 AS done
+                }
+                """,
+                links=batch,
+            )
+
     method_file_rels = []
     for file_data in files_data:
         for method in file_data["methods"]:

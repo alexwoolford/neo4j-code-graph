@@ -104,6 +104,12 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
         "id",
         "CREATE CONSTRAINT doc_id_unique IF NOT EXISTS FOR (d:Doc) REQUIRE d.id IS UNIQUE",
     ),
+    (
+        "parameter_method_index_unique",
+        "Parameter",
+        "(method_signature, index)",
+        "CREATE CONSTRAINT parameter_method_index_unique IF NOT EXISTS FOR (p:Parameter) REQUIRE (p.method_signature, p.index) IS UNIQUE",
+    ),
 ]
 
 SCHEMA_INDEXES: list[tuple[str, str, str]] = [

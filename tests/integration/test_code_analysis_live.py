@@ -149,6 +149,41 @@ def test_live_methods_and_relationships_created():
             ).single()
             assert rec and int(rec["c"]) == 1
 
+            # Parameter nodes created and linked to types when resolvable
+            # Add a new method with parameters to exercise Parameter model
+            files_data2 = [
+                {
+                    "path": "src/P.java",
+                    "classes": [{"name": "P", "file": "src/P.java", "line": 1, "implements": []}],
+                    "methods": [
+                        {
+                            "name": "use",
+                            "file": "src/P.java",
+                            "line": 5,
+                            "method_signature": "p.P#use(p.A,p.I):void",
+                            "class_name": "P",
+                            "containing_type": "class",
+                            "return_type": "void",
+                            "parameters": [
+                                {"name": "a", "type": "A"},
+                                {"name": "i", "type": "I"},
+                            ],
+                        }
+                    ],
+                }
+            ]
+            create_classes(s, files_data2)
+            create_methods(s, files_data2, method_embeddings=[])
+            rec = s.run(
+                "MATCH (:Method {method_signature:'p.P#use(p.A,p.I):void'})-[:HAS_PARAMETER]->(p:Parameter) RETURN count(p) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 2
+            # OF_TYPE to Class/Interface
+            rec = s.run(
+                "MATCH (:Method {method_signature:'p.P#use(p.A,p.I):void'})-[:HAS_PARAMETER]->(:Parameter)-[:OF_TYPE]->(t) RETURN count(t) AS c"
+            ).single()
+            assert rec and int(rec["c"]) >= 1
+
 
 def test_live_class_inheritance_and_implements():
     from src.analysis.code_analysis import create_classes, create_directories, create_files

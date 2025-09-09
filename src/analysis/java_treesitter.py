@@ -358,7 +358,11 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                             if vdid is not None:
                                 name_node = _child_by_type(vdid, "identifier")
                         name_text = _node_text(source_bytes, name_node).strip() if name_node else ""
-                        params_list.append({"name": name_text, "type": type_text})
+                        # Resolve package for parameter type (mirrors extends/implements resolution)
+                        type_pkg = _resolve_type_package(type_text, package_name, explicit_imports)
+                        params_list.append(
+                            {"name": name_text, "type": type_text, "type_package": type_pkg}
+                        )
 
             methods.append(
                 {
