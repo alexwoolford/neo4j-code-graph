@@ -19,6 +19,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *CVE*: Vulnerability record (from NVD); `id`, `cvss_score`.
 - *Directory*: A directory node used for hierarchical navigation; `path`.
 - *Doc*: Documentation snippet extracted from comments/docstrings; properties include `id` (unique), `file`, `language`, `kind` (`javadoc`, `block_comment`, `line_comment`, etc.), `scope` (`file`, `class`, `method`), `start_line`, `end_line`, and `text` (truncated to 1000 chars).
+ - *Parameter*: A method parameter with stable identity per method and position; properties include `method_signature` (of the owning method), `index` (0‑based), `name`, `type` (declared text), `type_package` (best‑effort resolved package for the type).
 
 == Relationships
 
@@ -34,6 +35,8 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *`(File)-[:IMPORTS]->(Import)`*: File contains an import declaration.
 - *`(Import)-[:DEPENDS_ON]->(ExternalDependency)`*: Import maps to an external package.
 - *`(File|Class|Method)-[:HAS_DOC]->(Doc)`*: Documentation links from source elements to extracted docs.
+ - *`(Method)-[:HAS_PARAMETER]->(Parameter)`*: Method declares an ordered parameter list (relationship order indicated by `Parameter.index`).
+ - *`(Parameter)-[:OF_TYPE]->(Class|Interface)`*: Parameter’s declared type, resolved by package/file when available; created only when resolvable or uniquely identifiable by name.
 
 // Type and hierarchy
 - *`(Class)-[:EXTENDS]->(Class)`*: Inheritance between classes.
