@@ -195,21 +195,20 @@ def create_methods(
                 // Prefer exact package match when available, fallback to unique-name
                 OPTIONAL MATCH (cPkg:Class {name: l.type, package: l.type_package})
                 OPTIONAL MATCH (iPkg:Interface {name: l.type, package: l.type_package})
-                WITH p, coalesce(cPkg, iPkg) AS exact
+                WITH p, l, coalesce(cPkg, iPkg) AS exact
                 CALL {
-                  WITH p, exact, l
-                  WITH p, exact
+                  WITH p, l, exact
                   WHERE exact IS NOT NULL
                   MERGE (p)-[:OF_TYPE]->(exact)
                   RETURN 1 AS done
                   UNION
-                  WITH p, exact, l
+                  WITH p, l, exact
                   WHERE exact IS NULL
                   OPTIONAL MATCH (cAny:Class {name: l.type})
                   OPTIONAL MATCH (iAny:Interface {name: l.type})
-                  WITH p, exact, collect(coalesce(cAny,iAny)) AS any
-                  WHERE size([x IN any WHERE x IS NOT NULL]) = 1
-                  WITH p, head([x IN any WHERE x IS NOT NULL]) AS target
+                  WITH p, [x IN collect(coalesce(cAny,iAny)) WHERE x IS NOT NULL] AS any
+                  WHERE size(any) = 1
+                  WITH p, head(any) AS target
                   MERGE (p)-[:OF_TYPE]->(target)
                   RETURN 1 AS done
                 }
