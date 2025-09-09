@@ -209,6 +209,15 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
     interface_inheritance = []
     class_implementations = []
 
+    # Precompute quick lookups for interface locations to improve exact matching
+    interface_name_to_file: dict[str, str] = {}
+    for fd in files_data:
+        for iface in fd.get("interfaces", []) or []:
+            name = iface.get("name")
+            fpath = iface.get("file")
+            if isinstance(name, str) and isinstance(fpath, str):
+                interface_name_to_file.setdefault(name, fpath)
+
     for file_data in files_data:
         for class_info in file_data.get("classes", []):
             class_node = {
@@ -276,6 +285,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                         "child_file": interface_info["file"],
                         "child_package": interface_info.get("package"),
                         "parent": extended_interface,
+                        "parent_file": interface_name_to_file.get(extended_interface),
                         "parent_package": (
                             (interface_info.get("extends_packages") or [None])[idx]
                             if isinstance(interface_info.get("extends_packages"), list)
@@ -378,8 +388,9 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 """
                 UNWIND $inheritance AS rel
                 MATCH (child:Interface {name: rel.child, file: rel.child_file})
-                OPTIONAL MATCH (parentExact:Interface {name: rel.parent, package: coalesce(rel.parent_package, rel.child_package)})
-                WITH child, rel, parentExact
+                OPTIONAL MATCH (parentExactPkg:Interface {name: rel.parent, package: coalesce(rel.parent_package, rel.child_package)})
+                OPTIONAL MATCH (parentExactFile:Interface {name: rel.parent, file: rel.parent_file})
+                WITH child, rel, coalesce(parentExactPkg, parentExactFile) AS parentExact
                 OPTIONAL MATCH (parentAny:Interface {name: rel.parent})
                 WITH child, parentExact, collect(parentAny) AS anyParents
                 WITH child,
