@@ -163,6 +163,23 @@ def create_methods(
                         }
                     )
 
+            # Constructor creations captured in method['calls'] with call_type='constructor'
+            for call in method.get("calls", []) or []:
+                if call.get("call_type") == "constructor":
+                    ctor_type = call.get("target_class")
+                    ctor_pkg = call.get("target_package")
+                    if ctor_type:
+                        # Record a CREATES link from this method to the target Class when resolvable
+                        param_type_links.append(  # reuse batching; filtered later
+                            {
+                                "method_signature": msig,
+                                "index": -1,
+                                "type": ctor_type,
+                                "type_package": ctor_pkg,
+                                "creates": True,
+                            }
+                        )
+
     if param_records:
         logger.info("Creating %d Parameter nodes and HAS_PARAMETER rels...", len(param_records))
         batch_size2 = get_database_batch_size(has_embeddings=False)
@@ -191,24 +208,35 @@ def create_methods(
             session.run(
                 """
                 UNWIND $links AS l
-                MATCH (p:Parameter {method_signature:l.method_signature, index:l.index})
+                // Optional Parameter match; will be null for constructor-created rows
+                OPTIONAL MATCH (p:Parameter {method_signature:l.method_signature, index:l.index})
+                OPTIONAL MATCH (m:Method {method_signature:l.method_signature})
                 // Prefer exact package match when available, fallback to unique-name
                 OPTIONAL MATCH (cPkg:Class {name: l.type, package: l.type_package})
                 OPTIONAL MATCH (iPkg:Interface {name: l.type, package: l.type_package})
-                WITH p, l, coalesce(cPkg, iPkg) AS exact
-                // Fast path: exact package match
-                FOREACH (_ IN CASE WHEN exact IS NOT NULL THEN [1] ELSE [] END |
+                WITH p, m, l, coalesce(cPkg, iPkg) AS exact
+                // OF_TYPE for parameters
+                FOREACH (_ IN CASE WHEN p IS NOT NULL AND exact IS NOT NULL AND coalesce(l.creates,false)=false THEN [1] ELSE [] END |
                   MERGE (p)-[:OF_TYPE]->(exact)
                 )
-                // Fallback when no exact match: unique name across Class/Interface
-                WITH p, l, exact
-                WHERE exact IS NULL
+                // Fallback OF_TYPE unique-name
+                WITH p, m, l, exact
+                WHERE p IS NOT NULL AND exact IS NULL AND coalesce(l.creates,false)=false
                 OPTIONAL MATCH (cAny:Class {name: l.type})
                 OPTIONAL MATCH (iAny:Interface {name: l.type})
                 WITH p, [x IN [cAny, iAny] WHERE x IS NOT NULL] AS any
                 WHERE size(any) = 1
                 WITH p, head(any) AS target
                 MERGE (p)-[:OF_TYPE]->(target)
+
+                // CREATES for constructors
+                WITH p, m, l
+                WHERE m IS NOT NULL AND coalesce(l.creates,false)=true
+                OPTIONAL MATCH (cPkg:Class {name: l.type, package: l.type_package})
+                WITH m, l, cPkg
+                FOREACH (_ IN CASE WHEN cPkg IS NOT NULL THEN [1] ELSE [] END |
+                  MERGE (m)-[:CREATES]->(cPkg)
+                )
                 """,
                 links=batch,
             )

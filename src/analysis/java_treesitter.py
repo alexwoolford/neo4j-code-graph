@@ -474,6 +474,30 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                         "qualifier": qualifier,
                     }
                     calls_list.append(call_entry)
+                elif n.type == "object_creation_expression":
+                    # Detect constructor calls: new Type(...)
+                    try:
+                        type_node = (
+                            _child_by_type(n, "type")
+                            or _child_by_type(n, "type_identifier")
+                            or _child_by_type(n, "scoped_type_identifier")
+                        )
+                        type_text = _node_text(source_bytes, type_node).strip() if type_node else ""
+                        if type_text:
+                            # Derive simple class name and resolve package
+                            simple = _strip_generics(type_text).split(".")[-1]
+                            pkg = _resolve_type_package(type_text, package_name, explicit_imports)
+                            calls_list.append(
+                                {
+                                    "method_name": simple,
+                                    "target_class": simple,
+                                    "target_package": pkg,
+                                    "call_type": "constructor",
+                                    "qualifier": "",
+                                }
+                            )
+                    except Exception:
+                        pass
                 for ch in n.children:
                     _walk_calls(ch)
 

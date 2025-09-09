@@ -237,3 +237,45 @@ def test_value_query_public_api_exposes_internal_types():
             )
             rows = list(s.run(q))
             assert rows and rows[0]["sig"].startswith("com.app.api.Controller#create(")
+
+            # Bonus: constructor creates link
+            # Add a constructor call to the controller method body via calls list
+            files_data2 = [
+                {
+                    "path": "api/Controller.java",
+                    "classes": [
+                        {
+                            "name": "Controller",
+                            "file": "api/Controller.java",
+                            "package": "com.app.api",
+                            "line": 1,
+                        }
+                    ],
+                    "methods": [
+                        {
+                            "name": "mk",
+                            "file": "api/Controller.java",
+                            "line": 20,
+                            "method_signature": "com.app.api.Controller#mk():void",
+                            "class_name": "Controller",
+                            "containing_type": "class",
+                            "return_type": "void",
+                            "is_public": True,
+                            "parameters": [],
+                            "calls": [
+                                {
+                                    "method_name": "Model",
+                                    "target_class": "Model",
+                                    "target_package": "com.app.internal",
+                                    "call_type": "constructor",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ]
+            create_methods(s, files_data2, method_embeddings=[])
+            rec = s.run(
+                "MATCH (:Method {method_signature:'com.app.api.Controller#mk():void'})-[:CREATES]->(:Class {name:'Model', package:'com.app.internal'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
