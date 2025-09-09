@@ -175,6 +175,9 @@
 <li>
 <p><strong>Doc</strong>: Documentation snippet extracted from comments/docstrings; properties include <code>id</code> (unique), <code>file</code>, <code>language</code>, <code>kind</code> (<code>javadoc</code>, <code>block_comment</code>, <code>line_comment</code>, etc.), <code>scope</code> (<code>file</code>, <code>class</code>, <code>method</code>), <code>start_line</code>, <code>end_line</code>, and <code>text</code> (truncated to 1000 chars).</p>
 </li>
+<li>
+<p><strong>Parameter</strong>: A method parameter with stable identity per method and position; properties include <code>method_signature</code> (of the owning method), <code>index</code> (0‑based), <code>name</code>, <code>type</code> (declared text), <code>type_package</code> (best‑effort resolved package for the type).</p>
+</li>
 </ul>
 </div>
 </div>
@@ -216,6 +219,12 @@
 </li>
 <li>
 <p><strong><code>(File|Class|Method)-[:HAS_DOC]&#8594;(Doc)</code></strong>: Documentation links from source elements to extracted docs.</p>
+</li>
+<li>
+<p><strong><code>(Method)-[:HAS_PARAMETER]&#8594;(Parameter)</code></strong>: Method declares an ordered parameter list (relationship order indicated by <code>Parameter.index</code>).</p>
+</li>
+<li>
+<p><strong><code>(Parameter)-[:OF_TYPE]&#8594;(Class|Interface)</code></strong>: Parameter’s declared type, resolved by package/file when available; created only when resolvable or uniquely identifiable by name.</p>
 </li>
 </ul>
 </div>
