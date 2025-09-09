@@ -196,22 +196,19 @@ def create_methods(
                 OPTIONAL MATCH (cPkg:Class {name: l.type, package: l.type_package})
                 OPTIONAL MATCH (iPkg:Interface {name: l.type, package: l.type_package})
                 WITH p, l, coalesce(cPkg, iPkg) AS exact
-                CALL {
-                  WITH p, l, exact
-                  WHERE exact IS NOT NULL
+                // Fast path: exact package match
+                FOREACH (_ IN CASE WHEN exact IS NOT NULL THEN [1] ELSE [] END |
                   MERGE (p)-[:OF_TYPE]->(exact)
-                  RETURN 1 AS done
-                  UNION
-                  WITH p, l, exact
-                  WHERE exact IS NULL
-                  OPTIONAL MATCH (cAny:Class {name: l.type})
-                  OPTIONAL MATCH (iAny:Interface {name: l.type})
-                  WITH p, [x IN collect(coalesce(cAny,iAny)) WHERE x IS NOT NULL] AS any
-                  WHERE size(any) = 1
-                  WITH p, head(any) AS target
-                  MERGE (p)-[:OF_TYPE]->(target)
-                  RETURN 1 AS done
-                }
+                )
+                // Fallback when no exact match: unique name across Class/Interface
+                WITH p, l, exact
+                WHERE exact IS NULL
+                OPTIONAL MATCH (cAny:Class {name: l.type})
+                OPTIONAL MATCH (iAny:Interface {name: l.type})
+                WITH p, [x IN [cAny, iAny] WHERE x IS NOT NULL] AS any
+                WHERE size(any) = 1
+                WITH p, head(any) AS target
+                MERGE (p)-[:OF_TYPE]->(target)
                 """,
                 links=batch,
             )
