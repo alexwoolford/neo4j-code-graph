@@ -37,21 +37,16 @@ LIMIT 15
 // end::package_risk_churn_fanout[]
 
 // tag::interface_implementations[]
-// List classes that implement a given interface (optionally filter by package prefix)
-// Params: $interface (e.g., 'I' or fully qualified short name), $packagePrefix (optional)
-MATCH (i:Interface)
-WHERE i.name = $interface OR ($packagePrefix IS NOT NULL AND i.file CONTAINS $packagePrefix AND i.name = $interface)
+// List classes that implement a given interface
+// Params: $interface (e.g., 'Runnable')
+MATCH (i:Interface {name: $interface})
 MATCH (c:Class)-[:IMPLEMENTS]->(i)
 RETURN i.name AS interface, c.name AS class, c.file AS file
 ORDER BY interface, class
 // end::interface_implementations[]
 
-// tag::class_inheritance_chain[]
-// Show inheritance chain for a class (from the class up to its base)
-// Param: $className
-MATCH p=(c:Class {name:$className})-[:EXTENDS*0..]->(base:Class)
-RETURN p
-// end::class_inheritance_chain[]
+
+// (removed class_inheritance_chain: similar to extends tree; prefer the summarized chain)
 
 // tag::interfaces_without_implementations[]
 // Interfaces with no implementing classes (useful to spot dead/SDK-only contracts)
@@ -61,13 +56,7 @@ RETURN i.name AS interface, i.file AS file
 ORDER BY interface
 // end::interfaces_without_implementations[]
 
-// tag::type_hierarchy_implements[]
-// Find all classes that implement a given interface
-// Param: $ifaceName e.g. 'Runnable'
-MATCH (i:Interface {name: $ifaceName})<-[:IMPLEMENTS]-(c:Class)
-RETURN i.name AS interface, c.name AS class, c.file AS file
-ORDER BY class, file
-// end::type_hierarchy_implements[]
+// (removed type_hierarchy_implements: duplicate of interface_implementations)
 
 // tag::type_hierarchy_extends_tree[]
 // Show a class inheritance chain (ancestors) for a given class

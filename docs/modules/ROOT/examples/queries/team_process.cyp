@@ -10,14 +10,6 @@ ORDER BY total_commits DESC
 LIMIT 10
 // end::experts_for_module[]
 
-// tag::cochange_pairs_simple[]
-MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
-WHERE cc.support > 5 AND cc.confidence > 0.6
-RETURN f1.path, f2.path, cc.support, cc.confidence
-ORDER BY cc.confidence DESC
-LIMIT 25
-// end::cochange_pairs_simple[]
-
 // tag::top_changed_files_by_churn[]
 // Most changed files by total line churn (additions + deletions)
 MATCH (c:Commit)-[r:CHANGED]->(fv:FileVer)-[:OF_FILE]->(f:File)

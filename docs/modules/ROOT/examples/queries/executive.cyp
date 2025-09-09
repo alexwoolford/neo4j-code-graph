@@ -1,19 +1,3 @@
-// tag::tech_health_summary[]
-MATCH (f:File)
-OPTIONAL MATCH (f)-[:DECLARES]->(m:Method)
-WITH count(DISTINCT f) as total_files,
-     sum(f.total_lines) as total_lines_of_code,
-     count(DISTINCT m) as total_methods,
-     sum(CASE WHEN m.estimated_lines > 100 THEN 1 ELSE 0 END) as complex_methods
-
-OPTIONAL MATCH (cve:CVE)
-WHERE cve.cvss_score >= 7.0
-
-RETURN total_files, total_lines_of_code, total_methods, complex_methods,
-       count(DISTINCT cve) as high_severity_vulnerabilities,
-       round(100 - (complex_methods * 100.0 / total_methods)) as maintainability_score
-// end::tech_health_summary[]
-
 // tag::release_risk_assessment[]
 MATCH (f:File)<-[:OF_FILE]-(fv:FileVer)<-[:CHANGED]-(c:Commit)
 WHERE c.date > datetime() - duration('P7D')
