@@ -61,14 +61,7 @@ Useful when reviewing API coverage or locating implementers before refactoring.
 include::example$queries/architecture.cyp[tag=interface_implementations]
 ----
 
-=== Inheritance chain for a class
-
-Quickly visualize the extends hierarchy to assess where a change will ripple.
-
-[source,cypher]
-----
-include::example$queries/architecture.cyp[tag=class_inheritance_chain]
-----
+// (removed: inheritance chain example pruned from examples)
 
 === Interfaces without implementations
 
@@ -89,12 +82,7 @@ include::example$queries/architecture.cyp[tag=interfaces_without_implementations
 include::example$queries/team_process.cyp[tag=experts_for_module]
 ----
 
-=== Frequently co-changed files (simple)
-
-[source,cypher,subs=attributes+]
-----
-include::example$queries/team_process.cyp[tag=cochange_pairs_simple]
-----
+// (removed: duplicate co-change example)
 
 === Most changed files by churn
 
@@ -149,14 +137,7 @@ RETURN d.class_name AS class, d.name AS method, d.deprecated_since AS since,
 ORDER BY callers DESC, class, method
 ----
 
-== Executive Reporting
-
-=== Technical health summary
-
-[source,cypher,subs=attributes+]
-----
-include::example$queries/executive.cyp[tag=tech_health_summary]
-----
+== Security & Risk (continued)
 
 === Release risk assessment
 
