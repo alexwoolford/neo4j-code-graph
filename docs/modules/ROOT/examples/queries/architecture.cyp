@@ -36,6 +36,22 @@ ORDER BY riskScore DESC
 LIMIT 15
 // end::package_risk_churn_fanout[]
 
+// tag::api_exposes_internal_param_types[]
+// Public API methods whose parameter types are in internal packages
+// Params: $apiPrefix (e.g., 'com.app.api'), $internalPrefix (e.g., 'com.app.internal')
+MATCH (api:Class)
+WHERE api.package STARTS WITH $apiPrefix
+MATCH (api)-[:CONTAINS_METHOD]->(m:Method {is_public:true})
+MATCH (m)-[:HAS_PARAMETER]->(:Parameter)-[:OF_TYPE]->(t)
+WHERE t.package STARTS WITH $internalPrefix
+RETURN m.method_signature AS method,
+       api.package        AS api_package,
+       api.name           AS api_class,
+       t.package          AS internal_package,
+       t.name             AS internal_type
+ORDER BY api_package, api_class, method
+// end::api_exposes_internal_param_types[]
+
 // tag::interface_implementations[]
 // List classes that implement a given interface
 // Params: $interface (e.g., 'Runnable')

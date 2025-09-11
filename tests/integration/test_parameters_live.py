@@ -279,3 +279,61 @@ def test_value_query_public_api_exposes_internal_types():
                 "MATCH (:Method {method_signature:'com.app.api.Controller#mk():void'})-[:CREATES]->(:Class {name:'Model', package:'com.app.internal'}) RETURN count(*) AS c"
             ).single()
             assert rec and int(rec["c"]) == 1
+
+
+def test_constructor_ambiguous_does_not_create():
+    from src.analysis.code_analysis import (
+        create_classes,
+        create_directories,
+        create_files,
+        create_methods,
+    )
+    from src.data.schema_management import setup_complete_schema
+
+    files_data = [
+        {
+            "path": "p1/Z.java",
+            "classes": [{"name": "Z", "file": "p1/Z.java", "package": "p1", "line": 1}],
+            "methods": [],
+        },
+        {
+            "path": "p2/Z.java",
+            "classes": [{"name": "Z", "file": "p2/Z.java", "package": "p2", "line": 1}],
+            "methods": [],
+        },
+        {
+            "path": "Q.java",
+            "classes": [{"name": "Q", "file": "Q.java", "line": 1}],
+            "methods": [
+                {
+                    "name": "m",
+                    "file": "Q.java",
+                    "line": 5,
+                    "method_signature": "Q#m():void",
+                    "class_name": "Q",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "calls": [
+                        {"method_name": "Z", "target_class": "Z", "call_type": "constructor"}
+                    ],
+                }
+            ],
+        },
+    ]
+
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as s:
+            s.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(s)
+
+            create_directories(s, files_data)
+            create_files(s, files_data, file_embeddings=[])
+            create_classes(s, files_data)
+            create_methods(s, files_data, method_embeddings=[])
+
+            rec = s.run(
+                "MATCH (:Method {method_signature:'Q#m():void'})-[:CREATES]->(:Class {name:'Z'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 0

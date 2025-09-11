@@ -205,38 +205,50 @@ def create_methods(
         batch_size3 = get_database_batch_size(has_embeddings=False)
         for i in progress_range(0, len(param_type_links), batch_size3, desc="Param type links"):
             batch = param_type_links[i : i + batch_size3]
+            # 1) Parameter type linking (OF_TYPE), skip constructor rows
             session.run(
                 """
                 UNWIND $links AS l
-                // Optional Parameter match; will be null for constructor-created rows
+                WITH l WHERE coalesce(l.creates,false) = false
                 OPTIONAL MATCH (p:Parameter {method_signature:l.method_signature, index:l.index})
-                OPTIONAL MATCH (m:Method {method_signature:l.method_signature})
-                // Prefer exact package match when available, fallback to unique-name
+                WHERE p IS NOT NULL
+                // Prefer exact package match when available
                 OPTIONAL MATCH (cPkg:Class {name: l.type, package: l.type_package})
                 OPTIONAL MATCH (iPkg:Interface {name: l.type, package: l.type_package})
-                WITH p, m, l, coalesce(cPkg, iPkg) AS exact
-                // OF_TYPE for parameters
-                FOREACH (_ IN CASE WHEN p IS NOT NULL AND exact IS NOT NULL AND coalesce(l.creates,false)=false THEN [1] ELSE [] END |
+                WITH l, p, coalesce(cPkg, iPkg) AS exact
+                FOREACH (_ IN CASE WHEN exact IS NOT NULL THEN [1] ELSE [] END |
                   MERGE (p)-[:OF_TYPE]->(exact)
                 )
-                // Fallback OF_TYPE unique-name
-                WITH p, m, l, exact
-                WHERE p IS NOT NULL AND exact IS NULL AND coalesce(l.creates,false)=false
+                WITH l, p, exact
+                WHERE exact IS NULL
                 OPTIONAL MATCH (cAny:Class {name: l.type})
                 OPTIONAL MATCH (iAny:Interface {name: l.type})
                 WITH p, [x IN [cAny, iAny] WHERE x IS NOT NULL] AS any
                 WHERE size(any) = 1
                 WITH p, head(any) AS target
                 MERGE (p)-[:OF_TYPE]->(target)
+                """,
+                links=batch,
+            )
 
-                // CREATES for constructors
-                WITH p, m, l
-                WHERE m IS NOT NULL AND coalesce(l.creates,false)=true
+            # 2) Constructor creations (CREATES)
+            session.run(
+                """
+                UNWIND $links AS l
+                WITH l WHERE coalesce(l.creates,false) = true
+                OPTIONAL MATCH (m:Method {method_signature:l.method_signature})
+                WHERE m IS NOT NULL
                 OPTIONAL MATCH (cPkg:Class {name: l.type, package: l.type_package})
-                WITH m, l, cPkg
                 FOREACH (_ IN CASE WHEN cPkg IS NOT NULL THEN [1] ELSE [] END |
                   MERGE (m)-[:CREATES]->(cPkg)
                 )
+                WITH l, m, cPkg
+                WHERE cPkg IS NULL
+                OPTIONAL MATCH (cAny:Class {name: l.type})
+                WITH m, [x IN [cAny] WHERE x IS NOT NULL] AS any
+                WHERE size(any) = 1
+                WITH m, head(any) AS target
+                MERGE (m)-[:CREATES]->(target)
                 """,
                 links=batch,
             )
