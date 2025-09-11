@@ -221,11 +221,12 @@ def create_methods(
                 )
                 WITH l, p, exact
                 WHERE exact IS NULL
-                OPTIONAL MATCH (cAny:Class {name: l.type})
-                OPTIONAL MATCH (iAny:Interface {name: l.type})
-                WITH p, [x IN [cAny, iAny] WHERE x IS NOT NULL] AS any
-                WHERE size(any) = 1
-                WITH p, head(any) AS target
+                // Fallback: only when the simple name is globally unique across Class and Interface
+                OPTIONAL MATCH (x)
+                WHERE (x:Class OR x:Interface) AND x.name = l.type
+                WITH p, collect(DISTINCT x) AS xs
+                WHERE size(xs) = 1
+                WITH p, head(xs) AS target
                 MERGE (p)-[:OF_TYPE]->(target)
                 """,
                 links=batch,
@@ -245,9 +246,9 @@ def create_methods(
                 WITH l, m, cPkg
                 WHERE cPkg IS NULL
                 OPTIONAL MATCH (cAny:Class {name: l.type})
-                WITH m, [x IN [cAny] WHERE x IS NOT NULL] AS any
-                WHERE size(any) = 1
-                WITH m, head(any) AS target
+                WITH m, collect(DISTINCT cAny) AS xs
+                WHERE size(xs) = 1
+                WITH m, head(xs) AS target
                 MERGE (m)-[:CREATES]->(target)
                 """,
                 links=batch,
