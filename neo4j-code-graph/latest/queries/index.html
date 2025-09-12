@@ -205,6 +205,22 @@ LIMIT 20</code></pre>
 </div>
 </div>
 <div class="sect2">
+<h3 id="_top_central_methods_pagerank"><a class="anchor" href="#_top_central_methods_pagerank"></a>Top central methods (PageRank)</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Top methods by PageRank (requires centrality task write-back)
+MATCH (m:Method)
+WHERE m.pagerank_score IS NOT NULL
+RETURN m.method_signature AS method,
+       m.class_name       AS class,
+       m.file             AS file,
+       m.pagerank_score   AS score
+ORDER BY score DESC, file, class, method
+LIMIT 25</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_churn_weighted_package_risk_fanout_churn"><a class="anchor" href="#_churn_weighted_package_risk_fanout_churn"></a>Churn-weighted package risk (fanout × churn)</h3>
 <div class="paragraph">
 <p>Highlights namespaces that both change frequently and depend on many other packages (integration hubs with larger blast radius).</p>
