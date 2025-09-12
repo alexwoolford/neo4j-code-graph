@@ -246,7 +246,7 @@ def create_imports(
                                 version = dep_versions[gav_key]
                             break
 
-            # If Jackson generic package, emit both core and databind nodes when versions are known
+            # If Jackson generic package, emit nodes only for artifacts with known versions to avoid overwriting
             if dep == "com.fasterxml.jackson":
                 jackson_variants = []
                 for art in ("jackson-core", "jackson-databind"):
@@ -260,16 +260,17 @@ def create_imports(
                             break
                     if v is None and gav_key in dep_versions:
                         v = dep_versions[gav_key]
-                    jackson_variants.append(
-                        {
-                            "package": dep,
-                            "language": "java",
-                            "ecosystem": "maven",
-                            "group_id": g,
-                            "artifact_id": art,
-                            **({"version": v} if v else {}),
-                        }
-                    )
+                    if v is not None:
+                        jackson_variants.append(
+                            {
+                                "package": dep,
+                                "language": "java",
+                                "ecosystem": "maven",
+                                "group_id": g,
+                                "artifact_id": art,
+                                "version": v,
+                            }
+                        )
                 dependency_nodes.extend(jackson_variants)
             else:
                 dependency_node: dict[str, Any] = {
