@@ -56,6 +56,17 @@ Operational guidance:
 - Keep the rubric internal; communicate only the resulting plan/edits that meet the rubric’s bar.
 - If trade-offs arise (time, reliability, scope), state them explicitly and justify decisions against the rubric.
 
+## Execution Eagerness and Parallelism
+
+Control thoroughness and tool usage to balance speed and reliability:
+
+- Default to decisive execution without asking for confirmation unless blocked. Briefly document assumptions after acting.
+- Prefer parallel discovery/tool calls for read-only operations (searches, reads) to minimize latency.
+- Set a practical tool budget per step; stop scanning once there is sufficient signal to proceed.
+- Be conservative with long-running operations; validate prerequisites early and fail fast if unmet.
+- When proposing multi-step work, state when to be exhaustive vs. narrow, and when to check in.
+- Persist progress and context; avoid repeating discovery when cached results are still valid.
+
 # AGENTS Instructions
 
 ## 🚨 CRITICAL: ZERO TOLERANCE FOR CI FAILURES

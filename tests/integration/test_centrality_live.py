@@ -276,3 +276,52 @@ def test_betweenness_write_back_live():
 
 
 ## HITS test removed: algorithm not used in the pipeline and relies on alpha API
+
+
+@pytest.mark.live
+def test_centrality_task_writes_scores_live():
+    # Skip if the Python GDS client is not available in this environment
+    try:
+        from graphdatascience import GraphDataScience  # type: ignore  # noqa: F401
+    except Exception:
+        pytest.skip("GDS client not available in this environment")
+
+    try:
+        from src.utils.common import create_neo4j_driver, get_neo4j_config
+    except Exception:
+        pytest.skip("Utilities not available")
+
+    # Import task entrypoint without spinning up Prefect server
+    import src.pipeline.tasks.db_tasks as tasks
+    from src.data.schema_management import setup_complete_schema
+
+    uri, user, pwd, db = get_neo4j_config()
+    driver = create_neo4j_driver(uri, user, pwd)
+    with driver:
+        with driver.session(database=db) as session:
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(session)
+            # Seed a minimal call graph: A -> B -> C
+            session.run(
+                """
+                CREATE (:Method {id:'TA#a():void', name:'A', method_signature:'TA#a():void'}),
+                       (:Method {id:'TB#b():void', name:'B', method_signature:'TB#b():void'}),
+                       (:Method {id:'TC#c():void', name:'C', method_signature:'TC#c():void'})
+                """
+            ).consume()
+            session.run(
+                "MATCH (a:Method {name:'A'}), (b:Method {name:'B'}), (c:Method {name:'C'}) "
+                "CREATE (a)-[:CALLS]->(b), (b)-[:CALLS]->(c)"
+            ).consume()
+
+    # Run centrality task (will project, run PR/Betweenness/Degree, and write back)
+    tasks.centrality_task.fn(uri, user, pwd, db)
+
+    # Verify that at least one method has a pagerank_score
+    driver = create_neo4j_driver(uri, user, pwd)
+    with driver:
+        with driver.session(database=db) as session:
+            rec = session.run(
+                "MATCH (m:Method) WHERE m.pagerank_score IS NOT NULL RETURN count(m) AS c"
+            ).single()
+            assert rec and int(rec["c"]) >= 1

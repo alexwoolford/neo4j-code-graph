@@ -43,6 +43,13 @@ include::example$queries/architecture.cyp[tag=refactor_candidates]
 include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
 ----
 
+=== Top central methods (PageRank)
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=top_central_methods]
+----
+
 === Churn-weighted package risk (fanout × churn)
 
 Highlights namespaces that both change frequently and depend on many other packages (integration hubs with larger blast radius).

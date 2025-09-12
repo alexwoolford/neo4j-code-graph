@@ -21,6 +21,18 @@ ORDER BY m.pagerank_score DESC
 LIMIT 20
 // end::architectural_bottlenecks[]
 
+// tag::top_central_methods[]
+// Top methods by PageRank (requires centrality task write-back)
+MATCH (m:Method)
+WHERE m.pagerank_score IS NOT NULL
+RETURN m.method_signature AS method,
+       m.class_name       AS class,
+       m.file             AS file,
+       m.pagerank_score   AS score
+ORDER BY score DESC, file, class, method
+LIMIT 25
+// end::top_central_methods[]
+
 // tag::package_risk_churn_fanout[]
 // Churn-weighted package risk: packages that change often and depend on many packages
 MATCH (p:Package)-[:CONTAINS]->(:Class)<-[:DEFINES]-(f:File)
