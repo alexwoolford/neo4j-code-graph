@@ -262,7 +262,7 @@ def create_imports(
                         v = dep_versions[gav_key]
                     jackson_variants.append(
                         {
-                            "package": dep,
+                            "package": f"{g}.{art}",
                             "language": "java",
                             "ecosystem": "maven",
                             "group_id": g,
@@ -284,6 +284,10 @@ def create_imports(
                     dependency_node["artifact_id"] = artifact_id
                 if version:
                     dependency_node["version"] = version
+
+                # If we identified GAV, prefer a package key that uniquely identifies the artifact
+                if group_id and artifact_id:
+                    dependency_node["package"] = f"{group_id}.{artifact_id}"
 
                 dependency_nodes.append(dependency_node)
 

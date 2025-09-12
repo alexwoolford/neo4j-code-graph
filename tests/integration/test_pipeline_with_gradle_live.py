@@ -25,38 +25,31 @@ def _write(p: Path, content: str) -> None:
     p.write_text(content, encoding="utf-8")
 
 
-def test_pipeline_live_with_maven_pom(tmp_path: Path):
-    from src.analysis.code_analysis import (
-        bulk_create_nodes_and_relationships,
-        extract_file_data,
-    )
+def test_pipeline_live_with_gradle_build(tmp_path: Path):
+    from src.analysis.code_analysis import bulk_create_nodes_and_relationships, extract_file_data
+    from src.analysis.dependency_extraction import extract_enhanced_dependencies_for_neo4j
     from src.data.schema_management import setup_complete_schema
 
-    # Build a tiny repo with a pom.xml declaring a versioned dep
-    repo = tmp_path / "tiny"
+    # Tiny Gradle repo with a versioned dependency
+    repo = tmp_path / "tinyg"
     (repo / "src").mkdir(parents=True, exist_ok=True)
     _write(
         repo / "src" / "A.java",
         """
         package p;
-        import com.fasterxml.jackson.core.JsonFactory; // external import
-        class A { void a() { JsonFactory f = null; } }
+        import org.slf4j.Logger; // external import
+        class A { Logger l; }
         """,
     )
     _write(
-        repo / "pom.xml",
+        repo / "build.gradle",
         """
-        <project xmlns="http://maven.apache.org/POM/4.0.0">
-          <modelVersion>4.0.0</modelVersion>
-          <groupId>p</groupId><artifactId>a</artifactId><version>1.0.0</version>
-          <dependencies>
-            <dependency>
-              <groupId>com.fasterxml.jackson.core</groupId>
-              <artifactId>jackson-core</artifactId>
-              <version>2.15.0</version>
-            </dependency>
-          </dependencies>
-        </project>
+        plugins { id 'java' }
+        repositories { mavenCentral() }
+        dependencies {
+          implementation 'org.slf4j:slf4j-api:2.0.12'
+          testImplementation 'junit:junit:4.13.2'
+        }
         """,
     )
 
@@ -73,14 +66,8 @@ def test_pipeline_live_with_maven_pom(tmp_path: Path):
                 if fd:
                     files_data.append(fd)
 
-            # Gather dependency versions from pom.xml (as the DAG would)
-            from src.analysis.dependency_extraction import (
-                extract_enhanced_dependencies_for_neo4j,
-            )
-
             dep_versions = extract_enhanced_dependencies_for_neo4j(repo)
 
-            # No embeddings provided (current DAG defaults) but we pass empty arrays for API shape
             bulk_create_nodes_and_relationships(
                 session,
                 files_data,
@@ -89,32 +76,19 @@ def test_pipeline_live_with_maven_pom(tmp_path: Path):
                 dependency_versions=dep_versions,
             )
 
-            # Now use the loader's import->dependency linking Cypher to create `ExternalDependency`
-            session.run(
-                """
-                MATCH (i:Import)
-                WITH i, split(i.import_path, '.') AS parts
-                WHERE size(parts) >= 3
-                WITH i, parts[0] + '.' + parts[1] + '.' + parts[2] AS base_package
-                MERGE (e:ExternalDependency {package: base_package})
-                SET e.language = 'java', e.ecosystem = 'maven'
-                MERGE (i)-[:DEPENDS_ON]->(e)
-                """
-            ).consume()
-
-            # Assert presence of import and dependency link
+            # Ensure import->dependency link exists
             rec = session.run(
                 "MATCH (:Import)-[:DEPENDS_ON]->(:ExternalDependency) RETURN count(*) AS c"
             ).single()
             assert rec and int(rec["c"]) >= 1
 
-            # Versioned dependency node present (jackson-core 2.15.0)
+            # Versioned dependency node present for slf4j-api 2.0.12
             rec = session.run(
                 """
                 MATCH (e:ExternalDependency)
-                WHERE e.group_id = 'com.fasterxml.jackson.core'
-                  AND e.artifact_id = 'jackson-core'
-                  AND e.version = '2.15.0'
+                WHERE e.group_id = 'org.slf4j'
+                  AND e.artifact_id = 'slf4j-api'
+                  AND e.version = '2.0.12'
                 RETURN count(e) AS c
                 """
             ).single()
