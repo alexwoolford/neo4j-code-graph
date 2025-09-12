@@ -81,6 +81,7 @@ def pytest_sessionstart(session):  # type: ignore[override]
     global _TC_CONTAINER
     # If explicit env is present, attempt to bootstrap schema on that instance
     if os.getenv("NEO4J_URI") and os.getenv("NEO4J_USERNAME") and os.getenv("NEO4J_PASSWORD"):
+        print("[tests] Using explicit NEO4J_* environment; verifying connectivity and schema...")
         try:
             from neo4j import GraphDatabase as _GD  # type: ignore
 
@@ -100,6 +101,7 @@ def pytest_sessionstart(session):  # type: ignore[override]
             pass
         return
     # Defer container startup to the autouse session fixture to avoid double-starting
+    print("[tests] Deferring Neo4j Testcontainers startup to autouse fixture...")
     return
 
 
@@ -231,6 +233,7 @@ def _ensure_neo4j_env_for_session():
             .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
         )
 
+    print("[tests] Starting Neo4j Testcontainers (session autouse)...")
     neo4j = _make_container()
     neo4j.start()
     import os as _os
@@ -258,6 +261,7 @@ def _ensure_neo4j_env_for_session():
                 if i % 10 == 0:
                     print("[tests] Waiting for Neo4j container...")
                 _t.sleep(2)
+        print(f"[tests] Neo4j ready at {_os.environ['NEO4J_URI']}")
         _drv.close()
     except Exception:
         pass
