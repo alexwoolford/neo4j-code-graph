@@ -221,6 +221,20 @@ LIMIT 25</code></pre>
 </div>
 </div>
 <div class="sect2">
+<h3 id="_validate_louvain_community_write_back"><a class="anchor" href="#_validate_louvain_community_write_back"></a>Validate Louvain community write-back</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Validate Louvain write-back on similarity communities (if previously run)
+MATCH (m:Method)
+WHERE m.similarity_community IS NOT NULL
+RETURN m.similarity_community AS community,
+       count(*)               AS members
+ORDER BY members DESC, community
+LIMIT 10</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_churn_weighted_package_risk_fanout_churn"><a class="anchor" href="#_churn_weighted_package_risk_fanout_churn"></a>Churn-weighted package risk (fanout × churn)</h3>
 <div class="paragraph">
 <p>Highlights namespaces that both change frequently and depend on many other packages (integration hubs with larger blast radius).</p>
