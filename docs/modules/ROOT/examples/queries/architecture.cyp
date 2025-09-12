@@ -33,6 +33,16 @@ ORDER BY score DESC, file, class, method
 LIMIT 25
 // end::top_central_methods[]
 
+// tag::validate_louvain_writeback[]
+// Validate Louvain write-back on similarity communities (if previously run)
+MATCH (m:Method)
+WHERE m.similarity_community IS NOT NULL
+RETURN m.similarity_community AS community,
+       count(*)               AS members
+ORDER BY members DESC, community
+LIMIT 10
+// end::validate_louvain_writeback[]
+
 // tag::package_risk_churn_fanout[]
 // Churn-weighted package risk: packages that change often and depend on many packages
 MATCH (p:Package)-[:CONTAINS]->(:Class)<-[:DEFINES]-(f:File)

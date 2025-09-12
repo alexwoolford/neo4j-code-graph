@@ -50,6 +50,13 @@ include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
 include::example$queries/architecture.cyp[tag=top_central_methods]
 ----
 
+=== Validate Louvain community write-back
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=validate_louvain_writeback]
+----
+
 === Churn-weighted package risk (fanout × churn)
 
 Highlights namespaces that both change frequently and depend on many other packages (integration hubs with larger blast radius).
