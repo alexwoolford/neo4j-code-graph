@@ -99,56 +99,8 @@ def pytest_sessionstart(session):  # type: ignore[override]
         except Exception:
             pass
         return
-    if not _has_docker():
-        return
-    try:
-        from testcontainers.neo4j import Neo4jContainer  # type: ignore
-
-        def _make_container() -> Neo4jContainer:  # type: ignore[name-defined]
-            return (
-                Neo4jContainer(image="neo4j:5.26-enterprise")
-                .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-                .with_env("NEO4J_AUTH", "neo4j/neo4j12345")
-                .with_env("NEO4J_PLUGINS", '["graph-data-science","apoc"]')
-                .with_env("NEO4J_dbms_security_procedures_unrestricted", "gds.*,apoc.*")
-            )
-
-        _TC_CONTAINER = _make_container()
-        _TC_CONTAINER.start()
-        try:
-            bolt_port = _TC_CONTAINER.get_exposed_port(7687)  # type: ignore[attr-defined]
-        except Exception:
-            bolt_port = "7687"
-        os.environ["NEO4J_URI"] = f"bolt://127.0.0.1:{bolt_port}"
-        os.environ["NEO4J_USERNAME"] = "neo4j"
-        os.environ["NEO4J_PASSWORD"] = "neo4j12345"
-        os.environ["NEO4J_DATABASE"] = "neo4j"
-        # Wait for readiness
-        try:
-            from neo4j import GraphDatabase as _GD
-
-            drv = _GD.driver(os.environ["NEO4J_URI"], auth=("neo4j", "neo4j12345"))
-            import time as _t
-
-            for _ in range(60):
-                try:
-                    drv.verify_connectivity()
-                    break
-                except Exception:
-                    _t.sleep(2)
-            # Ensure schema is created early for live tests that assert constraints
-            try:
-                from src.data.schema_management import setup_complete_schema  # type: ignore
-
-                with drv.session(database=os.environ.get("NEO4J_DATABASE", "neo4j")) as _s:
-                    setup_complete_schema(_s)
-            except Exception:
-                pass
-            drv.close()
-        except Exception:
-            pass
-    except Exception:
-        _TC_CONTAINER = None
+    # Defer container startup to the autouse session fixture to avoid double-starting
+    return
 
 
 def pytest_sessionfinish(session, exitstatus):  # type: ignore[override]
@@ -222,7 +174,7 @@ def neo4j_driver():
                     except Exception:
                         import time as _t
 
-                        for _ in range(60):
+                        for _ in range(45):
                             _t.sleep(2)
                             try:
                                 driver.verify_connectivity()
@@ -298,7 +250,7 @@ def _ensure_neo4j_env_for_session():
         _drv = _GD.driver(_os.environ["NEO4J_URI"], auth=("neo4j", "neo4j12345"))
         import time as _t
 
-        for i in range(60):
+        for i in range(45):
             try:
                 _drv.verify_connectivity()
                 break
