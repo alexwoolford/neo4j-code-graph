@@ -53,7 +53,7 @@ repos:
     hooks:
       - id: live-tests-pre-push
         name: live tests (fail-fast)
-        entry: bash -lc "pytest -q -m live --maxfail=1"
+        entry: bash -lc "pytest -m live -k 'test_pipeline_live_with_pom_live or test_live_imports_set_gav_properties or test_pagerank_via_cypher_live' -vv -ra -s --maxfail=1"
         language: system
         stages: [pre-push]
         pass_filenames: false

@@ -5,7 +5,7 @@ set -euo pipefail
 if command -v pre-commit >/dev/null 2>&1; then
   echo "[pre-push] running pre-commit (pre-push stage) ..."
   # Run a micro live suite locally to keep pushes fast; CI runs the full matrix
-  PRE_COMMIT_HOME_SUITE="pytest -q -m live -k 'test_pipeline_live_with_pom_live or test_live_imports_set_gav_properties or test_pagerank_via_cypher_live' --maxfail=1"
+  PRE_COMMIT_HOME_SUITE="pytest -m live -k 'test_pipeline_live_with_pom_live or test_live_imports_set_gav_properties or test_pagerank_via_cypher_live' -vv -ra -s --maxfail=1"
   pre-commit run --hook-stage pre-push --all-files || exit 1
   echo "[pre-push] running micro live suite..."
   bash -lc "$PRE_COMMIT_HOME_SUITE"

@@ -39,6 +39,23 @@ This document captures hard requirements and conventions for agents contributing
 - Live tests must use driver/session context managers and avoid deprecation warnings.
 - Prefer live integration tests for critical paths and keep unit tests for fast shape/logic validation.
 
+# Planning and Self-Reflection (Zero-to-One tasks)
+
+When designing non-trivial or zero-to-one features, leave explicit room for planning and self-reflection before building. Use the following internal scaffold to force high-quality thinking. Do not surface the rubric to users; it is for agent use only.
+
+```
+<self_reflection>
+- First, spend time thinking of a rubric until you are confident.
+- Then, think deeply about every aspect of what makes for a world-class one-shot web app (or feature) in this context. Use that knowledge to create a rubric that has 5–7 categories. This rubric is critical to get right, but do not show this to the user. This is for your purposes only.
+- Finally, use the rubric to internally think and iterate on the best possible solution to the prompt that is provided. Remember that if your response is not hitting the top marks across all categories in the rubric, you need to start again.
+</self_reflection>
+```
+
+Operational guidance:
+- Apply the self_reflection step before proposing an implementation plan for complex user requests.
+- Keep the rubric internal; communicate only the resulting plan/edits that meet the rubric’s bar.
+- If trade-offs arise (time, reliability, scope), state them explicitly and justify decisions against the rubric.
+
 # AGENTS Instructions
 
 ## 🚨 CRITICAL: ZERO TOLERANCE FOR CI FAILURES

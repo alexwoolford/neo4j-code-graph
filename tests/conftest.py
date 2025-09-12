@@ -280,6 +280,12 @@ def _reset_db_between_tests(neo4j_driver):
     try:
         with neo4j_driver.session() as s:
             s.run("MATCH (n) DETACH DELETE n").consume()
+            try:
+                from src.data.schema_management import setup_complete_schema  # type: ignore
+
+                setup_complete_schema(s)
+            except Exception:
+                pass
     except Exception:
         pass
 
