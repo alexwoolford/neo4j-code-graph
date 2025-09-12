@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# If pre-commit is available, run the pre-push stage hooks
+if command -v pre-commit >/dev/null 2>&1; then
+  echo "[pre-push] running pre-commit (pre-push stage) ..."
+  pre-commit run --hook-stage pre-push --all-files
+else
+  echo "[pre-push] pre-commit not found; running live tests fail-fast..."
+  pytest -q -m live --maxfail=1
+fi

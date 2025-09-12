@@ -47,3 +47,13 @@ repos:
         args: ["-c", "pyproject.toml"]
 
   # Note: Pyright runs in CI as an advisory job; not in pre-commit to avoid false failures
+
+  # Run live tests before pushing to catch CI failures locally
+  - repo: local
+    hooks:
+      - id: live-tests-pre-push
+        name: live tests (fail-fast)
+        entry: bash -lc "pytest -q -m live --maxfail=1"
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
