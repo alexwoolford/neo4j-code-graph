@@ -1,4 +1,52 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
 from pathlib import Path
+
+
+def test_gradle_lockfile_extraction(tmp_path: Path) -> None:
+    lock = tmp_path / "gradle.lockfile"
+    lock.write_text(
+        "\n".join(
+            [
+                "# Gradle lockfile",
+                "org.apache.commons:commons-lang3:3.12.0=locked",
+                "com.fasterxml.jackson.core:jackson-core:2.17.1=locked",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    from src.analysis.dependency_extraction import extract_enhanced_dependencies_for_neo4j
+
+    mapping = extract_enhanced_dependencies_for_neo4j(tmp_path)
+    assert mapping["org.apache.commons:commons-lang3:3.12.0"] == "3.12.0"
+    assert mapping["org.apache.commons:commons-lang3"] == "3.12.0"
+    assert mapping["org.apache.commons"] == "3.12.0"
+    assert mapping["commons-lang3"] == "3.12.0"
+
+
+def test_gradle_catalog_extraction(tmp_path: Path) -> None:
+    gdir = tmp_path / "gradle"
+    gdir.mkdir()
+    (gdir / "libs.versions.toml").write_text(
+        """
+        [versions]
+        commons = "3.12.0"
+        jackson = "2.17.1"
+
+        [libraries]
+        commonsLang = { group = "org.apache.commons", name = "commons-lang3", version.ref = "commons" }
+        jacksonCore = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
+        """,
+        encoding="utf-8",
+    )
+
+    from src.analysis.dependency_extraction import extract_enhanced_dependencies_for_neo4j
+
+    mapping = extract_enhanced_dependencies_for_neo4j(tmp_path)
+    assert mapping["org.apache.commons:commons-lang3:3.12.0"] == "3.12.0"
+    assert mapping["com.fasterxml.jackson.core:jackson-core:2.17.1"] == "2.17.1"
 
 
 def test_extract_maven_dependencies_with_property_substitution(tmp_path: Path):

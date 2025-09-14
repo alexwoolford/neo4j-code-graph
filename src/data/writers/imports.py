@@ -332,6 +332,19 @@ def create_imports(
                 """,
                 gavs=gav_nodes,
             )
+            # Also backfill version/group/artifact onto existing package-keyed nodes so queries over
+            # package-level dependencies surface versions without relying on new nodes.
+            session.run(
+                """
+                UNWIND $gavs AS dep
+                MATCH (e:ExternalDependency)
+                WHERE e.package IS NOT NULL AND (e.package = dep.group_id OR e.package STARTS WITH dep.group_id)
+                SET e.group_id = coalesce(e.group_id, dep.group_id),
+                    e.artifact_id = coalesce(e.artifact_id, dep.artifact_id),
+                    e.version = coalesce(e.version, dep.version)
+                """,
+                gavs=gav_nodes,
+            )
 
         session.run(
             """
