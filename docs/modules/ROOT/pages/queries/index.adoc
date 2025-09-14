@@ -172,7 +172,7 @@ RETURN d.class_name AS class, d.name AS method, d.deprecated_since AS since,
 ORDER BY callers DESC, class, method
 ----
 
-== Security & Risk (continued)
+== Security & Risk
 
 === Release risk assessment
 

@@ -71,6 +71,20 @@ class EnhancedDependencyExtractor:
             except Exception as e:
                 logger.debug(f"Error processing {gradle_file}: {e}")
 
+        # Gradle version catalogs (libs.versions.toml or custom catalogs under gradle/*.toml)
+        try:
+            catalog_deps = self._extract_gradle_version_catalogs(repo_root)
+            all_dependencies.extend(catalog_deps)
+        except Exception as e:
+            logger.debug(f"Error processing Gradle version catalogs: {e}")
+
+        # Gradle lockfile (resolved versions)
+        try:
+            lock_deps = self._extract_gradle_lockfile(repo_root)
+            all_dependencies.extend(lock_deps)
+        except Exception as e:
+            logger.debug(f"Error processing Gradle lockfile: {e}")
+
         # Remove duplicates while preserving highest scope
         unique_dependencies = self._deduplicate_dependencies(all_dependencies)
 
@@ -273,6 +287,82 @@ class EnhancedDependencyExtractor:
         except Exception as e:
             logger.debug(f"Error processing Gradle file {gradle_file}: {e}")
 
+        return dependencies
+
+    def _extract_gradle_version_catalogs(self, repo_root: Path) -> list[DependencyInfo]:
+        """Parse Gradle version catalogs (TOML) to produce concrete GAVs.
+
+        Supports standard libs.versions.toml and custom catalogs under gradle/*.toml.
+        """
+        dependencies: list[DependencyInfo] = []
+        try:
+            try:
+                import tomllib as _toml  # Python 3.11+
+            except Exception:  # pragma: no cover
+                import tomli as _toml  # type: ignore
+
+            catalogs: list[Path] = []
+            for p in repo_root.rglob("gradle/*.toml"):
+                catalogs.append(p)
+
+            for cat in catalogs:
+                try:
+                    data = _toml.loads(cat.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+                versions = {k: str(v) for k, v in (data.get("versions") or {}).items()}
+                libs = data.get("libraries") or {}
+                for _, lib in libs.items():
+                    # Typical forms: { group = "g", name = "a", version = "1.2.3" } or { group="g", name="a", version.ref = "x" }
+                    group = lib.get("group") or lib.get("module", "").split(":")[0]
+                    name = lib.get("name") or (
+                        lib.get("module", ":").split(":")[1] if lib.get("module") else None
+                    )
+                    version = lib.get("version")
+                    if isinstance(version, dict) and "ref" in version:
+                        version = versions.get(str(version["ref"]))
+                    version = str(version) if version is not None else None
+                    if group and name and version:
+                        dependencies.append(
+                            DependencyInfo(
+                                gav=GAVCoordinate(group, name, version),
+                                scope="catalog",
+                                source_file=str(cat),
+                                dependency_management=False,
+                            )
+                        )
+        except Exception:
+            pass
+        return dependencies
+
+    def _extract_gradle_lockfile(self, repo_root: Path) -> list[DependencyInfo]:
+        """Parse gradle.lockfile if present to harvest resolved versions."""
+        dependencies: list[DependencyInfo] = []
+        lock = repo_root / "gradle.lockfile"
+        if not lock.exists():
+            return dependencies
+        try:
+            for line in lock.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                # Lines like: group:name:version=lock, or group:name=version? handle common patterns
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                left, _right = line.split("=", 1)
+                parts = left.split(":")
+                if len(parts) >= 3:
+                    group, artifact, version = parts[0], parts[1], parts[2]
+                    dependencies.append(
+                        DependencyInfo(
+                            gav=GAVCoordinate(group, artifact, version),
+                            scope="lockfile",
+                            source_file=str(lock),
+                            dependency_management=False,
+                        )
+                    )
+        except Exception:
+            pass
         return dependencies
 
     @staticmethod
