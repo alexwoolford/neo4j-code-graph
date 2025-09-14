@@ -460,9 +460,12 @@ def extract_enhanced_dependencies_for_neo4j(repo_root: Path) -> dict[str, str]:
         # Store both full GAV and package key for backward compatibility
         dependency_versions[dep.gav.full_coordinate] = dep.gav.version
         dependency_versions[dep.gav.package_key] = dep.gav.version
-
         # Also store artifact-only key for some matching scenarios
         dependency_versions[dep.gav.artifact_id] = dep.gav.version
+        # Store two-part G:A → version to enable writer fallback
+        dependency_versions[f"{dep.gav.group_id}:{dep.gav.artifact_id}"] = dep.gav.version
+        # Store group-only key as a coarse fallback (last write wins); writer prefers strict matches
+        dependency_versions[dep.gav.group_id] = dep.gav.version
 
     logger.info(f"✅ Enhanced extraction found {len(dependencies)} dependencies")
     return dependency_versions

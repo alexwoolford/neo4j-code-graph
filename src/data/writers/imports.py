@@ -107,6 +107,7 @@ def create_imports(
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
         dependency_nodes: list[dict[str, Any]] = []
+        gav_nodes: list[dict[str, Any]] = []
 
         for dep in external_dependencies:
             version = None
@@ -290,6 +291,22 @@ def create_imports(
 
                 dependency_nodes.append(dependency_node)
 
+        # Also create nodes directly from resolved GAV entries (systemic path for versions)
+        if dep_versions:
+            for k, v in dep_versions.items():
+                if ":" in k and len(k.split(":")) == 3:
+                    g, a, ver = str(k).split(":")
+                    gav_nodes.append(
+                        {
+                            "package": g,  # base package as group id
+                            "group_id": g,
+                            "artifact_id": a,
+                            "version": v,
+                            "language": "java",
+                            "ecosystem": "maven",
+                        }
+                    )
+
         session.run(
             """
             UNWIND $dependencies AS dep
@@ -302,6 +319,19 @@ def create_imports(
             """,
             dependencies=dependency_nodes,
         )
+
+        if gav_nodes:
+            session.run(
+                """
+                UNWIND $gavs AS dep
+                MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id})
+                SET e.version = dep.version,
+                    e.language = dep.language,
+                    e.ecosystem = dep.ecosystem,
+                    e.package = coalesce(e.package, dep.package)
+                """,
+                gavs=gav_nodes,
+            )
 
         session.run(
             """
