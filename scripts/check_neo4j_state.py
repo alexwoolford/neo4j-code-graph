@@ -20,6 +20,8 @@ def main() -> int:
         "pagerank_methods": None,
         "similarity_community_methods": None,
         "embeddings_methods": None,
+        "external_dependencies": None,
+        "external_with_version": None,
         "gds_version": None,
         "errors": [],
     }
@@ -83,6 +85,19 @@ def main() -> int:
                     errors = report.get("errors")
                     if isinstance(errors, list):
                         errors.append(f"gds_version_error: {e}")
+
+                # Dependency state summary
+                try:
+                    rec = s.run(
+                        "MATCH (e:ExternalDependency) RETURN count(e) AS total, count{e.version IS NOT NULL} AS with_version"
+                    ).single()
+                    if rec:
+                        report["external_dependencies"] = int(rec["total"] or 0)
+                        report["external_with_version"] = int(rec["with_version"] or 0)
+                except Exception as e:
+                    errors = report.get("errors")
+                    if isinstance(errors, list):
+                        errors.append(f"external_dep_summary_error: {e}")
     except Exception as e:
         errors = report.get("errors")
         if isinstance(errors, list):
