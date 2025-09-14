@@ -43,6 +43,58 @@ ORDER BY members DESC, community
 LIMIT 10
 // end::validate_louvain_writeback[]
 
+// tag::high_blast_radius_methods[]
+// High-impact targets for testing/refactoring: central methods called from many packages
+// Value: prioritize changes where a defect has the widest blast radius across teams/modules.
+MATCH (m:Method)
+WHERE m.pagerank_score IS NOT NULL
+OPTIONAL MATCH (caller:Method)-[:CALLS]->(m)
+OPTIONAL MATCH (caller)<-[:CONTAINS_METHOD]-(callerClass:Class)<-[:CONTAINS]-(callerPkg:Package)
+WITH m,
+     count(DISTINCT caller) AS callers,
+     count(DISTINCT callerPkg.name) AS caller_packages
+RETURN m.method_signature AS method,
+       m.pagerank_score   AS centrality,
+       callers,
+       caller_packages
+ORDER BY centrality DESC, caller_packages DESC, callers DESC
+LIMIT 25
+// end::high_blast_radius_methods[]
+
+// tag::community_modules_summary[]
+// Candidate modules from similarity communities
+// Value: reveal cohesive clusters that can map to modules or ownership boundaries.
+MATCH (m:Method)
+WHERE m.similarity_community IS NOT NULL
+OPTIONAL MATCH (m)<-[:CONTAINS_METHOD]-(c:Class)<-[:CONTAINS]-(p:Package)
+WITH m.similarity_community AS community,
+     count(*)               AS members,
+     count(DISTINCT c)      AS classes,
+     count(DISTINCT p)      AS packages
+RETURN community, members, classes, packages
+ORDER BY members DESC, packages ASC
+LIMIT 20
+// end::community_modules_summary[]
+
+// tag::fractured_classes_across_communities[]
+// Classes whose methods span multiple communities (potential split/refactor candidates)
+// Value: identify units where responsibilities are mixed across unrelated clusters.
+MATCH (cls:Class)-[:CONTAINS_METHOD]->(m:Method)
+WHERE m.similarity_community IS NOT NULL
+WITH cls,
+     count(DISTINCT m.similarity_community) AS distinct_communities,
+     count(m) AS methods,
+     apoc.coll.toSet(collect(DISTINCT m.similarity_community))[..5] AS sample
+WHERE distinct_communities >= 2
+RETURN cls.name AS class,
+       cls.file AS file,
+       methods,
+       distinct_communities,
+       sample AS communities
+ORDER BY distinct_communities DESC, methods DESC
+LIMIT 25
+// end::fractured_classes_across_communities[]
+
 // tag::package_risk_churn_fanout[]
 // Churn-weighted package risk: packages that change often and depend on many packages
 MATCH (p:Package)-[:CONTAINS]->(:Class)<-[:DEFINES]-(f:File)

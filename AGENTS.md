@@ -78,6 +78,7 @@
 
   <development_setup>
     <env>
+      <rule>ALWAYS use the dedicated conda environment: neo4j-code-graph</rule>
       <step>conda activate neo4j-code-graph</step>
       <step>pip install -e .[dev]</step>
       <step>pip install -r config/requirements.txt</step>

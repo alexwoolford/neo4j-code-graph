@@ -169,6 +169,69 @@ def test_pagerank_stream_on_bulk_graph_live():
 
 
 @pytest.mark.live
+def test_same_class_calls_written_without_callee_class():
+    try:
+        from src.utils.common import create_neo4j_driver, get_neo4j_config
+    except Exception:
+        pytest.skip("Utilities not available")
+
+    from src.analysis.code_analysis import bulk_create_nodes_and_relationships
+    from src.data.schema_management import setup_complete_schema
+
+    # Minimal fixture where extractor would not set callee_class, but writer should fallback
+    files_data = [
+        {
+            "path": "mini/A.java",
+            "classes": [{"name": "A", "file": "mini/A.java", "line": 1, "implements": []}],
+            "methods": [
+                {
+                    "name": "a",
+                    "file": "mini/A.java",
+                    "line": 5,
+                    "method_signature": "m.A#a():void",
+                    "class_name": "A",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "code": "b();",
+                    # calls has no target_class set (simulating extractor behavior)
+                    "calls": [{"method_name": "b", "call_type": "same_class"}],
+                },
+                {
+                    "name": "b",
+                    "file": "mini/A.java",
+                    "line": 10,
+                    "method_signature": "m.A#b():void",
+                    "class_name": "A",
+                    "containing_type": "class",
+                    "return_type": "void",
+                    "parameters": [],
+                    "code": "",
+                },
+            ],
+        }
+    ]
+
+    uri, user, pwd, db = get_neo4j_config()
+    driver = create_neo4j_driver(uri, user, pwd)
+    with driver:
+        with driver.session(database=db) as session:
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(session)
+            bulk_create_nodes_and_relationships(
+                session,
+                files_data,
+                file_embeddings=[],
+                method_embeddings=[],
+                dependency_versions=None,
+            )
+            rec = session.run(
+                "MATCH (:Method {name:'a'})-[:CALLS]->(:Method {name:'b'}) RETURN count(*) AS c"
+            ).single()
+            assert rec and int(rec["c"]) == 1
+
+
+@pytest.mark.live
 def test_degree_write_back_live():
     try:
         from graphdatascience import GraphDataScience  # type: ignore

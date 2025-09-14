@@ -57,6 +57,27 @@ include::example$queries/architecture.cyp[tag=top_central_methods]
 include::example$queries/architecture.cyp[tag=validate_louvain_writeback]
 ----
 
+=== High-blast-radius methods (prioritize testing/refactoring)
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=high_blast_radius_methods]
+----
+
+=== Community-to-module mapping candidates
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=community_modules_summary]
+----
+
+=== Fractured classes spanning multiple communities
+
+[source,cypher]
+----
+include::example$queries/architecture.cyp[tag=fractured_classes_across_communities]
+----
+
 === Churn-weighted package risk (fanout × churn)
 
 Highlights namespaces that both change frequently and depend on many other packages (integration hubs with larger blast radius).
