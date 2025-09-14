@@ -12,6 +12,7 @@ except Exception:  # pragma: no cover
 T_centrality_task = _dbt.centrality_task
 T_cve_task = _dbt.cve_task
 T_louvain_task = _dbt.louvain_task
+T_calls_louvain_task = _dbt.calls_louvain_task
 T_similarity_task = _dbt.similarity_task
 
 
@@ -42,6 +43,13 @@ def run_post_ingest_analytics(
         try:
             if hasattr(cent_state, "result"):
                 cent_state.result()  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        # Calls-based Louvain (useful, dependency-driven communities)
+        try:
+            cc_state = T_calls_louvain_task.submit(uri, username, password, database)
+            if hasattr(cc_state, "result"):
+                cc_state.result()  # type: ignore[attr-defined]
         except Exception:
             pass
     else:

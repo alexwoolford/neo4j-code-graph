@@ -351,6 +351,66 @@ def centrality_task(
         gds.close()
 
 
+@task(retries=1)
+def calls_louvain_task(
+    uri: str | None, username: str | None, password: str | None, database: str | None
+) -> None:
+    """Compute communities based on actual code dependencies.
+
+    - Method-level Louvain on CALLS → write m.calls_community
+    - Class-level Louvain on aggregated class dependencies → write c.class_calls_community
+    """
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
+    if not _should_run_gds(uri, username, password, database, logger):
+        return
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    from graphdatascience import GraphDataScience as _GDS  # type: ignore
+
+    gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
+    try:
+        # Guard: ensure CALLS exist
+        rel_df = gds.run_cypher("MATCH ()-[:CALLS]->() RETURN count(*) AS c")
+        rel_count = int(rel_df.iloc[0]["c"]) if not rel_df.empty else 0
+        if rel_count == 0:
+            logger.info("No CALLS present; skipping calls-based Louvain")
+            return
+
+        # Method-level Louvain on CALLS (undirected for community structure)
+        try:
+            gds.graph.drop("G_METHOD_CALLS")
+        except Exception:
+            pass
+        gds.graph.project("G_METHOD_CALLS", ["Method"], {"CALLS": {"orientation": "UNDIRECTED"}})
+        gds.louvain.write("G_METHOD_CALLS", writeProperty="calls_community")
+        try:
+            gds.graph.drop("G_METHOD_CALLS")
+        except Exception:
+            pass
+
+        # Class-level Louvain via Cypher projection of class-to-class edges derived from CALLS
+        try:
+            gds.graph.drop("G_CLASS_CALLS")
+        except Exception:
+            pass
+        gds.run_cypher(
+            "CALL gds.graph.project.cypher(\n"
+            "  'G_CLASS_CALLS',\n"
+            "  'MATCH (c:Class) RETURN id(c) AS id',\n"
+            "  'MATCH (c1:Class)-[:CONTAINS_METHOD]->(:Method)-[:CALLS]->(:Method)<-[:CONTAINS_METHOD]-(c2:Class) WHERE c1<>c2 RETURN id(c1) AS source, id(c2) AS target'\n"
+            ")"
+        )
+        gds.louvain.write("G_CLASS_CALLS", writeProperty="class_calls_community")
+        try:
+            gds.graph.drop("G_CLASS_CALLS")
+        except Exception:
+            pass
+    finally:
+        gds.close()
+
+
 @task(retries=0)
 def coupling_task(
     uri: str | None,
