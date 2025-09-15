@@ -82,12 +82,13 @@ def main() -> int:
     with create_neo4j_driver(uri, user, pwd) as driver:
         with driver.session(database=db) as s:
             # Ensure property keys exist to avoid UnknownPropertyKey warnings
+            # Explicitly set to NULL once so the tokens exist in the store
             s.run(
                 """
                 MATCH (e:ExternalDependency)
-                SET e.version = e.version,
-                    e.group_id = e.group_id,
-                    e.artifact_id = e.artifact_id
+                SET e.version = NULL,
+                    e.group_id = NULL,
+                    e.artifact_id = NULL
                 """
             ).consume()
             pairs = list(mapping.items())
