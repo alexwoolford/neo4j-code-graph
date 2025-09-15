@@ -51,13 +51,71 @@ class EnhancedDependencyExtractor:
         """Extract all dependencies from repository with proper GAV coordinates."""
         logger.info("🔍 Enhanced dependency extraction starting...")
 
-        all_dependencies = []
+        all_dependencies: list[DependencyInfo] = []
 
-        # Extract from Maven pom.xml files
+        # 1) First pass: collect dependencyManagement versions across all poms (global map)
+        # This allows child modules that omit <version> to be resolved from a parent BOM
+        global_dm_versions: dict[str, str] = {}
+        for pom in repo_root.rglob("pom.xml"):
+            try:
+                tree = ET.parse(pom)
+                root = tree.getroot()
+                ns = self._get_maven_namespace(root)
+                props = self._extract_maven_properties(root, ns)
+                for dm_el in root.findall(".//maven:dependencyManagement//maven:dependency", ns):
+                    parsed = self._parse_maven_dependency(
+                        dm_el,
+                        ns,
+                        props,
+                        str(pom),
+                        scope="dependencyManagement",
+                        dependency_management=True,
+                    )
+                    if parsed is not None:
+                        global_dm_versions[parsed.gav.package_key] = parsed.gav.version
+            except Exception:
+                continue
+
+        # 2) Extract from Maven pom.xml files (using global DM versions for fill-in)
         for pom_file in repo_root.rglob("pom.xml"):
             try:
                 logger.debug(f"Processing Maven file: {pom_file}")
                 maven_deps = self._extract_maven_dependencies_enhanced(pom_file)
+                # Fill missing versions from global dependencyManagement map
+                filled: list[DependencyInfo] = []
+                for d in maven_deps:
+                    filled.append(d)
+                # Also inspect raw dependencies missing in enhanced parse and fill from global map
+                # Re-parse the POM to catch dependencies without versions
+                try:
+                    tree2 = ET.parse(pom_file)
+                    root2 = tree2.getroot()
+                    ns2 = self._get_maven_namespace(root2)
+                    for dep_el in root2.findall(".//maven:dependency", ns2):
+                        g_el = dep_el.find("maven:groupId", ns2)
+                        a_el = dep_el.find("maven:artifactId", ns2)
+                        v_el = dep_el.find("maven:version", ns2)
+                        if g_el is None or a_el is None:
+                            continue
+                        g_text = g_el.text or ""
+                        a_text = a_el.text or ""
+                        v_text = v_el.text if v_el is not None else None
+                        if v_text and not v_text.startswith("${"):
+                            # already explicit
+                            continue
+                        key2 = f"{g_text}:{a_text}"
+                        if key2 in global_dm_versions:
+                            filled.append(
+                                DependencyInfo(
+                                    gav=GAVCoordinate(g_text, a_text, global_dm_versions[key2]),
+                                    scope="compile",
+                                    source_file=str(pom_file),
+                                    dependency_management=False,
+                                )
+                            )
+                except Exception:
+                    pass
+                maven_deps = filled
                 all_dependencies.extend(maven_deps)
             except Exception as e:
                 logger.debug(f"Error processing {pom_file}: {e}")
