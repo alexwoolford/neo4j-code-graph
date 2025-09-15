@@ -95,6 +95,14 @@ def main() -> int:
                           e.version = ver
                       RETURN 0 AS r1
                     }
+                    // Full G:A:V → if no GA node exists, create it
+                    CALL {
+                      WITH key, ver, gav
+                      WITH key, ver, gav WHERE gav IS NOT NULL AND size(gav)=3
+                      MERGE (e:ExternalDependency {group_id: gav[0], artifact_id: gav[1]})
+                      ON CREATE SET e.version = ver, e.package = coalesce(e.package, gav[0])
+                      RETURN 0 AS r1c
+                    }
                     // Full G:A:V → package prefix fallback by group
                     CALL {
                       WITH key, ver, gav
@@ -115,6 +123,15 @@ def main() -> int:
                           e.artifact_id = coalesce(e.artifact_id, ga[1]),
                           e.version = ver
                       RETURN 0 AS r2
+                    }
+                    // Two-part G:A → if missing, create GA node with version
+                    CALL {
+                      WITH key, ver, gav
+                      WITH key, ver WHERE gav IS NULL OR size(gav)<>3
+                      WITH split(key, ':') AS ga, ver WHERE size(ga)=2
+                      MERGE (e:ExternalDependency {group_id: ga[0], artifact_id: ga[1]})
+                      ON CREATE SET e.version = ver, e.package = coalesce(e.package, ga[0])
+                      RETURN 0 AS r2c
                     }
                     // Two-part G:A → package prefix fallback by group
                     CALL {
