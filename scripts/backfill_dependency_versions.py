@@ -23,6 +23,11 @@ def main() -> int:
     parser.add_argument(
         "--repo", required=True, help="Git URL or local path of the source repository"
     )
+    # Optional explicit Neo4j connection (overrides env/.env)
+    parser.add_argument("--uri", help="Neo4j URI (overrides env/.env)")
+    parser.add_argument("--user", help="Neo4j username (overrides env/.env)")
+    parser.add_argument("--password", help="Neo4j password (overrides env/.env)")
+    parser.add_argument("--database", help="Neo4j database name (overrides env/.env)")
     args = parser.parse_args()
 
     # Ensure local repo is importable
@@ -63,7 +68,16 @@ def main() -> int:
     mapping = extract_enhanced_dependencies_for_neo4j(repo_root)
     print(json.dumps({"extracted_keys": len(mapping)}, indent=2))
 
+    # Resolve Neo4j connection, CLI overrides env/.env
     uri, user, pwd, db = get_neo4j_config()
+    if args.uri:
+        uri = args.uri
+    if args.user:
+        user = args.user
+    if args.password:
+        pwd = args.password
+    if args.database:
+        db = args.database
     updated = 0
     with create_neo4j_driver(uri, user, pwd) as driver:
         with driver.session(database=db) as s:
