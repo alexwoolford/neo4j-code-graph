@@ -67,6 +67,15 @@ def main() -> int:
     updated = 0
     with create_neo4j_driver(uri, user, pwd) as driver:
         with driver.session(database=db) as s:
+            # Ensure property keys exist to avoid UnknownPropertyKey warnings
+            s.run(
+                """
+                MATCH (e:ExternalDependency)
+                SET e.version = e.version,
+                    e.group_id = e.group_id,
+                    e.artifact_id = e.artifact_id
+                """
+            ).consume()
             pairs = list(mapping.items())
             batch = 1000
             for i in range(0, len(pairs), batch):
@@ -81,7 +90,9 @@ def main() -> int:
                       WITH key, ver, gav
                       WITH ver, gav WHERE gav IS NOT NULL AND size(gav)=3
                       MATCH (e:ExternalDependency {group_id: gav[0], artifact_id: gav[1]})
-                      SET e.version = ver
+                      SET e.group_id = coalesce(e.group_id, gav[0]),
+                          e.artifact_id = coalesce(e.artifact_id, gav[1]),
+                          e.version = ver
                       RETURN 0 AS r1
                     }
                     // Full G:A:V → package prefix fallback by group
@@ -90,7 +101,8 @@ def main() -> int:
                       WITH ver, gav WHERE gav IS NOT NULL AND size(gav)=3
                       MATCH (e:ExternalDependency)
                       WHERE e.package IS NOT NULL AND e.package STARTS WITH gav[0]
-                      SET e.version = coalesce(e.version, ver)
+                      SET e.group_id = coalesce(e.group_id, gav[0]),
+                          e.version = coalesce(e.version, ver)
                       RETURN 0 AS r1b
                     }
                     // Two-part G:A → set version
@@ -99,7 +111,9 @@ def main() -> int:
                       WITH key, ver WHERE gav IS NULL OR size(gav)<>3
                       WITH split(key, ':') AS ga, ver WHERE size(ga)=2
                       MATCH (e:ExternalDependency {group_id: ga[0], artifact_id: ga[1]})
-                      SET e.version = ver
+                      SET e.group_id = coalesce(e.group_id, ga[0]),
+                          e.artifact_id = coalesce(e.artifact_id, ga[1]),
+                          e.version = ver
                       RETURN 0 AS r2
                     }
                     // Two-part G:A → package prefix fallback by group
@@ -109,7 +123,8 @@ def main() -> int:
                       WITH split(key, ':') AS ga, ver WHERE size(ga)=2
                       MATCH (e:ExternalDependency)
                       WHERE e.package IS NOT NULL AND e.package STARTS WITH ga[0]
-                      SET e.version = coalesce(e.version, ver)
+                      SET e.group_id = coalesce(e.group_id, ga[0]),
+                          e.version = coalesce(e.version, ver)
                       RETURN 0 AS r2b
                     }
                     // Package fallback update (coarse)
@@ -119,6 +134,18 @@ def main() -> int:
                       WHERE e.package IS NOT NULL AND (e.package = key OR key STARTS WITH e.package OR e.package STARTS WITH key)
                       SET e.version = coalesce(e.version, ver)
                       RETURN 0 AS r3
+                    }
+                    // If key looks like GA or GAV, try to backfill group/artifact on package-coarse matches
+                    CALL {
+                      WITH key
+                      WITH key WHERE key CONTAINS ':'
+                      WITH split(key, ':') AS parts
+                      WITH parts WHERE size(parts) >= 2
+                      MATCH (e:ExternalDependency)
+                      WHERE e.package IS NOT NULL AND (e.package = parts[0] OR e.package STARTS WITH parts[0])
+                      SET e.group_id = coalesce(e.group_id, parts[0]),
+                          e.artifact_id = coalesce(e.artifact_id, CASE WHEN size(parts) >= 2 THEN parts[1] ELSE e.artifact_id END)
+                      RETURN 0 AS r4
                     }
                     RETURN 0 AS done
                     """,
