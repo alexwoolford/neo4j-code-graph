@@ -41,7 +41,8 @@ def create_imports(
                     # exist in dependency_versions (group keys without ':').
                     candidate = None
                     group_keys: set[str] = set(dep_versions.keys()) if dep_versions else set()
-                    group_keys = {k for k in group_keys if ":" not in k}
+                    # Only treat dotted identifiers as group keys (exclude artifact-only like 'junit')
+                    group_keys = {k for k in group_keys if ":" not in k and "." in k}
                     if len(parts) >= 2:
                         for idx in range(min(len(parts), 5), 1, -1):
                             base_parts = parts[:idx]
