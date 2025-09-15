@@ -93,3 +93,12 @@ def test_pipeline_live_with_gradle_build(tmp_path: Path):
                 """
             ).single()
             assert rec and int(rec["c"]) == 1
+
+            # Package-keyed node also backfilled with version (systemic requirement)
+            rec = session.run(
+                """
+                MATCH (e:ExternalDependency {package: 'org.slf4j'})
+                RETURN e.version AS v
+                """
+            ).single()
+            assert rec is not None and rec["v"] == "2.0.12"
