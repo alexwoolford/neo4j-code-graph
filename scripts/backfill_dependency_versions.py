@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-import os
-import sys
 
 
 def _clone_repo(repo_url: str) -> Path:
@@ -18,8 +17,12 @@ def _clone_repo(repo_url: str) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Backfill ExternalDependency.version in Neo4j from a repo")
-    parser.add_argument("--repo", required=True, help="Git URL or local path of the source repository")
+    parser = argparse.ArgumentParser(
+        description="Backfill ExternalDependency.version in Neo4j from a repo"
+    )
+    parser.add_argument(
+        "--repo", required=True, help="Git URL or local path of the source repository"
+    )
     args = parser.parse_args()
 
     # Ensure local repo is importable
@@ -45,7 +48,11 @@ def main() -> int:
     if (repo_root / "gradlew").exists():
         try:
             subprocess.run(
-                ["bash", "-lc", f"cd {repo_root} && ./gradlew --no-daemon :dependencies --write-locks"],
+                [
+                    "bash",
+                    "-lc",
+                    f"cd {repo_root} && ./gradlew --no-daemon :dependencies --write-locks",
+                ],
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -153,5 +160,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
