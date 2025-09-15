@@ -426,7 +426,7 @@ def main():
             try:
                 dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
                 logger.info(
-                    "🚀 Using enhanced dependency extraction: %d dependencies",
+                    "🚀 Using enhanced dependency extraction: %d dependency keys",
                     len(dependency_versions),
                 )
             except Exception as e:
@@ -435,6 +435,7 @@ def main():
                 )
         if not dependency_versions:
             dependency_versions = extract_dependency_versions_from_files(repo_root)
+        logger.info("📦 Dependency keys available for ingest: %d", len(dependency_versions))
         if getattr(args, "out_dependencies", None) and args.out_dependencies:
             try:
                 save_dependencies_to_json = import_module(
