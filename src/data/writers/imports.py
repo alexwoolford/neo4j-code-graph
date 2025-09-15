@@ -104,10 +104,12 @@ def create_imports(
                 imports=batch,
             )
 
+    # Always prepare holders for dependency nodes from imports and from resolved GAVs
+    dependency_nodes: list[dict[str, Any]] = []
+    gav_nodes: list[dict[str, Any]] = []
+
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
-        dependency_nodes: list[dict[str, Any]] = []
-        gav_nodes: list[dict[str, Any]] = []
 
         for dep in external_dependencies:
             version = None
@@ -291,22 +293,23 @@ def create_imports(
 
                 dependency_nodes.append(dependency_node)
 
-        # Also create nodes directly from resolved GAV entries (systemic path for versions)
-        if dep_versions:
-            for k, v in dep_versions.items():
-                if ":" in k and len(k.split(":")) == 3:
-                    g, a, ver = str(k).split(":")
-                    gav_nodes.append(
-                        {
-                            "package": g,  # base package as group id
-                            "group_id": g,
-                            "artifact_id": a,
-                            "version": v,
-                            "language": "java",
-                            "ecosystem": "maven",
-                        }
-                    )
+    # Systemic: always create/merge nodes directly from resolved GAV entries
+    if dep_versions:
+        for k, v in dep_versions.items():
+            if ":" in k and len(k.split(":")) == 3:
+                g, a, ver = str(k).split(":")
+                gav_nodes.append(
+                    {
+                        "package": g,  # base package as group id
+                        "group_id": g,
+                        "artifact_id": a,
+                        "version": v,
+                        "language": "java",
+                        "ecosystem": "maven",
+                    }
+                )
 
+    if dependency_nodes:
         session.run(
             """
             UNWIND $dependencies AS dep
@@ -320,44 +323,44 @@ def create_imports(
             dependencies=dependency_nodes,
         )
 
-        if gav_nodes:
-            session.run(
-                """
-                UNWIND $gavs AS dep
-                MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id})
-                SET e.version = dep.version,
-                    e.language = dep.language,
-                    e.ecosystem = dep.ecosystem,
-                    e.package = coalesce(e.package, dep.package)
-                """,
-                gavs=gav_nodes,
-            )
-            # Also backfill version/group/artifact onto existing package-keyed nodes so queries over
-            # package-level dependencies surface versions without relying on new nodes.
-            session.run(
-                """
-                UNWIND $gavs AS dep
-                MATCH (e:ExternalDependency)
-                WHERE e.package IS NOT NULL AND (e.package = dep.group_id OR e.package STARTS WITH dep.group_id)
-                SET e.group_id = coalesce(e.group_id, dep.group_id),
-                    e.artifact_id = coalesce(e.artifact_id, dep.artifact_id),
-                    e.version = coalesce(e.version, dep.version)
-                """,
-                gavs=gav_nodes,
-            )
-
+    if gav_nodes:
         session.run(
             """
-            MATCH (i:Import)
-            WHERE i.import_type = 'external'
-            WITH i, SPLIT(i.import_path, '.') AS parts
-            WITH i,
-                 CASE WHEN SIZE(parts) >= 4 THEN parts[0]+'.'+parts[1]+'.'+parts[2]+'.'+parts[3] ELSE NULL END AS p4,
-                 CASE WHEN SIZE(parts) >= 3 THEN parts[0]+'.'+parts[1]+'.'+parts[2] ELSE NULL END AS p3,
-                 CASE WHEN SIZE(parts) >= 2 THEN parts[0]+'.'+parts[1] ELSE NULL END AS p2
-            MATCH (e:ExternalDependency)
-            WHERE (e.package IS NOT NULL AND e.package IN [p4, p3, p2])
-               OR (e.group_id IS NOT NULL AND e.group_id IN [p4, p3, p2])
-            MERGE (i)-[:DEPENDS_ON]->(e)
-            """
+            UNWIND $gavs AS dep
+            MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id})
+            SET e.version = dep.version,
+                e.language = dep.language,
+                e.ecosystem = dep.ecosystem,
+                e.package = coalesce(e.package, dep.package)
+            """,
+            gavs=gav_nodes,
         )
+        # Also backfill version/group/artifact onto existing package-keyed nodes so queries over
+        # package-level dependencies surface versions without relying on new nodes.
+        session.run(
+            """
+            UNWIND $gavs AS dep
+            MATCH (e:ExternalDependency)
+            WHERE e.package IS NOT NULL AND (e.package = dep.group_id OR e.package STARTS WITH dep.group_id)
+            SET e.group_id = coalesce(e.group_id, dep.group_id),
+                e.artifact_id = coalesce(e.artifact_id, dep.artifact_id),
+                e.version = coalesce(e.version, dep.version)
+            """,
+            gavs=gav_nodes,
+        )
+
+    session.run(
+        """
+        MATCH (i:Import)
+        WHERE i.import_type = 'external'
+        WITH i, SPLIT(i.import_path, '.') AS parts
+        WITH i,
+             CASE WHEN SIZE(parts) >= 4 THEN parts[0]+'.'+parts[1]+'.'+parts[2]+'.'+parts[3] ELSE NULL END AS p4,
+             CASE WHEN SIZE(parts) >= 3 THEN parts[0]+'.'+parts[1]+'.'+parts[2] ELSE NULL END AS p3,
+             CASE WHEN SIZE(parts) >= 2 THEN parts[0]+'.'+parts[1] ELSE NULL END AS p2
+        MATCH (e:ExternalDependency)
+        WHERE (e.package IS NOT NULL AND e.package IN [p4, p3, p2])
+           OR (e.group_id IS NOT NULL AND e.group_id IN [p4, p3, p2])
+        MERGE (i)-[:DEPENDS_ON]->(e)
+        """
+    )
