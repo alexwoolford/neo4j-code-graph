@@ -314,24 +314,18 @@ def create_imports(
         session.run(
             """
             UNWIND $dependencies AS dep
-            // First, prefer precise GAV+version identity when available
-            CALL {
-              WITH dep
-              WHERE dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL AND dep.version IS NOT NULL
+            WITH dep
+            FOREACH (_ IN CASE WHEN dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL AND dep.version IS NOT NULL THEN [1] ELSE [] END |
               MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})
               SET e.language = coalesce(e.language, dep.language),
                   e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
                   e.package = coalesce(e.package, dep.package)
-              RETURN 0 AS _
-            }
-            CALL {
-              WITH dep
-              WHERE NOT (dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL AND dep.version IS NOT NULL)
+            )
+            FOREACH (_ IN CASE WHEN dep.group_id IS NULL OR dep.artifact_id IS NULL OR dep.version IS NULL THEN [1] ELSE [] END |
               MERGE (e:ExternalDependency {package: dep.package})
               SET e.language = coalesce(e.language, dep.language),
                   e.ecosystem = coalesce(e.ecosystem, dep.ecosystem)
-              RETURN 0 AS _
-            }
+            )
             """,
             dependencies=dependency_nodes,
         )
