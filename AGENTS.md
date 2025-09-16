@@ -62,6 +62,13 @@
     <rule>Persist progress/context; avoid repeating discovery when cached results exist.</rule>
   </execution_eagerness_and_parallelism>
 
+  <systemic_fixes>
+    <policy>All fixes must be systemic and flow through the DAG; no ad-hoc DB mutations or one-off scripts to amend graph state post hoc.</policy>
+    <rule>Pipeline stages must produce correct outputs by themselves; do not rely on external repair scripts.</rule>
+    <rule>Add fail-fast guards when critical derived data is missing (e.g., dependency versions with build files present).</rule>
+    <rule>Documentation and tests must reflect DAG-first behavior; remove or quarantine repair utilities.</rule>
+  </systemic_fixes>
+
   <ci_zero_tolerance>
     <pre_commit>
       <command>pre-commit run --all-files</command>

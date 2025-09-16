@@ -435,7 +435,26 @@ def main():
                 )
         if not dependency_versions:
             dependency_versions = extract_dependency_versions_from_files(repo_root)
+        # Fail fast if build files are present but no dependency keys were resolved
+        try:
+            has_maven = any(repo_root.rglob("pom.xml"))
+            has_gradle_build = any(repo_root.rglob("build.gradle*"))
+            has_gradle_lock = (repo_root / "gradle.lockfile").exists()
+            has_version_catalog = (repo_root / "libs.versions.toml").exists() or any(
+                (repo_root / "gradle").glob("*.toml")
+            )
+            build_files_present = (
+                has_maven or has_gradle_build or has_gradle_lock or has_version_catalog
+            )
+        except Exception:
+            build_files_present = False
+
         logger.info("📦 Dependency keys available for ingest: %d", len(dependency_versions))
+        if build_files_present and not dependency_versions:
+            logger.error(
+                "Build files were detected (Maven/Gradle) but zero dependency versions were extracted. Failing fast per policy to avoid silent fallbacks."
+            )
+            raise SystemExit(2)
         if getattr(args, "out_dependencies", None) and args.out_dependencies:
             try:
                 save_dependencies_to_json = import_module(
