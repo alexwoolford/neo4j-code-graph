@@ -84,10 +84,10 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
     # (group_id, artifact_id, version). This replaces the previous uniqueness on
     # `package`, which prevented multiple versions per dependency.
     (
-        "external_dependency_gav_version_node_key",
+        "external_dependency_gav_version_unique",
         "ExternalDependency",
         "(group_id, artifact_id, version)",
-        "CREATE CONSTRAINT external_dependency_gav_version_node_key IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE (ed.group_id, ed.artifact_id, ed.version) IS NODE KEY",
+        "CREATE CONSTRAINT external_dependency_gav_version_unique IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE (ed.group_id, ed.artifact_id, ed.version) IS UNIQUE",
     ),
     (
         "external_dependency_package_unique",

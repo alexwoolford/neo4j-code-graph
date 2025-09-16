@@ -316,13 +316,13 @@ def create_imports(
             """
             UNWIND $dependencies AS dep
             WITH dep
-            FOREACH (_ IN CASE WHEN dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL AND dep.version IS NOT NULL THEN [1] ELSE [] END |
-              MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})
+            FOREACH (_ IN CASE WHEN dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL THEN [1] ELSE [] END |
+              MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: coalesce(dep.version, 'unknown')})
               SET e.language = coalesce(e.language, dep.language),
                   e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
                   e.package = coalesce(e.package, dep.package)
             )
-            FOREACH (_ IN CASE WHEN dep.group_id IS NULL OR dep.artifact_id IS NULL OR dep.version IS NULL THEN [1] ELSE [] END |
+            FOREACH (_ IN CASE WHEN dep.group_id IS NULL OR dep.artifact_id IS NULL THEN [1] ELSE [] END |
               MERGE (p:ExternalDependencyPackage {package: dep.package})
             )
             """,
