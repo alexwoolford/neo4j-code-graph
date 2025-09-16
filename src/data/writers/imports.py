@@ -314,27 +314,37 @@ def create_imports(
         session.run(
             """
             UNWIND $dependencies AS dep
-            MERGE (e:ExternalDependency {package: dep.package})
-            SET e.language = dep.language,
-                e.ecosystem = dep.ecosystem,
-                e.version = CASE WHEN dep.version IS NOT NULL THEN dep.version ELSE e.version END,
-                e.group_id = CASE WHEN dep.group_id IS NOT NULL THEN dep.group_id ELSE e.group_id END,
-                e.artifact_id = CASE WHEN dep.artifact_id IS NOT NULL THEN dep.artifact_id ELSE e.artifact_id END
+            // First, prefer precise GAV+version identity when available
+            CALL {
+              WITH dep
+              WHERE dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL AND dep.version IS NOT NULL
+              MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})
+              SET e.language = coalesce(e.language, dep.language),
+                  e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
+                  e.package = coalesce(e.package, dep.package)
+              RETURN 0 AS _
+            }
+            CALL {
+              WITH dep
+              WHERE NOT (dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL AND dep.version IS NOT NULL)
+              MERGE (e:ExternalDependency {package: dep.package})
+              SET e.language = coalesce(e.language, dep.language),
+                  e.ecosystem = coalesce(e.ecosystem, dep.ecosystem)
+              RETURN 0 AS _
+            }
             """,
             dependencies=dependency_nodes,
         )
 
     if gav_nodes:
-        # Merge by package to respect unique constraint and avoid duplicate nodes keyed by GAV
+        # Create or match nodes on precise coordinates to avoid duplicates across versions
         session.run(
             """
             UNWIND $gavs AS dep
-            MERGE (e:ExternalDependency {package: dep.package})
-            SET e.language = dep.language,
-                e.ecosystem = dep.ecosystem,
-                e.group_id = coalesce(e.group_id, dep.group_id),
-                e.artifact_id = coalesce(e.artifact_id, dep.artifact_id),
-                e.version = coalesce(e.version, dep.version)
+            MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})
+            SET e.language = coalesce(e.language, dep.language),
+                e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
+                e.package = coalesce(e.package, dep.package)
             """,
             gavs=gav_nodes,
         )

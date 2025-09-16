@@ -80,11 +80,14 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
         "(sha, path)",
         "CREATE CONSTRAINT file_ver_sha_path IF NOT EXISTS FOR (fv:FileVer) REQUIRE (fv.sha, fv.path) IS UNIQUE",
     ),
+    # ExternalDependency nodes are uniquely identified by their full coordinates
+    # (group_id, artifact_id, version). This replaces the previous uniqueness on
+    # `package`, which prevented multiple versions per dependency.
     (
-        "external_dependency_package",
+        "external_dependency_gav_version_unique",
         "ExternalDependency",
-        "package",
-        "CREATE CONSTRAINT external_dependency_package IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE ed.package IS UNIQUE",
+        "(group_id, artifact_id, version)",
+        "CREATE CONSTRAINT external_dependency_gav_version_unique IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE (ed.group_id, ed.artifact_id, ed.version) IS UNIQUE",
     ),
     (
         "import_path",
@@ -175,6 +178,12 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
         "Method",
         "CREATE INDEX method_similarity_community IF NOT EXISTS FOR (m:Method) ON (m.similarity_community)",
     ),
+    # Keep a non-unique index on package for lookup and joins
+    (
+        "external_dependency_package_index",
+        "ExternalDependency",
+        "CREATE INDEX external_dependency_package_index IF NOT EXISTS FOR (ed:ExternalDependency) ON (ed.package)",
+    ),
 ]
 
 
@@ -200,6 +209,13 @@ def create_schema_constraints_and_indexes(session: Any) -> None:
         )
     except Exception:  # pragma: no cover
         from data.cypher_builders import iter_schema_constraint_cypher  # type: ignore
+
+    # Transitional cleanup: drop deprecated constraint on package if present
+    try:
+        session.run("DROP CONSTRAINT external_dependency_package IF EXISTS").consume()
+        logger.info("✅ Dropped deprecated constraint external_dependency_package (if it existed)")
+    except Exception as e:
+        logger.debug(f"Could not drop deprecated constraint external_dependency_package: {e}")
 
     for constraint_name, cypher in iter_schema_constraint_cypher():
         try:
