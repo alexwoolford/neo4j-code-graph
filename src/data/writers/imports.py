@@ -354,17 +354,15 @@ def create_imports(
              CASE WHEN SIZE(parts) >= 2 THEN parts[0]+'.'+parts[1] ELSE NULL END AS p2
         OPTIONAL MATCH (e:ExternalDependency)
         WHERE (e.group_id IS NOT NULL AND e.group_id IN [p4, p3, p2])
-        WITH i, e, p4, p3, p2
-        CALL {
-          WITH i, e, p4, p3, p2
-          WITH i, e, coalesce(p4, p3, p2) AS pkg
-          WHERE e IS NULL AND pkg IS NOT NULL
+           OR (e.package IS NOT NULL AND e.package IN [p4, p3, p2])
+        WITH i, collect(DISTINCT e) AS eds, p4, p3, p2
+        FOREACH (ed IN eds |
+          MERGE (i)-[:DEPENDS_ON]->(ed)
+        )
+        WITH i, eds, coalesce(p4, p3, p2) AS pkg
+        FOREACH (_ IN CASE WHEN size(eds) = 0 AND pkg IS NOT NULL THEN [1] ELSE [] END |
           MERGE (p:ExternalDependencyPackage {package: pkg})
           MERGE (i)-[:DEPENDS_ON]->(p)
-          RETURN 0 AS _
-        }
-        WITH i, e
-        WHERE e IS NOT NULL
-        MERGE (i)-[:DEPENDS_ON]->(e)
+        )
         """
     )
