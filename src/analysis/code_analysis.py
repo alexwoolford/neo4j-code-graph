@@ -410,6 +410,7 @@ def main():
         logger.info("Reading dependencies from %s", args.in_dependencies)
         dependency_versions = load_dependencies_from_json(_Path(args.in_dependencies))
     else:
+        # Always use the enhanced extractor. No silent fallback to the basic scanner.
         try:
             extract_enhanced_dependencies_for_neo4j = import_module(
                 "src.analysis.dependency_extraction"
@@ -419,22 +420,20 @@ def main():
                 extract_enhanced_dependencies_for_neo4j = import_module(
                     "analysis.dependency_extraction"
                 ).extract_enhanced_dependencies_for_neo4j  # type: ignore[attr-defined]
-            except Exception:
-                extract_enhanced_dependencies_for_neo4j = None  # type: ignore
-
-        if extract_enhanced_dependencies_for_neo4j is not None:
-            try:
-                dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
-                logger.info(
-                    "🚀 Using enhanced dependency extraction: %d dependency keys",
-                    len(dependency_versions),
-                )
             except Exception as e:
-                logger.warning(
-                    "Enhanced dependency extraction failed (%s), using basic extraction", e
-                )
-        if not dependency_versions:
-            dependency_versions = extract_dependency_versions_from_files(repo_root)
+                logger.error("Enhanced dependency extractor unavailable: %s", e)
+                raise SystemExit(2) from e
+
+        try:
+            dependency_versions = extract_enhanced_dependencies_for_neo4j(repo_root)
+            logger.info(
+                "🚀 Using enhanced dependency extraction: %d dependency keys",
+                len(dependency_versions),
+            )
+        except Exception as e:
+            logger.error("Enhanced dependency extraction failed: %s", e)
+            raise SystemExit(2) from e
+
         # Fail fast if build files are present but no dependency keys were resolved
         try:
             has_maven = any(repo_root.rglob("pom.xml"))
