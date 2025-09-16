@@ -11,8 +11,18 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from src.security.gav_cve_matcher import GAVCoordinate
+if TYPE_CHECKING:
+    try:
+        from src.security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined]
+    except Exception:  # type: ignore[no-redef]
+        from security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined,no-redef]
+else:  # pragma: no cover - runtime import path resolution
+    try:
+        from src.security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 
