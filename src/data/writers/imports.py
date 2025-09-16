@@ -108,6 +108,7 @@ def create_imports(
     # Always prepare holders for dependency nodes from imports and from resolved GAVs
     dependency_nodes: list[dict[str, Any]] = []
     gav_nodes: list[dict[str, Any]] = []
+    package_nodes: list[dict[str, Any]] = []
 
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
@@ -290,9 +291,9 @@ def create_imports(
                 if version:
                     dependency_node["version"] = version
 
-                # Keep package as base import group prefix for compatibility; use GAV fields for precision
-
+                # Keep package for separate ExternalDependencyPackage node
                 dependency_nodes.append(dependency_node)
+                package_nodes.append({"package": dep})
 
     # Systemic: always create/merge nodes directly from resolved GAV entries
     if dep_versions:
@@ -322,9 +323,7 @@ def create_imports(
                   e.package = coalesce(e.package, dep.package)
             )
             FOREACH (_ IN CASE WHEN dep.group_id IS NULL OR dep.artifact_id IS NULL OR dep.version IS NULL THEN [1] ELSE [] END |
-              MERGE (e:ExternalDependency {package: dep.package})
-              SET e.language = coalesce(e.language, dep.language),
-                  e.ecosystem = coalesce(e.ecosystem, dep.ecosystem)
+              MERGE (p:ExternalDependencyPackage {package: dep.package})
             )
             """,
             dependencies=dependency_nodes,
@@ -343,6 +342,7 @@ def create_imports(
             gavs=gav_nodes,
         )
 
+    # Join imports to versioned ExternalDependency via best-effort GAV match, else to package node
     session.run(
         """
         MATCH (i:Import)
@@ -352,9 +352,19 @@ def create_imports(
              CASE WHEN SIZE(parts) >= 4 THEN parts[0]+'.'+parts[1]+'.'+parts[2]+'.'+parts[3] ELSE NULL END AS p4,
              CASE WHEN SIZE(parts) >= 3 THEN parts[0]+'.'+parts[1]+'.'+parts[2] ELSE NULL END AS p3,
              CASE WHEN SIZE(parts) >= 2 THEN parts[0]+'.'+parts[1] ELSE NULL END AS p2
-        MATCH (e:ExternalDependency)
-        WHERE (e.package IS NOT NULL AND e.package IN [p4, p3, p2])
-           OR (e.group_id IS NOT NULL AND e.group_id IN [p4, p3, p2])
+        OPTIONAL MATCH (e:ExternalDependency)
+        WHERE (e.group_id IS NOT NULL AND e.group_id IN [p4, p3, p2])
+        WITH i, e, p4, p3, p2
+        CALL {
+          WITH i, e, p4, p3, p2
+          WITH i, e, coalesce(p4, p3, p2) AS pkg
+          WHERE e IS NULL AND pkg IS NOT NULL
+          MERGE (p:ExternalDependencyPackage {package: pkg})
+          MERGE (i)-[:DEPENDS_ON]->(p)
+          RETURN 0 AS _
+        }
+        WITH i, e
+        WHERE e IS NOT NULL
         MERGE (i)-[:DEPENDS_ON]->(e)
         """
     )

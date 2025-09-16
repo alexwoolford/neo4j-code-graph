@@ -84,10 +84,16 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
     # (group_id, artifact_id, version). This replaces the previous uniqueness on
     # `package`, which prevented multiple versions per dependency.
     (
-        "external_dependency_gav_version_unique",
+        "external_dependency_gav_version_node_key",
         "ExternalDependency",
         "(group_id, artifact_id, version)",
-        "CREATE CONSTRAINT external_dependency_gav_version_unique IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE (ed.group_id, ed.artifact_id, ed.version) IS UNIQUE",
+        "CREATE CONSTRAINT external_dependency_gav_version_node_key IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE (ed.group_id, ed.artifact_id, ed.version) IS NODE KEY",
+    ),
+    (
+        "external_dependency_package_unique",
+        "ExternalDependencyPackage",
+        "package",
+        "CREATE CONSTRAINT external_dependency_package_unique IF NOT EXISTS FOR (edp:ExternalDependencyPackage) REQUIRE edp.package IS UNIQUE",
     ),
     (
         "import_path",
@@ -181,8 +187,8 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
     # Keep a non-unique index on package for lookup and joins
     (
         "external_dependency_package_index",
-        "ExternalDependency",
-        "CREATE INDEX external_dependency_package_index IF NOT EXISTS FOR (ed:ExternalDependency) ON (ed.package)",
+        "ExternalDependencyPackage",
+        "CREATE INDEX external_dependency_package_index IF NOT EXISTS FOR (edp:ExternalDependencyPackage) ON (edp.package)",
     ),
 ]
 
