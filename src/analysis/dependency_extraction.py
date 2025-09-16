@@ -46,12 +46,19 @@ class EnhancedDependencyExtractor:
 
     def __init__(self):
         self.property_resolver = PropertyResolver()
+        self.catalog_alias_to_gav: dict[str, tuple[str, str, str]] = {}
 
     def extract_all_dependencies(self, repo_root: Path) -> list[DependencyInfo]:
         """Extract all dependencies from repository with proper GAV coordinates."""
         logger.info("🔍 Enhanced dependency extraction starting...")
 
         all_dependencies: list[DependencyInfo] = []
+
+        # Preload catalogs for Kotlin DSL alias resolution
+        try:
+            self._load_gradle_version_catalogs(repo_root)
+        except Exception as _e:  # pragma: no cover
+            logger.debug(f"Catalog preload failed: {_e}")
 
         # 1) First pass: collect dependencyManagement versions across all poms (global map)
         # This allows child modules that omit <version> to be resolved from a parent BOM
@@ -120,7 +127,7 @@ class EnhancedDependencyExtractor:
             except Exception as e:
                 logger.debug(f"Error processing {pom_file}: {e}")
 
-        # Extract from Gradle build files
+        # Extract from Gradle build files (Groovy and Kotlin DSL)
         for gradle_file in repo_root.rglob("build.gradle*"):
             try:
                 logger.debug(f"Processing Gradle file: {gradle_file}")
@@ -276,6 +283,20 @@ class EnhancedDependencyExtractor:
                 r",?\s*version\s*:\s*['\"]([^'\"]+)['\"]"
             )
 
+            # Kotlin DSL patterns
+            standard_kts_pattern = (
+                r"(?:implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly)\s*"
+                r"\(\s*\"([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):([a-zA-Z0-9._\-${}]+)\"\s*\)"
+            )
+            map_kts_pattern = (
+                r"(?:implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly)\s*"
+                r"\(\s*group\s*=\s*\"([^\"]+)\"\s*,\s*name\s*=\s*\"([^\"]+)\"\s*,\s*version\s*=\s*\"([^\"]+)\"\s*\)"
+            )
+            alias_kts_pattern = (
+                r"(?:implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly)\s*"
+                r"\(\s*libs\.([A-Za-z0-9_.-]+)\s*\)"
+            )
+
             # Extract version properties defined in simple 'name = "value"' style
             version_props = {}
             version_pattern = r"(\w+)\s*=\s*['\"]([^'\"]+)['\"]"
@@ -328,6 +349,24 @@ class EnhancedDependencyExtractor:
                         )
                     )
 
+            # Kotlin DSL standard format
+            for match in re.finditer(standard_kts_pattern, content):
+                group_id, artifact_id, version = match.groups()
+                if version.startswith("$"):
+                    var_name = version[1:]
+                    if var_name.startswith("{") and var_name.endswith("}"):
+                        var_name = var_name[1:-1]
+                    version = _resolve_chain(version_props.get(var_name, version), version_props)
+                if not version.startswith("$"):
+                    gav = GAVCoordinate(group_id, artifact_id, version)
+                    dependencies.append(
+                        DependencyInfo(
+                            gav=gav,
+                            scope=self._extract_gradle_scope(match.group(0)),
+                            source_file=str(gradle_file),
+                        )
+                    )
+
             # Process map format dependencies
             for match in re.finditer(map_pattern, content):
                 group_id, artifact_id, version = match.groups()
@@ -337,6 +376,35 @@ class EnhancedDependencyExtractor:
                     dependencies.append(
                         DependencyInfo(
                             gav=gav,
+                            scope=self._extract_gradle_scope(match.group(0)),
+                            source_file=str(gradle_file),
+                        )
+                    )
+
+            # Kotlin DSL map format
+            for match in re.finditer(map_kts_pattern, content):
+                group_id, artifact_id, version = match.groups()
+                if not version.startswith("$"):
+                    gav = GAVCoordinate(group_id, artifact_id, version)
+                    dependencies.append(
+                        DependencyInfo(
+                            gav=gav,
+                            scope=self._extract_gradle_scope(match.group(0)),
+                            source_file=str(gradle_file),
+                        )
+                    )
+
+            # Kotlin DSL alias usages via version catalogs
+            for match in re.finditer(alias_kts_pattern, content):
+                alias_key = match.group(1)
+                gav_tuple = self.catalog_alias_to_gav.get(
+                    alias_key
+                ) or self.catalog_alias_to_gav.get(alias_key.replace("_", "."))
+                if gav_tuple is not None:
+                    g, a, v = gav_tuple
+                    dependencies.append(
+                        DependencyInfo(
+                            gav=GAVCoordinate(g, a, v),
                             scope=self._extract_gradle_scope(match.group(0)),
                             source_file=str(gradle_file),
                         )
@@ -370,7 +438,7 @@ class EnhancedDependencyExtractor:
                     continue
                 versions = {k: str(v) for k, v in (data.get("versions") or {}).items()}
                 libs = data.get("libraries") or {}
-                for _, lib in libs.items():
+                for key, lib in libs.items():
                     # Typical forms: { group = "g", name = "a", version = "1.2.3" } or { group="g", name="a", version.ref = "x" }
                     group = lib.get("group") or lib.get("module", "").split(":")[0]
                     name = lib.get("name") or (
@@ -381,6 +449,7 @@ class EnhancedDependencyExtractor:
                         version = versions.get(str(version["ref"]))
                     version = str(version) if version is not None else None
                     if group and name and version:
+                        self.catalog_alias_to_gav[str(key)] = (str(group), str(name), str(version))
                         dependencies.append(
                             DependencyInfo(
                                 gav=GAVCoordinate(group, name, version),
@@ -392,6 +461,33 @@ class EnhancedDependencyExtractor:
         except Exception:
             pass
         return dependencies
+
+    def _load_gradle_version_catalogs(self, repo_root: Path) -> None:
+        try:
+            try:
+                import tomllib as _toml  # Python 3.11+
+            except Exception:  # pragma: no cover
+                import tomli as _toml  # type: ignore
+            for cat in repo_root.rglob("gradle/*.toml"):
+                try:
+                    data = _toml.loads(cat.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+                versions = {k: str(v) for k, v in (data.get("versions") or {}).items()}
+                libs = data.get("libraries") or {}
+                for key, lib in libs.items():
+                    group = lib.get("group") or lib.get("module", "").split(":")[0]
+                    name = lib.get("name") or (
+                        lib.get("module", ":").split(":")[1] if lib.get("module") else None
+                    )
+                    version = lib.get("version")
+                    if isinstance(version, dict) and "ref" in version:
+                        version = versions.get(str(version["ref"]))
+                    version = str(version) if version is not None else None
+                    if group and name and version:
+                        self.catalog_alias_to_gav[str(key)] = (str(group), str(name), str(version))
+        except Exception:
+            pass
 
     def _extract_gradle_lockfile(self, repo_root: Path) -> list[DependencyInfo]:
         """Parse gradle.lockfile if present to harvest resolved versions."""
@@ -421,6 +517,30 @@ class EnhancedDependencyExtractor:
                     )
         except Exception:
             pass
+        return dependencies
+
+    def _extract_gradle_dependency_locks(self, repo_root: Path) -> list[DependencyInfo]:
+        dependencies: list[DependencyInfo] = []
+        for lock in repo_root.rglob("**/dependency-locks/*.lockfile"):
+            try:
+                for line in lock.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    left, _right = line.split("=", 1)
+                    parts = left.split(":")
+                    if len(parts) >= 3:
+                        group, artifact, version = parts[0], parts[1], parts[2]
+                        dependencies.append(
+                            DependencyInfo(
+                                gav=GAVCoordinate(group, artifact, version),
+                                scope="lockfile",
+                                source_file=str(lock),
+                                dependency_management=False,
+                            )
+                        )
+            except Exception:
+                continue
         return dependencies
 
     @staticmethod
