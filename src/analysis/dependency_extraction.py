@@ -6,23 +6,18 @@ This module replaces the loose dependency extraction with precise
 GAV (Group:Artifact:Version) coordinate management.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    try:
-        from src.security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined]
-    except Exception:  # type: ignore[no-redef]
-        from security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined,no-redef]
-else:  # pragma: no cover - runtime import path resolution
-    try:
-        from src.security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined]
-    except Exception:  # pragma: no cover
-        from security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined]
+try:
+    from src.security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover - installed package import path
+    from security.gav_cve_matcher import GAVCoordinate  # type: ignore[attr-defined, no-redef]
 
 logger = logging.getLogger(__name__)
 
