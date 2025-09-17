@@ -312,12 +312,28 @@ def create_imports(
                 )
 
     if dependency_nodes:
+        # Fail fast if any GAV coordinate is missing a version per project policy
+        missing_versions = [
+            dep
+            for dep in dependency_nodes
+            if dep.get("group_id") and dep.get("artifact_id") and not dep.get("version")
+        ]
+        if missing_versions:
+            sample = missing_versions[:5]
+            raise ValueError(
+                "Found GAV coordinates without version (fail-fast): "
+                + ", ".join(
+                    f"{d.get('group_id')}:{d.get('artifact_id')} (package={d.get('package')})"
+                    for d in sample
+                )
+                + (" ..." if len(missing_versions) > 5 else "")
+            )
         session.run(
             """
             UNWIND $dependencies AS dep
             WITH dep
-            FOREACH (_ IN CASE WHEN dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL THEN [1] ELSE [] END |
-              MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: coalesce(dep.version, 'unknown')})
+            FOREACH (_ IN CASE WHEN dep.group_id IS NOT NULL AND dep.artifact_id IS NOT NULL AND dep.version IS NOT NULL THEN [1] ELSE [] END |
+              MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})
               SET e.language = coalesce(e.language, dep.language),
                   e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
                   e.package = coalesce(e.package, dep.package)
