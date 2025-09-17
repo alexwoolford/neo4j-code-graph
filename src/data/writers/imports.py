@@ -57,7 +57,11 @@ def create_imports(
                                 break
                             # Also allow prefix compatibility with known group keys
                             if group_keys and any(
-                                (g.startswith(base) or base.startswith(g)) for g in group_keys
+                                (
+                                    g.lower().startswith(base.lower())
+                                    or base.lower().startswith(g.lower())
+                                )
+                                for g in group_keys
                             ):
                                 candidate = base
                                 break
@@ -146,7 +150,7 @@ def create_imports(
                         # Heuristic: base package should start with group; if the last segment
                         # of the base looks like an artifact family (e.g., core/databind),
                         # bias toward that artifact.
-                        if dep.startswith(g) or g.startswith(dep):
+                        if dep.lower().startswith(g.lower()) or g.lower().startswith(dep.lower()):
                             score = len(g)
                             last_seg = dep.split(".")[-1].lower()
                             if last_seg in a.lower():
@@ -216,7 +220,7 @@ def create_imports(
                     if version is None and gav_key in dep_versions:
                         version = dep_versions[gav_key]
 
-                # Additional targeted mappings for common ecosystems
+                # Additional targeted mappings for common ecosystems and tricky groups
                 if group_id is None and artifact_id is None:
                     prefix_to_gav: list[tuple[str, tuple[str, str]]] = [
                         ("org.apache.kafka.clients", ("org.apache.kafka", "kafka-clients")),
@@ -237,6 +241,11 @@ def create_imports(
                             "org.springframework.kafka",
                             ("org.springframework.kafka", "spring-kafka"),
                         ),
+                        # Case/canonicalization fixes
+                        ("org.HdrHistogram", ("org.hdrhistogram", "HdrHistogram")),
+                        ("org.opentest4j", ("org.opentest4j", "opentest4j")),
+                        ("org.junitpioneer", ("org.junit-pioneer", "junit-pioneer")),
+                        ("org.s1ck.gdl", ("org.s1ck", "gdl")),
                     ]
                     for prefix, (g, a) in prefix_to_gav:
                         if dep.startswith(prefix):
