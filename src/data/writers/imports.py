@@ -322,6 +322,13 @@ def create_imports(
                   e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
                   e.package = coalesce(e.package, dep.package)
             )
+            // When only package and a concrete version are known, still create a versioned
+            // ExternalDependency node to support AFFECTS linking and idempotent counts.
+            FOREACH (_ IN CASE WHEN (dep.group_id IS NULL OR dep.artifact_id IS NULL) AND dep.version IS NOT NULL THEN [1] ELSE [] END |
+              MERGE (e:ExternalDependency {package: dep.package, version: dep.version})
+              SET e.language = coalesce(e.language, dep.language),
+                  e.ecosystem = coalesce(e.ecosystem, dep.ecosystem)
+            )
             FOREACH (_ IN CASE WHEN dep.group_id IS NULL OR dep.artifact_id IS NULL THEN [1] ELSE [] END |
               MERGE (p:ExternalDependencyPackage {package: dep.package})
             )
