@@ -76,8 +76,16 @@ def test_progress_flags_after_bulk_live():
         with driver.session(database=database) as s:
             s.run("MATCH (n) DETACH DELETE n").consume()
             setup_complete_schema(s)
+            # Strict policy: provide dependency versions for external imports
             bulk_create_nodes_and_relationships(
-                s, files_data, file_embeddings=[], method_embeddings=[], dependency_versions=None
+                s,
+                files_data,
+                file_embeddings=[],
+                method_embeddings=[],
+                dependency_versions={
+                    "org.example.lib": "1.0.0",
+                    "org.example.lib:lib-api:1.0.0": "1.0.0",
+                },
             )
 
         state = check_database_state(driver, database)

@@ -71,6 +71,9 @@ def test_create_imports_batches_and_links_dependencies():
     # Import nodes and IMPORTS relationships
     assert "MERGE (i:Import {import_path: imp.import_path})" in joined
     assert "MERGE (f)-[:IMPORTS]->(i)" in joined
-    # ExternalDependency creation and linking
-    assert "MERGE (e:ExternalDependency {package: dep.package})" in joined
-    assert "MERGE (i)-[:DEPENDS_ON]->(e)" in joined
+    # ExternalDependency creation and linking should go via versioned node
+    assert (
+        "MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})"
+        in joined
+    )
+    assert "MERGE (i)-[:DEPENDS_ON]->(ed)" in joined

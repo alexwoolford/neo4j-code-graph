@@ -68,9 +68,15 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
                 [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
             ]
 
-            # Load graph
+            # Load graph with explicit dependency versions (strict policy: version required)
             bulk_create_nodes_and_relationships(
-                session, files_data, file_embeddings, method_embeddings, dependency_versions={}
+                session,
+                files_data,
+                file_embeddings,
+                method_embeddings,
+                dependency_versions={
+                    "com.fasterxml.jackson.core:jackson-databind:2.15.0": "2.15.0"
+                },
             )
 
             # Quick GDS kNN on existing embeddings (vector index required)
@@ -138,19 +144,9 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
                 "MATCH (p:Package {name:'p'})-[:CONTAINS]->(c:Class) RETURN count(c) AS c"
             ).single()
             assert rec and int(rec["c"]) >= 1
-            # Create deps linking as loader does and assert it works for the external import
-            session.run(
-                """
-                MATCH (i:Import)
-                WITH i, split(i.import_path, '.') AS parts
-                WHERE size(parts) >= 3
-                WITH i, parts[0] + '.' + parts[1] + '.' + parts[2] AS base_package
-                MERGE (e:ExternalDependency {package: base_package})
-                MERGE (i)-[:DEPENDS_ON]->(e)
-                """
-            ).consume()
+            # Assert import is linked to a versioned ExternalDependency
             rec = session.run(
-                "MATCH (:Import)-[:DEPENDS_ON]->(:ExternalDependency) RETURN count(*) AS c"
+                "MATCH (:Import {import_path:'com.fasterxml.jackson.databind.ObjectMapper'})-[:DEPENDS_ON]->(e:ExternalDependency) RETURN count(e) AS c"
             ).single()
             assert rec and int(rec["c"]) >= 1
             # SIMILAR may be zero with trivial equal embeddings, but ensure query runs and community write works

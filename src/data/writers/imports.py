@@ -108,7 +108,7 @@ def create_imports(
     # Always prepare holders for dependency nodes from imports and from resolved GAVs
     dependency_nodes: list[dict[str, Any]] = []
     gav_nodes: list[dict[str, Any]] = []
-    package_nodes: list[dict[str, Any]] = []
+    # Deprecated: ExternalDependencyPackage support removed; enforce versioned dependencies only
 
     if external_dependencies:
         logger.info(f"Creating {len(external_dependencies)} external dependency nodes...")
@@ -291,9 +291,7 @@ def create_imports(
                 if version:
                     dependency_node["version"] = version
 
-                # Keep package for separate ExternalDependencyPackage node
                 dependency_nodes.append(dependency_node)
-                package_nodes.append({"package": dep})
 
     # Systemic: always create/merge nodes directly from resolved GAV entries
     if dep_versions:
@@ -345,9 +343,7 @@ def create_imports(
               SET e.language = coalesce(e.language, dep.language),
                   e.ecosystem = coalesce(e.ecosystem, dep.ecosystem)
             )
-            FOREACH (_ IN CASE WHEN dep.group_id IS NULL OR dep.artifact_id IS NULL THEN [1] ELSE [] END |
-              MERGE (p:ExternalDependencyPackage {package: dep.package})
-            )
+
             """,
             dependencies=dependency_nodes,
         )
@@ -365,7 +361,7 @@ def create_imports(
             gavs=gav_nodes,
         )
 
-    # Join imports to versioned ExternalDependency via best-effort GAV match, else to package node
+    # Join imports to versioned ExternalDependency via best-effort GAV or package match
     session.run(
         """
         MATCH (i:Import)
@@ -382,10 +378,24 @@ def create_imports(
         FOREACH (ed IN eds |
           MERGE (i)-[:DEPENDS_ON]->(ed)
         )
-        WITH i, eds, coalesce(p4, p3, p2) AS pkg
-        FOREACH (_ IN CASE WHEN size(eds) = 0 AND pkg IS NOT NULL THEN [1] ELSE [] END |
-          MERGE (p:ExternalDependencyPackage {package: pkg})
-          MERGE (i)-[:DEPENDS_ON]->(p)
-        )
         """
     )
+
+    # Fail fast if any external import could not be linked to a versioned dependency
+    rec = session.run(
+        """
+        MATCH (i:Import {import_type:'external'})
+        OPTIONAL MATCH (i)-[:DEPENDS_ON]->(e:ExternalDependency)
+        WITH i, count(e) AS c
+        WHERE c = 0
+        RETURN collect(i.import_path) AS missing
+        """
+    ).single()
+    if rec and rec.get("missing"):
+        missing = rec["missing"]
+        sample = missing[:5]
+        raise ValueError(
+            "Unresolved external imports (no versioned ExternalDependency): "
+            + ", ".join(sample)
+            + (" ..." if len(missing) > 5 else "")
+        )

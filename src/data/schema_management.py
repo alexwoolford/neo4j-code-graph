@@ -90,12 +90,6 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
         "CREATE CONSTRAINT external_dependency_gav_version_unique IF NOT EXISTS FOR (ed:ExternalDependency) REQUIRE (ed.group_id, ed.artifact_id, ed.version) IS UNIQUE",
     ),
     (
-        "external_dependency_package_unique",
-        "ExternalDependencyPackage",
-        "package",
-        "CREATE CONSTRAINT external_dependency_package_unique IF NOT EXISTS FOR (edp:ExternalDependencyPackage) REQUIRE edp.package IS UNIQUE",
-    ),
-    (
         "import_path",
         "Import",
         "import_path",
@@ -185,11 +179,7 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
         "CREATE INDEX method_similarity_community IF NOT EXISTS FOR (m:Method) ON (m.similarity_community)",
     ),
     # Keep a non-unique index on package for lookup and joins
-    (
-        "external_dependency_package_index",
-        "ExternalDependencyPackage",
-        "CREATE INDEX external_dependency_package_index IF NOT EXISTS FOR (edp:ExternalDependencyPackage) ON (edp.package)",
-    ),
+    # ExternalDependencyPackage removed: all external deps must resolve to versioned ExternalDependency
 ]
 
 
