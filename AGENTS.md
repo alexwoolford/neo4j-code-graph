@@ -69,6 +69,15 @@
     <rule>Documentation and tests must reflect DAG-first behavior; remove or quarantine repair utilities.</rule>
   </systemic_fixes>
 
+  <dependency_resolution_policy>
+    <rule>ExternalDependency nodes MUST be versioned. Accept either full GAV (group_id, artifact_id, version) or package+version when GAV is unknown.</rule>
+    <rule>Fail fast when an external import cannot be resolved to a versioned ExternalDependency; unresolved imports abort the run.</rule>
+    <rule>Do not create or rely on versionless dependency nodes. The legacy ExternalDependencyPackage label is removed.</rule>
+    <rule>Link CVEs only to versioned ExternalDependency nodes (AFFECTS requires version); never link to package-only nodes.</rule>
+    <rule>Resolver heuristics and mappings must be deterministic, provider-agnostic, and centralized in code (e.g., src/data/writers/imports.py); adding mappings is a systemic change and must be covered by tests.</rule>
+    <rule>No run-specific environment flags to relax dependency rules; CI and local runs enforce the same fail-fast policy.</rule>
+  </dependency_resolution_policy>
+
   <ci_zero_tolerance>
     <pre_commit>
       <command>pre-commit run --all-files</command>
