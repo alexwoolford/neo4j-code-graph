@@ -26,6 +26,10 @@ def parse_cli_args() -> argparse.Namespace:
         action="store_true",
         help="Attempt to resolve dependency versions via Maven/Gradle on the cloned repo",
     )
+    parser.add_argument(
+        "--branch",
+        help="Git branch or tag to ingest (applies to checkout and git history)",
+    )
 
     args = parser.parse_args()
     if not (args.repo_url or args.pos_repo_url):
@@ -44,5 +48,8 @@ def parse_cli_args() -> argparse.Namespace:
 
     if bool(getattr(args, "resolve_build_deps", False)):
         _os.environ["RESOLVE_BUILD_DEPS"] = "true"
+
+    if getattr(args, "branch", None):
+        _os.environ["CODE_GRAPH_BRANCH"] = str(args.branch)
 
     return args

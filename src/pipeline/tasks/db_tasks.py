@@ -239,9 +239,13 @@ def git_history_task(
         logger = logging.getLogger(__name__)
     logger.info("Loading git history from %s", repo_path)
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    import os
+
+    branch_env = os.getenv("CODE_GRAPH_BRANCH")
+    branch = branch_env if branch_env else "master"
     load_history(
         repo_url=repo_path,
-        branch="master",
+        branch=branch,
         uri=_uri,
         username=_user,
         password=_pwd,

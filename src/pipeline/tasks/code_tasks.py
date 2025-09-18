@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import tempfile
 from importlib import import_module
@@ -22,6 +23,20 @@ def clone_repo_task(repo_url: str) -> str:
     import git
 
     git.Repo.clone_from(repo_url, temp_dir)
+    # Optional branch/tag checkout
+    branch = os.getenv("CODE_GRAPH_BRANCH")
+    if branch:
+        try:
+            repo = git.Repo(temp_dir)
+            # Try local branch/tag, else fetch and checkout
+            try:
+                repo.git.checkout(branch)
+            except Exception:
+                repo.git.fetch("origin", branch)
+                repo.git.checkout("FETCH_HEAD")
+            logger.info("Checked out branch/tag: %s", branch)
+        except Exception as e:
+            logger.warning("Failed to checkout %s: %s", branch, e)
     return temp_dir
 
 
