@@ -39,37 +39,24 @@ except Exception:  # pragma: no cover
     )
 
 # Re-export Prefect tasks for legacy tests that patch attributes on this module
-try:
-    from src.pipeline.tasks.db_tasks import (  # type: ignore
-        centrality_task,
-        coupling_task,
-        cve_task,
-        git_history_task,
-        louvain_task,
-        setup_schema_task,
-        similarity_task,
-        write_graph_task,
-    )
-    from src.pipeline.tasks.db_tasks import (  # type: ignore
-        selective_cleanup_task as _cleanup_task_impl,
-    )
+try:  # Prefer src.* when available
+    import src.pipeline.tasks.db_tasks as _db_tasks  # type: ignore
 except Exception:  # pragma: no cover
-    from pipeline.tasks.db_tasks import (  # type: ignore
-        centrality_task,
-        coupling_task,
-        cve_task,
-        git_history_task,
-        louvain_task,
-        setup_schema_task,
-        similarity_task,
-        write_graph_task,
-    )
-    from pipeline.tasks.db_tasks import (  # type: ignore
-        selective_cleanup_task as _cleanup_task_impl,
-    )
+    import pipeline.tasks.db_tasks as _db_tasks  # type: ignore
+
+# Bind symbols once to avoid mypy redefinition warnings
+centrality_task = _db_tasks.centrality_task  # type: ignore[attr-defined]
+coupling_task = _db_tasks.coupling_task  # type: ignore[attr-defined]
+cve_task = _db_tasks.cve_task  # type: ignore[attr-defined]
+git_history_task = _db_tasks.git_history_task  # type: ignore[attr-defined]
+louvain_task = _db_tasks.louvain_task  # type: ignore[attr-defined]
+setup_schema_task = _db_tasks.setup_schema_task  # type: ignore[attr-defined]
+similarity_task = _db_tasks.similarity_task  # type: ignore[attr-defined]
+write_graph_task = _db_tasks.write_graph_task  # type: ignore[attr-defined]
+selective_cleanup_task = _db_tasks.selective_cleanup_task  # type: ignore[attr-defined]
 
 # Bind unified name for cleanup task
-cleanup_task = _cleanup_task_impl  # noqa: F401
+cleanup_task = selective_cleanup_task  # noqa: F401
 
 # Public exports to satisfy legacy tests that patch attributes on this module
 __all__ = [
@@ -141,6 +128,16 @@ def code_graph_flow(
     # Build artifacts
     artifacts_dir = str(Path(tempfile.mkdtemp(prefix="cg_artifacts_")))
     extract_code_task(repo_path, artifacts_dir)
+    # Optional: resolve build-time dependency versions for completeness
+    try:
+        from src.pipeline.tasks.code_tasks import resolve_build_dependencies_task  # type: ignore
+    except Exception:  # pragma: no cover
+        from pipeline.tasks.code_tasks import resolve_build_dependencies_task  # type: ignore
+    # Flow-level toggle is read from CLI args in main(); expose via env for task graph
+    import os as _os
+
+    if _os.getenv("RESOLVE_BUILD_DEPS", "false").lower() in {"1", "true", "yes"}:
+        resolve_build_dependencies_task(repo_path, artifacts_dir)
     embed_files_task(repo_path, artifacts_dir)
     embed_methods_task(repo_path, artifacts_dir)
     write_graph_task(repo_path, artifacts_dir, uri, username, password, database)

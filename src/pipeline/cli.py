@@ -21,6 +21,11 @@ def parse_cli_args() -> argparse.Namespace:
 
     add_common_args(parser)
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup stage")
+    parser.add_argument(
+        "--resolve-build-deps",
+        action="store_true",
+        help="Attempt to resolve dependency versions via Maven/Gradle on the cloned repo",
+    )
 
     args = parser.parse_args()
     if not (args.repo_url or args.pos_repo_url):
@@ -33,4 +38,11 @@ def parse_cli_args() -> argparse.Namespace:
     args.username = user
     args.password = pwd
     args.database = db
+
+    # Propagate toggle via env so the flow can read it at runtime
+    import os as _os
+
+    if bool(getattr(args, "resolve_build_deps", False)):
+        _os.environ["RESOLVE_BUILD_DEPS"] = "true"
+
     return args

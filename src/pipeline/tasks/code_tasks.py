@@ -51,6 +51,74 @@ def extract_code_task(repo_path: str, out_dir: str) -> str:
 
 
 @task(retries=1)
+def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
+    """Optional: run Maven/Gradle to resolve full dependency versions and update artifacts.
+
+    This task is safe to skip; when enabled it attempts to call the repo's build tool to
+    generate a comprehensive dependency report (including test scope) and persists an
+    enriched dependency_versions JSON alongside the artifacts.
+    """
+    logger = get_run_logger()
+    out_deps = Path(artifacts_dir) / "dependencies.json"
+    if not out_deps.exists():
+        logger.info("No dependencies.json found at %s; skipping build-based resolution", out_deps)
+        return artifacts_dir
+
+    repo = Path(repo_path)
+    mvn = repo / "mvnw"
+    gradlew = repo / "gradlew"
+    have_mvn = (repo / "pom.xml").exists() and (mvn.exists() or True)
+    have_gradle = any(repo.rglob("build.gradle*")) and (gradlew.exists() or True)
+
+    # Best-effort: prefer wrapper if present; else rely on system mvn/gradle
+    cmds: list[list[str]] = []
+    if have_mvn:
+        cmd = [str(mvn)] if mvn.exists() else ["mvn"]
+        cmds.append(
+            cmd
+            + [
+                "-q",
+                "-DincludeScope=test",
+                "dependency:list",
+                f"-DoutputFile={artifacts_dir}/mvn_deps.txt",
+            ]
+        )
+    if have_gradle:
+        gcmd = [str(gradlew)] if gradlew.exists() else ["gradle"]
+        cmds.append(gcmd + ["-q", "dependencies", "--configuration", "testRuntimeClasspath"])
+
+    import subprocess
+
+    for c in cmds:
+        try:
+            logger.info("Resolving dependencies via: %s", " ".join(c))
+            subprocess.run(c, cwd=repo_path, check=False, capture_output=True)
+        except Exception as e:  # pragma: no cover
+            logger.warning("Dependency resolution command failed: %s", e)
+
+    # Re-extract enriched dependencies using our enhanced extractor, which also considers lockfiles
+    base = [
+        "prog",
+        repo_path,
+        "--skip-embed",
+        "--skip-db",
+        "--in-files-data",
+        str(Path(artifacts_dir) / "files_data.json"),
+        "--out-dependencies",
+        str(out_deps),
+    ]
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = base
+        code_to_graph_main()
+    finally:
+        sys.argv = old_argv
+    return artifacts_dir
+
+
+@task(retries=1)
 def embed_files_task(repo_path: str, artifacts_dir: str) -> str:
     logger = get_run_logger()
     logger.info("Computing file embeddings for %s", repo_path)

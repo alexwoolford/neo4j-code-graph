@@ -327,14 +327,21 @@ def create_imports(
         ]
         if missing_versions:
             sample = missing_versions[:5]
-            raise ValueError(
-                "Found GAV coordinates without version (fail-fast): "
-                + ", ".join(
-                    f"{d.get('group_id')}:{d.get('artifact_id')} (package={d.get('package')})"
-                    for d in sample
-                )
-                + (" ..." if len(missing_versions) > 5 else "")
+            details = ", ".join(
+                f"{d.get('group_id')}:{d.get('artifact_id')} (package={d.get('package')})"
+                for d in sample
             )
+            more = " ..." if len(missing_versions) > 5 else ""
+            guidance = (
+                "\nDependency resolution failed: some GAV coordinates have no version.\n"
+                f"Missing versions for: {details}{more}\n\n"
+                "How to fix:\n"
+                "- Re-run with build resolution to capture full versions (includes test/transitives):\n"
+                "    code-graph-pipeline-prefect --repo-url <REPO> --resolve-build-deps\n"
+                "  or, if running code_analysis directly, provide a dependencies JSON via --in-dependencies.\n"
+                "- Alternatively, ensure your dependency extraction includes dependencyManagement/BOM and lockfiles.\n"
+            )
+            raise ValueError(guidance)
         session.run(
             """
             UNWIND $dependencies AS dep
@@ -403,8 +410,15 @@ def create_imports(
     if rec and rec.get("missing"):
         missing = rec["missing"]
         sample = missing[:5]
-        raise ValueError(
-            "Unresolved external imports (no versioned ExternalDependency): "
-            + ", ".join(sample)
-            + (" ..." if len(missing) > 5 else "")
+        details = ", ".join(sample)
+        more = " ..." if len(missing) > 5 else ""
+        guidance = (
+            "\nUnresolved external imports: no versioned ExternalDependency could be linked.\n"
+            f"Missing: {details}{more}\n\n"
+            "How to fix:\n"
+            "- Re-run with build resolution to obtain concrete versions (transitives/test scope):\n"
+            "    code-graph-pipeline-prefect --repo-url <REPO> --resolve-build-deps\n"
+            "  or supply a curated dependencies JSON via --in-dependencies.\n"
+            "- Ensure imported packages map deterministically to versioned dependencies.\n"
         )
+        raise ValueError(guidance)
