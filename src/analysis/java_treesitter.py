@@ -149,6 +149,11 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 import_type = "standard"
             elif base_path.startswith("org.neo4j"):
                 import_type = "internal"
+            elif package_name and (
+                base_path == package_name or base_path.startswith(package_name + ".")
+            ):
+                # Treat same-package imports as internal project references
+                import_type = "internal"
 
             # Emit both base and wildcard variants when wildcard is present to match legacy expectations
             if is_wildcard:
@@ -300,6 +305,29 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             end_line = node.end_point[0] + 1
             method_code = code.splitlines()[start_line - 1 : end_line]
 
+            # Heuristic: parse modifiers from token text before the identifier
+            try:
+                ident_start = ident.start_byte if ident is not None else node.start_byte
+                pre_text = source_bytes[node.start_byte : ident_start].decode(
+                    "utf-8", errors="ignore"
+                )
+                norm = " " + " ".join(pre_text.replace("\n", " ").split()) + " "
+
+                def _has_kw(kw: str) -> bool:
+                    return (" " + kw + " ") in norm
+
+                is_static_flag = _has_kw("static")
+                is_abstract_flag = _has_kw("abstract")
+                is_final_flag = _has_kw("final")
+                is_private_flag = _has_kw("private")
+                is_public_flag = _has_kw("public")
+            except Exception:
+                is_static_flag = False
+                is_abstract_flag = False
+                is_final_flag = False
+                is_private_flag = False
+                is_public_flag = False
+
             # Compute lightweight cyclomatic complexity (McCabe approximation)
             # M = 1 + number of decision points inside the method
             def _compute_cyclomatic_for_method(mnode: Any) -> int:
@@ -372,11 +400,11 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "line": start_line,
                     "estimated_lines": max(1, end_line - start_line + 1),
                     "modifiers": [],
-                    "is_static": False,
-                    "is_abstract": False,
-                    "is_final": False,
-                    "is_private": False,
-                    "is_public": False,
+                    "is_static": is_static_flag,
+                    "is_abstract": is_abstract_flag,
+                    "is_final": is_final_flag,
+                    "is_private": is_private_flag,
+                    "is_public": is_public_flag,
                     "return_type": _extract_return_type(node),
                     "parameters": params_list,
                     "code": "\n".join(method_code),
@@ -467,9 +495,29 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                         call_type = "static"
                     else:
                         call_type = "instance"
+                    # Best-effort resolution of target class/package
+                    target_class: str | None = None
+                    target_package: str | None = None
+                    try:
+                        if call_type in ("same_class", "this", "super"):
+                            # Same declaring type
+                            target_class = owner_name
+                            target_package = package_name
+                        elif call_type == "static" and qualifier:
+                            # Qualifier may be fully-qualified or a simple type imported
+                            simple = qualifier.split(".")[-1]
+                            if simple and simple[:1].isupper():
+                                target_class = simple
+                                target_package = _resolve_type_package(
+                                    qualifier, package_name, explicit_imports
+                                )
+                    except Exception:
+                        # Swallow resolution errors; leave as None
+                        pass
                     call_entry = {
                         "method_name": mname,
-                        "target_class": None,
+                        "target_class": target_class,
+                        "target_package": target_package,
                         "call_type": call_type,
                         "qualifier": qualifier,
                     }

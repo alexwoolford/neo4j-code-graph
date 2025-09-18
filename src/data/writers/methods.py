@@ -392,17 +392,21 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
                     """
                     UNWIND $calls AS call
                     MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line})
-                    // Try: explicit callee class
-                    OPTIONAL MATCH (callee1:Method {name: call.callee_name, class_name: call.callee_class})
-                    // Try: qualifier-derived class (simple name)
-                    WITH caller, call, callee1,
+                    // First, try direct method match by class_name (no Class required)
+                    OPTIONAL MATCH (calleeDirect:Method {name: call.callee_name, class_name: call.callee_class})
+                    WITH caller, call, calleeDirect
+                    // Next, prefer exact package+class when available
+                    OPTIONAL MATCH (clsExact:Class {name: call.callee_class, package: call.callee_package})-[:CONTAINS_METHOD]->(calleeExact:Method {name: call.callee_name})
+                    WITH caller, call, coalesce(calleeExact, calleeDirect) AS callee
+                    // Fallback to qualifier-derived class (simple name)
+                    WITH caller, call, callee,
                          CASE WHEN call.qualifier IS NOT NULL AND call.qualifier <> ''
                               THEN split(call.qualifier, '.')[-1]
                               ELSE NULL END AS qClass
                     OPTIONAL MATCH (c2:Class {name: qClass})-[:CONTAINS_METHOD]->(callee2:Method {name: call.callee_name})
-                    WITH caller, call, coalesce(callee1, callee2) AS callee
-                    WHERE callee IS NOT NULL AND callee.is_static = true
-                    MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)
+                    WITH caller, call, coalesce(callee, callee2) AS finalCallee
+                    WHERE finalCallee IS NOT NULL AND finalCallee.is_static = true
+                    MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(finalCallee)
                     """,
                     calls=batch,
                 )
@@ -437,12 +441,15 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
                         // Fallback A: same class as caller
                         OPTIONAL MATCH (c3:Method {name: call.callee_name, class_name: caller.class_name})
                         WITH caller, call, coalesce(callee0, c3) AS callee1
+                        // Fallback A2: class created within caller method (constructor call)
+                        OPTIONAL MATCH (caller)-[:CREATES]->(cCreated:Class)-[:CONTAINS_METHOD]->(c5:Method {name: call.callee_name})
+                        WITH caller, call, coalesce(callee1, c5) AS callee2
                         // Fallback B: unique by file
                         OPTIONAL MATCH (c4:Method {name: call.callee_name, file: call.caller_file})
-                        WITH caller, call, callee1, collect(DISTINCT c4) AS inFile
-                        WITH caller, call, callee1,
+                        WITH caller, call, callee2, collect(DISTINCT c4) AS inFile
+                        WITH caller, call, callee2,
                              CASE WHEN size(inFile) = 1 THEN head(inFile) ELSE NULL END AS uniqueFileCallee
-                        WITH caller, coalesce(callee1, uniqueFileCallee) AS callee, call
+                        WITH caller, coalesce(callee2, uniqueFileCallee) AS callee, call
                         WHERE callee IS NOT NULL
                         MERGE (caller)-[:CALLS {type: call.call_type, qualifier: call.qualifier}]->(callee)
                         RETURN count(*) as created

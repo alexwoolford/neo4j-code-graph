@@ -162,6 +162,11 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
         "Class",
         "CREATE INDEX class_name_file_composite IF NOT EXISTS FOR (c:Class) ON (c.name, c.file)",
     ),
+    (
+        "class_name_package_composite",
+        "Class",
+        "CREATE INDEX class_name_package_composite IF NOT EXISTS FOR (c:Class) ON (c.name, c.package)",
+    ),
     ("commit_date", "Commit", "CREATE INDEX commit_date IF NOT EXISTS FOR (c:Commit) ON (c.date)"),
     (
         "method_pagerank",
