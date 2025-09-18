@@ -140,7 +140,7 @@ def selective_cleanup_task(
 cleanup_task = selective_cleanup_task
 
 
-@task(retries=1)
+@task(retries=0)
 def write_graph_task(
     repo_path: str,
     artifacts_dir: str,
@@ -190,7 +190,17 @@ def write_graph_task(
             _code_analysis = import_module("src.analysis.code_analysis")
         except Exception:  # pragma: no cover
             _code_analysis = import_module("analysis.code_analysis")
-        _code_analysis.main()  # type: ignore[attr-defined]
+        try:
+            _code_analysis.main()  # type: ignore[attr-defined]
+        except ValueError as e:
+            # Graceful fail-fast handling: show concise guidance without a long traceback
+            msg = str(e).strip()
+            if msg.startswith("Dependency resolution failed") or msg.startswith(
+                "Unresolved external imports"
+            ):
+                logger.error("\n" + msg + "\n")
+                return
+            raise
     finally:
         sys.argv = old_argv
 
