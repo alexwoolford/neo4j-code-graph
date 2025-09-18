@@ -332,15 +332,28 @@ def create_imports(
                 for d in sample
             )
             more = " ..." if len(missing_versions) > 5 else ""
-            guidance = (
-                "\nDependency resolution failed: some GAV coordinates have no version.\n"
-                f"Missing versions for: {details}{more}\n\n"
-                "How to fix:\n"
-                "- Re-run with build resolution to capture full versions (includes test/transitives):\n"
-                "    code-graph-pipeline-prefect --repo-url <REPO> --resolve-build-deps\n"
-                "  or, if running code_analysis directly, provide a dependencies JSON via --in-dependencies.\n"
-                "- Alternatively, ensure your dependency extraction includes dependencyManagement/BOM and lockfiles.\n"
-            )
+            from os import getenv as _getenv  # local import to avoid global dependency
+
+            used_flag = _getenv("RESOLVE_BUILD_DEPS") in {"1", "true", "True"}
+            if used_flag:
+                guidance = (
+                    "\nDependency resolution failed: some GAV coordinates still lack versions after build resolution.\n"
+                    f"Missing versions for: {details}{more}\n\n"
+                    "Next steps:\n"
+                    "- Ensure the repo's build can produce a full dependency report (try ./gradlew dependencies and mvnw dependency:list).\n"
+                    "- If the types are transitives (e.g., opentest4j via junit), add an override JSON and pass via --in-dependencies.\n"
+                    "- Verify Gradle lockfiles or Maven dependencyManagement/BOM are present and committed.\n"
+                )
+            else:
+                guidance = (
+                    "\nDependency resolution failed: some GAV coordinates have no version.\n"
+                    f"Missing versions for: {details}{more}\n\n"
+                    "How to fix:\n"
+                    "- Re-run with build resolution to capture full versions (includes test/transitives):\n"
+                    "    code-graph-pipeline-prefect --repo-url <REPO> --resolve-build-deps\n"
+                    "  or, if running code_analysis directly, provide a dependencies JSON via --in-dependencies.\n"
+                    "- Alternatively, ensure your dependency extraction includes dependencyManagement/BOM and lockfiles.\n"
+                )
             raise ValueError(guidance)
         session.run(
             """

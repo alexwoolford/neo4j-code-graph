@@ -87,7 +87,16 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
         )
     if have_gradle:
         gcmd = [str(gradlew)] if gradlew.exists() else ["gradle"]
-        cmds.append(gcmd + ["-q", "dependencies", "--configuration", "testRuntimeClasspath"])
+        # Dump all dependencies (multi-project friendly)
+        cmds.append(gcmd + ["-q", "dependencies"])  # all configurations, all subprojects
+        # Also explicitly probe common classpaths to increase coverage
+        for cfg in (
+            "testRuntimeClasspath",
+            "testCompileClasspath",
+            "runtimeClasspath",
+            "compileClasspath",
+        ):
+            cmds.append(gcmd + ["-q", "dependencies", "--configuration", cfg])
 
     import subprocess
 
