@@ -199,14 +199,13 @@ def write_graph_task(
                 "Unresolved external imports"
             ):
                 logger.error("\n" + msg + "\n")
-                # Signal downstream tasks to skip (avoid orphan ExternalDependency/CVE)
+                # Continue instead of returning: we may still have some GAVs to link CVEs
                 try:
                     import os as _os
 
-                    _os.environ["CODE_GRAPH_WRITE_OK"] = "false"
+                    _os.environ["CODE_GRAPH_WRITE_OK"] = "partial"
                 except Exception:
                     pass
-                return
             raise
     finally:
         sys.argv = old_argv
@@ -475,11 +474,12 @@ def cve_task(
     import os
 
     logger.info("Running CVE analysis (optional if NVD_API_KEY is present)")
-    # Skip if previous write failed (prevents orphan CVE->ExternalDependency)
+    # Skip only if previous write fully failed; proceed on 'partial'
     try:
         import os as _os
 
-        if _os.getenv("CODE_GRAPH_WRITE_OK") == "false":
+        state = _os.getenv("CODE_GRAPH_WRITE_OK")
+        if state == "false":
             logger.warning("Previous write failed; skipping CVE analysis to avoid orphan links")
             return
     except Exception:
@@ -491,21 +491,16 @@ def cve_task(
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     with create_neo4j_driver(_uri, _user, _pwd) as driver:
         # Guard: ensure there are ExternalDependency nodes linked from imports
-        try:
-            with driver.session(database=_db) as s:
-                rec = s.run(
-                    """
-                    MATCH (:Import)-[:DEPENDS_ON]->(:ExternalDependency) RETURN count(*) AS c
-                    """
-                ).single()
-                if not rec or int(rec["c"]) == 0:
-                    logger.warning(
-                        "No ExternalDependency linked from imports; skipping CVE analysis"
-                    )
-                    return
-        except Exception:
-            # If guard fails unexpectedly, proceed conservatively
-            pass
+        with driver.session(database=_db) as s:
+            rec = s.run(
+                """
+                MATCH (:ExternalDependency) RETURN count(*) AS total
+                """
+            ).single()
+            total_deps = int(rec["total"]) if rec else 0
+            if total_deps == 0:
+                logger.warning("No ExternalDependency present; skipping CVE analysis")
+                return
         analyzer = CVEAnalyzer(driver, _db)
         # Show cache, then fetch and build graph; rely on defaults for scope/limits
         analyzer.get_cache_status()

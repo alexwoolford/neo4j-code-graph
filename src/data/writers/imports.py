@@ -367,7 +367,7 @@ def create_imports(
                     "  or, if running code_analysis directly, provide a dependencies JSON via --in-dependencies.\n"
                     "- Alternatively, ensure your dependency extraction includes dependencyManagement/BOM and lockfiles.\n"
                 )
-            raise ValueError(guidance)
+            logger.error(guidance)
         session.run(
             """
             UNWIND $dependencies AS dep
@@ -436,4 +436,4 @@ def create_imports(
             "  or supply a curated dependencies JSON via --in-dependencies.\n"
             "- Ensure imported packages map deterministically to versioned dependencies.\n"
         )
-        raise ValueError(guidance)
+        logger.error(guidance)
