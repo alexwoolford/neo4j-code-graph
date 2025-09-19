@@ -318,6 +318,19 @@ def create_imports(
                     }
                 )
 
+    # Always write resolved GAV entries first so versioned ExternalDependency nodes exist
+    if gav_nodes:
+        session.run(
+            """
+            UNWIND $gavs AS dep
+            MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})
+            SET e.language = coalesce(e.language, dep.language),
+                e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
+                e.package = coalesce(e.package, dep.package)
+            """,
+            gavs=gav_nodes,
+        )
+
     if dependency_nodes:
         # Fail fast if any GAV coordinate is missing a version per project policy
         missing_versions = [
@@ -377,18 +390,7 @@ def create_imports(
             dependencies=dependency_nodes,
         )
 
-    if gav_nodes:
-        # Create or match nodes on precise coordinates to avoid duplicates across versions
-        session.run(
-            """
-            UNWIND $gavs AS dep
-            MERGE (e:ExternalDependency {group_id: dep.group_id, artifact_id: dep.artifact_id, version: dep.version})
-            SET e.language = coalesce(e.language, dep.language),
-                e.ecosystem = coalesce(e.ecosystem, dep.ecosystem),
-                e.package = coalesce(e.package, dep.package)
-            """,
-            gavs=gav_nodes,
-        )
+    # (GAVs already written above)
 
     # Join imports to versioned ExternalDependency via best-effort GAV or package match
     session.run(
