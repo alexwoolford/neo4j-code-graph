@@ -71,8 +71,8 @@
     {
       "id": "n1",
       "position": {
-        "x": -268,
-        "y": -41
+        "x": -290.08528270671724,
+        "y": -31.17921454457462
       },
       "caption": "",
       "labels": [
@@ -86,8 +86,8 @@
     {
       "id": "n2",
       "position": {
-        "x": -43,
-        "y": -197.99999999999997
+        "x": -91.80202938046173,
+        "y": -208.19963103736893
       },
       "caption": "",
       "labels": [
@@ -116,8 +116,8 @@
     {
       "id": "n4",
       "position": {
-        "x": -96.65377549138722,
-        "y": 231.65377549138728
+        "x": -108.05892027631148,
+        "y": 239.14164381710438
       },
       "caption": "",
       "labels": [
@@ -131,8 +131,8 @@
     {
       "id": "n5",
       "position": {
-        "x": -267.2012591963444,
-        "y": 396.3275461991494
+        "x": -335.11784055262297,
+        "y": 454.85609869843256
       },
       "caption": "",
       "labels": [
@@ -162,7 +162,7 @@
       "id": "n7",
       "position": {
         "x": 119,
-        "y": 396.3275461991494
+        "y": 454.85609869843256
       },
       "caption": "",
       "labels": [
@@ -177,7 +177,7 @@
       "id": "n8",
       "position": {
         "x": 612.0985858707942,
-        "y": 396.3275461991492
+        "y": 437.8292104640904
       },
       "caption": "",
       "labels": [
@@ -191,8 +191,8 @@
     {
       "id": "n9",
       "position": {
-        "x": 357.43809554728733,
-        "y": -197.99999999999946
+        "x": 348.01250480010094,
+        "y": -208.19963103736893
       },
       "caption": "",
       "labels": [
@@ -206,8 +206,8 @@
     {
       "id": "n10",
       "position": {
-        "x": -504.2748658192775,
-        "y": 396.3275461991492
+        "x": -638.3002995859605,
+        "y": 454.85609869843256
       },
       "caption": "",
       "labels": [
@@ -216,6 +216,51 @@
       "properties": {},
       "style": {
         "node-color": "#8DCC93"
+      }
+    },
+    {
+      "id": "n11",
+      "position": {
+        "x": -108.05892027631148,
+        "y": 454.85609869843256
+      },
+      "caption": "",
+      "labels": [
+        "Package"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#B98EF0"
+      }
+    },
+    {
+      "id": "n12",
+      "position": {
+        "x": 348.01250480010094,
+        "y": 89.2276304083145
+      },
+      "caption": "",
+      "labels": [
+        "Doc"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#9FAAB7"
+      }
+    },
+    {
+      "id": "n13",
+      "position": {
+        "x": 348.01250480010094,
+        "y": 344.9352893586842
+      },
+      "caption": "",
+      "labels": [
+        "Parameter"
+      ],
+      "properties": {},
+      "style": {
+        "node-color": "#BEB88B"
       }
     }
   ],
@@ -366,11 +411,67 @@
     },
     {
       "id": "n18",
+      "fromId": "n5",
+      "toId": "n5",
       "type": "PARENT",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n19",
+      "type": "HAS_PARAMETER",
       "style": {},
       "properties": {},
-      "fromId": "n5",
-      "toId": "n5"
+      "fromId": "n6",
+      "toId": "n13"
+    },
+    {
+      "id": "n20",
+      "type": "HAS_DOC",
+      "style": {},
+      "properties": {},
+      "fromId": "n3",
+      "toId": "n12"
+    },
+    {
+      "id": "n21",
+      "type": "HAS_DOC",
+      "style": {},
+      "properties": {},
+      "fromId": "n6",
+      "toId": "n12"
+    },
+    {
+      "id": "n22",
+      "type": "HAS_DOC",
+      "style": {},
+      "properties": {},
+      "fromId": "n7",
+      "toId": "n12"
+    },
+    {
+      "id": "n23",
+      "type": "OF_TYPE",
+      "style": {},
+      "properties": {},
+      "fromId": "n13",
+      "toId": "n7"
+    },
+    {
+      "id": "n24",
+      "type": "OF_TYPE",
+      "style": {},
+      "properties": {},
+      "fromId": "n13",
+      "toId": "n8"
+    },
+    {
+      "id": "n25",
+      "type": "CONTAINS",
+      "style": {},
+      "properties": {},
+      "fromId": "n11",
+      "toId": "n7"
     }
   ]
 }
