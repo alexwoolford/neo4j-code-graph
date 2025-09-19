@@ -26,12 +26,13 @@ def test_compute_precise_matches_positive_path(monkeypatch) -> None:
         GAVCoordinate = _FakeGAV
         PreciseGAVMatcher = _FakeMatcher
 
+    # Patch the exact import site used inside compute_precise_matches to avoid recursion
     def _fake_import(name: str, *args: Any, **kwargs: Any):  # pragma: no cover - guard
         if name == "src.security.gav_cve_matcher":
             return _FakeModule()
         return builtins.__import__(name, *args, **kwargs)
 
-    monkeypatch.setattr("builtins.__import__", _fake_import)
+    monkeypatch.setattr("src.security.linking.__builtins__", "__import__", _fake_import)
 
     deps = [
         {
