@@ -403,8 +403,22 @@ def create_imports(
              CASE WHEN SIZE(parts) >= 3 THEN parts[0]+'.'+parts[1]+'.'+parts[2] ELSE NULL END AS p3,
              CASE WHEN SIZE(parts) >= 2 THEN parts[0]+'.'+parts[1] ELSE NULL END AS p2
         OPTIONAL MATCH (e:ExternalDependency)
-        WHERE (e.group_id IS NOT NULL AND e.group_id IN [p4, p3, p2])
-           OR (e.package IS NOT NULL AND e.package IN [p4, p3, p2])
+        WHERE (
+                e.group_id IS NOT NULL AND (
+                    e.group_id IN [p4, p3, p2]
+                    OR (p4 IS NOT NULL AND (e.group_id STARTS WITH p4 OR p4 STARTS WITH e.group_id))
+                    OR (p3 IS NOT NULL AND (e.group_id STARTS WITH p3 OR p3 STARTS WITH e.group_id))
+                    OR (p2 IS NOT NULL AND (e.group_id STARTS WITH p2 OR p2 STARTS WITH e.group_id))
+                )
+             )
+           OR (
+                e.package IS NOT NULL AND (
+                    e.package IN [p4, p3, p2]
+                    OR (p4 IS NOT NULL AND (e.package STARTS WITH p4 OR p4 STARTS WITH e.package))
+                    OR (p3 IS NOT NULL AND (e.package STARTS WITH p3 OR p3 STARTS WITH e.package))
+                    OR (p2 IS NOT NULL AND (e.package STARTS WITH p2 OR p2 STARTS WITH e.package))
+                )
+             )
         WITH i, collect(DISTINCT e) AS eds, p4, p3, p2
         FOREACH (ed IN eds |
           MERGE (i)-[:DEPENDS_ON]->(ed)
