@@ -199,10 +199,25 @@ def write_graph_task(
                 "Unresolved external imports"
             ):
                 logger.error("\n" + msg + "\n")
+                # Signal downstream tasks to skip (avoid orphan ExternalDependency/CVE)
+                try:
+                    import os as _os
+
+                    _os.environ["CODE_GRAPH_WRITE_OK"] = "false"
+                except Exception:
+                    pass
                 return
             raise
     finally:
         sys.argv = old_argv
+
+    # Mark success for downstream tasks
+    try:
+        import os as _os
+
+        _os.environ["CODE_GRAPH_WRITE_OK"] = "true"
+    except Exception:
+        pass
 
     try:
         from graphdatascience import GraphDataScience as _GDS  # type: ignore
@@ -460,12 +475,37 @@ def cve_task(
     import os
 
     logger.info("Running CVE analysis (optional if NVD_API_KEY is present)")
+    # Skip if previous write failed (prevents orphan CVE->ExternalDependency)
+    try:
+        import os as _os
+
+        if _os.getenv("CODE_GRAPH_WRITE_OK") == "false":
+            logger.warning("Previous write failed; skipping CVE analysis to avoid orphan links")
+            return
+    except Exception:
+        pass
     api_key = os.getenv("NVD_API_KEY")
     if not api_key:
         logger.warning("NVD_API_KEY not set; skipping CVE analysis")
         return
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     with create_neo4j_driver(_uri, _user, _pwd) as driver:
+        # Guard: ensure there are ExternalDependency nodes linked from imports
+        try:
+            with driver.session(database=_db) as s:
+                rec = s.run(
+                    """
+                    MATCH (:Import)-[:DEPENDS_ON]->(:ExternalDependency) RETURN count(*) AS c
+                    """
+                ).single()
+                if not rec or int(rec["c"]) == 0:
+                    logger.warning(
+                        "No ExternalDependency linked from imports; skipping CVE analysis"
+                    )
+                    return
+        except Exception:
+            # If guard fails unexpectedly, proceed conservatively
+            pass
         analyzer = CVEAnalyzer(driver, _db)
         # Show cache, then fetch and build graph; rely on defaults for scope/limits
         analyzer.get_cache_status()
