@@ -96,8 +96,20 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
             + [
                 "-q",
                 "-DincludeScope=test",
+                "-DincludeTransitive=true",
                 "dependency:list",
                 f"-DoutputFile={artifacts_dir}/mvn_deps.txt",
+            ]
+        )
+        # Also write a dependency tree for additional resolved versions
+        cmds.append(
+            cmd
+            + [
+                "-q",
+                "-Dscope=test",
+                "dependency:tree",
+                "-DoutputType=text",
+                f"-DoutputFile={artifacts_dir}/mvn_tree.txt",
             ]
         )
     if have_gradle:
@@ -141,6 +153,22 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
                             gleaned_versions[f"{g}:{a}"] = v
         except Exception as e:  # pragma: no cover
             logger.debug("Failed to parse mvn_deps.txt: %s", e)
+
+    # Parse dependency:tree output as a secondary source (captures transitives reliably)
+    mvn_tree = Path(artifacts_dir) / "mvn_tree.txt"
+    if mvn_tree.exists():
+        try:
+            for line in mvn_tree.read_text(encoding="utf-8").splitlines():
+                # Lines often include group:artifact:packaging:version[:scope]
+                if ":" not in line or line.strip().startswith("["):
+                    continue
+                tokens = [t.strip() for t in line.strip().split(":")]
+                if len(tokens) >= 4:
+                    g, a, _pkg, v = tokens[0], tokens[1], tokens[2], tokens[3]
+                    if g and a and v and not any(t in v for t in (" ", "${")):
+                        gleaned_versions[f"{g}:{a}"] = v
+        except Exception as e:  # pragma: no cover
+            logger.debug("Failed to parse mvn_tree.txt: %s", e)
 
     # Parse Gradle dependency tree output for resolved coordinates
     gradle_text = "\n".join(gradle_stdout)
