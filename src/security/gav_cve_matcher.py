@@ -10,6 +10,7 @@ This module implements accurate CVE matching using:
 """
 
 import logging
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -79,28 +80,61 @@ class AffectedProduct:
     version_end_including: str | None = None
     version_end_excluding: str | None = None
 
+    @staticmethod
+    def _clean_version_string(raw: str | None) -> str | None:
+        """Sanitize occasionally malformed NVD version strings.
+
+        Examples fixed:
+        - "2.0.0."  -> "2.0.0"
+        - " 2.13.4 " -> "2.13.4"
+        - "v2.12.0"  -> "2.12.0"
+        - "2_12_0"   -> "2.12.0"
+        """
+        if raw is None:
+            return None
+        v = raw.strip().strip("'\"")
+        v = v.replace("_", ".")
+        if v.startswith("v") and len(v) > 1 and v[1].isdigit():
+            v = v[1:]
+        v = re.sub(r"[^0-9A-Za-z.+-]+$", "", v)
+        return v or None
+
     def matches_version(self, target_version: str) -> bool:
         """Check if target version falls within vulnerable range."""
         try:
             target_ver = Version(target_version)
 
             # Check start constraints
-            if self.version_start_including:
-                if target_ver < Version(self.version_start_including):
-                    return False
-
-            if self.version_start_excluding:
-                if target_ver <= Version(self.version_start_excluding):
-                    return False
+            vsi = self._clean_version_string(self.version_start_including)
+            if vsi:
+                try:
+                    if target_ver < Version(vsi):
+                        return False
+                except Exception as e:
+                    logger.debug("Ignoring invalid version_start_including '%s': %s", vsi, e)
+            vse = self._clean_version_string(self.version_start_excluding)
+            if vse:
+                try:
+                    if target_ver <= Version(vse):
+                        return False
+                except Exception as e:
+                    logger.debug("Ignoring invalid version_start_excluding '%s': %s", vse, e)
 
             # Check end constraints
-            if self.version_end_including:
-                if target_ver > Version(self.version_end_including):
-                    return False
-
-            if self.version_end_excluding:
-                if target_ver >= Version(self.version_end_excluding):
-                    return False
+            vei = self._clean_version_string(self.version_end_including)
+            if vei:
+                try:
+                    if target_ver > Version(vei):
+                        return False
+                except Exception as e:
+                    logger.debug("Ignoring invalid version_end_including '%s': %s", vei, e)
+            vee = self._clean_version_string(self.version_end_excluding)
+            if vee:
+                try:
+                    if target_ver >= Version(vee):
+                        return False
+                except Exception as e:
+                    logger.debug("Ignoring invalid version_end_excluding '%s': %s", vee, e)
 
             return True
 
