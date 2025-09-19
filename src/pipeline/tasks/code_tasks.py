@@ -143,14 +143,27 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
     mvn_out = Path(artifacts_dir) / "mvn_deps.txt"
     if mvn_out.exists():
         try:
-            for line in mvn_out.read_text(encoding="utf-8").splitlines():
-                # Typical: group:artifact:packaging:version:scope
-                if ":" in line and not line.strip().startswith("#"):
-                    parts = [p.strip() for p in line.split(":")]
-                    if len(parts) >= 4:
-                        g, a, _pkg, v = parts[0], parts[1], parts[2], parts[3]
-                        if g and a and v and not any(t in v for t in (" ", "${")):
-                            gleaned_versions[f"{g}:{a}"] = v
+            version_token = re.compile(
+                r"^(?P<g>[^:\s]+):(?P<a>[^:\s]+):[^:]+:(?:(?:[^:]+):)?(?P<v>[^:\s]+)(?::(?:compile|runtime|test|provided|system))?$"
+            )
+            fallback_triplet = re.compile(
+                r"(?P<g>[A-Za-z0-9_.-]+):(?P<a>[A-Za-z0-9_.-]+):(?P<v>[0-9][A-Za-z0-9+_.-]*)"
+            )
+            for raw in mvn_out.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                m = version_token.match(line)
+                if m:
+                    g, a, v = m.group("g"), m.group("a"), m.group("v")
+                    if g and a and v and "${" not in v:
+                        gleaned_versions[f"{g}:{a}"] = v
+                        continue
+                m2 = fallback_triplet.search(line)
+                if m2:
+                    g, a, v = m2.group("g"), m2.group("a"), m2.group("v")
+                    if g and a and v:
+                        gleaned_versions[f"{g}:{a}"] = v
         except Exception as e:  # pragma: no cover
             logger.debug("Failed to parse mvn_deps.txt: %s", e)
 
@@ -158,15 +171,26 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
     mvn_tree = Path(artifacts_dir) / "mvn_tree.txt"
     if mvn_tree.exists():
         try:
-            for line in mvn_tree.read_text(encoding="utf-8").splitlines():
-                # Lines often include group:artifact:packaging:version[:scope]
-                if ":" not in line or line.strip().startswith("["):
+            version_token = re.compile(
+                r"^(?:[\|+\\\-\s]*)?(?P<g>[^:\s]+):(?P<a>[^:\s]+):[^:]+:(?:(?:[^:]+):)?(?P<v>[^:\s]+)(?::(?:compile|runtime|test|provided|system))?"
+            )
+            fallback_triplet = re.compile(
+                r"(?P<g>[A-Za-z0-9_.-]+):(?P<a>[A-Za-z0-9_.-]+):(?P<v>[0-9][A-Za-z0-9+_.-]*)"
+            )
+            for raw in mvn_tree.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if not line or line.startswith("["):
                     continue
-                tokens = [t.strip() for t in line.strip().split(":")]
-                if len(tokens) >= 4:
-                    g, a, _pkg, v = tokens[0], tokens[1], tokens[2], tokens[3]
-                    if g and a and v and not any(t in v for t in (" ", "${")):
+                m = version_token.match(line)
+                if m:
+                    g, a, v = m.group("g"), m.group("a"), m.group("v")
+                    if g and a and v and "${" not in v:
                         gleaned_versions[f"{g}:{a}"] = v
+                        continue
+                m2 = fallback_triplet.search(line)
+                if m2:
+                    g, a, v = m2.group("g"), m2.group("a"), m2.group("v")
+                    gleaned_versions[f"{g}:{a}"] = v
         except Exception as e:  # pragma: no cover
             logger.debug("Failed to parse mvn_tree.txt: %s", e)
 
