@@ -49,7 +49,10 @@ These map to Cypher over your existing schema (`File`, `Class`, `Method`, `CALLS
 
 == Environment
 
-Activate the conda environment before launching clients or scripts:
+MCP does not require this project's conda environment. Use the `neo4j-code-graph` conda env when you are running this project's pipeline (code graph creation) or developer scripts. For MCP specifically:
+
+- If you run `mcp-neo4j-cypher` via `uvx` (as in the example), you do NOT need to activate the project conda env.
+- If you installed `mcp-neo4j-cypher` into the `neo4j-code-graph` conda env and want to use that interpreter, then activate it first:
 
 [source,bash]
 ----
