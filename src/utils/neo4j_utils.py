@@ -126,22 +126,24 @@ def check_capabilities(session: Any) -> dict[str, object]:
     # Probe minimal projection to catch server/plugin binary mismatch early
     if gds_available:
         try:
-            session.run(
-                """
-                CALL gds.graph.project(
-                  'cg_probe_cap',
-                  ['Method'],
-                  ['CALLS']
-                ) YIELD graphName
-                """
-            ).single()
-            caps["gds"]["projection_ok"] = True  # type: ignore[index]
+            # Prefer GDS Python API for projection probe
+            from graphdatascience import GraphDataScience as _GDS  # type: ignore
+
+            _gds = _GDS(
+                session._driver.target.address,  # type: ignore[attr-defined]
+                auth=(session._config.auth[0], session._config.auth[1]),  # type: ignore[attr-defined]
+                database=session._config.database,  # type: ignore[attr-defined]
+                arrow=False,
+            )
             try:
-                session.run(
-                    "CALL gds.graph.drop('cg_probe_cap', false) YIELD graphName RETURN graphName"
-                ).consume()
-            except Exception:
-                pass
+                _gds.graph.project("cg_probe_cap", ["Method"], ["CALLS"])  # type: ignore[arg-type]
+                caps["gds"]["projection_ok"] = True  # type: ignore[index]
+            finally:
+                try:
+                    _gds.graph.drop("cg_probe_cap")
+                except Exception:
+                    pass
+                _gds.close()
         except Exception:  # noqa: BLE001
             # Keep available=true but projection_ok=false; caller can choose to skip projection-based steps
             caps["gds"]["projection_ok"] = False  # type: ignore[index]

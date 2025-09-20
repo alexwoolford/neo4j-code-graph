@@ -419,12 +419,9 @@ def main() -> None:
                 degree_results,
             )
 
-            # Cleanup (avoid deprecated return fields)
+            # Cleanup via Python API
             try:
-                gds.run_cypher(
-                    "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
-                    name=graph.name(),
-                )
+                gds.graph.drop(graph.name())
             except Exception:
                 pass
             logger.info("Analysis completed successfully")

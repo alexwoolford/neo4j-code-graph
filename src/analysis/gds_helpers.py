@@ -17,9 +17,7 @@ def create_method_calls_projection(
     - Uses NATURAL orientation for directed CALLS relationships
     """
     try:
-        gds.run_cypher(
-            "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName", name=graph_name
-        )
+        gds.graph.drop(graph_name)
         logger.info("Dropped existing graph projection: %s", graph_name)
     except Exception:
         pass
@@ -65,9 +63,7 @@ def create_similarity_projection(
     Returns (graph, meta) from project.cypher
     """
     try:
-        gds.run_cypher(
-            "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName", name=graph_name
-        )
+        gds.graph.drop(graph_name)
     except Exception:
         pass
 

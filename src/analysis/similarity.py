@@ -212,10 +212,7 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
 
     if exists:
         try:
-            gds.run_cypher(
-                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
-                name=graph_name,
-            )
+            gds.graph.drop(graph_name)
         except Exception:
             pass
 
@@ -261,10 +258,7 @@ def run_louvain(
 
     if exists:
         try:
-            gds.run_cypher(
-                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
-                name=graph_name,
-            )
+            gds.graph.drop(graph_name)
         except Exception:
             pass
 
