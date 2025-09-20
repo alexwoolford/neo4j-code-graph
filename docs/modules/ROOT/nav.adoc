@@ -10,4 +10,5 @@
 ** xref:architecture.adoc[Architecture]
 ** xref:project-structure.adoc[Project Structure]
 ** xref:development.adoc[Development]
+** xref:mcp.adoc[MCP (NL→Cypher) Integration]
 // Hide default UI footer note by not including it on pages; keep minimal nav

@@ -99,6 +99,7 @@
       <step>pip install -e .[dev]</step>
       <step>pip install -r config/requirements.txt</step>
       <step>cp .env.example .env and edit with Neo4j credentials</step>
+      <note>All project commands and scripts must be run inside the 'neo4j-code-graph' conda environment. Activate it first: conda activate neo4j-code-graph.</note>
     </env>
     <quality_tools>
       <step>isort src/ tests/ scripts/</step>
