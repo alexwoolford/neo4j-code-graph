@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Development :: Neo4j Code Graph</title>
+    <title>MCP Integration (Natural Language → Cypher) :: Neo4j Code Graph</title>
     <meta name="generator" content="Antora 3.1.12">
 <link rel="stylesheet" href="../../_/css/site.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
@@ -66,10 +66,10 @@
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="project-structure.html">Project Structure</a>
   </li>
-  <li class="nav-item is-current-page" data-depth="2">
+  <li class="nav-item" data-depth="2">
     <a class="nav-link" href="development.html">Development</a>
   </li>
-  <li class="nav-item" data-depth="2">
+  <li class="nav-item is-current-page" data-depth="2">
     <a class="nav-link" href="mcp.html">MCP (NL→Cypher) Integration</a>
   </li>
 </ul>
@@ -106,215 +106,125 @@
   <ul>
     <li><a href="index.html">Docs</a></li>
     <li>Developer Guide</li>
-    <li><a href="development.html">Development</a></li>
+    <li><a href="mcp.html">MCP (NL→Cypher) Integration</a></li>
   </ul>
 </nav>
-<div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/development.adoc">Edit this Page</a></div>
+<div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/mcp.adoc">Edit this Page</a></div>
 </div>
   <div class="content">
 <aside class="toc sidebar" data-title="Contents" data-levels="2">
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Development</h1>
-<div class="sect1">
-<h2 id="_contributing"><a class="anchor" href="#_contributing"></a>Contributing</h2>
+<h1 class="page">MCP Integration (Natural Language → Cypher)</h1>
+<div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
-<p>Style is enforced by pre-commit (black, ruff, ruff-format, mypy, interrogate, codespell). Key practices:</p>
+<p>Use the official Neo4j MCP servers to query your code graph with natural language from IDEs like Cursor or Claude Desktop.</p>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_reference"><a class="anchor" href="#_reference"></a>Reference</h2>
+<div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p>Use helpers in <code>utils.common</code> for logging and config</p>
+<p>Project: <code>mcp-neo4j</code> — Neo4j MCP Clients &amp; Servers</p>
 </li>
 <li>
-<p>Consistent error handling and import patterns</p>
+<p><code>mcp-neo4j-cypher</code>: natural language to Cypher over your database</p>
 </li>
 <li>
-<p>Run pre-commit hooks before commits</p>
+<p>Transport: stdio (default), HTTP, or SSE</p>
+</li>
+<li>
+<p>Repository: <code><a href="https://github.com/neo4j-contrib/mcp-neo4j" class="bare">https://github.com/neo4j-contrib/mcp-neo4j</a></code></p>
 </li>
 </ul>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_ci_pre_flight_checks"><a class="anchor" href="#_ci_pre_flight_checks"></a>CI &amp; pre-flight checks</h2>
+<h2 id="_cursor_configuration"><a class="anchor" href="#_cursor_configuration"></a>Cursor configuration</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Our CI runs on every push and PR and will fail the build if code quality, typing, or tests break. To avoid churn, run the same checks locally:</p>
+<p>Add an entry to <code>~/.cursor/mcp.json</code> (adjust names and environment for your DB):</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Install dev tools
-pip install -r config/dev-requirements.txt
-
-# Run the exact hooks CI uses
-pre-commit run --all-files
-
-# Run unit tests (CI also runs 3.10/3.11/3.12)
-pytest -q
-
-# Live tests (CI spins up Neo4j 5.26 enterprise with APOC core + GDS)
-pytest -m live -q</code></pre>
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  "mcpServers": {
+    "neo4j-codegraph": {
+      "command": "uvx",
+      "args": ["mcp-neo4j-cypher@0.4.0", "--transport", "stdio"],
+      "env": {
+        "NEO4J_URI": "neo4j://10.0.1.27",
+        "NEO4J_USERNAME": "readonly",
+        "NEO4J_PASSWORD": "password",
+        "NEO4J_DATABASE": "neo4j",
+        "NEO4J_NAMESPACE": "neo4j"
+      }
+    }
+  }
+}</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>What CI does:</p>
+<p>Tips:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>Lint/format/typecheck</p>
-<div class="ulist">
-<ul>
-<li>
-<p>black</p>
+<p>Use a read-only Neo4j role for safety during exploration.</p>
 </li>
 <li>
-<p>ruff / ruff-format</p>
+<p>Point <code>NEO4J_NAMESPACE</code> to the graph namespace you want the MCP to use (optional; used by some clients for scoping).</p>
 </li>
 <li>
-<p>mypy</p>
-</li>
-<li>
-<p>interrogate</p>
-</li>
-<li>
-<p>codespell</p>
+<p>For HTTP transport instead of stdio: run <code>mcp-neo4j-cypher --transport http [--host 127.0.0.1 --port 8080 --path /api/mcp/]</code> and configure the client accordingly.</p>
 </li>
 </ul>
-</div>
-</li>
-<li>
-<p>Unit tests</p>
-<div class="ulist">
-<ul>
-<li>
-<p>Python 3.10–3.12</p>
-</li>
-</ul>
-</div>
-</li>
-<li>
-<p>Live tests</p>
-<div class="ulist">
-<ul>
-<li>
-<p>Start Neo4j 5.26 enterprise with APOC core + GDS</p>
-</li>
-<li>
-<p>Wait for readiness and seed data</p>
-</li>
-<li>
-<p>Run pytest with <code>-m live</code></p>
-</li>
-</ul>
-</div>
-</li>
-<li>
-<p>Docs</p>
-<div class="ulist">
-<ul>
-<li>
-<p>Build Antora site</p>
-</li>
-<li>
-<p>Validate Cypher snippets via ephemeral Neo4j</p>
-</li>
-<li>
-<p>Generate Prefect DAG image</p>
-</li>
-<li>
-<p>Publish to GitHub Pages</p>
-</li>
-</ul>
-</div>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>Tips:
-- If a hook reformats files, re-run <code>pre-commit run --all-files</code> until all pass
-- Keep <code>.env</code> up to date; use CLI flags to override for live tests
-- The docs workflow also fails if any <code>.cyp</code> snippet fails <code>EXPLAIN</code></p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_configuration_constants"><a class="anchor" href="#_configuration_constants"></a>Configuration constants</h2>
+<h2 id="_example_prompts"><a class="anchor" href="#_example_prompts"></a>Example prompts</h2>
 <div class="sectionbody">
-<div class="paragraph">
-<p>Many default knobs live in <code>src/constants.py</code> (embedding sizes, batching, PageRank iterations, similarity thresholds, CVE settings, etc.). These are sensible defaults that can be overridden in two ways:</p>
-</div>
 <div class="ulist">
 <ul>
 <li>
-<p>Environment variables (preferred for runtime tuning). Examples:</p>
-<div class="ulist">
-<ul>
-<li>
-<p><code>SIMILARITY_TOP_K</code>, <code>SIMILARITY_CUTOFF</code></p>
+<p>"Which methods call processData?"</p>
 </li>
 <li>
-<p><code>DB_BATCH_WITH_EMBEDDINGS</code>, <code>DB_BATCH_SIMPLE</code></p>
+<p>"Top 20 methods by PageRank and their files."</p>
 </li>
 <li>
-<p><code>DEFAULT_PARALLEL_FILES</code>, <code>DEFAULT_EMBED_BATCH_*</code></p>
-</li>
-</ul>
-</div>
+<p>"Show files importing package X."</p>
 </li>
 <li>
-<p>Code edits in <code>src/constants.py</code> (for durable project-wide changes).</p>
+<p>"List classes that implement interface Y."</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p>This centralization keeps magic numbers out of the code paths and makes it clear where to tweak behavior.</p>
+<p>These map to Cypher over your existing schema (<code>File</code>, <code>Class</code>, <code>Method</code>, <code>CALLS</code>, <code>IMPORTS</code>, <code>IMPLEMENTS</code>, etc.).</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_testing"><a class="anchor" href="#_testing"></a>Testing</h2>
+<h2 id="_environment"><a class="anchor" href="#_environment"></a>Environment</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>Activate the conda environment before launching clients or scripts:</p>
+</div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Run all tests
-pytest
-
-# Coverage
-pytest --cov=src tests/
-
-# Live integration tests (Neo4j 5.26, APOC core, GDS)
-pytest -m live</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">conda activate neo4j-code-graph</code></pre>
 </div>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_temporal_analysis_cli"><a class="anchor" href="#_temporal_analysis_cli"></a>Temporal analysis (CLI)</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">python -m src.analysis.temporal_analysis coupling --min-support 5 --create-relationships
-python -m src.analysis.temporal_analysis hotspots --days 365 --min-changes 3 --top-n 15</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_logs"><a class="anchor" href="#_logs"></a>Logs</h2>
-<div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p>Logs default to both console and <code>logs/neo4j-code-graph.log</code></p>
-</li>
-<li>
-<p>To override, pass <code>--log-file logs/&lt;name&gt;.log</code></p>
-</li>
-</ul>
+<div class="paragraph">
+<p>Then start your IDE and the MCP server if not launched automatically by the client.</p>
 </div>
 </div>
 </div>
