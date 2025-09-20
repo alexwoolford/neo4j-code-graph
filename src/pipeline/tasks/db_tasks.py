@@ -408,19 +408,28 @@ def calls_louvain_task(
 
         # Method-level Louvain on CALLS (undirected for community structure)
         try:
-            gds.graph.drop("G_METHOD_CALLS")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="G_METHOD_CALLS",
+            )
         except Exception:
             pass
         gds.graph.project("G_METHOD_CALLS", ["Method"], {"CALLS": {"orientation": "UNDIRECTED"}})
         gds.louvain.write("G_METHOD_CALLS", writeProperty="calls_community")
         try:
-            gds.graph.drop("G_METHOD_CALLS")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="G_METHOD_CALLS",
+            )
         except Exception:
             pass
 
         # Class-level Louvain via Cypher projection of class-to-class edges derived from CALLS
         try:
-            gds.graph.drop("G_CLASS_CALLS")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="G_CLASS_CALLS",
+            )
         except Exception:
             pass
         gds.run_cypher(
@@ -432,7 +441,10 @@ def calls_louvain_task(
         )
         gds.louvain.write("G_CLASS_CALLS", writeProperty="class_calls_community")
         try:
-            gds.graph.drop("G_CLASS_CALLS")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="G_CLASS_CALLS",
+            )
         except Exception:
             pass
     finally:

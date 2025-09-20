@@ -168,7 +168,10 @@ def cleanup_graph_projections(session: Session, dry_run: bool = False) -> None:
                 logger.info("[DRY RUN] Would drop graph projection: %s", graph_name)
             else:
                 try:
-                    gds.graph.drop(graph_name)
+                    gds.run_cypher(
+                        "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                        name=graph_name,
+                    )
                     logger.info("Dropped graph projection: %s", graph_name)
                 except Exception as e:
                     logger.warning("Failed to drop graph %s: %s", graph_name, e)

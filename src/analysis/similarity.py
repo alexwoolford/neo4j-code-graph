@@ -211,7 +211,13 @@ def run_knn(gds: GraphDataScience, top_k: int = 5, cutoff: float = 0.8) -> None:
         exists = bool(exists_result)
 
     if exists:
-        gds.graph.drop(graph_name)
+        try:
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name=graph_name,
+            )
+        except Exception:
+            pass
 
     # Strict Cypher projection: only nodes with embeddings, and alias property to the
     # exact name expected by the algorithm config (EMBEDDING_PROPERTY) to ensure it's loaded.
@@ -254,7 +260,13 @@ def run_louvain(
         exists = bool(exists_result)
 
     if exists:
-        gds.graph.drop(graph_name)
+        try:
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name=graph_name,
+            )
+        except Exception:
+            pass
 
     # Load helper module dynamically to avoid name redefinition
     try:

@@ -31,7 +31,9 @@ def test_pagerank_via_cypher_live():
 
             # Ensure GDS is present then project and run PageRank using Cypher GDS
             session.run("CALL gds.version()").consume()
-            session.run("CALL gds.graph.drop('live_pr_graph', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('live_pr_graph', false) YIELD graphName RETURN graphName"
+            ).consume()
             session.run(
                 "CALL gds.graph.project('live_pr_graph', ['Method'], {CALLS: {orientation: 'NATURAL'}})"
             ).consume()
@@ -39,7 +41,9 @@ def test_pagerank_via_cypher_live():
                 "CALL gds.pageRank.stream('live_pr_graph') YIELD nodeId, score RETURN nodeId, score ORDER BY score DESC"
             ).data()
             assert len(df) >= 1
-            session.run("CALL gds.graph.drop('live_pr_graph', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('live_pr_graph', false) YIELD graphName RETURN graphName"
+            ).consume()
 
 
 @pytest.mark.live
@@ -87,7 +91,10 @@ def test_pagerank_write_back_via_module_live():
         assert len(df) == 3 and df.iloc[0]["n"] == "C" and df.iloc[2]["n"] == "A"
     finally:
         try:
-            gds.graph.drop("method_call_graph")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="method_call_graph",
+            )
         except Exception:
             pass
         gds.close()
@@ -162,7 +169,10 @@ def test_pagerank_stream_on_bulk_graph_live():
         assert not top.empty and set(top.columns) >= {"method_name", "class_name", "file"}
     finally:
         try:
-            gds.graph.drop("method_call_graph")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="method_call_graph",
+            )
         except Exception:
             pass
         gds.close()
@@ -281,7 +291,10 @@ def test_degree_write_back_live():
         assert rows["C"] == (1, 0, 1)
     finally:
         try:
-            gds.graph.drop("method_call_graph")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="method_call_graph",
+            )
         except Exception:
             pass
         gds.close()
@@ -332,7 +345,10 @@ def test_betweenness_write_back_live():
         assert len(df) >= 1 and df.iloc[0]["n"] in ("B", "A", "C")
     finally:
         try:
-            gds.graph.drop("method_call_graph")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="method_call_graph",
+            )
         except Exception:
             pass
         gds.close()

@@ -69,7 +69,10 @@ def test_pagerank_smoke_projection_and_stream():
             assert df is not None
         finally:
             try:
-                gds.graph.drop(G.name())
+                gds.run_cypher(
+                    "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                    name=G.name(),
+                )
             except Exception:
                 pass
     except Exception as e:

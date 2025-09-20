@@ -137,7 +137,9 @@ def check_capabilities(session: Any) -> dict[str, object]:
             ).single()
             caps["gds"]["projection_ok"] = True  # type: ignore[index]
             try:
-                session.run("CALL gds.graph.drop('cg_probe_cap', false)").consume()
+                session.run(
+                    "CALL gds.graph.drop('cg_probe_cap', false) YIELD graphName RETURN graphName"
+                ).consume()
             except Exception:
                 pass
         except Exception:  # noqa: BLE001

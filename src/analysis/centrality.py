@@ -419,8 +419,14 @@ def main() -> None:
                 degree_results,
             )
 
-            # Cleanup
-            gds.graph.drop(graph.name())
+            # Cleanup (avoid deprecated return fields)
+            try:
+                gds.run_cypher(
+                    "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                    name=graph.name(),
+                )
+            except Exception:
+                pass
             logger.info("Analysis completed successfully")
 
         except Exception as e:

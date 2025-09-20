@@ -54,7 +54,9 @@ def test_knn_params_topk_and_cutoff_live():
             session.run("CALL gds.version()")
 
             # Project with node property
-            session.run("CALL gds.graph.drop('simParams', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('simParams', false) YIELD graphName RETURN graphName"
+            ).consume()
             session.run(
                 """
                 CALL gds.graph.project(
@@ -97,4 +99,6 @@ def test_knn_params_topk_and_cutoff_live():
             assert count_cut_high < count_top2
 
             # Cleanup
-            session.run("CALL gds.graph.drop('simParams', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('simParams', false) YIELD graphName RETURN graphName"
+            ).consume()

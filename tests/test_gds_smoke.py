@@ -50,7 +50,10 @@ def test_gds_empty_projection_similarity():
             name="similarityTest",
         ).consume()
         # Drop graph (no-op if not created)
-        session.run("CALL gds.graph.drop($name, false)", name="similarityTest").consume()
+        session.run(
+            "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+            name="similarityTest",
+        ).consume()
     finally:
         session.close()
         driver.close()
@@ -70,7 +73,10 @@ def test_gds_empty_projection_centrality():
             ")",
             name="centralityTest",
         ).consume()
-        session.run("CALL gds.graph.drop($name, false)", name="centralityTest").consume()
+        session.run(
+            "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+            name="centralityTest",
+        ).consume()
     finally:
         session.close()
         driver.close()

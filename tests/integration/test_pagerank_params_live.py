@@ -39,7 +39,9 @@ def test_pagerank_with_configured_iterations_live():
             ).consume()
 
             # Project and run PageRank with configured iterations
-            session.run("CALL gds.graph.drop('pr_graph', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('pr_graph', false) YIELD graphName RETURN graphName"
+            ).consume()
             session.run(
                 "CALL gds.graph.project('pr_graph', ['Method'], {CALLS: {orientation: 'NATURAL'}})"
             ).consume()

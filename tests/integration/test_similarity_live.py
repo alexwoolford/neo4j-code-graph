@@ -51,7 +51,9 @@ def test_knn_and_louvain_live():
             session.run("CALL gds.version()").consume()
 
             # Project in-memory graph with node property 'embedding' using native projection
-            session.run("CALL gds.graph.drop('simGraph', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('simGraph', false) YIELD graphName RETURN graphName"
+            ).consume()
             session.run(
                 """
             CALL gds.graph.project(
@@ -78,7 +80,9 @@ def test_knn_and_louvain_live():
             assert rec and int(rec["c"]) >= 1
 
             # Build a similarity graph and run Louvain via GDS
-            session.run("CALL gds.graph.drop('simComm', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('simComm', false) YIELD graphName RETURN graphName"
+            ).consume()
             session.run(
                 """
                 CALL gds.graph.project(
@@ -100,8 +104,12 @@ def test_knn_and_louvain_live():
             assert rec and int(rec["c"]) >= 1
 
             # Cleanup in-memory graphs
-            session.run("CALL gds.graph.drop('simGraph', false)").consume()
-            session.run("CALL gds.graph.drop('simComm', false)").consume()
+            session.run(
+                "CALL gds.graph.drop('simGraph', false) YIELD graphName RETURN graphName"
+            ).consume()
+            session.run(
+                "CALL gds.graph.drop('simComm', false) YIELD graphName RETURN graphName"
+            ).consume()
 
 
 def test_similarity_module_sets_model_property_live():
@@ -145,8 +153,14 @@ def test_similarity_module_sets_model_property_live():
         assert int(comm_rows.iloc[0]["c"]) >= 1
     finally:
         try:
-            gds.run_cypher("CALL gds.graph.drop('methodGraph', false)")
-            gds.run_cypher("CALL gds.graph.drop('similarityGraph', false)")
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="methodGraph",
+            )
+            gds.run_cypher(
+                "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+                name="similarityGraph",
+            )
         except Exception:
             pass
         gds.close()

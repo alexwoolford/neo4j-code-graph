@@ -170,7 +170,10 @@ def demo_graph_algorithms(gds: GraphDataScience) -> None:
 
     # Create dependency graph projection
     try:
-        gds.graph.drop("dependency_analysis")
+        gds.run_cypher(
+            "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
+            name="dependency_analysis",
+        )
     except Exception:
         # Graph doesn't exist yet, which is fine
         print("Note: dependency_analysis graph doesn't exist yet (normal for first run)")
