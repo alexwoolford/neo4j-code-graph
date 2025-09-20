@@ -216,7 +216,17 @@
 <h2 id="_environment"><a class="anchor" href="#_environment"></a>Environment</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Activate the conda environment before launching clients or scripts:</p>
+<p>MCP does not require this project&#8217;s conda environment. Use the <code>neo4j-code-graph</code> conda env when you are running this project&#8217;s pipeline (code graph creation) or developer scripts. For MCP specifically:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>If you run <code>mcp-neo4j-cypher</code> via <code>uvx</code> (as in the example), you do NOT need to activate the project conda env.</p>
+</li>
+<li>
+<p>If you installed <code>mcp-neo4j-cypher</code> into the <code>neo4j-code-graph</code> conda env and want to use that interpreter, then activate it first:</p>
+</li>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
