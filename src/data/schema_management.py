@@ -325,21 +325,9 @@ def validate_schema_consistency(session: Any) -> dict[str, list[str]]:
     issues: list[str] = []
     recommendations: list[str] = []
 
-    # Check for reserved word usage in property names
-    # Note: 'class' is a reserved word that should be avoided in property names
-
-    # Check Method.class property usage
-    try:
-        result = session.run("MATCH (m:Method) WHERE m.class IS NOT NULL RETURN count(m) as count")
-        single = result.single()
-        count = int(single["count"]) if single and "count" in single else 0
-        if count > 0:
-            issues.append(f"⚠️  Found {count} Method nodes using reserved 'class' property")
-            recommendations.append(
-                "Consider renaming 'class' property to 'class_name' or 'declaring_class'"
-            )
-    except Exception as e:
-        logger.warning(f"Could not check class property: {e}")
+    # The project standardizes on Method.class_name. A previous diagnostic checked
+    # for a reserved 'class' property on :Method, but this created noise and
+    # conflicting guidance. We removed that diagnostic to avoid confusion.
 
     # Check for unused indexes
     try:
