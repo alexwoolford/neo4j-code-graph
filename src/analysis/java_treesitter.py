@@ -17,14 +17,12 @@ from typing import Any
 from tree_sitter import Parser
 
 try:
-    # API expected for 0.20.x
+    # tree-sitter-language-pack is the actively-maintained replacement for
+    # tree_sitter_languages (the latter's last release was 2024-02-04 and it
+    # is unmaintained).
+    from tree_sitter_language_pack import get_language  # type: ignore
+except ImportError:  # pragma: no cover - legacy fallback during transition
     from tree_sitter_languages import get_language  # type: ignore
-except Exception:  # pragma: no cover
-    # Deferred import shim
-    def get_language(name: str):  # type: ignore
-        from tree_sitter_languages import get_language as _gl
-
-        return _gl(name)
 
 
 @dataclass
@@ -110,7 +108,8 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
     """
     lang = get_language("java")
     parser = Parser()
-    parser.set_language(lang)
+    # tree_sitter >= 0.22 deprecated set_language(); use property assignment.
+    parser.language = lang
     tree = parser.parse(code.encode("utf-8", errors="ignore"))
     root = tree.root_node
     source_bytes = code.encode("utf-8", errors="ignore")
