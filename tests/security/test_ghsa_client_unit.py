@@ -62,15 +62,18 @@ def test_gha_to_clean_cve_extracts_maven_advisory() -> None:
     assert cve["severity"] == "HIGH"
     assert cve["cvss_score"] == 7.5
     assert cve["_source"] == "ghsa"
-    # Configurations contain a CPE-shaped entry that the matcher can consume
+    # Configurations contain a CPE-shaped entry that PreciseGAVMatcher can
+    # actually consume. For known GAVs, the synthetic CPE uses the
+    # vendor:product mapping from PreciseGAVMatcher.cpe_patterns
+    # ("fasterxml:jackson-core") so the matcher's substring check fires.
+    # Without this mapping (the original implementation), every GHSA
+    # advisory silently fell through with 0 matches.
     assert len(cve["configurations"]) == 1
     nodes = cve["configurations"][0]["nodes"]
-    assert any(
-        node["cpeMatch"][0]["criteria"].startswith(
-            "cpe:2.3:a:com.fasterxml.jackson.core:jackson-core"
-        )
-        for node in nodes
-    )
+    cpe_uri = nodes[0]["cpeMatch"][0]["criteria"]
+    assert cpe_uri.startswith(
+        "cpe:2.3:a:fasterxml:jackson-core"
+    ), f"GHSA CPE should match the matcher's known-CPE map, got: {cpe_uri}"
     cpe = nodes[0]["cpeMatch"][0]
     assert cpe["versionStartIncluding"] == "2.13.0"
     assert cpe["versionEndExcluding"] == "2.15.0"
@@ -91,6 +94,46 @@ def test_gha_to_clean_cve_skips_non_maven() -> None:
         ],
     }
     assert _gha_to_clean_cve(advisory) is None
+
+
+def test_gha_to_clean_cve_actually_matches_through_precise_gav_matcher() -> None:
+    """Regression test for the GHSA->matcher integration bug.
+
+    Pre-fix: the synthetic CPE used "com.fasterxml.jackson.core:jackson-core"
+    (Maven coordinate) which PreciseGAVMatcher's substring check
+    (`exp_norm in _norm(cpe_uri)`) silently failed on, so every GHSA advisory
+    produced 0 AFFECTS edges in practice. This pins the integration.
+    """
+    from src.security.gav_cve_matcher import GAVCoordinate, PreciseGAVMatcher
+
+    advisory = {
+        "ghsa_id": "GHSA-test-1",
+        "cve_id": "CVE-TEST-INTEGRATION",
+        "summary": "Test",
+        "severity": "high",
+        "cvss": {"score": 8.0},
+        "vulnerabilities": [
+            {
+                "package": {
+                    "ecosystem": "maven",
+                    "name": "com.fasterxml.jackson.core:jackson-core",
+                },
+                "vulnerable_version_range": ">= 2.0, < 3.0",
+            }
+        ],
+    }
+    cve = _gha_to_clean_cve(advisory)
+    assert cve is not None
+
+    # Now actually drive the matcher against a known-vulnerable GAV. If the
+    # GHSA-synthesized CPE doesn't align with the matcher's vendor:product
+    # expectations, this assertion fails.
+    matcher = PreciseGAVMatcher()
+    gav = GAVCoordinate("com.fasterxml.jackson.core", "jackson-core", "2.10.0")
+    confidence = matcher.match_gav_to_cve(gav, cve)
+    assert (
+        confidence is not None and confidence > 0
+    ), "GHSA advisory should link to jackson-core 2.10.0 via the precise matcher"
 
 
 def test_gha_to_clean_cve_falls_back_to_ghsa_id_when_no_cve() -> None:

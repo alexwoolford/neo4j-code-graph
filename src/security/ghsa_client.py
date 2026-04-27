@@ -63,6 +63,33 @@ def _parse_ghsa_range(range_text: str) -> dict[str, str]:
     return out
 
 
+def _cpe_vendor_product_for_gav(group_id: str, artifact_id: str) -> str:
+    """Map a Maven group:artifact to the CPE vendor:product the matcher expects.
+
+    PreciseGAVMatcher.cpe_patterns is the canonical mapping; consult it first
+    so GHSA-derived synthetic CPEs are emitted in the same shape NVD uses
+    (e.g. fasterxml:jackson-databind, not com.fasterxml.jackson.core:jackson-
+    databind). Without this lookup, the matcher's substring check
+    (`exp_norm in _norm(cpe_uri)`) silently fails on every GHSA advisory.
+    """
+    try:
+        try:
+            from src.security.gav_cve_matcher import PreciseGAVMatcher  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            from security.gav_cve_matcher import PreciseGAVMatcher  # type: ignore
+        patterns = PreciseGAVMatcher._load_known_cpe_patterns()
+        key = f"{group_id}:{artifact_id}"
+        if key in patterns:
+            return patterns[key]
+    except Exception:
+        pass
+    # Unknown GAV: fall back to "lastGroupSegment:artifact" which gives the
+    # fuzzy matcher's _fuzzy_cpe_match a fighting chance (it requires
+    # group_parts to appear in the CPE for a match).
+    last_group = group_id.split(".")[-1].lower() if group_id else ""
+    return f"{last_group}:{artifact_id.lower()}" if last_group else artifact_id.lower()
+
+
 def _gha_to_clean_cve(adv: dict[str, Any]) -> dict[str, Any] | None:
     """Convert a GHSA advisory JSON to a CleanCVE-shaped dict.
 
@@ -95,35 +122,24 @@ def _gha_to_clean_cve(adv: dict[str, Any]) -> dict[str, Any] | None:
         if ":" not in name:
             continue
         group_id, artifact_id = name.split(":", 1)
-        for r in vuln.get("vulnerable_version_range") or []:
-            constraint = _parse_ghsa_range(r) if isinstance(r, str) else _parse_ghsa_range(r)
+        # Synthesize a CPE in the vendor:product shape the precise matcher
+        # uses so GHSA results actually flow through to AFFECTS edges.
+        cpe_vp = _cpe_vendor_product_for_gav(group_id, artifact_id)
+        cpe_criteria = f"cpe:2.3:a:{cpe_vp}:*:*:*:*:*:*:*:*"
+
+        ranges = vuln.get("vulnerable_version_range")
+        # Normalise to a list of strings.
+        range_list: list[str] = []
+        if isinstance(ranges, list):
+            range_list = [r for r in ranges if isinstance(r, str)]
+        elif isinstance(ranges, str):
+            range_list = [ranges]
+
+        for r in range_list:
+            constraint = _parse_ghsa_range(r)
             if not constraint:
                 continue
-            nodes.append(
-                {
-                    "cpeMatch": [
-                        {
-                            "criteria": f"cpe:2.3:a:{group_id.lower()}:{artifact_id.lower()}:*:*:*:*:*:*:*:*",
-                            **constraint,
-                        }
-                    ]
-                }
-            )
-        # Some GHSA advisories give a single string range, not a list
-        single_range = vuln.get("vulnerable_version_range")
-        if isinstance(single_range, str) and single_range:
-            constraint = _parse_ghsa_range(single_range)
-            if constraint:
-                nodes.append(
-                    {
-                        "cpeMatch": [
-                            {
-                                "criteria": f"cpe:2.3:a:{group_id.lower()}:{artifact_id.lower()}:*:*:*:*:*:*:*:*",
-                                **constraint,
-                            }
-                        ]
-                    }
-                )
+            nodes.append({"cpeMatch": [{"criteria": cpe_criteria, **constraint}]})
 
     if not nodes:
         return None
