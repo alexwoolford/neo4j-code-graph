@@ -686,6 +686,9 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "is_package_private": is_package_private_flag,
                     "return_type": _extract_return_type(node),
                     "parameters": params_list,
+                    # Arity (parameter count) is the key for arity-aware overload
+                    # disambiguation at CALLS link time. See B2 (C1).
+                    "arity": len(params_list),
                     "code": "\n".join(method_code),
                     "cyclomatic_complexity": cyclomatic,
                     # Best-effort call extraction from AST (method_invocation nodes)
@@ -752,6 +755,24 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             except Exception:
                 pass
 
+            def _argc_of(n: Any) -> int:
+                """Count arguments in an `argument_list` child of an invocation/object-creation
+                node. Returns 0 if unknown. We count direct children that are not
+                punctuation tokens (`(`, `)`, `,`).
+                """
+                arg_list = _child_by_type(n, "argument_list")
+                if arg_list is None:
+                    return 0
+                count = 0
+                for ch in arg_list.children:
+                    if ch.type in ("(", ")", ","):
+                        continue
+                    # Some grammars expose comments inside argument_list; skip them.
+                    if ch.type in ("line_comment", "block_comment"):
+                        continue
+                    count += 1
+                return count
+
             def _walk_calls(n: Any) -> None:
                 if n.type == "method_invocation":
                     # Extract invocation text and method name
@@ -801,6 +822,9 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                         "target_package": target_package,
                         "call_type": call_type,
                         "qualifier": qualifier,
+                        # B2 (C1): argument count enables arity-aware overload resolution
+                        # when MERGEing the CALLS edge.
+                        "argc": _argc_of(n),
                     }
                     calls_list.append(call_entry)
                 elif n.type == "object_creation_expression":
@@ -823,6 +847,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                                     "target_package": pkg,
                                     "call_type": "constructor",
                                     "qualifier": "",
+                                    "argc": _argc_of(n),
                                 }
                             )
                     except Exception:

@@ -77,6 +77,13 @@ def create_methods(
                 "return_type": method.get("return_type", "void"),
                 "modifiers": method.get("modifiers", []),
                 "method_signature": method.get("method_signature"),
+                # B2 (C1): persist arity for arity-aware CALLS link disambiguation.
+                # Falls back to len(parameters) if upstream didn't compute it.
+                "arity": int(
+                    method.get("arity")
+                    if method.get("arity") is not None
+                    else len(method.get("parameters") or [])
+                ),
                 "cyclomatic_complexity": method.get("cyclomatic_complexity", 1),
                 "deprecated": bool(method.get("deprecated", False)),
                 "deprecated_message": method.get("deprecated_message"),
@@ -120,6 +127,7 @@ def create_methods(
                     m.is_synchronized = method.is_synchronized,
                     m.is_default = method.is_default,
                     m.is_package_private = method.is_package_private,
+                    m.arity = method.arity,
                     m.return_type = method.return_type,
                     m.modifiers = method.modifiers,
                     m.cyclomatic_complexity = method.cyclomatic_complexity,
@@ -360,6 +368,11 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
                         "callee_class": call.get("target_class"),
                         "call_type": call.get("call_type"),
                         "qualifier": call.get("qualifier"),
+                        # B2 (C1): argument count enables arity-aware overload
+                        # disambiguation. Calls with argc that matches a method's
+                        # arity link to that overload only, instead of fanning out
+                        # to every same-named overload in the class.
+                        "argc": call.get("argc"),
                     }
                 )
 
@@ -381,10 +394,13 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
                     """
                     UNWIND $calls AS call
                     MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line})
-                    // Prefer explicit callee_class when provided
+                    // Prefer explicit callee_class when provided. Filter by arity when both
+                    // sides know it -- this is what eliminates within-class overload fan-out.
                     OPTIONAL MATCH (callee1:Method {name: call.callee_name, class_name: call.callee_class})
+                      WHERE call.argc IS NULL OR callee1.arity IS NULL OR callee1.arity = call.argc
                     // Fallback: same class as caller when callee_class is null
                     OPTIONAL MATCH (callee2:Method {name: call.callee_name, class_name: caller.class_name})
+                      WHERE call.argc IS NULL OR callee2.arity IS NULL OR callee2.arity = call.argc
                     WITH caller, coalesce(callee1, callee2) AS callee, call
                     WHERE callee IS NOT NULL AND caller.file = callee.file
                     MERGE (caller)-[:CALLS {type: call.call_type}]->(callee)
@@ -439,21 +455,28 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
                         """
                         UNWIND $calls AS call
                         MATCH (caller:Method {name: call.caller_name, file: call.caller_file, line: call.caller_line})
-                        // Try explicit class/interface
+                        // Try explicit class/interface. Each OPTIONAL MATCH applies an arity
+                        // filter when both sides know it (B2 / C1 -- removes within-class
+                        // overload fan-out; cross-class fallback already restricted by class).
                         OPTIONAL MATCH (cls:Class {name: call.callee_class})
                         OPTIONAL MATCH (iface:Interface {name: call.callee_class})
                         WITH caller, call, cls, iface
                         OPTIONAL MATCH (c1:Method {name: call.callee_name})<-[:CONTAINS_METHOD]-(cls)
+                          WHERE call.argc IS NULL OR c1.arity IS NULL OR c1.arity = call.argc
                         OPTIONAL MATCH (c2:Method {name: call.callee_name})<-[:CONTAINS_METHOD]-(iface)
+                          WHERE call.argc IS NULL OR c2.arity IS NULL OR c2.arity = call.argc
                         WITH caller, call, coalesce(c1, c2) AS callee0
                         // Fallback A: same class as caller
                         OPTIONAL MATCH (c3:Method {name: call.callee_name, class_name: caller.class_name})
+                          WHERE call.argc IS NULL OR c3.arity IS NULL OR c3.arity = call.argc
                         WITH caller, call, coalesce(callee0, c3) AS callee1
                         // Fallback A2: class created within caller method (constructor call)
                         OPTIONAL MATCH (caller)-[:CREATES]->(cCreated:Class)-[:CONTAINS_METHOD]->(c5:Method {name: call.callee_name})
+                          WHERE call.argc IS NULL OR c5.arity IS NULL OR c5.arity = call.argc
                         WITH caller, call, coalesce(callee1, c5) AS callee2
-                        // Fallback B: unique by file
+                        // Fallback B: unique by file (still arity-aware)
                         OPTIONAL MATCH (c4:Method {name: call.callee_name, file: call.caller_file})
+                          WHERE call.argc IS NULL OR c4.arity IS NULL OR c4.arity = call.argc
                         WITH caller, call, callee2, collect(DISTINCT c4) AS inFile
                         WITH caller, call, callee2,
                              CASE WHEN size(inFile) = 1 THEN head(inFile) ELSE NULL END AS uniqueFileCallee
