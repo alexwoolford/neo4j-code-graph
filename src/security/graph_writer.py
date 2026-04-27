@@ -38,7 +38,37 @@ def link_cves_to_dependencies(session: Any, cve_data: list[CleanCVE]) -> int:
             prepare_versioned_dependencies,
         )
 
-    # Provider-agnostic policy: do not use GHSA/Git vendor integrations in linking.
+    # B4 (M1): augment NVD/CPE-derived advisories with GHSA. GHSA is an
+    # additional ecosystem-native source covering some Maven advisories that
+    # post-date or differ from NVD entries. Only versioned deps are queried.
+    # Disable by setting CODE_GRAPH_DISABLE_GHSA=1 in env (preserves the
+    # provider-agnostic option for CI/no-network environments).
+    import os as _os
+
+    if _os.environ.get("CODE_GRAPH_DISABLE_GHSA", "").lower() not in ("1", "true", "yes"):
+        try:
+            from src.security.ghsa_client import (  # type: ignore[attr-defined]
+                fetch_ghsa_advisories,
+            )
+        except Exception:  # pragma: no cover
+            from security.ghsa_client import fetch_ghsa_advisories  # type: ignore
+        try:
+            seed_deps = extract_dependencies_from_graph(session)
+            seed_versioned = prepare_versioned_dependencies(seed_deps)
+            ghsa_cves = fetch_ghsa_advisories(seed_versioned)
+            if ghsa_cves:
+                # Avoid duplicates: drop any GHSA advisory whose id already
+                # appears in the NVD-derived set.
+                existing_ids = {str(c.get("id", "")) for c in cve_data}
+                new_cves = [c for c in ghsa_cves if c.get("id") not in existing_ids]
+                logger.info(
+                    "GHSA augmentation: +%d advisories (%d total were duplicates of NVD)",
+                    len(new_cves),
+                    len(ghsa_cves) - len(new_cves),
+                )
+                cve_data = list(cve_data) + new_cves  # type: ignore[arg-type]
+        except Exception as e:
+            logger.warning("GHSA augmentation failed; continuing with NVD only: %s", e)
 
     dependencies = extract_dependencies_from_graph(session)
     logger.info("Dependencies extracted for linking: %d", len(dependencies))

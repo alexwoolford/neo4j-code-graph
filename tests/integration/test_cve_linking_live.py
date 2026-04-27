@@ -124,6 +124,77 @@ def test_affects_only_links_versioned_external_dependencies() -> None:
             assert rec and int(rec["c"]) == 0, "unversioned deps must never get AFFECTS edges"
 
 
+def test_affects_links_dependency_with_maven_version_range() -> None:
+    """B4 / M2: a dep declared as a Maven range like [8.18,10.0) is matched
+    against CVE version ranges by parsing the bounds, not by trying to
+    feed the bracketed string into packaging.Version.
+    """
+    from src.data.schema_management import setup_complete_schema
+    from src.security.graph_writer import link_cves_to_dependencies
+
+    driver, database = _get_driver_or_skip()
+    with driver:
+        with driver.session(database=database) as session:
+            # Disable GHSA augmentation in the live test to keep it deterministic
+            # and offline.
+            import os as _os
+
+            _os.environ["CODE_GRAPH_DISABLE_GHSA"] = "1"
+            setup_complete_schema(session)
+            session.run("MATCH (n) DETACH DELETE n").consume()
+            setup_complete_schema(session)
+            session.run(
+                """
+                MERGE (ed:ExternalDependency {package: 'com.puppycrawl.tools'})
+                SET ed.group_id = 'com.puppycrawl.tools',
+                    ed.artifact_id = 'checkstyle',
+                    ed.version = '[8.18,10.0)',
+                    ed.language = 'java',
+                    ed.ecosystem = 'maven'
+                """
+            ).consume()
+
+            cve = {
+                "id": "CVE-TEST-RANGE",
+                "description": "Synthetic CVE affecting checkstyle 7.0 to <9.0",
+                "cvss_score": 6.5,
+                "severity": "MEDIUM",
+                "published": "2024-01-01T00:00:00.000",
+                "modified": "2024-01-01T00:00:00.000",
+                "configurations": [
+                    {
+                        "nodes": [
+                            {
+                                "cpeMatch": [
+                                    {
+                                        "criteria": "cpe:2.3:a:checkstyle:checkstyle:*:*:*:*:*:*:*:*",
+                                        "versionStartIncluding": "7.0",
+                                        "versionEndExcluding": "9.0",
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+            }
+            linked = link_cves_to_dependencies(session, [cve])  # type: ignore[list-item]
+            # The dep range [8.18,10.0) overlaps [7.0,9.0): the lower bound 8.18
+            # falls in the vulnerable range, so we expect 1 AFFECTS edge.
+            assert linked == 1, (
+                f"expected 1 AFFECTS edge for [8.18,10.0) vs [7.0,9.0); got {linked}; "
+                "indicates Maven range parsing regression (M2)"
+            )
+
+            rec = session.run(
+                """
+                MATCH (:CVE {id: 'CVE-TEST-RANGE'})-[:AFFECTS]->
+                      (ed:ExternalDependency {artifact_id: 'checkstyle'})
+                RETURN count(*) AS c
+                """
+            ).single()
+            assert rec and int(rec["c"]) == 1
+
+
 def test_no_affects_when_cve_has_no_version_constraints() -> None:
     """Rule 3: CVEs without version constraints must not produce AFFECTS edges
     even on a perfectly-versioned matching dependency.

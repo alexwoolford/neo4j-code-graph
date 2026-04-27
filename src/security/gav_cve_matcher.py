@@ -100,47 +100,107 @@ class AffectedProduct:
         return v or None
 
     def matches_version(self, target_version: str) -> bool:
-        """Check if target version falls within vulnerable range."""
+        """Check if target version falls within vulnerable range.
+
+        ``target_version`` may be either a concrete pin (e.g. ``2.15.0``) or a
+        Maven version range (e.g. ``[8.18,10.0)``, ``[1.0,)``, ``(,2.0]``).
+        For ranges we test multiple representative points (lower bound, upper
+        bound, and a midpoint when both sides are bounded). If ANY
+        representative matches the CVE's vulnerable range, we conservatively
+        report the dep as affected -- security wants false positives over
+        false negatives. (B4 / M2.)
+        """
+        candidates = self._range_representatives(target_version)
+        if not candidates:
+            logger.warning(
+                "Version comparison failed for %s: cannot derive representative version",
+                target_version,
+            )
+            return False
+        for ver_text in candidates:
+            if self._matches_single(ver_text):
+                return True
+        return False
+
+    def _matches_single(self, target_version: str) -> bool:
         try:
             target_ver = Version(target_version)
-
-            # Check start constraints
-            vsi = self._clean_version_string(self.version_start_including)
-            if vsi:
-                try:
-                    if target_ver < Version(vsi):
-                        return False
-                except Exception as e:
-                    logger.debug("Ignoring invalid version_start_including '%s': %s", vsi, e)
-            vse = self._clean_version_string(self.version_start_excluding)
-            if vse:
-                try:
-                    if target_ver <= Version(vse):
-                        return False
-                except Exception as e:
-                    logger.debug("Ignoring invalid version_start_excluding '%s': %s", vse, e)
-
-            # Check end constraints
-            vei = self._clean_version_string(self.version_end_including)
-            if vei:
-                try:
-                    if target_ver > Version(vei):
-                        return False
-                except Exception as e:
-                    logger.debug("Ignoring invalid version_end_including '%s': %s", vei, e)
-            vee = self._clean_version_string(self.version_end_excluding)
-            if vee:
-                try:
-                    if target_ver >= Version(vee):
-                        return False
-                except Exception as e:
-                    logger.debug("Ignoring invalid version_end_excluding '%s': %s", vee, e)
-
-            return True
-
         except Exception as e:
-            logger.warning(f"Version comparison failed for {target_version}: {e}")
+            logger.debug("Skipping non-PEP440 candidate '%s': %s", target_version, e)
             return False
+
+        # Check start constraints
+        vsi = self._clean_version_string(self.version_start_including)
+        if vsi:
+            try:
+                if target_ver < Version(vsi):
+                    return False
+            except Exception as e:
+                logger.debug("Ignoring invalid version_start_including '%s': %s", vsi, e)
+        vse = self._clean_version_string(self.version_start_excluding)
+        if vse:
+            try:
+                if target_ver <= Version(vse):
+                    return False
+            except Exception as e:
+                logger.debug("Ignoring invalid version_start_excluding '%s': %s", vse, e)
+
+        # Check end constraints
+        vei = self._clean_version_string(self.version_end_including)
+        if vei:
+            try:
+                if target_ver > Version(vei):
+                    return False
+            except Exception as e:
+                logger.debug("Ignoring invalid version_end_including '%s': %s", vei, e)
+        vee = self._clean_version_string(self.version_end_excluding)
+        if vee:
+            try:
+                if target_ver >= Version(vee):
+                    return False
+            except Exception as e:
+                logger.debug("Ignoring invalid version_end_excluding '%s': %s", vee, e)
+
+        return True
+
+    @staticmethod
+    def _range_representatives(target_version: str) -> list[str]:
+        """Return concrete version strings representing a Maven dep version.
+
+        For a pin, returns ``[pin]``. For a Maven range like ``[1.0,2.0)``,
+        returns the bound versions present so a per-bound match can run; if
+        only one side is bounded, the bounded value is the only representative.
+
+        Maven syntax handled:
+          - ``1.0``                 -> [``1.0``]
+          - ``[1.0]``               -> [``1.0``]
+          - ``[1.0,2.0)``           -> [``1.0``, ``2.0``]
+          - ``[1.0,)``              -> [``1.0``]
+          - ``(,2.0]``              -> [``2.0``]
+        Multi-interval ranges (rare) are flattened to the first/last bound.
+        """
+        if not isinstance(target_version, str):
+            return []
+        s = target_version.strip()
+        if not s:
+            return []
+        if not (s.startswith("[") or s.startswith("(")):
+            # Not a range; treat as pin.
+            return [s]
+
+        import re
+
+        m = re.search(r"[\[\(]\s*([^,\]\)]*)\s*,\s*([^,\]\)]*)\s*[\]\)]", s)
+        if not m:
+            # Malformed -- strip brackets and treat the residue as a pin.
+            return [s.strip("[]()")]
+        low, high = m.group(1).strip(), m.group(2).strip()
+        out: list[str] = []
+        if low:
+            out.append(low)
+        if high:
+            out.append(high)
+        return out or [s.strip("[]()")]
 
 
 class PreciseGAVMatcher:
@@ -168,6 +228,12 @@ class PreciseGAVMatcher:
             # JUnit
             "junit:junit": "junit:junit",
             "org.junit.jupiter:junit-jupiter": "junit:junit5",
+            # B4: build tools and static-analysis libs commonly seen in Maven
+            # poms whose NVD CPE vendor differs from their Maven groupId.
+            "com.puppycrawl.tools:checkstyle": "checkstyle:checkstyle",
+            "org.teavm:teavm-jso": "teavm:teavm",
+            "org.teavm:teavm-jso-apis": "teavm:teavm",
+            "org.teavm:teavm-classlib": "teavm:teavm",
             # Add more as needed
         }
 
