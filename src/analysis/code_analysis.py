@@ -588,10 +588,33 @@ def main():
                 file_snippets, tokenizer, model, device, batch_size
             )
         if need_methods:
-            # Single pass over all methods to avoid confusing nested batch logs
-            method_snippets = [
-                method["code"] for file_data in files_data for method in file_data["methods"]
-            ]
+            # Single pass over all methods to avoid confusing nested batch logs.
+            # B3 (H4): prepend disambiguating context to each method snippet so
+            # trivial bodies (e.g. `return x;`) don't collapse to identical
+            # vectors across unrelated classes. Context is the package + class
+            # + signature line, kept short to leave token budget for the body.
+            method_snippets = []
+            for file_data in files_data:
+                pkg = ""
+                for cls in file_data.get("classes", []) or []:
+                    if cls.get("package"):
+                        pkg = cls["package"]
+                        break
+                for method in file_data["methods"]:
+                    cls_name = method.get("class_name") or ""
+                    sig = method.get("method_signature") or method.get("name", "")
+                    body = method.get("code", "")
+                    # Context block: package, class FQN, signature -- one line each.
+                    # Keeps the model aware of where this method lives without
+                    # bloating the token count beyond what the truncation cap allows.
+                    context = []
+                    if pkg:
+                        context.append(f"// package: {pkg}")
+                    if cls_name:
+                        context.append(f"// class: {cls_name}")
+                    if sig:
+                        context.append(f"// signature: {sig}")
+                    method_snippets.append("\n".join([*context, body]))
             method_embeddings = compute_embeddings_bulk(
                 method_snippets, tokenizer, model, device, batch_size
             )

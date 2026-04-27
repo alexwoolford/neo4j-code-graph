@@ -128,10 +128,20 @@ def run_coupling(
     WITH f, count(DISTINCT c) AS changes
     SET f.change_count = changes
     """
-    write_confidence_and_prune = """
-    WITH $min_support AS minSupport, $confidence_threshold AS conf
+    # B3 (H6): the apoc.periodic.iterate MERGE creates a CO_CHANGED edge for
+    # every co-occurring pair, including pairs that only co-changed once
+    # (noise). Run a separate prune pass to drop sub-min_support edges before
+    # computing confidence. Two queries are simpler and safer than chaining
+    # MATCH/DELETE/MATCH in one statement (the post-DELETE WITH doesn't
+    # reliably forward parameter bindings when the upstream MATCH returned no rows).
+    prune_low_support = """
     MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
-    WHERE cc.support >= minSupport
+    WHERE cc.support < $min_support
+    DELETE cc
+    """
+    write_confidence_and_prune = """
+    WITH $confidence_threshold AS conf
+    MATCH (f1:File)-[cc:CO_CHANGED]->(f2:File)
     WITH f1, f2, cc, conf, f1.change_count AS c1, f2.change_count AS c2
     WITH cc, conf,
          (CASE WHEN c1 > 0 THEN toFloat(cc.support)/c1 ELSE 0 END) AS conf1,
@@ -166,6 +176,17 @@ def run_coupling(
                 res.consume()
             except Exception:
                 # Allow lightweight mocks that don't implement `.consume()`
+                pass
+            # B3 (H6): drop low-support edges before computing confidence.
+            # apoc_iterate above creates a CO_CHANGED edge for every co-occurring
+            # pair regardless of support; this pass removes the noise floor.
+            res_prune = session.run(  # type: ignore[no-untyped-call]
+                prune_low_support,
+                {"min_support": int(min_support)},
+            )
+            try:
+                res_prune.consume()
+            except Exception:
                 pass
             # Compute per-file change counts and write confidence
             res2 = session.run(  # type: ignore[no-untyped-call]

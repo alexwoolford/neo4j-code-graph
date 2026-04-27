@@ -7,12 +7,28 @@ constants used throughout the codebase to avoid duplication and
 improve maintainability.
 """
 
+import os
+
 # Model Configuration
-# Switchable embedding backbone. Default to UniXcoder (structure + NL aware).
-MODEL_NAME = "microsoft/unixcoder-base"
-EMBEDDING_TYPE = "unixcoder"
-EMBEDDING_DIMENSION = 768
-# Canonical vector property name for this embedding type
+# Switchable embedding backbone. The model and its identifying tag drive both
+# the loaded weights and the canonical Neo4j property name (so two ingests
+# using different models don't overwrite each other's vectors).
+#
+# Override via env:
+#   EMBEDDING_MODEL=jinaai/jina-embeddings-v2-base-code
+#   EMBEDDING_TYPE=jina-code-v2
+#   EMBEDDING_DIMENSION=768
+#
+# Defaults are deliberately conservative: we keep UniXcoder as the default for
+# now to avoid silent breakage in existing graphs. New deployments are
+# encouraged to set EMBEDDING_MODEL=jinaai/jina-embeddings-v2-base-code (an
+# actively-maintained 2024 code embedder, 768-dim, drop-in compatible).
+MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "microsoft/unixcoder-base")
+EMBEDDING_TYPE = os.environ.get("EMBEDDING_TYPE", "unixcoder")
+EMBEDDING_DIMENSION = int(os.environ.get("EMBEDDING_DIMENSION", "768"))
+# Canonical vector property name for this embedding type. Distinct EMBEDDING_TYPE
+# values produce distinct properties (e.g. embedding_unixcoder, embedding_jina-code-v2)
+# so the same Method node can carry multiple embedding vectors side-by-side.
 EMBEDDING_PROPERTY = f"embedding_{EMBEDDING_TYPE}"
 
 # Database Configuration
@@ -46,8 +62,6 @@ MAX_WORKERS = 4
 #   export DB_BATCH_SIMPLE=2000
 #   export SIMILARITY_TOP_K=10
 #   export SIMILARITY_CUTOFF=0.85
-
-import os
 
 # These are defaults; CLI flags and device heuristics still override.
 DEFAULT_PARALLEL_FILES = int(os.getenv("DEFAULT_PARALLEL_FILES", "20"))

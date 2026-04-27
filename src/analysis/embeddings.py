@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def compute_embeddings_bulk(
@@ -30,6 +33,12 @@ def compute_embeddings_bulk(
     use_amp = device.type == "cuda" and hasattr(torch.cuda, "amp")
 
     max_length = 512
+    # B3 (H3): count snippets that exceed max_length so the truncation isn't
+    # silent. We don't fail-hard since long methods are common; we just
+    # surface the rate so analysts know when to discount embedding-similarity
+    # results for long methods.
+    truncated_count = 0
+    long_threshold_chars = max_length * 4  # rough chars-per-token heuristic
 
     for i in range(0, len(snippets), batch_size):
         batch_snippets = snippets[i : i + batch_size]
@@ -56,6 +65,10 @@ def compute_embeddings_bulk(
                 os.environ["RAYON_NUM_THREADS"] = str(os.cpu_count() or 4)
         except Exception:
             pass
+
+        for s in valid_snippets:
+            if len(s) > long_threshold_chars:
+                truncated_count += 1
 
         tokens = tokenizer(
             valid_snippets,
@@ -117,6 +130,16 @@ def compute_embeddings_bulk(
         elif i % (batch_size * 4) == 0:
             gc.collect()
 
+    if truncated_count:
+        logger.warning(
+            "Embedding truncation: %d / %d snippets likely exceed max_length=%d "
+            "tokens (heuristic: > %d chars). Tail content was dropped before pooling.",
+            truncated_count,
+            len(snippets),
+            max_length,
+            long_threshold_chars,
+        )
+
     return all_embeddings
 
 
@@ -124,10 +147,18 @@ def compute_embeddings_bulk(
 def load_embedding_model() -> tuple[Any, Any]:
     """Load and cache the tokenizer/model for reuse.
 
-    Keeps one instance cached to avoid duplicate downloads/initialization.
+    Reads the model name from src.constants.MODEL_NAME (which honours the
+    EMBEDDING_MODEL env override). Keeps one instance cached to avoid
+    duplicate downloads/initialization.
     """
     from transformers import AutoModel, AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained("microsoft/unixcoder-base")
-    model = AutoModel.from_pretrained("microsoft/unixcoder-base")
+    try:
+        from src.constants import MODEL_NAME as _MODEL_NAME  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover - installed package execution path
+        from constants import MODEL_NAME as _MODEL_NAME  # type: ignore
+
+    logger.info("Loading embedding model: %s", _MODEL_NAME)
+    tokenizer = AutoTokenizer.from_pretrained(_MODEL_NAME, trust_remote_code=False)
+    model = AutoModel.from_pretrained(_MODEL_NAME, trust_remote_code=False)
     return tokenizer, model
