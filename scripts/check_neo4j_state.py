@@ -79,7 +79,10 @@ def main() -> int:
                         errors.append(f"emb_query_error: {e}")
 
                 try:
-                    gv = s.run("CALL gds.version() YIELD version RETURN version").single()
+                    # gds.version() returns a scalar; use scalar form so we don't
+                    # depend on the YIELD column name (was "version" in older GDS,
+                    # is "gdsVersion" in 2.26+).
+                    gv = s.run("RETURN gds.version() AS version").single()
                     report["gds_version"] = gv["version"] if gv else None
                 except Exception as e:
                     errors = report.get("errors")
@@ -89,7 +92,8 @@ def main() -> int:
                 # Dependency state summary
                 try:
                     rec = s.run(
-                        "MATCH (e:ExternalDependency) RETURN count(e) AS total, count{e.version IS NOT NULL} AS with_version"
+                        "MATCH (e:ExternalDependency) RETURN count(e) AS total, "
+                        "count(CASE WHEN e.version IS NOT NULL THEN 1 END) AS with_version"
                     ).single()
                     if rec:
                         report["external_dependencies"] = int(rec["total"] or 0)
