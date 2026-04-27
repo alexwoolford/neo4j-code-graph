@@ -10,7 +10,7 @@ Aura-compatible: pure Python and standard libraries only.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +33,7 @@ class JavaExtraction:
     interfaces: list[dict[str, Any]]
     methods: list[dict[str, Any]]
     docs: list[dict[str, Any]]
+    fields: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _node_text(source_bytes: bytes, node: Any) -> str:
@@ -119,6 +120,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
     classes: list[dict[str, Any]] = []
     interfaces: list[dict[str, Any]] = []
     methods: list[dict[str, Any]] = []
+    fields: list[dict[str, Any]] = []
     docs: list[dict[str, Any]] = []
 
     # Collect package name
@@ -211,20 +213,75 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
         return text if text else "void"
 
     def walk(node: Any, ancestors: list[Any]) -> None:
-        if node.type in ("class_declaration", "interface_declaration", "record_declaration"):
+        if node.type in (
+            "class_declaration",
+            "interface_declaration",
+            "record_declaration",
+            "enum_declaration",
+        ):
             identifier = _child_by_type(node, "identifier")
             name = _node_text(source_bytes, identifier) if identifier else ""
             start_line = node.start_point[0] + 1
             end_line = node.end_point[0] + 1
+            # Detect lexical nesting: any enclosing class/interface/record/enum ancestor.
+            enclosing_name: str | None = None
+            for anc in reversed(ancestors):
+                if anc.type in (
+                    "class_declaration",
+                    "interface_declaration",
+                    "record_declaration",
+                    "enum_declaration",
+                ):
+                    aid = _child_by_type(anc, "identifier")
+                    if aid is not None:
+                        enclosing_name = _node_text(source_bytes, aid)
+                    break
+            # Extract type-level annotations (modifiers child holds them)
+            type_annotations: list[dict[str, Any]] = []
+            tmod = _child_by_type(node, "modifiers")
+            if tmod is not None:
+                for ch in tmod.children:
+                    if ch.type in ("annotation", "marker_annotation"):
+                        try:
+                            txt = _node_text(source_bytes, ch).strip()
+                        except Exception:
+                            txt = ""
+                        if not txt or not txt.startswith("@"):
+                            continue
+                        ann_name = ""
+                        for gch in ch.children:
+                            if gch.type in ("identifier", "scoped_identifier"):
+                                ann_name = _node_text(source_bytes, gch).strip()
+                                break
+                        if not ann_name:
+                            ann_name = txt[1:].split("(", 1)[0].strip()
+                        type_annotations.append(
+                            {
+                                "name": ann_name,
+                                "fqn_package": _resolve_type_package(
+                                    ann_name, package_name, explicit_imports
+                                ),
+                                "raw": txt,
+                            }
+                        )
+
             info: dict[str, Any] = {
                 "name": name,
                 "file": rel_path,
                 "package": package_name,
                 "line": start_line,
                 "modifiers": [],
+                "enclosing_name": enclosing_name,
+                "annotations": type_annotations,
             }
             if node.type == "class_declaration":
-                info.update({"type": "class", "estimated_lines": max(0, end_line - start_line)})
+                info.update(
+                    {
+                        "type": "class",
+                        "kind": "class",
+                        "estimated_lines": max(0, end_line - start_line),
+                    }
+                )
                 # extends clause
                 ext = _child_by_type(node, "superclass")
                 if ext is not None:
@@ -266,7 +323,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 except Exception:
                     pass
             elif node.type == "interface_declaration":
-                info.update({"type": "interface", "method_count": 0})
+                info.update({"type": "interface", "kind": "interface", "method_count": 0})
                 # interface extends (may be a list)
                 impl = _child_by_type(node, "super_interfaces")
                 if impl is not None:
@@ -278,12 +335,160 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                             for t in ext_list
                         ]
                 interfaces.append(info)
-            else:  # record_declaration
-                info.update({"type": "record", "estimated_lines": max(0, end_line - start_line)})
+            elif node.type == "record_declaration":
+                info.update(
+                    {
+                        "type": "record",
+                        "kind": "record",
+                        "estimated_lines": max(0, end_line - start_line),
+                    }
+                )
+                # records may implement interfaces too
+                impl = _child_by_type(node, "super_interfaces")
+                if impl is not None:
+                    impl_list = _collect_type_texts(source_bytes, impl)
+                    if impl_list:
+                        info["implements"] = impl_list
+                        info["implements_packages"] = [
+                            _resolve_type_package(t, package_name, explicit_imports)
+                            for t in impl_list
+                        ]
+                classes.append(info)
+            else:  # enum_declaration
+                info.update(
+                    {
+                        "type": "enum",
+                        "kind": "enum",
+                        "estimated_lines": max(0, end_line - start_line),
+                    }
+                )
+                # enums implement interfaces; never extend (always extend java.lang.Enum implicitly)
+                impl = _child_by_type(node, "super_interfaces")
+                if impl is not None:
+                    impl_list = _collect_type_texts(source_bytes, impl)
+                    if impl_list:
+                        info["implements"] = impl_list
+                        info["implements_packages"] = [
+                            _resolve_type_package(t, package_name, explicit_imports)
+                            for t in impl_list
+                        ]
                 classes.append(info)
 
+        if node.type == "field_declaration":
+            # Field declarations live at class/enum/record body level. They have:
+            #   - optional `modifiers` (containing access modifiers + annotations)
+            #   - a `type` (or one of the type-typed nodes)
+            #   - one or more `variable_declarator` (name + optional initializer)
+            owner_name = None
+            owner_kind = None
+            for anc in reversed(ancestors):
+                if anc.type in (
+                    "class_declaration",
+                    "interface_declaration",
+                    "record_declaration",
+                    "enum_declaration",
+                ):
+                    aid = _child_by_type(anc, "identifier")
+                    if aid is not None:
+                        owner_name = _node_text(source_bytes, aid)
+                    owner_kind = anc.type.replace("_declaration", "")
+                    break
+
+            type_node = (
+                _child_by_type(node, "type")
+                or _child_by_type(node, "type_identifier")
+                or _child_by_type(node, "scoped_type_identifier")
+                or _child_by_type(node, "integral_type")
+                or _child_by_type(node, "floating_point_type")
+                or _child_by_type(node, "boolean_type")
+                or _child_by_type(node, "array_type")
+                or _child_by_type(node, "generic_type")
+            )
+            field_type = _node_text(source_bytes, type_node).strip() if type_node else ""
+            field_type_pkg = _resolve_type_package(field_type, package_name, explicit_imports)
+
+            field_modifiers_node = _child_by_type(node, "modifiers")
+            field_pre_text = ""
+            if field_modifiers_node is not None:
+                field_pre_text = _node_text(source_bytes, field_modifiers_node)
+            f_norm = " " + " ".join(field_pre_text.replace("\n", " ").split()) + " "
+
+            def _f_kw(kw: str) -> bool:
+                return (" " + kw + " ") in f_norm
+
+            f_is_static = _f_kw("static")
+            f_is_final = _f_kw("final")
+            f_is_private = _f_kw("private")
+            f_is_public = _f_kw("public")
+            f_is_protected = _f_kw("protected")
+            f_is_volatile = _f_kw("volatile")
+            f_is_transient = _f_kw("transient")
+            f_is_package_private = not (f_is_public or f_is_private or f_is_protected)
+
+            field_annotations: list[dict[str, Any]] = []
+            if field_modifiers_node is not None:
+                for ch in field_modifiers_node.children:
+                    if ch.type in ("annotation", "marker_annotation"):
+                        try:
+                            txt = _node_text(source_bytes, ch).strip()
+                        except Exception:
+                            txt = ""
+                        if not txt or not txt.startswith("@"):
+                            continue
+                        ann_name = ""
+                        for gch in ch.children:
+                            if gch.type in ("identifier", "scoped_identifier"):
+                                ann_name = _node_text(source_bytes, gch).strip()
+                                break
+                        if not ann_name:
+                            ann_name = txt[1:].split("(", 1)[0].strip()
+                        field_annotations.append(
+                            {
+                                "name": ann_name,
+                                "fqn_package": _resolve_type_package(
+                                    ann_name, package_name, explicit_imports
+                                ),
+                                "raw": txt,
+                            }
+                        )
+
+            field_line = node.start_point[0] + 1
+            for ch in node.children:
+                if ch.type == "variable_declarator":
+                    name_node = _child_by_type(ch, "identifier")
+                    if name_node is None:
+                        # variable_declarator may wrap variable_declarator_id in some grammars
+                        vdid = _child_by_type(ch, "variable_declarator_id")
+                        if vdid is not None:
+                            name_node = _child_by_type(vdid, "identifier")
+                    field_name = _node_text(source_bytes, name_node).strip() if name_node else ""
+                    if not field_name:
+                        continue
+                    fields.append(
+                        {
+                            "name": field_name,
+                            "type": field_type,
+                            "type_package": field_type_pkg,
+                            "owner_name": owner_name,
+                            "owner_kind": owner_kind,
+                            "file": rel_path,
+                            "package": package_name,
+                            "line": field_line,
+                            "is_static": f_is_static,
+                            "is_final": f_is_final,
+                            "is_private": f_is_private,
+                            "is_public": f_is_public,
+                            "is_protected": f_is_protected,
+                            "is_package_private": f_is_package_private,
+                            "is_volatile": f_is_volatile,
+                            "is_transient": f_is_transient,
+                            "annotations": field_annotations,
+                        }
+                    )
+
         if node.type == "method_declaration":
-            # Find owning type name by walking ancestors
+            # Find owning type name by walking ancestors. Includes records and enums --
+            # both can declare methods.
             owner_name = None
             owner_type = None
             for anc in reversed(ancestors):
@@ -296,6 +501,16 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     ident = _child_by_type(anc, "identifier")
                     owner_name = _node_text(source_bytes, ident) if ident else None
                     owner_type = "interface"
+                    break
+                if anc.type == "record_declaration":
+                    ident = _child_by_type(anc, "identifier")
+                    owner_name = _node_text(source_bytes, ident) if ident else None
+                    owner_type = "record"
+                    break
+                if anc.type == "enum_declaration":
+                    ident = _child_by_type(anc, "identifier")
+                    owner_name = _node_text(source_bytes, ident) if ident else None
+                    owner_type = "enum"
                     break
 
             ident = _child_by_type(node, "identifier")
@@ -320,12 +535,23 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                 is_final_flag = _has_kw("final")
                 is_private_flag = _has_kw("private")
                 is_public_flag = _has_kw("public")
+                is_protected_flag = _has_kw("protected")
+                is_synchronized_flag = _has_kw("synchronized")
+                is_default_flag = _has_kw("default")  # Java 8+ default interface methods
+                # Package-private = no explicit visibility modifier
+                is_package_private_flag = not (
+                    is_public_flag or is_private_flag or is_protected_flag
+                )
             except Exception:
                 is_static_flag = False
                 is_abstract_flag = False
                 is_final_flag = False
                 is_private_flag = False
                 is_public_flag = False
+                is_protected_flag = False
+                is_synchronized_flag = False
+                is_default_flag = False
+                is_package_private_flag = True
 
             # Compute lightweight cyclomatic complexity (McCabe approximation)
             # M = 1 + number of decision points inside the method
@@ -391,6 +617,56 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                             {"name": name_text, "type": type_text, "type_package": type_pkg}
                         )
 
+            # Extract throws clause: each thrown type becomes a (Method)-[:THROWS]->(Exception) edge.
+            # tree-sitter-java exposes `throws` as a child of method_declaration whose own children
+            # are the type identifiers (sometimes wrapped in `type_list`).
+            throws_list: list[dict[str, Any]] = []
+            throws_node = _child_by_type(node, "throws")
+            if throws_node is not None:
+                for thrown_type in _collect_type_texts(source_bytes, throws_node):
+                    if not thrown_type:
+                        continue
+                    throws_list.append(
+                        {
+                            "type": thrown_type,
+                            "type_package": _resolve_type_package(
+                                thrown_type, package_name, explicit_imports
+                            ),
+                        }
+                    )
+
+            # Extract annotations on the method (modifiers child contains annotation nodes).
+            method_annotations: list[dict[str, Any]] = []
+            modifiers_node = _child_by_type(node, "modifiers")
+            if modifiers_node is not None:
+                for ch in modifiers_node.children:
+                    if ch.type in ("annotation", "marker_annotation"):
+                        try:
+                            txt = _node_text(source_bytes, ch).strip()
+                        except Exception:
+                            txt = ""
+                        if not txt or not txt.startswith("@"):
+                            continue
+                        # name = first identifier-like child
+                        ann_name = ""
+                        for gch in ch.children:
+                            if gch.type in ("identifier", "scoped_identifier"):
+                                ann_name = _node_text(source_bytes, gch).strip()
+                                break
+                        if not ann_name:
+                            # fall back to text after '@' up to '(' or whitespace
+                            tail = txt[1:].split("(", 1)[0].strip()
+                            ann_name = tail
+                        method_annotations.append(
+                            {
+                                "name": ann_name,
+                                "fqn_package": _resolve_type_package(
+                                    ann_name, package_name, explicit_imports
+                                ),
+                                "raw": txt,
+                            }
+                        )
+
             methods.append(
                 {
                     "name": method_name,
@@ -404,12 +680,18 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     "is_final": is_final_flag,
                     "is_private": is_private_flag,
                     "is_public": is_public_flag,
+                    "is_protected": is_protected_flag,
+                    "is_synchronized": is_synchronized_flag,
+                    "is_default": is_default_flag,
+                    "is_package_private": is_package_private_flag,
                     "return_type": _extract_return_type(node),
                     "parameters": params_list,
                     "code": "\n".join(method_code),
                     "cyclomatic_complexity": cyclomatic,
                     # Best-effort call extraction from AST (method_invocation nodes)
                     "calls": [],
+                    "throws": throws_list,
+                    "annotations": method_annotations,
                 }
             )
             # Comment block immediately above method
@@ -574,6 +856,7 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
         interfaces=interfaces,
         methods=methods,
         docs=docs,
+        fields=fields,
     )
 
 
@@ -772,6 +1055,7 @@ def extract_file_data(java_file: Path, project_root: Path) -> dict[str, Any]:
         "classes": extraction.classes,
         "interfaces": extraction.interfaces,
         "methods": extraction.methods,
+        "fields": extraction.fields,
         "docs": extraction.docs,
         "language": "java",
         "ecosystem": "maven",

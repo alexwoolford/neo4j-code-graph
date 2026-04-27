@@ -229,6 +229,8 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 "is_abstract": class_info.get("is_abstract", False),
                 "is_final": class_info.get("is_final", False),
                 "modifiers": class_info.get("modifiers", []),
+                # B1: kind in {class, record, enum} drives secondary :Record / :Enum labels
+                "kind": class_info.get("kind") or class_info.get("type") or "class",
             }
             all_classes.append(class_node)
 
@@ -305,7 +307,12 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
                 "MERGE (c:Class {name: class.name, file: class.file}) "
                 "SET c.line = class.line, c.estimated_lines = class.estimated_lines, "
                 "c.is_abstract = class.is_abstract, c.is_final = class.is_final, "
-                "c.modifiers = class.modifiers, c.package = class.package",
+                "c.modifiers = class.modifiers, c.package = class.package, "
+                "c.kind = coalesce(class.kind, 'class') "
+                # Add a secondary label so analysts can MATCH (:Record) / (:Enum) cleanly.
+                "WITH c, class "
+                "FOREACH (_ IN CASE WHEN class.kind = 'record' THEN [1] ELSE [] END | SET c:Record) "
+                "FOREACH (_ IN CASE WHEN class.kind = 'enum'   THEN [1] ELSE [] END | SET c:Enum)",
                 classes=batch,
             )
 
@@ -532,6 +539,13 @@ def bulk_create_nodes_and_relationships(
     create_files(session, files_data, file_embeddings)
     create_classes(session, files_data)
     create_methods(session, files_data, method_embeddings)
+    # B1 schema additions: Field, Annotation, Exception nodes + NESTED_IN edges.
+    # Must run after create_classes/create_methods (they reference Method/Class
+    # nodes via MATCH).
+    create_fields(session, files_data)
+    create_annotations(session, files_data)
+    create_throws(session, files_data)
+    create_nested_class_links(session, files_data)
     # Create Doc nodes (docstrings/comments) and HAS_DOC relationships
     create_docs(session, files_data)
     create_imports(session, files_data, dependency_versions)
@@ -636,3 +650,295 @@ def create_docs(session: Any, files_data: list[dict[str, Any]]) -> None:
                 """,
                 rels=batch,
             )
+
+
+def create_fields(session: Any, files_data: list[dict[str, Any]]) -> None:
+    """B1: persist Field nodes and DECLARES_FIELD edges from owning type to field.
+
+    A Field is keyed by (owner_name, name, file) -- this matches typical Java
+    semantics where field names are unique within their declaring type.
+    """
+    field_records: list[dict[str, Any]] = []
+    for file_data in files_data:
+        for f in file_data.get("fields", []) or []:
+            if not f.get("name") or not f.get("owner_name"):
+                continue
+            field_records.append(
+                {
+                    "name": f["name"],
+                    "owner_name": f["owner_name"],
+                    "owner_kind": f.get("owner_kind") or "class",
+                    "file": f.get("file") or file_data.get("path"),
+                    "package": f.get("package"),
+                    "line": f.get("line"),
+                    "type": f.get("type") or "",
+                    "type_package": f.get("type_package"),
+                    "is_static": bool(f.get("is_static", False)),
+                    "is_final": bool(f.get("is_final", False)),
+                    "is_private": bool(f.get("is_private", False)),
+                    "is_public": bool(f.get("is_public", False)),
+                    "is_protected": bool(f.get("is_protected", False)),
+                    "is_package_private": bool(f.get("is_package_private", False)),
+                    "is_volatile": bool(f.get("is_volatile", False)),
+                    "is_transient": bool(f.get("is_transient", False)),
+                }
+            )
+
+    if not field_records:
+        return
+
+    logger.info(f"Creating {len(field_records)} Field nodes...")
+    batch_size = 1000
+    for i in range(0, len(field_records), batch_size):
+        batch = field_records[i : i + batch_size]
+        # Owner can be Class, Interface, or any other type-declaring node. Match
+        # broadly so records and enums (which carry the secondary :Record / :Enum
+        # label on top of :Class) are also picked up.
+        session.run(
+            """
+            UNWIND $fields AS f
+            MERGE (fld:Field {owner_name: f.owner_name, name: f.name, file: f.file})
+            SET fld.line = f.line,
+                fld.package = f.package,
+                fld.type = f.type,
+                fld.type_package = f.type_package,
+                fld.owner_kind = f.owner_kind,
+                fld.is_static = f.is_static,
+                fld.is_final = f.is_final,
+                fld.is_private = f.is_private,
+                fld.is_public = f.is_public,
+                fld.is_protected = f.is_protected,
+                fld.is_package_private = f.is_package_private,
+                fld.is_volatile = f.is_volatile,
+                fld.is_transient = f.is_transient
+            WITH fld, f
+            // Owner is either a Class (incl. records/enums via secondary label)
+            // or an Interface (rare: interface constants).
+            OPTIONAL MATCH (cls:Class {name: f.owner_name, file: f.file})
+            OPTIONAL MATCH (iface:Interface {name: f.owner_name, file: f.file})
+            WITH fld, coalesce(cls, iface) AS owner
+            WHERE owner IS NOT NULL
+            MERGE (owner)-[:DECLARES_FIELD]->(fld)
+            """,
+            fields=batch,
+        )
+
+
+def create_annotations(session: Any, files_data: list[dict[str, Any]]) -> None:
+    """B1: persist Annotation nodes (deduped by name) and ANNOTATED edges.
+
+    Annotation names are deduped across the whole codebase (e.g. all uses of
+    @Override merge to one Annotation node). Each ANNOTATED edge stores the raw
+    text of the application so analysts can recover argument values.
+    """
+    type_links: list[dict[str, Any]] = []
+    method_links: list[dict[str, Any]] = []
+    field_links: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+
+    for file_data in files_data:
+        for c in file_data.get("classes", []) or []:
+            for ann in c.get("annotations", []) or []:
+                name = ann.get("name") or ""
+                if not name:
+                    continue
+                seen_names.add(name)
+                type_links.append(
+                    {
+                        "owner_name": c["name"],
+                        "owner_file": c.get("file") or file_data.get("path"),
+                        "ann_name": name,
+                        "ann_package": ann.get("fqn_package"),
+                        "raw": ann.get("raw") or "",
+                    }
+                )
+        for i in file_data.get("interfaces", []) or []:
+            for ann in i.get("annotations", []) or []:
+                name = ann.get("name") or ""
+                if not name:
+                    continue
+                seen_names.add(name)
+                type_links.append(
+                    {
+                        "owner_name": i["name"],
+                        "owner_file": i.get("file") or file_data.get("path"),
+                        "ann_name": name,
+                        "ann_package": ann.get("fqn_package"),
+                        "raw": ann.get("raw") or "",
+                    }
+                )
+        for m in file_data.get("methods", []) or []:
+            sig = m.get("method_signature")
+            if not sig:
+                continue
+            for ann in m.get("annotations", []) or []:
+                name = ann.get("name") or ""
+                if not name:
+                    continue
+                seen_names.add(name)
+                method_links.append(
+                    {
+                        "method_signature": sig,
+                        "ann_name": name,
+                        "ann_package": ann.get("fqn_package"),
+                        "raw": ann.get("raw") or "",
+                    }
+                )
+        for f in file_data.get("fields", []) or []:
+            owner = f.get("owner_name")
+            fname = f.get("name")
+            ffile = f.get("file") or file_data.get("path")
+            if not (owner and fname and ffile):
+                continue
+            for ann in f.get("annotations", []) or []:
+                name = ann.get("name") or ""
+                if not name:
+                    continue
+                seen_names.add(name)
+                field_links.append(
+                    {
+                        "owner_name": owner,
+                        "field_name": fname,
+                        "file": ffile,
+                        "ann_name": name,
+                        "ann_package": ann.get("fqn_package"),
+                        "raw": ann.get("raw") or "",
+                    }
+                )
+
+    if not seen_names:
+        return
+
+    logger.info(
+        f"Creating {len(seen_names)} Annotation nodes "
+        f"({len(type_links)} type, {len(method_links)} method, {len(field_links)} field links)..."
+    )
+    annotation_nodes = [{"name": n} for n in sorted(seen_names)]
+    session.run(
+        "UNWIND $anns AS a MERGE (:Annotation {name: a.name})",
+        anns=annotation_nodes,
+    )
+
+    if type_links:
+        session.run(
+            """
+            UNWIND $links AS l
+            MATCH (a:Annotation {name: l.ann_name})
+            OPTIONAL MATCH (cls:Class {name: l.owner_name, file: l.owner_file})
+            OPTIONAL MATCH (iface:Interface {name: l.owner_name, file: l.owner_file})
+            WITH a, l, coalesce(cls, iface) AS owner
+            WHERE owner IS NOT NULL
+            MERGE (owner)-[r:ANNOTATED]->(a)
+            SET r.raw = l.raw, r.ann_package = l.ann_package
+            """,
+            links=type_links,
+        )
+    if method_links:
+        session.run(
+            """
+            UNWIND $links AS l
+            MATCH (m:Method {method_signature: l.method_signature})
+            MATCH (a:Annotation {name: l.ann_name})
+            MERGE (m)-[r:ANNOTATED]->(a)
+            SET r.raw = l.raw, r.ann_package = l.ann_package
+            """,
+            links=method_links,
+        )
+    if field_links:
+        session.run(
+            """
+            UNWIND $links AS l
+            MATCH (fld:Field {owner_name: l.owner_name, name: l.field_name, file: l.file})
+            MATCH (a:Annotation {name: l.ann_name})
+            MERGE (fld)-[r:ANNOTATED]->(a)
+            SET r.raw = l.raw, r.ann_package = l.ann_package
+            """,
+            links=field_links,
+        )
+
+
+def create_throws(session: Any, files_data: list[dict[str, Any]]) -> None:
+    """B1: persist Exception nodes (deduped by simple name) and THROWS edges.
+
+    Exception nodes are minimal -- name + optional package. They're not linked
+    to Class nodes (we don't know if the exception is project-internal); add
+    that linkage post-hoc via Cypher if useful.
+    """
+    seen: set[str] = set()
+    links: list[dict[str, Any]] = []
+    for file_data in files_data:
+        for m in file_data.get("methods", []) or []:
+            sig = m.get("method_signature")
+            if not sig:
+                continue
+            for t in m.get("throws", []) or []:
+                name = t.get("type") or ""
+                if not name:
+                    continue
+                seen.add(name)
+                links.append(
+                    {
+                        "method_signature": sig,
+                        "exception_name": name,
+                        "exception_package": t.get("type_package"),
+                    }
+                )
+    if not seen:
+        return
+
+    logger.info(f"Creating {len(seen)} Exception nodes ({len(links)} THROWS edges)...")
+    nodes = [{"name": n} for n in sorted(seen)]
+    session.run("UNWIND $exs AS e MERGE (:Exception {name: e.name})", exs=nodes)
+    session.run(
+        """
+        UNWIND $links AS l
+        MATCH (m:Method {method_signature: l.method_signature})
+        MATCH (e:Exception {name: l.exception_name})
+        MERGE (m)-[r:THROWS]->(e)
+        SET r.exception_package = l.exception_package
+        """,
+        links=links,
+    )
+
+
+def create_nested_class_links(session: Any, files_data: list[dict[str, Any]]) -> None:
+    """B1: NESTED_IN edges from inner/nested classes to their lexical parent.
+
+    Nesting is detected at parse time (`enclosing_name` on the class info dict).
+    The parent must live in the same file (Java's lexical-nesting rule).
+    """
+    rels: list[dict[str, Any]] = []
+    for file_data in files_data:
+        all_types = list(file_data.get("classes", []) or []) + list(
+            file_data.get("interfaces", []) or []
+        )
+        for t in all_types:
+            enc = t.get("enclosing_name")
+            if not enc or not t.get("name") or not t.get("file"):
+                continue
+            rels.append(
+                {
+                    "child_name": t["name"],
+                    "child_file": t["file"],
+                    "parent_name": enc,
+                    "parent_file": t["file"],
+                }
+            )
+
+    if not rels:
+        return
+
+    logger.info(f"Creating {len(rels)} NESTED_IN relationships...")
+    session.run(
+        """
+        UNWIND $rels AS r
+        OPTIONAL MATCH (childC:Class {name: r.child_name, file: r.child_file})
+        OPTIONAL MATCH (childI:Interface {name: r.child_name, file: r.child_file})
+        OPTIONAL MATCH (parentC:Class {name: r.parent_name, file: r.parent_file})
+        OPTIONAL MATCH (parentI:Interface {name: r.parent_name, file: r.parent_file})
+        WITH coalesce(childC, childI) AS child, coalesce(parentC, parentI) AS parent
+        WHERE child IS NOT NULL AND parent IS NOT NULL
+        MERGE (child)-[:NESTED_IN]->(parent)
+        """,
+        rels=rels,
+    )

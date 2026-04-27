@@ -113,6 +113,25 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
         "(method_signature, index)",
         "CREATE CONSTRAINT parameter_method_index_unique IF NOT EXISTS FOR (p:Parameter) REQUIRE (p.method_signature, p.index) IS UNIQUE",
     ),
+    # B1 schema additions: Field, Annotation, Exception (Java type) nodes.
+    (
+        "field_owner_name_file",
+        "Field",
+        "(owner_name, name, file)",
+        "CREATE CONSTRAINT field_owner_name_file IF NOT EXISTS FOR (f:Field) REQUIRE (f.owner_name, f.name, f.file) IS UNIQUE",
+    ),
+    (
+        "annotation_name_unique",
+        "Annotation",
+        "name",
+        "CREATE CONSTRAINT annotation_name_unique IF NOT EXISTS FOR (a:Annotation) REQUIRE a.name IS UNIQUE",
+    ),
+    (
+        "exception_name_unique",
+        "Exception",
+        "name",
+        "CREATE CONSTRAINT exception_name_unique IF NOT EXISTS FOR (e:Exception) REQUIRE e.name IS UNIQUE",
+    ),
 ]
 
 SCHEMA_INDEXES: list[tuple[str, str, str]] = [
