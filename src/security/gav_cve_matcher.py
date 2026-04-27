@@ -230,10 +230,9 @@ class PreciseGAVMatcher:
             "org.junit.jupiter:junit-jupiter": "junit:junit5",
             # B4: build tools and static-analysis libs commonly seen in Maven
             # poms whose NVD CPE vendor differs from their Maven groupId.
+            # Verified against NVD: checkstyle CVE-2019-9658 uses exactly
+            # cpe:2.3:a:checkstyle:checkstyle:*.
             "com.puppycrawl.tools:checkstyle": "checkstyle:checkstyle",
-            "org.teavm:teavm-jso": "teavm:teavm",
-            "org.teavm:teavm-jso-apis": "teavm:teavm",
-            "org.teavm:teavm-classlib": "teavm:teavm",
             # Add more as needed
         }
 

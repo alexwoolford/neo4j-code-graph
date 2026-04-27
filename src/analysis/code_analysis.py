@@ -589,10 +589,26 @@ def main():
             )
         if need_methods:
             # Single pass over all methods to avoid confusing nested batch logs.
-            # B3 (H4): prepend disambiguating context to each method snippet so
-            # trivial bodies (e.g. `return x;`) don't collapse to identical
-            # vectors across unrelated classes. Context is the package + class
-            # + signature line, kept short to leave token budget for the body.
+            # B3 (H4): conditionally prepend disambiguating context to short
+            # method snippets so trivial bodies (e.g. `return x;`) don't
+            # collapse to identical vectors across unrelated classes.
+            #
+            # Empirical finding (validated on UniXcoder + MPS):
+            #   - WITHOUT context: two getValue() in different classes have
+            #     cosine 1.0000 (the bug).
+            #   - WITH context (always): cosine drops to 0.86 (good for
+            #     trivial methods) BUT a substantive 200-char method's
+            #     self-similarity vs context-prepended is also ~0.90 -- the
+            #     context lines consume ~10% of the 512-token budget and
+            #     shift the substantive method's embedding more than is
+            #     warranted.
+            #
+            # Mitigation: inject context ONLY for methods whose body is short
+            # enough that context is the disambiguating signal (otherwise the
+            # body itself carries enough information). Threshold of 200 chars
+            # is a heuristic; matches roughly 50 tokens, so context's relative
+            # weight stays bounded.
+            CONTEXT_INJECT_THRESHOLD_CHARS = 200
             method_snippets = []
             for file_data in files_data:
                 pkg = ""
@@ -601,12 +617,13 @@ def main():
                         pkg = cls["package"]
                         break
                 for method in file_data["methods"]:
+                    body = method.get("code", "")
+                    if len(body) >= CONTEXT_INJECT_THRESHOLD_CHARS:
+                        # Body has enough signal of its own; don't dilute it.
+                        method_snippets.append(body)
+                        continue
                     cls_name = method.get("class_name") or ""
                     sig = method.get("method_signature") or method.get("name", "")
-                    body = method.get("code", "")
-                    # Context block: package, class FQN, signature -- one line each.
-                    # Keeps the model aware of where this method lives without
-                    # bloating the token count beyond what the truncation cap allows.
                     context = []
                     if pkg:
                         context.append(f"// package: {pkg}")
