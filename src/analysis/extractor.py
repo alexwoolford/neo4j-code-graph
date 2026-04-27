@@ -24,11 +24,19 @@ def extract_files_concurrently(
     repo_root: Path,
     extract_file_data,
     max_workers: int,
-) -> list[dict[str, object]]:
+) -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
+    """Extract file data concurrently. Returns (files_data, parse_errors).
+
+    parse_errors is a list of ``(file_path, error_message)`` tuples for files whose
+    extraction raised. Previously errors propagated out of ``future.result()`` and
+    crashed the whole extraction; collecting them lets the caller surface a summary
+    while continuing to process the remaining files.
+    """
     files_data: list[dict[str, object]] = []
+    parse_errors: list[tuple[str, str]] = []
     files = list(files_to_process)
     if not files:
-        return files_data
+        return files_data, parse_errors
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_file = {
@@ -38,8 +46,13 @@ def extract_files_concurrently(
         for future in progress_iter(
             as_completed(future_to_file), total=len(files), desc="Extracting files"
         ):
-            result = future.result()
+            file_path = future_to_file[future]
+            try:
+                result = future.result()
+            except Exception as e:
+                parse_errors.append((str(file_path), f"{type(e).__name__}: {e}"))
+                continue
             if result:
                 files_data.append(result)  # type: ignore[arg-type]
 
-    return files_data
+    return files_data, parse_errors

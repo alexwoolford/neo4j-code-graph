@@ -21,9 +21,6 @@ except Exception:  # pragma: no cover - installed package execution path
 extract_files_concurrently = _extractor.extract_files_concurrently
 list_java_files = _extractor.list_java_files
 
-# Collect Java parse errors across threads to summarize later
-PARSE_ERRORS: list[tuple[str, str]] = []
-
 try:
     parse_args = import_module("src.analysis.cli").parse_args  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover
@@ -485,27 +482,27 @@ def main():
         # Skip DB lookup to avoid coupling extract-only runs to Neo4j
         files_to_process = list(java_files)
         logger.info("Processing %d files", len(files_to_process))
-        files_data = extract_files_concurrently(
+        files_data, parse_errors = extract_files_concurrently(
             files_to_process, repo_root, extract_file_data, args.parallel_files
         )
 
         # Persist parse errors summary if requested
-        if PARSE_ERRORS:
+        if parse_errors:
             if args.parse_errors_file:
                 out_path = _Path(args.parse_errors_file)
                 out_path.parent.mkdir(parents=True, exist_ok=True)
                 out_path.write_text(
-                    "\n".join(f"{p}\t{err}" for p, err in PARSE_ERRORS), encoding="utf-8"
+                    "\n".join(f"{p}\t{err}" for p, err in parse_errors), encoding="utf-8"
                 )
                 logger.warning(
                     "Java parse: %d errors. Details: %s",
-                    len(PARSE_ERRORS),
+                    len(parse_errors),
                     out_path,
                 )
             else:
                 logger.warning(
                     "Java parse: %d errors. Use --parse-errors-file to capture details",
-                    len(PARSE_ERRORS),
+                    len(parse_errors),
                 )
 
         if getattr(args, "out_files_data", None) and args.out_files_data:

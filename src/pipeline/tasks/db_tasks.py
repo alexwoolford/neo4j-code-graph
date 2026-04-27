@@ -4,6 +4,7 @@ import logging
 from importlib import import_module
 from pathlib import Path
 
+from neo4j.exceptions import AuthError, ClientError, ServiceUnavailable
 from prefect import get_run_logger, task
 
 try:
@@ -97,8 +98,18 @@ def _should_run_gds(
                     "GDS available but projection probe failed; proceeding with GDS tasks; task-level guards apply"
                 )
             return True
-    except Exception as e:  # noqa: BLE001
-        logger.warning("Could not verify GDS capabilities; skipping GDS tasks: %s", e)
+    except AuthError:
+        # Auth failures indicate a misconfiguration; surface them rather than masking as "no GDS".
+        raise
+    except ServiceUnavailable as e:
+        logger.warning("Neo4j unavailable while probing GDS; skipping GDS tasks: %s", e)
+        return False
+    except ClientError as e:
+        # e.g. caller lacks permission for CALL gds.* or schema/db state issues
+        logger.warning("Could not verify GDS capabilities (client error); skipping: %s", e)
+        return False
+    except Exception as e:  # safety net for unexpected driver/lib errors
+        logger.warning("Unexpected error verifying GDS capabilities; skipping: %s", e)
         return False
 
 

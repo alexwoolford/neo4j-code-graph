@@ -197,13 +197,6 @@ public interface Processor<T> {
         assert file_data["interfaces"][0]["name"] == "Processor"
         assert len(file_data["methods"]) == 2  # Two interface methods
 
-    @pytest.mark.skip(reason="Requires Neo4j connection and full pipeline setup")
-    def test_end_to_end_pipeline(self, neo4j_driver, test_database, sample_java_repo):
-        """Test the complete pipeline from code extraction to graph creation."""
-        # This would test the full pipeline but requires significant setup
-        # Including git initialization, running the full pipeline, etc.
-        pass
-
     def test_schema_creation(self, neo4j_driver, test_database):
         """Test that database schema is created correctly."""
         with neo4j_driver.session(database=test_database) as session:
