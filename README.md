@@ -166,7 +166,12 @@ Source layout:
 
 ## Cypher cookbook
 
-Sample queries are in [`examples/queries.yml`](examples/queries.yml) and
+The hand-curated analyst cookbook lives in [`docs/COOKBOOK.md`](docs/COOKBOOK.md).
+Each recipe is paired with a note on what it actually answers vs what an
+analyst might assume it answers — important given the call-graph soundness
+ceiling.
+
+Older sample queries are in [`examples/queries.yml`](examples/queries.yml) and
 [`cypher_templates_for_bloom.cypher`](cypher_templates_for_bloom.cypher).
 Aim to use the schema-aware filters (`m.arity`, `m.is_test_method`,
 `r.confidence` on AFFECTS) over name-based string matching wherever possible.

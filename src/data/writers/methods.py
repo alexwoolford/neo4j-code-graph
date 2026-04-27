@@ -28,6 +28,27 @@ progress_range = _progress.progress_range
 logger = logging.getLogger(__name__)
 
 
+def _looks_like_test_path(file_path: str) -> bool:
+    """Heuristic: does this path live in a typical test directory?
+
+    Recognises Maven (`src/test/java`), Gradle (`src/test/`), and the loose
+    `tests/` and `test/` conventions. Matches both leading-slash and
+    relative-path forms (Tree-sitter's `extract_file_data` returns paths
+    relative to the repo root).
+    """
+    if not file_path:
+        return False
+    p = file_path.replace("\\", "/").lower()
+    return (
+        "/src/test/" in p
+        or p.startswith("src/test/")
+        or "/tests/" in p
+        or p.startswith("tests/")
+        or "/test/" in p
+        or p.startswith("test/")
+    )
+
+
 def create_methods(
     session: Any, files_data: list[dict[str, Any]], method_embeddings: list[list[float]]
 ) -> None:
@@ -84,6 +105,11 @@ def create_methods(
                     if method.get("arity") is not None
                     else len(method.get("parameters") or [])
                 ),
+                # B6 (A2): tag methods that live in canonical test directories.
+                # Heuristic only -- recognises Maven/Gradle convention paths.
+                # Lets analyst queries filter test code out of hub/centrality
+                # results without parsing class names.
+                "is_test_method": _looks_like_test_path(method.get("file") or ""),
                 "cyclomatic_complexity": method.get("cyclomatic_complexity", 1),
                 "deprecated": bool(method.get("deprecated", False)),
                 "deprecated_message": method.get("deprecated_message"),
@@ -128,6 +154,7 @@ def create_methods(
                     m.is_default = method.is_default,
                     m.is_package_private = method.is_package_private,
                     m.arity = method.arity,
+                    m.is_test_method = method.is_test_method,
                     m.return_type = method.return_type,
                     m.modifiers = method.modifiers,
                     m.cyclomatic_complexity = method.cyclomatic_complexity,
