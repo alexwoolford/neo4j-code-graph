@@ -15,6 +15,56 @@ except Exception:  # pragma: no cover - installed package execution path
     code_to_graph_main = import_module("analysis.code_analysis").main  # type: ignore[attr-defined]
 
 
+# Maven coordinates are groupId:artifactId:type[:classifier]:version[:scope]
+# (5 or 6 colon-separated fields), NOT a bare group:artifact:version triplet.
+_MVN_SCOPES = {"compile", "runtime", "test", "provided", "system", "import"}
+_MVN_TYPES = {
+    "jar",
+    "war",
+    "ear",
+    "pom",
+    "bundle",
+    "maven-plugin",
+    "test-jar",
+    "ejb",
+    "rar",
+    "zip",
+    "so",
+    "dll",
+}
+_MVN_TREE_PREFIX = re.compile(r"^[\s|+\\-]*")
+
+
+def _parse_mvn_coordinate(raw: str) -> tuple[str, str, str] | None:
+    """Extract (group_id, artifact_id, version) from a dependency:list/tree line.
+
+    Strips the tree-drawing prefix, splits the leading coordinate token on ':',
+    drops a trailing scope keyword, and takes the version as the last remaining
+    field (type and optional classifier precede it). Rejects Maven type/scope
+    keywords in the artifact/version slots and unresolved ${...} versions.
+    Returns None for anything that is not a resolvable coordinate.
+    """
+    line = _MVN_TREE_PREFIX.sub("", raw.strip())
+    if not line or ":" not in line:
+        return None
+    token = line.split()[0]
+    parts = token.split(":")
+    if len(parts) < 3:
+        return None
+    group_id, artifact_id = parts[0], parts[1]
+    rest = parts[2:]
+    if rest and rest[-1].lower() in _MVN_SCOPES:
+        rest = rest[:-1]
+    version = rest[-1] if rest else ""
+    if not (group_id and artifact_id and version):
+        return None
+    if version.lower() in _MVN_TYPES or version.lower() in _MVN_SCOPES:
+        return None
+    if artifact_id.lower() in _MVN_TYPES or "${" in version:
+        return None
+    return group_id, artifact_id, version
+
+
 @task(retries=1)
 def clone_repo_task(repo_url: str) -> str:
     logger = get_run_logger()
@@ -137,61 +187,26 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
         except Exception as e:  # pragma: no cover
             logger.warning("Dependency resolution command failed: %s", e)
 
-    # Parse Maven output file if present
+    # Parse Maven dependency:list / dependency:tree output field-wise (see
+    # _parse_mvn_coordinate). The previous regexes matched the leading
+    # `g:a:type` as `g:a:version`, producing dependencies with artifact_id="jar"
+    # and versions equal to a scope keyword, which then matched no CVEs.
     gleaned_versions: dict[str, str] = {}
-    mvn_out = Path(artifacts_dir) / "mvn_deps.txt"
-    if mvn_out.exists():
+    for fname in ("mvn_deps.txt", "mvn_tree.txt"):
+        mvn_out = Path(artifacts_dir) / fname
+        if not mvn_out.exists():
+            continue
         try:
-            version_token = re.compile(
-                r"^(?P<g>[^:\s]+):(?P<a>[^:\s]+):[^:]+:(?:(?:[^:]+):)?(?P<v>[^:\s]+)(?::(?:compile|runtime|test|provided|system))?$"
-            )
-            fallback_triplet = re.compile(
-                r"(?P<g>[A-Za-z0-9_.-]+):(?P<a>[A-Za-z0-9_.-]+):(?P<v>[0-9][A-Za-z0-9+_.-]*)"
-            )
             for raw in mvn_out.read_text(encoding="utf-8").splitlines():
-                line = raw.strip()
-                if not line or line.startswith("#"):
+                stripped = raw.strip()
+                if not stripped or stripped.startswith(("#", "[")):
                     continue
-                m = version_token.match(line)
-                if m:
-                    g, a, v = m.group("g"), m.group("a"), m.group("v")
-                    if g and a and v and "${" not in v:
-                        gleaned_versions[f"{g}:{a}"] = v
-                        continue
-                m2 = fallback_triplet.search(line)
-                if m2:
-                    g, a, v = m2.group("g"), m2.group("a"), m2.group("v")
-                    if g and a and v:
-                        gleaned_versions[f"{g}:{a}"] = v
-        except Exception as e:  # pragma: no cover
-            logger.debug("Failed to parse mvn_deps.txt: %s", e)
-
-    # Parse dependency:tree output as a secondary source (captures transitives reliably)
-    mvn_tree = Path(artifacts_dir) / "mvn_tree.txt"
-    if mvn_tree.exists():
-        try:
-            version_token = re.compile(
-                r"^(?:[\|+\\\-\s]*)?(?P<g>[^:\s]+):(?P<a>[^:\s]+):[^:]+:(?:(?:[^:]+):)?(?P<v>[^:\s]+)(?::(?:compile|runtime|test|provided|system))?"
-            )
-            fallback_triplet = re.compile(
-                r"(?P<g>[A-Za-z0-9_.-]+):(?P<a>[A-Za-z0-9_.-]+):(?P<v>[0-9][A-Za-z0-9+_.-]*)"
-            )
-            for raw in mvn_tree.read_text(encoding="utf-8").splitlines():
-                line = raw.strip()
-                if not line or line.startswith("["):
-                    continue
-                m = version_token.match(line)
-                if m:
-                    g, a, v = m.group("g"), m.group("a"), m.group("v")
-                    if g and a and v and "${" not in v:
-                        gleaned_versions[f"{g}:{a}"] = v
-                        continue
-                m2 = fallback_triplet.search(line)
-                if m2:
-                    g, a, v = m2.group("g"), m2.group("a"), m2.group("v")
+                parsed = _parse_mvn_coordinate(raw)
+                if parsed:
+                    g, a, v = parsed
                     gleaned_versions[f"{g}:{a}"] = v
         except Exception as e:  # pragma: no cover
-            logger.debug("Failed to parse mvn_tree.txt: %s", e)
+            logger.debug("Failed to parse %s: %s", fname, e)
 
     # Parse Gradle dependency tree output for resolved coordinates
     gradle_text = "\n".join(gradle_stdout)
