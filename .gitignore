@@ -149,3 +149,11 @@ secrets.json
 
 # Ruff linter cache
 .ruff_cache/
+
+# Browser-automation session artifacts (screenshots/snapshots land at repo root)
+/.playwright-mcp/
+/*.png
+/page6-*.yml
+
+# uv lockfile (project is pip/conda-based)
+/uv.lock
