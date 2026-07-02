@@ -8,7 +8,7 @@ Thank you for your interest in contributing to Neo4j Code Graph! This document p
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/neo4j-code-graph.git
+git clone https://github.com/alexwoolford/neo4j-code-graph.git
 cd neo4j-code-graph
 
 # Set up the development environment
@@ -42,10 +42,10 @@ git push origin feature/your-feature-name
 We use several tools to maintain code quality:
 
 - **Black**: Code formatting (line length: 100)
-- **isort**: Import sorting
-- **flake8**: Linting and style checking
+- **Ruff**: Linting + import sorting (replaces isort and flake8)
 - **mypy**: Type checking
-- **pre-commit**: Automated quality checks
+- **codespell** / **interrogate**: spelling and docstring coverage
+- **pre-commit**: Automated quality checks (CI runs the same hooks)
 
 Run `make format` before committing to ensure consistent formatting.
 
@@ -134,7 +134,7 @@ def test_large_repository():
 
 Our CI pipeline runs:
 
-1. **Quality checks** (black, isort, flake8, mypy)
+1. **Quality checks** (ruff, black, mypy, codespell, interrogate)
 2. **Security scans** (bandit, safety)
 3. **Tests** across Python 3.10-3.12
 4. **Coverage reporting**
@@ -198,7 +198,7 @@ For new features:
 
 ## 📄 License
 
-By contributing, you agree that your contributions will be licensed under the same license as the project (Apache 2.0).
+By contributing, you agree that your contributions will be licensed under the same license as the project (MIT).
 
 ## 🤝 Code of Conduct
 

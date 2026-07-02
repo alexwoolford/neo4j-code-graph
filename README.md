@@ -8,17 +8,63 @@
 [![Issues](https://img.shields.io/github/issues/alexwoolford/neo4j-code-graph)](https://github.com/alexwoolford/neo4j-code-graph/issues)
 [![Pull Requests](https://img.shields.io/github/issues-pr/alexwoolford/neo4j-code-graph)](https://github.com/alexwoolford/neo4j-code-graph/pulls)
 
-A structural overview of a Java codebase, materialised as a Neo4j
-knowledge graph. Combines tree-sitter Java parsing, Git history analysis,
-GDS centrality and call-graph community detection, and NVD/CPE +
-GHSA CVE matching against versioned Maven dependencies. Useful for
-collaboration analysis, hotspot discovery, dependency-vulnerability triage, and
-exploratory architecture review via Cypher.
+**Change-risk and vulnerability-reachability intelligence for Java
+codebases.** Given a CVE in a dependency, tell me which of my methods can
+actually reach it, how big the blast radius of fixing it is, and who owns
+that code — in one query.
 
-This **is not** a sound static analyser. See [Limitations](#limitations) below
-before you ground a security audit on the call graph.
+It ingests a Java repo into a Neo4j graph that joins four signals no
+open-source tool combines in one place: **git history as a graph**
+(Commit/Developer/FileVer + temporal coupling), **versioned Maven → CVE
+linkage** (NVD/CPE + GHSA, version-range aware), a **method-level call
+graph** including calls into external library APIs, and **GDS analytics**
+(centrality, call-graph communities). For security engineers triaging
+dependency CVEs and eng leads assessing change risk.
+
+This **is not** a sound static analyser — the call graph is lexical, ranked
+triage, not proof. See [Limitations](#limitations) before you ground a
+security audit on it. If you need proof-grade dataflow, use CodeQL or Joern.
 
 👉 Full documentation: https://alexwoolford.github.io/neo4j-code-graph/
+
+## The pitch, on a real repo
+
+Run against **OWASP WebGoat v8.1.0**:
+
+```bash
+code-graph-pipeline-prefect https://github.com/WebGoat/WebGoat.git --branch v8.1.0 --resolve-build-deps
+code-graph-risk-report --risk-threshold 7.0 --max-hops 6
+```
+
+Dependency-level scanning flags 34 high-severity CVEs. Method-level
+reachability turns that into a ranked, evidence-backed register — and clears
+several as **not actionable** because your code never calls the vulnerable
+dependency:
+
+| CVE | CVSS | Dependency | Status | Evidence |
+|-----|------|------------|--------|----------|
+| CVE-2013-7285 | 9.8 | xstream:1.4.5 | **REACHABLE** (hop 0) | `VulnerableComponentsLesson#completed` calls `new XStream()` |
+| CVE-2020-36518 | 7.5 | jackson-databind:2.10.1 | **REACHABLE** (hop 1) | `StoredXssComments#parseJson` → `ObjectMapper.readValue()` |
+| CVE-2020-10683 | 9.8 | dom4j:2.1.1 | **NOT_IMPORTED** | no file imports dom4j — deprioritize |
+| CVE-2017-18640 | 7.5 | snakeyaml:1.25 | **NOT_IMPORTED** | never called — deprioritize |
+
+That's a **CVSS-9.8 CVE correctly cleared** as unreachable. Each REACHABLE
+row also carries the shortest entry→frontier call path, the file's
+CO_CHANGED blast radius, and the top committer. The single Cypher behind the
+reachable rows:
+
+```cypher
+MATCH (cve:CVE {id: $cve_id})-[:AFFECTS]->(dep:ExternalDependency)
+MATCH (imp:Import)-[:DEPENDS_ON]->(dep)
+MATCH (frontier:Method)-[:CALLS_EXTERNAL]->(imp)
+MATCH (entry:Method)-[:ANNOTATED]->(:Annotation)      // HTTP handlers, main, etc.
+MATCH p = shortestPath((entry)-[:CALLS*0..6]->(frontier))
+RETURN frontier.method_signature, length(p) AS hops, dep.artifact_id
+ORDER BY hops
+```
+
+Read [`docs/reachability.md`](docs/reachability.md) for the confidence
+tiers, ranking formula, soundness ceiling, and the full success-gate results.
 
 ## Quickstart
 
@@ -28,8 +74,27 @@ conda activate neo4j-code-graph
 pip install -e '.[dev]'
 pip install -r config/requirements.txt
 cp .env.example .env  # then edit with Neo4j credentials
+
+# Full ingest, then the flagship report:
 code-graph-pipeline-prefect <repo-url-or-local-path> --resolve-build-deps
+code-graph-risk-report --risk-threshold 7.0
+
+# Re-run later — only changed files are re-processed:
+code-graph-pipeline-prefect <repo-url-or-local-path> --incremental
 ```
+
+## MCP server
+
+Expose the curated risk queries to coding agents (and humans) as typed,
+read-only tools — `cve_reachability`, `blast_radius`, `hotspots`,
+`ownership`, `risk_register`, `dependency_cves`, `unreachable_cves`,
+`graph_summary`:
+
+```bash
+claude mcp add code-graph -- code-graph-mcp   # with NEO4J_* in the env
+```
+
+Details and a Cursor config snippet: the MCP page in the docs.
 
 ## What's in the graph
 
@@ -114,6 +179,16 @@ ORDER BY edges DESC LIMIT 20
 - `AFFECTS` edges carry a `confidence` and `match_type` for filtering.
 - Heuristic / fuzzy matching is **off** by default to avoid false positives.
 
+### Reachability is triage, not proof
+
+`CALLS_EXTERNAL` (method → imported library API) is resolved from declared
+types with confidence tiers: HIGH (static/constructor with an explicit
+import), MEDIUM (instance call whose receiver's declared type resolves
+in-file), LOW (single wildcard import). Chained/fluent calls, method
+references, static imports, reflection, and DI wiring are **invisible**, so a
+`NOT_IMPORTED`/`FRONTIER_UNREACHABLE` verdict is a strong deprioritization
+signal, not a proof of safety. See [`docs/reachability.md`](docs/reachability.md).
+
 ### Test code is not separated from production code
 
 Centrality treats test methods identically to production
@@ -135,14 +210,18 @@ their own grammar + extractor. Out of scope for this project.
 The pipeline is orchestrated by Prefect and runs as a deterministic DAG:
 
 ```
-clone → extract → write graph
+clone → extract → write graph (+ CALLS_EXTERNAL frontier)
                   → git history
                   → centrality + Louvain (on CALLS)
-                  → CVE linking
+                  → CVE linking → risk report
 ```
 
 State passes between stages via filesystem artifacts, not implicit DB state,
-so any stage can be replayed individually.
+so any stage can be replayed individually. Each run records provenance
+(`Repository`/`Ingest` nodes with the HEAD sha); a subsequent
+`--incremental` run diffs against that high-water mark and patches only the
+changed files, falling back to a full ingest when it cannot guarantee
+parity (branch change, schema bump, non-ancestor HEAD, shallow clone).
 
 Source layout:
 
@@ -169,7 +248,7 @@ Aim to use the schema-aware filters (`m.arity`, `m.is_test_method`,
 
 ```bash
 pre-commit run --all-files                          # ruff + black + mypy + codespell + interrogate
-pytest -m "not live and not e2e and not security"   # fast unit path (~316 tests)
+pytest -m "not live and not e2e and not security"   # fast unit path
 pytest -m live                                      # live tests against a Neo4j you control
 pip-audit -r config/requirements.txt                # CVE check on pinned deps
 ```
@@ -190,6 +269,15 @@ MATCH (f:File) WHERE f.embedding_unixcoder IS NOT NULL REMOVE f.embedding_unixco
 DROP INDEX method_similarity_community IF EXISTS;
 DROP INDEX method_embeddings_embedding_unixcoder IF EXISTS;
 ```
+
+## Related tools
+
+We don't compete on agent-context (local-first indexing, many languages,
+token savings) — CodeGraph, GitNexus, and friends own that space. Our
+differentiation is the four-way join (git history × versioned-dependency
+CVEs × method call graph × GDS) in one queryable graph; the nearest
+neighbor is repowise, and CodeQL/Joern own sound static analysis. A cited
+survey is in [`docs/modules/ROOT/pages/references.adoc`](docs/modules/ROOT/pages/references.adoc).
 
 ## License
 

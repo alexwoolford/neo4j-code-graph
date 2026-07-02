@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "neo4j-code-graph"
 version = "1.0.0"
-description = "Advanced code analysis platform that creates comprehensive knowledge graphs from ANY codebase"
+description = "Change-risk and vulnerability-reachability intelligence for Java codebases, as a Neo4j graph"
 authors = [
     {name = "Neo4j Code Graph Contributors"}
 ]
@@ -58,9 +58,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/neo4j-code-graph"
-Repository = "https://github.com/your-org/neo4j-code-graph"
-Issues = "https://github.com/your-org/neo4j-code-graph/issues"
+Homepage = "https://github.com/alexwoolford/neo4j-code-graph"
+Repository = "https://github.com/alexwoolford/neo4j-code-graph"
+Issues = "https://github.com/alexwoolford/neo4j-code-graph/issues"
 
 [project.scripts]
 # CLI entry points to run installed commands directly

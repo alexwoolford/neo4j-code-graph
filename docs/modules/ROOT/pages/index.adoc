@@ -1,6 +1,6 @@
 = Overview
 
-Neo4j Code Graph is a Python toolkit and pipeline that turns a source code repository (and its Git history) into a queryable knowledge graph in Neo4j. Once ingested, you can ask targeted Cypher questions about security exposure, architectural bottlenecks, refactor candidates, co‑change/temporal coupling, and team expertise to drive engineering decisions.
+Neo4j Code Graph is change-risk and vulnerability-reachability intelligence for Java codebases. It turns a repository and its Git history into a queryable Neo4j graph, then answers the question dependency scanners can't: given a CVE in a dependency, which of your methods can actually reach it, how big is the blast radius of fixing it, and who owns that code? It joins four signals no open-source tool combines in one place — git history as a graph, versioned Maven→CVE linkage, a method-level call graph (including calls into external library APIs), and GDS analytics. It is honest, ranked triage on a lexical call graph, not a sound static analyser; for proof-grade dataflow use CodeQL or Joern.
 
 image::overview-art.jpg[Overview art,align=center,width=80%]
 
