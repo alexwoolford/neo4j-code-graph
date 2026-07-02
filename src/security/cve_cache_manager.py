@@ -194,12 +194,13 @@ class CVECacheManager:
                     if stop_event.is_set():
                         return
                     async with semaphore:
-                        await self._async_enforce_rate_limit(max_requests_per_window)
-
-                        # NVD requires pubStartDate and pubEndDate within a 120-day window.
+                        # NVD's 120-day window limit applies only when date
+                        # filters are used. Plain keywordSearch paginates the
+                        # full corpus, so one paged pass covers all history —
+                        # days_back is applied client-side on `published`.
                         now_utc = datetime.now(timezone.utc)
                         earliest = now_utc - timedelta(days=days_back)
-                        window_days = 120
+                        earliest_iso = earliest.strftime("%Y-%m-%dT%H:%M:%S")
 
                         params_base: dict[str, Any] = {
                             "keywordSearch": query_term,
@@ -211,71 +212,63 @@ class CVECacheManager:
 
                         try:
                             local_found: list[CleanCVE] = []
-
-                            # Walk backwards in time in 120-day slices
-                            slice_end = now_utc
-                            while not stop_event.is_set() and slice_end > earliest:
-                                slice_start = max(earliest, slice_end - timedelta(days=window_days))
-
-                                def _fmt(dt: datetime) -> str:
-                                    # NVD expects Zulu with milliseconds
-                                    return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-                                start_index = 0
-                                total_results: int | None = None
-                                while not stop_event.is_set():
-                                    params = dict(params_base)
-                                    params.update(
-                                        {
-                                            "startIndex": start_index,
-                                            "pubStartDate": _fmt(slice_start),
-                                            "pubEndDate": _fmt(slice_end),
-                                        }
-                                    )
-                                    data_opt: dict[str, Any] | None = await client.fetch(
+                            start_index = 0
+                            total_results: int | None = None
+                            while not stop_event.is_set():
+                                params = dict(params_base)
+                                params["startIndex"] = start_index
+                                # Throttle EVERY request (all queries run
+                                # concurrently; unthrottled paging 429-stormed
+                                # NVD and history was silently dropped) and
+                                # RETRY rate-limited pages instead of skipping.
+                                data_opt: dict[str, Any] | None = None
+                                for attempt in range(5):
+                                    await self._async_enforce_rate_limit(max_requests_per_window)
+                                    data_opt = await client.fetch(
                                         session=session,
                                         params=params,
                                         on_rate_limit=self._async_handle_rate_limit,
                                         timeout_s=60,
                                     )
-                                    if data_opt is None:
+                                    if data_opt is not None:
                                         break
-                                    data: dict[str, Any] = data_opt
-                                    total_results = cast(int | None, data.get("totalResults"))
-                                    vulnerabilities = cast(
-                                        list[dict[str, Any]], data.get("vulnerabilities", [])
+                                    await asyncio.sleep(min(60, 5 * (2**attempt)))
+                                if data_opt is None:
+                                    logger.warning(
+                                        "Giving up on page startIndex=%s for '%s' after retries",
+                                        params.get("startIndex"),
+                                        query_term,
                                     )
-                                    if not vulnerabilities:
-                                        break
-                                    for vuln in vulnerabilities:
-                                        clean_cve = self._extract_clean_cve_data(vuln)
-                                        if clean_cve and self._is_relevant_to_terms(
-                                            clean_cve, original_terms
-                                        ):
-                                            local_found.append(clean_cve)
-
-                                    start_index += int(params_base["resultsPerPage"])  # type: ignore[arg-type]
-                                    if total_results is not None and start_index >= int(
-                                        total_results
+                                    break
+                                data: dict[str, Any] = data_opt
+                                total_results = cast(int | None, data.get("totalResults"))
+                                vulnerabilities = cast(
+                                    list[dict[str, Any]], data.get("vulnerabilities", [])
+                                )
+                                if not vulnerabilities:
+                                    break
+                                for vuln in vulnerabilities:
+                                    clean_cve = self._extract_clean_cve_data(vuln)
+                                    if (
+                                        clean_cve
+                                        and str(clean_cve.get("published", "")) >= earliest_iso
+                                        and self._is_relevant_to_terms(clean_cve, original_terms)
                                     ):
-                                        break
-                                    # Per-query safety valve only. A global cap here
-                                    # starved the backwards time-walk: the budget was
-                                    # spent on the newest slices across all queries and
-                                    # the older CVEs that actually affect pinned
-                                    # dependencies were never fetched.
-                                    if len(local_found) >= max_results:
-                                        logger.warning(
-                                            "Query '%s' hit per-query cap (%d kept); "
-                                            "older CVEs for these terms may be missing",
-                                            query_term,
-                                            max_results,
-                                        )
-                                        break
+                                        local_found.append(clean_cve)
 
-                                # Next slice
-                                slice_end = slice_start
+                                start_index += int(params_base["resultsPerPage"])  # type: ignore[arg-type]
+                                if total_results is not None and start_index >= int(total_results):
+                                    break
+                                # Per-query safety valve (never a global cap: that
+                                # starved fetching and dropped the older CVEs that
+                                # actually affect pinned dependencies).
                                 if len(local_found) >= max_results:
+                                    logger.warning(
+                                        "Query '%s' hit per-query cap (%d kept); "
+                                        "results for these terms may be incomplete",
+                                        query_term,
+                                        max_results,
+                                    )
                                     break
 
                         except Exception as e:  # pragma: no cover - network errors
@@ -589,7 +582,9 @@ class CVECacheManager:
         retry_after = response.headers.get("Retry-After")
         if retry_after:
             try:
-                wait_time = int(retry_after)
+                # Floor at 1s: NVD sometimes sends Retry-After: 0, and honoring
+                # it literally turns the backoff into a busy-loop.
+                wait_time = max(1, int(retry_after))
                 logger.warning(f"⏰ API rate limited - waiting {wait_time}s (from server)")
                 await asyncio.sleep(wait_time)
                 return
