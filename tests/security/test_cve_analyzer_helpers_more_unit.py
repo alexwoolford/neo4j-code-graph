@@ -40,7 +40,7 @@ def test_calculate_match_confidence_improved_boundaries():
     assert a._calculate_match_confidence_improved(dep, "unrelated text") == 0.0
 
 
-def test_universal_search_terms_excludes_generic_vendors_when_specific_present():
+def test_universal_search_terms_keeps_distinctive_segments_drops_generic():
     from src.security.cve_analysis import CVEAnalyzer
 
     a = CVEAnalyzer(driver=None, database="neo4j")
@@ -48,12 +48,21 @@ def test_universal_search_terms_excludes_generic_vendors_when_specific_present()
         "java:maven": {
             "org.springframework.core",
             "com.fasterxml.jackson.core",
+            "jackson-databind",
+            "xstream:1.4.5",  # legacy shape; versions never reach terms today
         }
     }
     terms = a.create_universal_component_search_terms(deps)
-    # Full strings included
+    # Full strings included (lowercased)
     assert "org.springframework.core" in terms
     assert "com.fasterxml.jackson.core" in terms
-    # Generic vendor names excluded as standalone parts
-    assert "springframework" not in terms
-    assert "fasterxml" not in terms
+    # Whole artifact names stay whole — hyphens are not split into noise tokens
+    assert "jackson-databind" in terms
+    assert "databind" not in terms
+    # Distinctive vendor segments are kept (they are CPE vendor strings)
+    assert "springframework" in terms
+    assert "fasterxml" in terms
+    # Generic/registrar tokens are excluded as standalone parts
+    assert "core" not in terms
+    assert "org" not in terms
+    assert "com" not in terms

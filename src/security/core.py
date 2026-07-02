@@ -49,25 +49,28 @@ class CVEAnalyzerCore:
         with self._session() as session:
             result = session.run(
                 "MATCH (ed:ExternalDependency) "
-                "RETURN DISTINCT ed.package AS dependency_path, ed.language AS language, "
-                "ed.ecosystem AS ecosystem, ed.version AS version "
+                "RETURN DISTINCT ed.package AS dependency_path, ed.artifact_id AS artifact, "
+                "ed.language AS language, ed.ecosystem AS ecosystem "
                 "ORDER BY dependency_path"
             )
             dependencies_by_ecosystem: dict[str, set[str]] = {}
             for record in result:
                 rec: Mapping[str, Any] = dict(record)
                 dep_path = str(rec.get("dependency_path", ""))
+                artifact_val = rec.get("artifact")
                 language = str(rec.get("language", "unknown"))
                 ecosystem = str(rec.get("ecosystem", "unknown"))
-                version_val = rec.get("version")
-                version = str(version_val) if version_val is not None else None
                 key = f"{language}:{ecosystem}" if language != "unknown" else "unknown"
                 if key not in dependencies_by_ecosystem:
                     dependencies_by_ecosystem[key] = set()
-                dep_info = dep_path
-                if version:
-                    dep_info = f"{dep_path}:{version}"
-                dependencies_by_ecosystem[key].add(dep_info)
+                # Version-free identifiers only: NVD keyword search matches
+                # names in descriptions/CPEs; versions are matched precisely by
+                # the GAV/CPE matcher afterwards. "artifact:version" keywords
+                # had near-zero recall.
+                if dep_path:
+                    dependencies_by_ecosystem[key].add(dep_path)
+                if isinstance(artifact_val, str) and artifact_val:
+                    dependencies_by_ecosystem[key].add(artifact_val)
 
             result = session.run(
                 "MATCH (f:File) "
@@ -84,45 +87,75 @@ class CVEAnalyzerCore:
 
             return dependencies_by_ecosystem, file_languages
 
+    # Tokens too generic for NVD keyword search: they match enormous swathes of
+    # the CVE corpus (timeouts + noise) without identifying a component.
+    _GENERIC_TOKENS = {
+        "com",
+        "org",
+        "net",
+        "io",
+        "www",
+        "github",
+        "api",
+        "apache",
+        "boot",
+        "client",
+        "common",
+        "commons",
+        "core",
+        "data",
+        "engine",
+        "framework",
+        "google",
+        "impl",
+        "jakarta",
+        "java",
+        "javax",
+        "lang",
+        "library",
+        "misc",
+        "model",
+        "platform",
+        "plugin",
+        "release",
+        "runtime",
+        "security",
+        "server",
+        "service",
+        "spring",
+        "starter",
+        "test",
+        "tools",
+        "util",
+        "utils",
+        "web",
+    }
+
     @staticmethod
     def create_universal_component_search_terms(dependencies: dict[str, set[str]]) -> set[str]:
+        """Build NVD keyword-search terms from version-free component names.
+
+        Whole artifact names (e.g. ``jackson-databind``, ``xstream``) are the
+        high-recall terms — NVD tokenizes hyphenated keywords, so splitting
+        them only produced generic noise tokens. Dotted package paths are kept
+        whole and additionally contribute their distinctive segments (vendor
+        names like ``fasterxml``), never generic ones.
+        """
         search_terms: set[str] = set()
-        specific_vendor_terms: set[str] = set()
         for _ecosystem, deps in dependencies.items():
             for dep in deps:
-                if dep:
-                    search_terms.add(dep.lower())
-                parts: list[str] = []
-                if "." in dep:
-                    parts.extend(dep.split("."))
-                    if any(
-                        vendor in dep.lower()
-                        for vendor in ["jetbrains", "springframework", "fasterxml"]
-                    ):
-                        vendor_parts = [
-                            p
-                            for p in dep.split(".")
-                            if p.lower() in ["jetbrains", "springframework", "fasterxml"]
-                        ]
-                        for vendor_part in vendor_parts:
-                            specific_vendor_terms.add(vendor_part.lower())
-                if "-" in dep:
-                    parts.extend(dep.split("-"))
-                if "_" in dep:
-                    parts.extend(dep.split("_"))
-                if "/" in dep:
-                    parts.extend(dep.split("/"))
-                if "::" in dep:
-                    parts.extend(dep.split("::"))
-                for part in parts:
-                    part_lower: str = str(part).lower()
-                    if (
-                        part
-                        and len(part) > 2
-                        and part not in ["com", "org", "net", "io", "www", "github"]
-                        and part_lower not in specific_vendor_terms
-                    ):
-                        search_terms.add(part_lower)
+                if not dep:
+                    continue
+                dep_lower = dep.lower()
+                search_terms.add(dep_lower)
+                if "." in dep_lower:
+                    for part in dep_lower.split("."):
+                        if (
+                            len(part) > 2
+                            and part not in CVEAnalyzerCore._GENERIC_TOKENS
+                            and not part.isdigit()
+                        ):
+                            search_terms.add(part)
         return search_terms
 
     def fetch_relevant_cves(

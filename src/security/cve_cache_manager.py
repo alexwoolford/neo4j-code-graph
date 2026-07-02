@@ -236,7 +236,7 @@ class CVECacheManager:
                                         session=session,
                                         params=params,
                                         on_rate_limit=self._async_handle_rate_limit,
-                                        timeout_s=30,
+                                        timeout_s=60,
                                     )
                                     if data_opt is None:
                                         break
