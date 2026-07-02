@@ -479,6 +479,20 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
     _create_method_calls(session, files_data)
 
 
+def create_external_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
+    """Delegate to writers.external_calls.create_external_calls to avoid duplication."""
+    try:
+        from src.data.writers.external_calls import (
+            create_external_calls as _create_external_calls,  # type: ignore[attr-defined]
+        )
+    except Exception:  # pragma: no cover
+        from data.writers.external_calls import (  # type: ignore
+            create_external_calls as _create_external_calls,
+        )
+
+    _create_external_calls(session, files_data)
+
+
 def bulk_create_nodes_and_relationships(
     session: Any,
     files_data: list[dict[str, Any]],
@@ -498,6 +512,9 @@ def bulk_create_nodes_and_relationships(
     # Create Doc nodes (docstrings/comments) and HAS_DOC relationships
     create_docs(session, files_data)
     create_imports(session, files_data, dependency_versions)
+    # PR8: frontier edges into external library APIs. Must run after
+    # create_imports (Import nodes must exist) and create_methods.
+    create_external_calls(session, files_data)
     create_method_calls(session, files_data)
     logger.info("Bulk creation completed!")
 

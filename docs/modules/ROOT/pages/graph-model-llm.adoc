@@ -23,6 +23,7 @@ include::ROOT:partial$graph-model-content.adoc[]
 - `(CVE)-[:AFFECTS]->(ExternalDependency)`
 - `(Directory)-[:CONTAINS]->(Directory)` and `(Directory)-[:CONTAINS]->(File)`
 - `(File)-[:CO_CHANGED {support, confidence}]->(File)`
+- `(Method)-[:CALLS_EXTERNAL {confidence}]->(Import)` — derived method→Import frontier edge into external library APIs with `confidence` HIGH/MEDIUM/LOW from receiver-declared-type resolution; reflection/DI calls are not captured.
 
 Composed patterns to reuse:
 
@@ -63,7 +64,8 @@ Composed patterns to reuse:
     {"type": "CONTAINS", "from": "Directory", "to": "Directory"},
     {"type": "CONTAINS", "from": "Directory", "to": "File"},
     {"type": "CO_CHANGED", "from": "File", "to": "File", "properties": ["support", "confidence"]},
-    {"type": "CALLS", "from": "Method", "to": "Method"}
+    {"type": "CALLS", "from": "Method", "to": "Method"},
+    {"type": "CALLS_EXTERNAL", "from": "Method", "to": "Import", "properties": ["confidence", "confidence_rank", "call_count"]}
   ],
   "canonical_chains": [
     ["Commit", "CHANGED", "FileVer", "OF_FILE", "File"],

@@ -28,6 +28,7 @@ image::schema/arrows-schema.png[Graph schema,align=center]
 - *`(Commit)-[:PARENT]->(Commit)`*: Commit lineage; each commit points to its parent(s) (merge-aware).
 - *`(FileVer)-[:OF_FILE]->(File)`*: Version points to its file.
 - *`(Method)-[:CALLS]->(Method)`*: Static call graph edges.
+- *`(Method)-[:CALLS_EXTERNAL]->(Import)`*: Frontier call into an external library API; edge carries `confidence` (`HIGH`/`MEDIUM`/`LOW`), `confidence_rank`, `target_class`, `call_type`, and `call_count`. Resolution uses declared imports and receiver declared types only (reflection/DI invisible).
 - *`(File)-[:DECLARES]->(Method)`*: File declares a method.
 - *`(Class)-[:CONTAINS_METHOD]->(Method)`*: Method belongs to class.
 - *`(Interface)-[:CONTAINS_METHOD]->(Method)`*: Method belongs to interface.

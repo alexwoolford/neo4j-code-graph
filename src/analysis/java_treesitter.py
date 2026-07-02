@@ -10,6 +10,7 @@ Aura-compatible: pure Python and standard libraries only.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -103,6 +104,79 @@ def _resolve_type_package(
     return package_name
 
 
+# Bare receiver identifiers eligible for declared-type lookup: a plain
+# lowercase-ish variable name (no dots, no parentheses, no chained calls).
+_BARE_RECEIVER_RE = re.compile(r"^[a-z_$][A-Za-z0-9_$]*$")
+
+
+def _resolve_type_package_strict(
+    type_text: str,
+    package_name: str | None,
+    explicit_imports: dict[str, str],
+    wildcard_import_bases: list[str],
+) -> tuple[str | None, str]:
+    """Strict variant of :func:`_resolve_type_package` for external-call frontiers.
+
+    Returns ``(package, source)`` where ``source`` is one of ``"fqn"``,
+    ``"explicit_import"``, ``"wildcard_import"``, ``"unresolved"``.
+
+    Unlike the lenient resolver, this NEVER defaults to the current package:
+    an unimported simple type yields ``(None, "unresolved")``. Wildcard
+    resolution applies only when exactly ONE external wildcard import exists
+    in the file (``wildcard_import_bases``); zero or multiple candidates are
+    an ``"unresolved"`` miss. This protects the precision of CALLS_EXTERNAL
+    edges — a guessed package would misclassify internal types as external
+    (or vice versa). ``package_name`` is accepted for signature parity with
+    the lenient resolver but deliberately unused.
+    """
+    t = _strip_generics(type_text)
+    if not t:
+        return None, "unresolved"
+    if "." in t:
+        parts = t.split(".")
+        if len(parts) > 1:
+            return ".".join(parts[:-1]), "fqn"
+        return None, "unresolved"
+    if t in explicit_imports:
+        imp = explicit_imports[t]
+        parts = imp.split(".")
+        if len(parts) > 1:
+            return ".".join(parts[:-1]), "explicit_import"
+        return None, "unresolved"
+    candidates = [b for b in wildcard_import_bases if b]
+    if len(candidates) == 1:
+        return candidates[0], "wildcard_import"
+    return None, "unresolved"
+
+
+def _first_type_child(node: Any) -> Any | None:
+    """Return the first type-bearing child of a declaration node, if any."""
+    for kind in (
+        "type",
+        "type_identifier",
+        "scoped_type_identifier",
+        "integral_type",
+        "floating_point_type",
+        "boolean_type",
+        "array_type",
+        "generic_type",
+    ):
+        found = _child_by_type(node, kind)
+        if found is not None:
+            return found
+    return None
+
+
+def _declarator_name(source_bytes: bytes, declarator: Any) -> str:
+    """Extract the variable name from a ``variable_declarator`` node."""
+    name_node = _child_by_type(declarator, "identifier")
+    if name_node is None:
+        vdid = _child_by_type(declarator, "variable_declarator_id")
+        if vdid is not None:
+            name_node = _child_by_type(vdid, "identifier")
+    return _node_text(source_bytes, name_node).strip() if name_node is not None else ""
+
+
 def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
     """
     Parse Java source using Tree-sitter and return structured artifacts.
@@ -186,6 +260,51 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             if path:
                 short = path.split(".")[-1]
                 explicit_imports[short] = path
+
+    # Track wildcard imports alongside the explicit-imports map. The strict
+    # resolver only trusts a wildcard guess when exactly ONE external wildcard
+    # import exists in the file (see _resolve_type_package_strict).
+    wildcard_import_bases: list[str] = []
+    external_wildcard_bases: list[str] = []
+    for imp in imports:
+        if imp.get("is_wildcard"):
+            path = str(imp.get("import_path") or "")
+            if path:
+                wildcard_import_bases.append(path)
+                if imp.get("import_type") == "external":
+                    external_wildcard_bases.append(path)
+
+    # Pre-pass: owner type name -> {field name: declared type text}. Built
+    # before the main walk because a method body may reference a field that is
+    # declared later in the source file (field/method order is not guaranteed).
+    field_types_by_owner: dict[str, dict[str, str]] = {}
+
+    def _collect_field_types(node: Any, ancestors: list[Any]) -> None:
+        if node.type == "field_declaration":
+            owner: str | None = None
+            for anc in reversed(ancestors):
+                if anc.type in (
+                    "class_declaration",
+                    "interface_declaration",
+                    "record_declaration",
+                    "enum_declaration",
+                ):
+                    aid = _child_by_type(anc, "identifier")
+                    if aid is not None:
+                        owner = _node_text(source_bytes, aid)
+                    break
+            type_node = _first_type_child(node)
+            ftype = _node_text(source_bytes, type_node).strip() if type_node is not None else ""
+            if owner and ftype:
+                for ch in node.children:
+                    if ch.type == "variable_declarator":
+                        fname = _declarator_name(source_bytes, ch)
+                        if fname:
+                            field_types_by_owner.setdefault(owner, {})[fname] = ftype
+        for ch in getattr(node, "children", []) or []:
+            _collect_field_types(ch, ancestors + [node])
+
+    _collect_field_types(root, [])
 
     # Class, interface, and record declarations
     def _extract_return_type(mnode: Any) -> str:
@@ -721,6 +840,32 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
             # Populate calls by traversing the method subtree
             calls_list: list[dict[str, Any]] = []
 
+            # Per-method symbol table for receiver-type resolution (external
+            # call frontier). Scope: plain local variable declarations and
+            # formal parameters. enhanced_for/catch variables and shadowing
+            # are out of scope (v1) — receivers they'd resolve stay unresolved.
+            locals_map: dict[str, str] = {}
+
+            def _collect_locals(n: Any) -> None:
+                if n.type == "local_variable_declaration":
+                    tnode = _first_type_child(n)
+                    ltype = _node_text(source_bytes, tnode).strip() if tnode is not None else ""
+                    if ltype:
+                        for lch in n.children:
+                            if lch.type == "variable_declarator":
+                                lname = _declarator_name(source_bytes, lch)
+                                if lname:
+                                    locals_map[lname] = ltype
+                for lch in getattr(n, "children", []) or []:
+                    _collect_locals(lch)
+
+            _collect_locals(node)
+            params_by_name: dict[str, str] = {
+                str(p["name"]): str(p["type"])
+                for p in params_list
+                if p.get("name") and p.get("type")
+            }
+
             # Detect @Deprecated annotation on the method (lightweight)
             def _is_deprecated_annot(n: Any) -> bool:
                 if getattr(n, "type", None) == "annotation":
@@ -800,6 +945,8 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                     # Best-effort resolution of target class/package
                     target_class: str | None = None
                     target_package: str | None = None
+                    resolution: str | None = None
+                    receiver_source: str | None = None
                     try:
                         if call_type in ("same_class", "this", "super"):
                             # Same declaring type
@@ -810,8 +957,39 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                             simple = qualifier.split(".")[-1]
                             if simple and simple[:1].isupper():
                                 target_class = simple
-                                target_package = _resolve_type_package(
-                                    qualifier, package_name, explicit_imports
+                                # Strict resolution: never defaults to the current
+                                # package (external-call frontier requires provenance).
+                                target_package, resolution = _resolve_type_package_strict(
+                                    qualifier,
+                                    package_name,
+                                    explicit_imports,
+                                    external_wildcard_bases,
+                                )
+                                receiver_source = "static_qualifier"
+                        elif call_type == "instance" and _BARE_RECEIVER_RE.match(qualifier):
+                            # Bare-identifier receiver: resolve its declared type via
+                            # locals -> params -> fields of the owning type. Chained
+                            # receivers and call-result receivers stay unresolved.
+                            declared = locals_map.get(qualifier)
+                            if declared is not None:
+                                receiver_source = "local"
+                            else:
+                                declared = params_by_name.get(qualifier)
+                                if declared is not None:
+                                    receiver_source = "param"
+                                elif owner_name:
+                                    declared = field_types_by_owner.get(owner_name, {}).get(
+                                        qualifier
+                                    )
+                                    if declared is not None:
+                                        receiver_source = "field"
+                            if declared:
+                                target_class = _strip_generics(declared).split(".")[-1]
+                                target_package, resolution = _resolve_type_package_strict(
+                                    declared,
+                                    package_name,
+                                    explicit_imports,
+                                    external_wildcard_bases,
                                 )
                     except Exception:
                         # Swallow resolution errors; leave as None
@@ -825,6 +1003,11 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                         # B2 (C1): argument count enables arity-aware overload resolution
                         # when MERGEing the CALLS edge.
                         "argc": _argc_of(n),
+                        # External-call frontier provenance (PR8): how the target
+                        # package was resolved and where the receiver's declared
+                        # type came from. None for unqualified/this/super calls.
+                        "resolution": resolution,
+                        "receiver_source": receiver_source,
                     }
                     calls_list.append(call_entry)
                 elif n.type == "object_creation_expression":
@@ -837,9 +1020,23 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                         )
                         type_text = _node_text(source_bytes, type_node).strip() if type_node else ""
                         if type_text:
-                            # Derive simple class name and resolve package
+                            # Derive simple class name and resolve package strictly
+                            # (records the resolution source for frontier tiers).
                             simple = _strip_generics(type_text).split(".")[-1]
-                            pkg = _resolve_type_package(type_text, package_name, explicit_imports)
+                            pkg, ctor_resolution = _resolve_type_package_strict(
+                                type_text,
+                                package_name,
+                                explicit_imports,
+                                external_wildcard_bases,
+                            )
+                            if ctor_resolution == "unresolved":
+                                # Preserve the lenient default (current package) that
+                                # the CREATES writer relies on for same-package types.
+                                # resolution="unresolved" keeps the external-calls
+                                # writer from ever trusting this guessed package.
+                                pkg = _resolve_type_package(
+                                    type_text, package_name, explicit_imports
+                                )
                             calls_list.append(
                                 {
                                     "method_name": simple,
@@ -848,6 +1045,8 @@ def extract_with_treesitter(code: str, rel_path: str) -> JavaExtraction:
                                     "call_type": "constructor",
                                     "qualifier": "",
                                     "argc": _argc_of(n),
+                                    "resolution": ctor_resolution,
+                                    "receiver_source": "constructor",
                                 }
                             )
                     except Exception:

@@ -197,6 +197,19 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
         "Method",
         "CREATE INDEX method_betweenness IF NOT EXISTS FOR (m:Method) ON (m.betweenness_score)",
     ),
+    # PR8 (external-call frontier): Import.import_type filters (e.g. all
+    # 'external' imports) and CALLS_EXTERNAL confidence_rank threshold scans.
+    (
+        "import_type",
+        "Import",
+        "CREATE INDEX import_type IF NOT EXISTS FOR (i:Import) ON (i.import_type)",
+    ),
+    (
+        "calls_external_confidence",
+        "CALLS_EXTERNAL",
+        "CREATE INDEX calls_external_confidence IF NOT EXISTS "
+        "FOR ()-[r:CALLS_EXTERNAL]-() ON (r.confidence_rank)",
+    ),
     # Keep a non-unique index on package for lookup and joins
     # ExternalDependencyPackage removed: all external deps must resolve to versioned ExternalDependency
 ]
