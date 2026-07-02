@@ -52,6 +52,22 @@ DEFAULT_ENTRY_ANNOTATIONS = (
     "DELETE",
 )
 DEFAULT_MAX_RESULTS = 1000
+
+# Risk-report scoring (code-graph-risk-report).
+#
+#   risk_score = cvss * tier_weight * hop_factor
+#   hop_factor = 1 / (1 + RISK_HOP_DECAY * min_hops)
+#
+# tier_weight comes from the frontier confidence tier (HIGH/MEDIUM/LOW written
+# on CALLS_EXTERNAL edges). "NONE" means no reachable frontier: the row stays
+# in the register, sorted to the bottom, and labeled "no call-path evidence —
+# deprioritize, not proof of safety" (absence of evidence is not proof).
+# Blast radius and staleness are sort TIEBREAKERS only, never multipliers —
+# they modulate fix effort, not exploitability, and keeping them out of the
+# score keeps it explainable.
+RISK_TIER_WEIGHTS = {"HIGH": 1.0, "MEDIUM": 0.7, "LOW": 0.4, "NONE": 0.05}
+RISK_HOP_DECAY = 0.15
+
 NVD_API_BASE_URL = "https://nvd.nist.gov/rest/json/cves/2.0"
 CVE_CACHE_DIR = "data/cve_cache"
 

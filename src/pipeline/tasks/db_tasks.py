@@ -14,6 +14,7 @@ try:
     _temporal = import_module("src.analysis.temporal_analysis")
     _schema = import_module("src.data.schema_management")
     _cve = import_module("src.security.cve_analysis")
+    _risk_report = import_module("src.security.risk_report")
     _common = import_module("src.utils.common")
 except Exception:  # pragma: no cover - installed package execution path
     _centrality = import_module("analysis.centrality")
@@ -21,6 +22,7 @@ except Exception:  # pragma: no cover - installed package execution path
     _temporal = import_module("analysis.temporal_analysis")
     _schema = import_module("data.schema_management")
     _cve = import_module("security.cve_analysis")
+    _risk_report = import_module("security.risk_report")
     _common = import_module("utils.common")
 try:
     _caps_utils = import_module("src.utils.neo4j_utils")
@@ -473,3 +475,27 @@ def cve_task(
                 risk_threshold=7.0, max_hops=DEFAULT_MAX_HOPS
             )
             analyzer.generate_impact_report(impact)
+
+            # Flagship risk register (JSON artifact). Additive: report
+            # generation failure must not fail the CVE task itself.
+            try:
+                with driver.session(database=_db) as s:
+                    report = _risk_report.generate_risk_report(
+                        s,
+                        database=_db,
+                        risk_threshold=7.0,
+                        max_hops=DEFAULT_MAX_HOPS,
+                    )
+                report_path = Path.cwd() / "risk_report.json"
+                report_path.write_text(_risk_report.to_json(report) + "\n", encoding="utf-8")
+                summary = report.summary
+                logger.info("Risk report written to %s", report_path)
+                logger.info(
+                    "Risk report summary: %d dependency-level CVEs, %d reachable, "
+                    "%.1f%% triage reduction",
+                    summary["cves_dep_level"],
+                    summary["cves_with_reachable_frontier"],
+                    summary["triage_reduction_pct"],
+                )
+            except Exception as report_err:
+                logger.warning("Risk report generation failed: %s", report_err)

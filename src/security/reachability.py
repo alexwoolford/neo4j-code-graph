@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "DEFAULT_ENTRY_SETS",
+    "VALID_ENTRY_SETS",
     "MAX_HOPS_FLOOR",
     "MAX_HOPS_CEILING",
     "linked_cves",
@@ -112,6 +113,10 @@ _ENTRY_SET_PREDICATES = {
     "main": _ENTRY_PREDICATE_MAIN,
     "public": _ENTRY_PREDICATE_PUBLIC,
 }
+
+# Public view of the valid entry-set names (CLI validation lives elsewhere;
+# the predicate fragments themselves stay private).
+VALID_ENTRY_SETS: tuple[str, ...] = tuple(sorted(_ENTRY_SET_PREDICATES))
 
 # --- Canned queries ---------------------------------------------------------
 

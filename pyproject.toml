@@ -70,6 +70,7 @@ code-graph-temporal = "analysis.temporal_analysis:main"
 code-graph-cleanup = "utils.cleanup:main"
 code-graph-schema = "data.schema_management:main"
 code-graph-cve = "security.cve_analysis:main"
+code-graph-risk-report = "security.risk_report:main"
 code-graph-pipeline-prefect = "pipeline.prefect_flow:main"
 # Removed non-critical scripts to keep the codebase minimal
 code-graph-create-db = "scripts.create_database:main"
