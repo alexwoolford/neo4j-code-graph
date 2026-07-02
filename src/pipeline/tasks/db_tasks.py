@@ -167,7 +167,6 @@ def write_graph_task(
     logger.info("Writing extracted data and embeddings to Neo4j from %s", artifacts_dir)
     in_files = str(Path(artifacts_dir) / "files_data.json")
     in_deps = str(Path(artifacts_dir) / "dependencies.json")
-    in_file_emb = str(Path(artifacts_dir) / "file_embeddings.npy")
     in_method_emb = str(Path(artifacts_dir) / "method_embeddings.npy")
 
     base = [
@@ -178,8 +177,6 @@ def write_graph_task(
         in_files,
         "--in-dependencies",
         in_deps,
-        "--in-file-embeddings",
-        in_file_emb,
         "--in-method-embeddings",
         in_method_emb,
     ]

@@ -1,6 +1,5 @@
 import os
 import sys
-import types
 from unittest.mock import MagicMock
 
 # Ensure src on path
@@ -8,16 +7,11 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# Stub heavy modules used during import for this test module
-sys.modules.setdefault("tqdm", types.SimpleNamespace(tqdm=lambda *a, **k: a[0]))
-sys.modules.setdefault(
-    "neo4j", types.SimpleNamespace(GraphDatabase=MagicMock(), Driver=MagicMock())
-)
-sys.modules.setdefault("dotenv", types.SimpleNamespace(load_dotenv=lambda **k: None))
-
 
 def _create_file(i):
-    path = f"dir{i}/File{i}.java"
+    # Nested path so each file contributes one Directory->Directory CONTAINS rel
+    # (top-level dirs have no parent since the empty root node was removed)
+    path = f"dir{i}/sub{i}/File{i}.java"
     return {
         "path": path,
         "classes": [{"name": f"Class{i}", "file": path}],
@@ -31,16 +25,14 @@ def test_file_node_batching():
     session = MagicMock()
     num_files = 2500
     files_data = [_create_file(i) for i in range(num_files)]
-    file_embeds = [None] * num_files
-
     from src.analysis import code_analysis as ca
 
-    ca.bulk_create_nodes_and_relationships(session, files_data, file_embeds, [])
+    ca.bulk_create_nodes_and_relationships(session, files_data)
 
     # Compute expected batch count based on current configuration
     import math
 
-    expected_file_batch_size = ca.get_database_batch_size(has_embeddings=True)
+    expected_file_batch_size = ca.get_database_batch_size(has_embeddings=False)
     expected_file_batches = math.ceil(num_files / expected_file_batch_size)
 
     file_query = "MERGE (f:File"

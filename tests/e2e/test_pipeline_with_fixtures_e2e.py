@@ -17,7 +17,6 @@ def test_builds_graph_from_toy_java_fixtures(neo4j_driver):
     files_data = [extract_file_data(p, repo_root) for p in java_files]
     files_data = [fd for fd in files_data if fd]
 
-    file_embeddings = [[0.0] * EMBEDDING_DIMENSION for _ in files_data]
     method_embeddings = [
         [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
     ]
@@ -26,7 +25,7 @@ def test_builds_graph_from_toy_java_fixtures(neo4j_driver):
         s.run("MATCH (n) DETACH DELETE n").consume()
         setup_complete_schema(s)
         bulk_create_nodes_and_relationships(
-            s, files_data, file_embeddings, method_embeddings, dependency_versions={}
+            s, files_data, method_embeddings=method_embeddings, dependency_versions={}
         )
 
         # Expect at least one class and two methods

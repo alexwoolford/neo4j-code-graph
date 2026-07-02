@@ -19,7 +19,6 @@ def test_pipeline_flow_smoke_runs(monkeypatch, tmp_path):
 
     # No-op code extraction/embedding/writes
     monkeypatch.setattr(flow_core, "T_extract_code_task", lambda *a, **k: None, raising=True)
-    monkeypatch.setattr(flow_core, "T_embed_files_task", lambda *a, **k: None, raising=True)
     monkeypatch.setattr(flow_core, "T_embed_methods_task", lambda *a, **k: None, raising=True)
     monkeypatch.setattr(flow_core, "T_write_graph_task", lambda *a, **k: None, raising=True)
     monkeypatch.setattr(flow_core, "T_cleanup_artifacts_task", lambda *a, **k: None, raising=True)

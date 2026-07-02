@@ -84,7 +84,6 @@ def test_pipeline_live_with_maven_pom(tmp_path: Path):
             bulk_create_nodes_and_relationships(
                 session,
                 files_data,
-                file_embeddings=[],
                 method_embeddings=[],
                 dependency_versions=dep_versions,
             )

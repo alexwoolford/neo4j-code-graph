@@ -127,10 +127,9 @@ def test_write_imports_and_calls_end_to_end():
 
             create_directories(session, files_data)
             # Provide minimal dummy embeddings required by writers
-            file_embeddings = {0: [0.0, 0.0, 0.0]}
             method_embeddings = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
 
-            create_files(session, files_data, file_embeddings=file_embeddings)
+            create_files(session, files_data)
             create_methods(session, files_data, method_embeddings=method_embeddings)
             create_imports(session, files_data)
             create_method_calls(session, files_data)

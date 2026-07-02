@@ -112,7 +112,7 @@ def test_method_calls_mixed_types_idempotent_live():
             # Two runs to check idempotence
             for _ in range(2):
                 create_directories(s, files_data)
-                create_files(s, files_data, file_embeddings=[])
+                create_files(s, files_data)
                 create_classes(s, files_data)
                 create_methods(s, files_data, method_embeddings=[])
                 create_method_calls(s, files_data)

@@ -80,7 +80,6 @@ def test_progress_flags_after_bulk_live():
             bulk_create_nodes_and_relationships(
                 s,
                 files_data,
-                file_embeddings=[],
                 method_embeddings=[],
                 dependency_versions={
                     "org.example.lib": "1.0.0",

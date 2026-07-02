@@ -520,30 +520,12 @@ def main():
     logger.info("Phase 2: Computing embeddings...")
     start_phase2 = perf_counter()
 
-    file_embeddings: list[list[float]] = []
     method_embeddings: list[list[float]] = []
 
     # removed lazy numpy helper; IO helpers load embeddings when needed
 
     # Always attempt to read provided embeddings artifacts first
-    files_loaded = False
     methods_loaded = False
-    if (
-        getattr(args, "in_file_embeddings", None)
-        and args.in_file_embeddings
-        and _Path(args.in_file_embeddings).exists()
-    ):
-        try:
-            _io = import_module("src.analysis.io")
-        except Exception:  # pragma: no cover
-            _io = import_module("analysis.io")
-
-        try:
-            file_embeddings = _io.load_embeddings(_Path(args.in_file_embeddings))
-            files_loaded = True
-            logger.info("Loaded file embeddings from %s", args.in_file_embeddings)
-        except Exception:
-            files_loaded = False
     if (
         getattr(args, "in_method_embeddings", None)
         and args.in_method_embeddings
@@ -561,11 +543,10 @@ def main():
         except Exception:
             methods_loaded = False
 
-    need_files = args.embed_target in ("files", "both") and not files_loaded
     need_methods = args.embed_target in ("methods", "both") and not methods_loaded
 
     # Only compute if not skipping embed and there is work to do
-    if not getattr(args, "skip_embed", False) and (need_files or need_methods) and files_data:
+    if not getattr(args, "skip_embed", False) and need_methods and files_data:
         logger.info("Loading embedding model: %s", MODEL_NAME)
         tokenizer, model = load_embedding_model()
         device = get_device()
@@ -582,11 +563,6 @@ def main():
         batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
         logger.info(f"Using batch size: {batch_size}")
 
-        if need_files:
-            file_snippets = [file_data["code"] for file_data in files_data]
-            file_embeddings = compute_embeddings_bulk(
-                file_snippets, tokenizer, model, device, batch_size
-            )
         if need_methods:
             # Single pass over all methods to avoid confusing nested batch logs.
             # B3 (H4): conditionally prepend disambiguating context to short
@@ -649,14 +625,6 @@ def main():
         gc.collect()
 
     # Persist artifacts if requested
-    if getattr(args, "out_file_embeddings", None) and args.out_file_embeddings and file_embeddings:
-        try:
-            save_embeddings = import_module("src.analysis.io").save_embeddings  # type: ignore[attr-defined]
-        except Exception:  # pragma: no cover
-            save_embeddings = import_module("analysis.io").save_embeddings  # type: ignore[attr-defined]
-
-        save_embeddings(_Path(args.out_file_embeddings), file_embeddings)  # type: ignore[arg-type]
-        logger.info("Wrote file embeddings to %s", args.out_file_embeddings)
     if (
         getattr(args, "out_method_embeddings", None)
         and args.out_method_embeddings
@@ -715,7 +683,10 @@ def main():
                 raise
             if files_data:
                 bulk_create_nodes_and_relationships(
-                    session, files_data, file_embeddings, method_embeddings, dependency_versions
+                    session,
+                    files_data,
+                    method_embeddings=method_embeddings,
+                    dependency_versions=dependency_versions,
                 )
             else:
                 logger.info("No new files to process - skipping bulk creation")

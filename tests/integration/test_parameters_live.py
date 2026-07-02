@@ -71,7 +71,7 @@ def test_parameters_created_and_linked_with_package_resolution():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
             create_methods(s, files_data, method_embeddings=[])
 
@@ -147,7 +147,7 @@ def test_parameter_type_ambiguous_does_not_link():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
             create_methods(s, files_data, method_embeddings=[])
 
@@ -223,7 +223,7 @@ def test_value_query_public_api_exposes_internal_types():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
             create_methods(s, files_data, method_embeddings=[])
 
@@ -329,7 +329,7 @@ def test_constructor_ambiguous_does_not_create():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
             create_methods(s, files_data, method_embeddings=[])
 

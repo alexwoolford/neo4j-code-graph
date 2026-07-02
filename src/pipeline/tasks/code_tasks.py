@@ -270,34 +270,6 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
     return artifacts_dir
 
 
-@task(retries=1)
-def embed_files_task(repo_path: str, artifacts_dir: str) -> str:
-    logger = get_run_logger()
-    logger.info("Computing file embeddings for %s", repo_path)
-    in_files = str(Path(artifacts_dir) / "files_data.json")
-    out_file_emb = str(Path(artifacts_dir) / "file_embeddings.npy")
-    base = [
-        "prog",
-        repo_path,
-        "--skip-db",
-        "--embed-target",
-        "files",
-        "--in-files-data",
-        in_files,
-        "--out-file-embeddings",
-        out_file_emb,
-    ]
-    import sys
-
-    old_argv = sys.argv
-    try:
-        sys.argv = base
-        code_to_graph_main()
-    finally:
-        sys.argv = old_argv
-    return artifacts_dir
-
-
 @task(retries=0)
 def cleanup_artifacts_task(artifacts_dir: str) -> None:
     logger = get_run_logger()

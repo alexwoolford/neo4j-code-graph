@@ -77,14 +77,8 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
         # Check specific progress indicators
         print("\n🎯 PROCESSING PROGRESS:")
 
-        # Files with embeddings
-        result = session.run(
-            "MATCH (f:File) WHERE f.embedding IS NOT NULL RETURN count(f) as count"
-        )
-        single = result.single()
-        files_with_embeddings = int(single["count"]) if single and "count" in single else 0
         total_files = int(node_types.get("File", 0))
-        print(f"  Files with embeddings: {files_with_embeddings:,} / {total_files:,}")
+        print(f"  Files: {total_files:,}")
 
         # Methods with embeddings
         result = session.run(
@@ -106,10 +100,8 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
         # Status summary
         print("\n✅ STATUS ASSESSMENT:")
 
-        if 0 < total_files == files_with_embeddings:
+        if total_files > 0:
             print("  ✅ File processing: COMPLETE")
-        elif total_files > 0:
-            print(f"  ⚠️  File processing: PARTIAL ({files_with_embeddings}/{total_files})")
         else:
             print("  ❌ File processing: NOT STARTED")
 
@@ -135,7 +127,7 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
             "rel_types": rel_types,
             "total_nodes": total_nodes,
             "total_rels": total_rels,
-            "files_complete": 0 < total_files == files_with_embeddings,
+            "files_complete": total_files > 0,
             "methods_complete": 0 < total_methods == methods_with_embeddings,
             "imports_complete": imports_count > 0,
             "calls_partial": calls_count > 0,

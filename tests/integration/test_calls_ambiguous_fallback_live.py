@@ -71,7 +71,7 @@ def test_ambiguous_callee_does_not_error(tmp_path):
             session.run("MATCH (n) DETACH DELETE n").consume()
 
             create_directories(session, fds)
-            create_files(session, fds, file_embeddings=[[0.0]] * len(fds))
+            create_files(session, fds)
             create_classes(session, fds)
             all_methods = [m for fd in fds for m in fd.get("methods", [])]
             create_methods(session, fds, method_embeddings=[[0.0]] * len(all_methods))

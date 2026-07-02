@@ -38,7 +38,6 @@ def test_flow_wiring_smoke(tmp_path):
         patch.object(pf, "cleanup_task", side_effect=_mark("cleanup")),
         patch.object(pf, "clone_repo_task", side_effect=lambda url: str(repo_dir)),
         patch.object(pf, "extract_code_task", side_effect=_mark("extract_code")),
-        patch.object(pf, "embed_files_task", side_effect=_mark("embed_files")),
         patch.object(pf, "embed_methods_task", side_effect=_mark("embed_methods")),
         patch.object(pf, "write_graph_task", side_effect=_mark("write_graph")),
         patch.object(pf, "cleanup_artifacts_task", side_effect=_mark("cleanup_artifacts")),

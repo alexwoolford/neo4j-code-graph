@@ -41,18 +41,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--embed-target",
-        choices=["files", "methods", "both"],
-        default="both",
-        help="Which embeddings to compute (default: both)",
+        choices=["methods"],
+        default="methods",
+        help="Which embeddings to compute (only method embeddings are supported)",
     )
     # Artifact inputs/outputs to enable granular pipeline tasks
     parser.add_argument("--out-files-data", help="Write extracted files data JSON to this path")
     parser.add_argument("--in-files-data", help="Read extracted files data JSON from this path")
-    parser.add_argument("--out-file-embeddings", help="Write file embeddings (NPZ) to this path")
     parser.add_argument(
         "--out-method-embeddings", help="Write method embeddings (NPZ) to this path"
     )
-    parser.add_argument("--in-file-embeddings", help="Read file embeddings (NPZ) from this path")
     parser.add_argument(
         "--in-method-embeddings", help="Read method embeddings (NPZ) from this path"
     )

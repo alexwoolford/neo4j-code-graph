@@ -25,7 +25,6 @@ try:
     from src.pipeline.tasks.code_tasks import (  # type: ignore  # noqa: F401
         cleanup_artifacts_task,
         clone_repo_task,
-        embed_files_task,
         embed_methods_task,
         extract_code_task,
     )
@@ -33,7 +32,6 @@ except Exception:  # pragma: no cover
     from pipeline.tasks.code_tasks import (  # type: ignore  # noqa: F401
         cleanup_artifacts_task,
         clone_repo_task,
-        embed_files_task,
         embed_methods_task,
         extract_code_task,
     )
@@ -77,7 +75,6 @@ __all__ = [
     # Code tasks
     "clone_repo_task",
     "extract_code_task",
-    "embed_files_task",
     "embed_methods_task",
     "cleanup_artifacts_task",
 ]
@@ -139,7 +136,6 @@ def code_graph_flow(
 
     if _os.getenv("RESOLVE_BUILD_DEPS", "false").lower() in {"1", "true", "yes"}:
         resolve_build_dependencies_task(repo_path, artifacts_dir)
-    embed_files_task(repo_path, artifacts_dir)
     embed_methods_task(repo_path, artifacts_dir)
     write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
     cleanup_artifacts_task(artifacts_dir)

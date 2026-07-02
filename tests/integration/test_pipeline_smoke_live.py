@@ -63,7 +63,6 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
                     files_data.append(fd)
 
             # Zero embeddings for smoke
-            file_embeddings = [[0.0] * EMBEDDING_DIMENSION for _ in files_data]
             method_embeddings = [
                 [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
             ]
@@ -72,8 +71,7 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
             bulk_create_nodes_and_relationships(
                 session,
                 files_data,
-                file_embeddings,
-                method_embeddings,
+                method_embeddings=method_embeddings,
                 dependency_versions={
                     "com.fasterxml.jackson.core:jackson-databind:2.15.0": "2.15.0"
                 },

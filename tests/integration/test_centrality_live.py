@@ -157,7 +157,6 @@ def test_pagerank_stream_on_bulk_graph_live():
             bulk_create_nodes_and_relationships(
                 session,
                 files_data,
-                file_embeddings=[],
                 method_embeddings=[],
                 dependency_versions=None,
             )
@@ -231,7 +230,6 @@ def test_same_class_calls_written_without_callee_class():
             bulk_create_nodes_and_relationships(
                 session,
                 files_data,
-                file_embeddings=[],
                 method_embeddings=[],
                 dependency_versions=None,
             )

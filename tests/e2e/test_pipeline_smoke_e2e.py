@@ -28,7 +28,6 @@ def test_builds_minimal_graph(neo4j_driver, tmp_path: Path):
     files_data = [extract_file_data(p, tmp_path) for p in java_files]
     files_data = [fd for fd in files_data if fd]
 
-    file_embeddings = [[0.0] * EMBEDDING_DIMENSION for _ in files_data]
     method_embeddings = [
         [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
     ]
@@ -37,7 +36,7 @@ def test_builds_minimal_graph(neo4j_driver, tmp_path: Path):
         s.run("MATCH (n) DETACH DELETE n").consume()
         setup_complete_schema(s)
         bulk_create_nodes_and_relationships(
-            s, files_data, file_embeddings, method_embeddings, dependency_versions={}
+            s, files_data, method_embeddings=method_embeddings, dependency_versions={}
         )
 
         # Invariants: nodes exist and identities are unique

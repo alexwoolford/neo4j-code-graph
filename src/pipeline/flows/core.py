@@ -32,7 +32,6 @@ def run_preflight(*args, **kwargs):
 
 T_cleanup_artifacts_task = _CT.cleanup_artifacts_task
 T_clone_repo_task = _CT.clone_repo_task
-T_embed_files_task = _CT.embed_files_task
 T_embed_methods_task = _CT.embed_methods_task
 T_extract_code_task = _CT.extract_code_task
 T_cleanup_task = _DT.cleanup_task
@@ -82,7 +81,6 @@ def code_graph_flow(
 
     artifacts_dir = str(Path(tempfile.mkdtemp(prefix="cg_artifacts_")))
     T_extract_code_task(repo_path, artifacts_dir)
-    T_embed_files_task(repo_path, artifacts_dir)
     T_embed_methods_task(repo_path, artifacts_dir)
     T_write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
     T_cleanup_artifacts_task(artifacts_dir)

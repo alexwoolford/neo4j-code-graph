@@ -70,7 +70,7 @@ def test_cross_file_static_call_resolution(tmp_path):
 
             # Act: write graph
             create_directories(session, files_data)
-            create_files(session, files_data, file_embeddings=[[0.0]] * len(files_data))
+            create_files(session, files_data)
             create_classes(session, files_data)
             # two methods total
             all_methods = [m for fd in files_data for m in fd.get("methods", [])]

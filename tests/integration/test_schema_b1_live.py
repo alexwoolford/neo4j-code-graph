@@ -88,7 +88,6 @@ def _ingest(session, repo: Path) -> None:
     bulk_create_nodes_and_relationships(
         session,
         files_data,
-        file_embeddings=[],
         method_embeddings=[],
     )
 

@@ -66,7 +66,7 @@ def test_cross_file_instance_call_unique_in_file(tmp_path):
             session.run("MATCH (n) DETACH DELETE n").consume()
 
             create_directories(session, files_data)
-            create_files(session, files_data, file_embeddings=[[0.0]] * len(files_data))
+            create_files(session, files_data)
             create_classes(session, files_data)
             all_methods = [m for fd in files_data for m in fd.get("methods", [])]
             create_methods(session, files_data, method_embeddings=[[0.0]] * len(all_methods))

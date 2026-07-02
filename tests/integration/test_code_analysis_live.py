@@ -127,7 +127,7 @@ def test_live_methods_and_relationships_created():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
             create_methods(s, files_data, method_embeddings=[])
 
@@ -229,7 +229,7 @@ def test_live_class_inheritance_and_implements():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
 
             # A EXTENDS B (class inheritance)
@@ -333,7 +333,7 @@ def test_live_method_calls_smoke():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
             create_methods(s, files_data, method_embeddings=[])
             create_method_calls(s, files_data)
@@ -378,7 +378,7 @@ def test_live_cross_file_inheritance_and_implements():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
 
             rec = s.run(
@@ -454,7 +454,7 @@ def test_live_method_calls_instance_other_branch():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
             create_methods(s, files_data, method_embeddings=[])
             create_method_calls(s, files_data)
@@ -508,7 +508,6 @@ def test_live_bulk_create_smoke():
             bulk_create_nodes_and_relationships(
                 s,
                 files_data,
-                file_embeddings=[],
                 method_embeddings=[],
                 dependency_versions={"org.example.lib:core:1.0.0": "1.0.0"},
             )
@@ -556,7 +555,7 @@ def test_live_imports_set_gav_properties():
             s.run("MATCH (n) DETACH DELETE n").consume()
             setup_complete_schema(s)
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_imports(s, files_data, dep_versions)
 
             rec = s.run(
@@ -605,7 +604,7 @@ def test_live_imports_idempotent():
             setup_complete_schema(s)
             for _ in range(2):
                 create_directories(s, files_data)
-                create_files(s, files_data, file_embeddings=[])
+                create_files(s, files_data)
                 create_imports(s, files_data, dep_versions)
 
             rec_i = s.run("MATCH (i:Import) RETURN count(i) AS c").single()
@@ -662,7 +661,6 @@ def test_live_bulk_idempotent():
                 bulk_create_nodes_and_relationships(
                     s,
                     files_data,
-                    file_embeddings=[],
                     method_embeddings=[],
                     dependency_versions={"org.sample.lib:core:9.9.9": "9.9.9"},
                 )
@@ -724,7 +722,7 @@ def test_live_multi_interfaces_and_multi_level_extends():
             setup_complete_schema(s)
 
             create_directories(s, files_data)
-            create_files(s, files_data, file_embeddings=[])
+            create_files(s, files_data)
             create_classes(s, files_data)
 
             # Multi-level class inheritance
@@ -826,7 +824,7 @@ def test_live_bulk_with_calls_creates_calls():
             setup_complete_schema(s)
 
             bulk_create_nodes_and_relationships(
-                s, files_data, file_embeddings=[], method_embeddings=[], dependency_versions=None
+                s, files_data, method_embeddings=[], dependency_versions=None
             )
 
             rec = s.run(

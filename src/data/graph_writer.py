@@ -6,11 +6,6 @@ import logging
 from typing import Any, cast
 
 try:
-    from src.constants import EMBEDDING_TYPE  # type: ignore[attr-defined]
-except Exception:  # pragma: no cover
-    from constants import EMBEDDING_TYPE  # type: ignore
-
-try:
     from src.utils.batching import get_database_batch_size  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover
     from utils.batching import get_database_batch_size  # type: ignore
@@ -19,11 +14,6 @@ try:
     from src.utils.progress import progress_range  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover
     from utils.progress import progress_range  # type: ignore
-
-try:
-    from src.constants import EMBEDDING_PROPERTY as EMB_PROP  # type: ignore[attr-defined]
-except Exception:  # pragma: no cover
-    from constants import EMBEDDING_PROPERTY as EMB_PROP  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -88,41 +78,18 @@ def create_directories(session: Any, files_data: list[dict[str, Any]]) -> None:
             )
 
 
-def create_files(
-    session: Any, files_data: list[dict[str, Any]], file_embeddings: list[list[float]]
-) -> None:
-    batch_size = _get_database_batch_size(has_embeddings=True)
+def create_files(session: Any, files_data: list[dict[str, Any]]) -> None:
+    batch_size = _get_database_batch_size(has_embeddings=False)
 
     file_nodes: list[dict[str, Any]] = []
-    warned_short = False
-    import numpy as _np
-
-    for i, file_data in enumerate(files_data):
+    for file_data in files_data:
         from pathlib import Path as _Path
 
         file_path_str = file_data["path"]
         file_name_only = _Path(file_path_str).name if file_path_str else file_path_str
-        has_embedding = i < len(file_embeddings)
-        if not has_embedding and not warned_short:
-            logger.warning(
-                "Missing file embedding(s) (%d embeddings for %d files); leaving embedding unset",
-                len(file_embeddings),
-                len(files_data),
-            )
-            warned_short = True
-        emb_value = None
-        if has_embedding:
-            try:
-                emb = file_embeddings[i]
-                emb_value = emb.tolist() if isinstance(emb, _np.ndarray) else emb  # type: ignore[arg-type]
-            except Exception:
-                emb_value = None
-
         file_node = {
             "path": file_path_str,
             "name": file_name_only,
-            **({EMB_PROP: emb_value} if has_embedding and emb_value is not None else {}),
-            "embedding_type": EMBEDDING_TYPE,
             "language": file_data.get("language", "java"),
             "ecosystem": file_data.get("ecosystem", "maven"),
             "total_lines": file_data.get("total_lines", 0),
@@ -143,8 +110,7 @@ def create_files(
             batch = file_nodes[i : i + batch_size]
             logger.debug(f"Creating file batch {batch_num} ({len(batch)} files)")
             session.run(
-                (
-                    """
+                """
                 UNWIND $files AS file
                 MERGE (f:File {path: file.path})
                 SET f.language = file.language,
@@ -154,22 +120,9 @@ def create_files(
                     f.code_lines = file.code_lines,
                     f.method_count = file.method_count,
                     f.class_count = file.class_count,
-                    f.interface_count = file.interface_count,
-                    f."""
-                    + f"{EMB_PROP}"
-                    + """ = CASE WHEN file."""
-                    + f"{EMB_PROP}"
-                    + """ IS NOT NULL THEN file."""
-                    + f"{EMB_PROP}"
-                    + """ ELSE f."""
-                    + f"{EMB_PROP}"
-                    + """ END,
-                    f.embedding_type = CASE WHEN file."""
-                    + f"{EMB_PROP}"
-                    + """ IS NOT NULL THEN file.embedding_type ELSE f.embedding_type END
-                """
-                ),
-                files=[{**f, EMB_PROP: f.get(EMB_PROP)} for f in batch],
+                    f.interface_count = file.interface_count
+                """,
+                files=batch,
             )
 
     file_dir_rels: list[dict[str, str]] = []
@@ -531,14 +484,13 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
 def bulk_create_nodes_and_relationships(
     session: Any,
     files_data: list[dict[str, Any]],
-    file_embeddings: list[list[float]],
-    method_embeddings: list[list[float]],
+    method_embeddings: list[list[float]] | None = None,
     dependency_versions: dict[str, str] | None = None,
 ) -> None:
     create_directories(session, files_data)
-    create_files(session, files_data, file_embeddings)
+    create_files(session, files_data)
     create_classes(session, files_data)
-    create_methods(session, files_data, method_embeddings)
+    create_methods(session, files_data, method_embeddings or [])
     # B1 schema additions: Field, Annotation, Exception nodes + NESTED_IN edges.
     # Must run after create_classes/create_methods (they reference Method/Class
     # nodes via MATCH).

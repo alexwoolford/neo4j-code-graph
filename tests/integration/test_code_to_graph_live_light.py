@@ -55,14 +55,13 @@ def test_light_code_to_graph_pipeline_without_embeddings(tmp_path: Path) -> None
                     files_data.append(fd)
 
             # Create dummy embeddings (zeros) to avoid heavy model
-            file_embeddings = [[0.0] * EMBEDDING_DIMENSION for _ in files_data]
             method_embeddings = [
                 [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
             ]
 
             # Write to DB
             bulk_create_nodes_and_relationships(
-                session, files_data, file_embeddings, method_embeddings, dependency_versions={}
+                session, files_data, method_embeddings=method_embeddings, dependency_versions={}
             )
 
             # Assertions on graph contents
