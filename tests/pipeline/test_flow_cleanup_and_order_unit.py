@@ -36,24 +36,7 @@ def test_flow_respects_cleanup_flag_and_calls_in_order(monkeypatch, tmp_path):
     monkeypatch.setattr(pf, "cleanup_artifacts_task", rec("cleanup_artifacts"))
     monkeypatch.setattr(pf, "git_history_task", rec("git_history"))
     monkeypatch.setattr(pf, "coupling_task", rec("coupling"))
-    monkeypatch.setattr(
-        pf,
-        "centrality_task",
-        type("T4", (), {"submit": staticmethod(lambda *a, **k: "cent_state")}),
-    )
-    monkeypatch.setattr(
-        pf,
-        "cve_task",
-        type(
-            "T5",
-            (),
-            {
-                "submit": staticmethod(
-                    lambda *a, **k: type("R", (), {"result": staticmethod(lambda: None)})()
-                )
-            },
-        ),
-    )
+    monkeypatch.setattr(pf, "run_post_ingest_analytics", rec("analytics"))
 
     # Run with cleanup disabled
     pf.code_graph_flow(repo_url="https://example.com/repo.git", cleanup=False)
@@ -67,6 +50,7 @@ def test_flow_respects_cleanup_flag_and_calls_in_order(monkeypatch, tmp_path):
         "cleanup_artifacts",
         "git_history",
         "coupling",
+        "analytics",
     ]
     # Ensure the expected prefix order appears in the calls list
     indices = [calls.index(name) for name in expected_order]

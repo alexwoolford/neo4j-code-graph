@@ -137,7 +137,13 @@ def load_history(
                 repo.git.checkout(branch)
                 logger.info(f"Checked out branch: {branch}")
             except Exception as e:
-                available_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs]
+                try:
+                    available_branches = [
+                        ref.name.split("/")[-1] for ref in repo.remotes.origin.refs
+                    ]
+                except Exception:
+                    # Local repositories often have no 'origin' remote
+                    available_branches = [h.name for h in repo.heads]
                 logger.warning(f"Branch '{branch}' not found. Available: {available_branches}")
 
                 for fallback in ["main", "master", "dev", "develop", "HEAD"]:

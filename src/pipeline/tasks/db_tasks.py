@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from importlib import import_module
 from pathlib import Path
 
@@ -275,7 +276,12 @@ def centrality_task(
             return
         graph = cent_create_graph(gds)
         cent_pagerank(gds, graph, top_n=15, write_back=True)
-        cent_betweenness(gds, graph, top_n=15, write_back=True)
+        # Betweenness is O(V*E) full-graph — opt-in only (the risk pitch runs
+        # on pagerank + degree; the centrality CLI still offers all three).
+        if os.getenv("CODE_GRAPH_BETWEENNESS", "").lower() in {"1", "true", "yes"}:
+            cent_betweenness(gds, graph, top_n=15, write_back=True)
+        else:
+            logger.info("Skipping betweenness centrality (set CODE_GRAPH_BETWEENNESS=true)")
         cent_degree(gds, graph, top_n=15, write_back=True)
         try:
             graph.drop()

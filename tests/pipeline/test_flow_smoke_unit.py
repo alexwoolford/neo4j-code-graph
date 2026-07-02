@@ -42,13 +42,8 @@ def test_flow_wiring_smoke(tmp_path):
         patch.object(pf, "cleanup_artifacts_task", side_effect=_mark("cleanup_artifacts")),
         patch.object(pf, "git_history_task", side_effect=_mark("git_history")),
         patch.object(pf, "coupling_task", side_effect=_mark("coupling")),
-        patch.object(pf, "centrality_task"),
-        patch.object(pf, "cve_task"),
+        patch.object(pf, "run_post_ingest_analytics", side_effect=_mark("analytics")),
     ):
-        # Patch .submit on the tasks used that way to return a dummy future
-        pf.centrality_task.submit = _submit_stub  # type: ignore[attr-defined]
-        pf.cve_task.submit = _submit_stub  # type: ignore[attr-defined]
-
         pf.code_graph_flow(repo_url=str(repo_dir), cleanup=True)
 
     # Ensure the critical stages ran in expected order (prefix check is sufficient)
@@ -56,3 +51,4 @@ def test_flow_wiring_smoke(tmp_path):
     assert "write_graph" in calls
     assert "git_history" in calls
     assert "coupling" in calls
+    assert calls[-1] == "analytics"

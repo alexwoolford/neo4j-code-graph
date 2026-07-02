@@ -21,6 +21,12 @@ try:
 except Exception:  # pragma: no cover
     from pipeline.flows.core import build_args as core_build_args  # type: ignore
 
+# Canonical post-ingest analytics stage (shared with flows.core)
+try:
+    from src.pipeline.flows.analytics_flow import run_post_ingest_analytics  # type: ignore
+except Exception:  # pragma: no cover
+    from pipeline.flows.analytics_flow import run_post_ingest_analytics  # type: ignore
+
 try:
     from src.pipeline.tasks.code_tasks import (  # type: ignore  # noqa: F401
         cleanup_artifacts_task,
@@ -66,6 +72,8 @@ __all__ = [
     "centrality_task",
     "cve_task",
     "coupling_task",
+    # Analytics stage
+    "run_post_ingest_analytics",
     # Code tasks
     "clone_repo_task",
     "extract_code_task",
@@ -138,9 +146,9 @@ def code_graph_flow(
     # Coupling (call directly so tests can monkeypatch a plain function)
     coupling_task(uri, username, password, database, days=coupling_days)
 
-    # Analytics (submit/async-compatible)
-    centrality_task.submit(uri, username, password, database)
-    cve_task.submit(uri, username, password, database)
+    # Analytics: one canonical stage shared with flows.core (centrality ->
+    # calls_louvain -> cve); per-task GDS guards handle unavailability.
+    run_post_ingest_analytics(uri, username, password, database, gds_available=True)
 
 
 def main() -> None:
