@@ -326,21 +326,24 @@ def calls_louvain_task(
             logger.info("No CALLS present; skipping calls-based Louvain")
             return
 
-        # Method-level Louvain on CALLS (undirected for community structure)
+        # Method-level Louvain on CALLS (undirected for community structure).
+        # The gds client requires Graph objects (string names raise TypeError).
         try:
-            gds.graph.drop("G_METHOD_CALLS")
+            gds.graph.get("G_METHOD_CALLS").drop()
         except Exception:
             pass
-        gds.graph.project("G_METHOD_CALLS", ["Method"], {"CALLS": {"orientation": "UNDIRECTED"}})
-        gds.louvain.write("G_METHOD_CALLS", writeProperty="calls_community")
+        g_methods, _ = gds.graph.project(
+            "G_METHOD_CALLS", ["Method"], {"CALLS": {"orientation": "UNDIRECTED"}}
+        )
+        gds.louvain.write(g_methods, writeProperty="calls_community")
         try:
-            gds.graph.drop("G_METHOD_CALLS")
+            g_methods.drop()
         except Exception:
             pass
 
         # Class-level Louvain via Cypher projection of class-to-class edges derived from CALLS
         try:
-            gds.graph.drop("G_CLASS_CALLS")
+            gds.graph.get("G_CLASS_CALLS").drop()
         except Exception:
             pass
         gds.run_cypher(
@@ -350,9 +353,10 @@ def calls_louvain_task(
             "  'MATCH (c1:Class)-[:CONTAINS_METHOD]->(:Method)-[:CALLS]->(:Method)<-[:CONTAINS_METHOD]-(c2:Class) WHERE c1<>c2 RETURN id(c1) AS source, id(c2) AS target'\n"
             ")"
         )
-        gds.louvain.write("G_CLASS_CALLS", writeProperty="class_calls_community")
+        g_classes = gds.graph.get("G_CLASS_CALLS")
+        gds.louvain.write(g_classes, writeProperty="class_calls_community")
         try:
-            gds.graph.drop("G_CLASS_CALLS")
+            g_classes.drop()
         except Exception:
             pass
     finally:

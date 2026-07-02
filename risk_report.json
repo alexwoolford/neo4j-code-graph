@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-07-02T21:29:33+00:00",
+  "database": "neo4j",
+  "tool_version": "1.0.0",
+  "parameters": {
+    "max_hops": 6,
+    "entry_sets": [
+      "annotated",
+      "main"
+    ],
+    "min_confidence": "LOW",
+    "risk_threshold": 7.0
+  },
+  "summary": {
+    "cves_dep_level": 0,
+    "cves_with_reachable_frontier": 0,
+    "cves_no_frontier": 0,
+    "cves_frontier_unreachable": 0,
+    "cves_not_imported": 0,
+    "triage_reduction_pct": 0.0
+  },
+  "risk_register": []
+}

@@ -225,6 +225,30 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
         except Exception as e:  # pragma: no cover
             logger.debug("Failed to parse Gradle output: %s", e)
 
+    # Re-extract enriched dependencies FIRST (pom/gradle/lockfile parse), then
+    # merge the build-resolved coordinates on top. The re-extraction plainly
+    # overwrites dependencies.json, so augmenting before it silently discarded
+    # every mvn/gradle-resolved version — on BOM-managed projects (most real
+    # Spring builds) that left only explicitly-versioned artifacts and severed
+    # the Import->ExternalDependency join.
+    base = [
+        "prog",
+        repo_path,
+        "--skip-db",
+        "--in-files-data",
+        str(Path(artifacts_dir) / "files_data.json"),
+        "--out-dependencies",
+        str(out_deps),
+    ]
+    import sys
+
+    old_argv = sys.argv
+    try:
+        sys.argv = base
+        code_to_graph_main()
+    finally:
+        sys.argv = old_argv
+
     if gleaned_versions:
         # Merge into artifacts dependencies.json so downstream write step sees versions
         try:
@@ -247,24 +271,6 @@ def resolve_build_dependencies_task(repo_path: str, artifacts_dir: str) -> str:
         except Exception as e:  # pragma: no cover
             logger.warning("Failed to augment dependencies.json: %s", e)
 
-    # Re-extract enriched dependencies using our enhanced extractor, which also considers lockfiles
-    base = [
-        "prog",
-        repo_path,
-        "--skip-db",
-        "--in-files-data",
-        str(Path(artifacts_dir) / "files_data.json"),
-        "--out-dependencies",
-        str(out_deps),
-    ]
-    import sys
-
-    old_argv = sys.argv
-    try:
-        sys.argv = base
-        code_to_graph_main()
-    finally:
-        sys.argv = old_argv
     return artifacts_dir
 
 
