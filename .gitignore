@@ -157,3 +157,11 @@ secrets.json
 
 # uv lockfile (project is pip/conda-based)
 /uv.lock
+
+# Risk report output (written to cwd by the pipeline / code-graph-risk-report)
+/risk_report.json
+/risk_report.md
+
+# Risk report output (written to cwd by the pipeline / code-graph-risk-report)
+/risk_report.json
+/risk_report.md
