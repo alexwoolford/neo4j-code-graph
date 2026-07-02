@@ -47,22 +47,6 @@ def test_required_constraints_exist_live():
 
 
 @pytest.mark.live
-def test_vector_index_available_for_methods_live():
-    driver, database = _get_driver_or_skip()
-    with driver:
-        with driver.session(database=database) as session:
-            rows = session.run("SHOW INDEXES").data()
-            # At least one vector index on Method embeddings should be present
-            has_vec = False
-            for r in rows:
-                if r.get("type") == "VECTOR" and r.get("entityType") == "NODE":
-                    if r.get("labelsOrTypes") and "Method" in r.get("labelsOrTypes"):
-                        has_vec = True
-                        break
-            assert has_vec, "Expected a vector index on :Method embeddings"
-
-
-@pytest.mark.live
 def test_schema_guard_recreates_missing_constraint_live():
     driver, database = _get_driver_or_skip()
     with driver:

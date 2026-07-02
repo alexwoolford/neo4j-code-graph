@@ -13,7 +13,7 @@ What it solves:
 
 Key capabilities:
 
-- *End‑to‑end pipeline with Prefect*: code analysis, Git history ingestion, similarity/centrality, CVE analysis, temporal coupling
+- *End‑to‑end pipeline with Prefect*: code analysis, Git history ingestion, centrality, CVE analysis, temporal coupling
 - *Aura‑compatible analytics*: APOC core and standard GDS only
 - *Batteries‑included querying*: catalog of Cypher patterns for coupling, risk, refactors, expert finding, executive summaries
 - *Docs and guardrails*: CI builds docs, validates Cypher snippets against an ephemeral Neo4j, and publishes to GitHub Pages

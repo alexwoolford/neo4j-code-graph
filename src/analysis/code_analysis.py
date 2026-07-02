@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import gc
 import logging
 import re
 import tempfile
@@ -27,13 +26,6 @@ except Exception:  # pragma: no cover
     parse_args = import_module("analysis.cli").parse_args  # type: ignore[attr-defined]
 
 try:
-    _emb = import_module("src.analysis.embeddings")
-except Exception:  # pragma: no cover
-    _emb = import_module("analysis.embeddings")
-compute_embeddings_bulk = _emb.compute_embeddings_bulk
-load_embedding_model = _emb.load_embedding_model
-
-try:
     setup_logging = import_module("src.utils.common").setup_logging  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover
     setup_logging = import_module("utils.common").setup_logging  # type: ignore[attr-defined]
@@ -55,17 +47,6 @@ JAVA_KEYWORDS_TO_SKIP = {
 }
 
 logger = logging.getLogger(__name__)
-
-try:
-    _const = import_module("src.constants")
-except Exception:  # pragma: no cover
-    _const = import_module("constants")
-DEFAULT_EMBED_BATCH_CPU = _const.DEFAULT_EMBED_BATCH_CPU
-DEFAULT_EMBED_BATCH_CUDA_LARGE = _const.DEFAULT_EMBED_BATCH_CUDA_LARGE
-DEFAULT_EMBED_BATCH_CUDA_SMALL = _const.DEFAULT_EMBED_BATCH_CUDA_SMALL
-DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE = _const.DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE
-DEFAULT_EMBED_BATCH_MPS = _const.DEFAULT_EMBED_BATCH_MPS
-MODEL_NAME = _const.MODEL_NAME
 
 # Module-level default for quiet parse flag, set by main() based on CLI args
 _QUIET_PARSE: bool = False
@@ -245,79 +226,6 @@ def extract_gradle_dependencies(gradle_file: Path) -> dict[str, str]:
 _extract_gradle_dependencies = extract_gradle_dependencies
 
 
-def get_device() -> Any:
-    """Get the appropriate device for PyTorch computations."""
-    import torch
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        return torch.device("mps")
-    else:
-        return torch.device("cpu")
-
-
-def load_model_and_tokenizer() -> tuple[Any, Any, Any, int]:
-    """Load the embedding model and tokenizer for embedding computation."""
-    from transformers import AutoModel, AutoTokenizer
-
-    logger.info("Loading embedding model: %s", MODEL_NAME)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModel.from_pretrained(MODEL_NAME)
-    device = get_device()
-
-    # Optimize for MPS performance
-    if device.type == "mps":
-        # Enable high memory usage mode for better performance
-        import os
-
-        os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-        logger.info("Enabled MPS high performance mode")
-
-    model = model.to(device)
-    logger.info(f"Model loaded on {device}")
-
-    # Get optimal batch size
-    batch_size = get_optimal_batch_size(device)
-    logger.info(f"Using batch size: {batch_size}")
-
-    return tokenizer, model, device, batch_size
-
-
-def get_optimal_batch_size(device: Any) -> int:
-    """Determine optimal batch size based on device and available memory."""
-    import os
-
-    import torch
-
-    if device.type == "cuda":
-        gpu_memory = torch.cuda.get_device_properties(0).total_memory
-        if gpu_memory > 20 * 1024**3:  # >20GB
-            return DEFAULT_EMBED_BATCH_CUDA_VERY_LARGE
-        elif gpu_memory > 10 * 1024**3:  # >10GB
-            return DEFAULT_EMBED_BATCH_CUDA_LARGE
-        else:  # 8GB or less
-            return DEFAULT_EMBED_BATCH_CUDA_SMALL
-    elif device.type == "mps":
-        # Allow override for Apple MPS batch size via env if desired
-        try:
-            override = int(os.getenv("EMBED_BATCH_MPS", ""))
-            if override > 0:
-                return override
-        except Exception:
-            pass
-        return DEFAULT_EMBED_BATCH_MPS
-    else:
-        try:
-            override = int(os.getenv("EMBED_BATCH_CPU", ""))
-            if override > 0:
-                return override
-        except Exception:
-            pass
-        return DEFAULT_EMBED_BATCH_CPU
-
-
-# compute_embeddings_bulk is imported from analysis.embeddings
 try:
     extract_file_data = import_module("src.analysis.parser").extract_file_data  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover
@@ -516,139 +424,14 @@ def main():
     phase1_time = perf_counter() - start_phase1
     logger.info("Phase 1 completed in %.2fs", phase1_time)
 
-    # Phase 2: Compute embeddings (allow artifact in/out and target selection)
-    logger.info("Phase 2: Computing embeddings...")
-    start_phase2 = perf_counter()
-
-    method_embeddings: list[list[float]] = []
-
-    # removed lazy numpy helper; IO helpers load embeddings when needed
-
-    # Always attempt to read provided embeddings artifacts first
-    methods_loaded = False
-    if (
-        getattr(args, "in_method_embeddings", None)
-        and args.in_method_embeddings
-        and _Path(args.in_method_embeddings).exists()
-    ):
-        try:
-            _io2 = import_module("src.analysis.io")
-        except Exception:  # pragma: no cover
-            _io2 = import_module("analysis.io")
-
-        try:
-            method_embeddings = _io2.load_embeddings(_Path(args.in_method_embeddings))
-            methods_loaded = True
-            logger.info("Loaded method embeddings from %s", args.in_method_embeddings)
-        except Exception:
-            methods_loaded = False
-
-    need_methods = args.embed_target in ("methods", "both") and not methods_loaded
-
-    # Only compute if not skipping embed and there is work to do
-    if not getattr(args, "skip_embed", False) and need_methods and files_data:
-        logger.info("Loading embedding model: %s", MODEL_NAME)
-        tokenizer, model = load_embedding_model()
-        device = get_device()
-
-        if device.type == "mps":
-            import os as _os
-
-            _os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-            logger.info("Enabled MPS high performance mode")
-
-        model = model.to(device)
-        logger.info(f"Model loaded on {device}")
-
-        batch_size = args.batch_size if args.batch_size else get_optimal_batch_size(device)
-        logger.info(f"Using batch size: {batch_size}")
-
-        if need_methods:
-            # Single pass over all methods to avoid confusing nested batch logs.
-            # B3 (H4): conditionally prepend disambiguating context to short
-            # method snippets so trivial bodies (e.g. `return x;`) don't
-            # collapse to identical vectors across unrelated classes.
-            #
-            # Empirical finding (validated on UniXcoder + MPS):
-            #   - WITHOUT context: two getValue() in different classes have
-            #     cosine 1.0000 (the bug).
-            #   - WITH context (always): cosine drops to 0.86 (good for
-            #     trivial methods) BUT a substantive 200-char method's
-            #     self-similarity vs context-prepended is also ~0.90 -- the
-            #     context lines consume ~10% of the 512-token budget and
-            #     shift the substantive method's embedding more than is
-            #     warranted.
-            #
-            # Mitigation: inject context ONLY for methods whose body is short
-            # enough that context is the disambiguating signal (otherwise the
-            # body itself carries enough information). Threshold of 200 chars
-            # is a heuristic; matches roughly 50 tokens, so context's relative
-            # weight stays bounded.
-            CONTEXT_INJECT_THRESHOLD_CHARS = 200
-            method_snippets = []
-            for file_data in files_data:
-                pkg = ""
-                for cls in file_data.get("classes", []) or []:
-                    if cls.get("package"):
-                        pkg = cls["package"]
-                        break
-                for method in file_data["methods"]:
-                    body = method.get("code", "")
-                    if len(body) >= CONTEXT_INJECT_THRESHOLD_CHARS:
-                        # Body has enough signal of its own; don't dilute it.
-                        method_snippets.append(body)
-                        continue
-                    cls_name = method.get("class_name") or ""
-                    sig = method.get("method_signature") or method.get("name", "")
-                    context = []
-                    if pkg:
-                        context.append(f"// package: {pkg}")
-                    if cls_name:
-                        context.append(f"// class: {cls_name}")
-                    if sig:
-                        context.append(f"// signature: {sig}")
-                    method_snippets.append("\n".join([*context, body]))
-            method_embeddings = compute_embeddings_bulk(
-                method_snippets, tokenizer, model, device, batch_size
-            )
-
-        del model, tokenizer
-        try:
-            import torch as _torch  # type: ignore
-
-            if device.type == "cuda":
-                _torch.cuda.empty_cache()
-            elif device.type == "mps":
-                _torch.mps.empty_cache()
-        except Exception:
-            pass
-        gc.collect()
-
-    # Persist artifacts if requested
-    if (
-        getattr(args, "out_method_embeddings", None)
-        and args.out_method_embeddings
-        and method_embeddings
-    ):
-        try:
-            save_embeddings2 = import_module("src.analysis.io").save_embeddings  # type: ignore[attr-defined]
-        except Exception:  # pragma: no cover
-            save_embeddings2 = import_module("analysis.io").save_embeddings  # type: ignore[attr-defined]
-
-        save_embeddings2(_Path(args.out_method_embeddings), method_embeddings)  # type: ignore[arg-type]
-        logger.info("Wrote method embeddings to %s", args.out_method_embeddings)
-
-    phase2_time = 0.0 if getattr(args, "skip_embed", False) else (perf_counter() - start_phase2)
-    logger.info("Phase 2 completed in %.2fs", phase2_time)
-
-    # Phase 3: Write to Neo4j
+    # Phase 2: Write to Neo4j
     if getattr(args, "skip_db", False):
-        logger.info("Phase 3: Skipped (--skip-db)")
+        logger.info("Phase 2: Skipped (--skip-db)")
         logger.info(
             "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
             len(files_data),
-            phase1_time + phase2_time,
-            len(files_data) / max(phase1_time + phase2_time, 1e-6),
+            phase1_time,
+            len(files_data) / max(phase1_time, 1e-6),
         )
         if tmpdir:
             import shutil as _shutil
@@ -657,8 +440,8 @@ def main():
             logger.info("Cleaned up temporary repository clone")
         return
 
-    logger.info("Phase 3: Creating graph in Neo4j...")
-    start_phase3 = perf_counter()
+    logger.info("Phase 2: Creating graph in Neo4j...")
+    start_phase2 = perf_counter()
     try:
         _create_driver = import_module("src.utils.common").create_neo4j_driver  # type: ignore[attr-defined]
     except Exception:  # pragma: no cover
@@ -685,16 +468,15 @@ def main():
                 bulk_create_nodes_and_relationships(
                     session,
                     files_data,
-                    method_embeddings=method_embeddings,
                     dependency_versions=dependency_versions,
                 )
             else:
                 logger.info("No new files to process - skipping bulk creation")
 
-    phase3_time = perf_counter() - start_phase3
-    logger.info("Phase 3 completed in %.2fs", phase3_time)
+    phase2_time = perf_counter() - start_phase2
+    logger.info("Phase 2 completed in %.2fs", phase2_time)
 
-    total_time = phase1_time + phase2_time + phase3_time
+    total_time = phase1_time + phase2_time
     logger.info(
         "TOTAL: Processed %d files in %.2fs (%.2f files/sec)",
         len(files_data),
@@ -702,10 +484,9 @@ def main():
         len(files_data) / max(total_time, 1e-6),
     )
     logger.info(
-        "Phase breakdown: Extract=%.1fs, Embeddings=%.1fs, Database=%.1fs",
+        "Phase breakdown: Extract=%.1fs, Database=%.1fs",
         phase1_time,
         phase2_time,
-        phase3_time,
     )
 
     if tmpdir:

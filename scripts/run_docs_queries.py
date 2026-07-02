@@ -58,8 +58,8 @@ def main() -> None:
             "ORDER BY score DESC, file, class, method\nLIMIT 25"
         ),
         "validate_louvain": (
-            "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL\n"
-            "RETURN m.similarity_community AS community, count(*) AS members\n"
+            "MATCH (m:Method) WHERE m.calls_community IS NOT NULL\n"
+            "RETURN m.calls_community AS community, count(*) AS members\n"
             "ORDER BY members DESC, community\nLIMIT 10"
         ),
         "blast_radius": (
@@ -71,15 +71,15 @@ def main() -> None:
             "ORDER BY centrality DESC, caller_packages DESC, callers DESC\nLIMIT 25"
         ),
         "community_modules": (
-            "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL\n"
+            "MATCH (m:Method) WHERE m.calls_community IS NOT NULL\n"
             "OPTIONAL MATCH (m)<-[:CONTAINS_METHOD]-(c:Class)<-[:CONTAINS]-(p:Package)\n"
-            "WITH m.similarity_community AS community, count(*) AS members, count(DISTINCT c) AS classes, count(DISTINCT p) AS packages\n"
+            "WITH m.calls_community AS community, count(*) AS members, count(DISTINCT c) AS classes, count(DISTINCT p) AS packages\n"
             "RETURN community, members, classes, packages\n"
             "ORDER BY members DESC, packages ASC\nLIMIT 20"
         ),
         "fractured_classes": (
-            "MATCH (cls:Class)-[:CONTAINS_METHOD]->(m:Method) WHERE m.similarity_community IS NOT NULL\n"
-            "WITH cls, count(DISTINCT m.similarity_community) AS distinct_communities, count(m) AS methods, apoc.coll.toSet(collect(DISTINCT m.similarity_community))[..5] AS sample\n"
+            "MATCH (cls:Class)-[:CONTAINS_METHOD]->(m:Method) WHERE m.calls_community IS NOT NULL\n"
+            "WITH cls, count(DISTINCT m.calls_community) AS distinct_communities, count(m) AS methods, apoc.coll.toSet(collect(DISTINCT m.calls_community))[..5] AS sample\n"
             "WHERE distinct_communities >= 2\n"
             "RETURN cls.name AS class, cls.file AS file, methods, distinct_communities, sample AS communities\n"
             "ORDER BY distinct_communities DESC, methods DESC\nLIMIT 25"

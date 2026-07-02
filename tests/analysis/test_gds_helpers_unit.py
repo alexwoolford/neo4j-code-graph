@@ -6,7 +6,6 @@ from typing import Any
 
 from src.analysis.gds_helpers import (
     create_method_calls_projection,
-    create_similarity_projection,
     enrich_node_ids_with_method_details,
 )
 
@@ -67,25 +66,3 @@ def test_enrich_node_ids_with_method_details_runs_cypher():
     # Minimal behavior: returns dict with params as we implemented above
     out = enrich_node_ids_with_method_details(gds, [1, 2, 3])
     assert out["params"]["nodeIds"] == [1, 2, 3]
-
-
-def test_create_similarity_projection_calls_project_cypher():
-    class FakeProject:
-        def __init__(self):
-            # define attribute in __init__ to satisfy IDE inspector
-            self._args: tuple[str, str, str, dict[str, Any]] | None = None
-
-        def cypher(self, name: str, node_q: str, rel_q: str, parameters: dict[str, Any]):
-            self._args = (name, node_q, rel_q, parameters)
-            return object(), {"name": name, "params": parameters}
-
-    class GDSWithCypher:
-        def __init__(self):
-            self.graph = type("G", (), {})()
-            self.graph.drop = lambda name: None
-            self.graph.project = FakeProject()
-
-    gds = GDSWithCypher()
-    _, meta = create_similarity_projection(gds, threshold=0.9, graph_name="simG")
-    assert meta["name"] == "simG"
-    assert meta["params"]["threshold"] == 0.9

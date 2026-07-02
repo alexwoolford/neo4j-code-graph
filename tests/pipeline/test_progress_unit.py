@@ -37,8 +37,6 @@ class _FakeSession:
                     {"relationshipType": "CALLS", "count": 1},
                 ]
             )
-        if "MATCH (m:Method) WHERE m.embedding IS NOT NULL" in q:
-            return _FakeResultIterable([{"count": 0}])
         return _FakeResultIterable([])
 
     # Context manager API used by the code under test
@@ -75,9 +73,8 @@ def test_check_database_state_partial_statuses():
     assert state["node_types"]["File"] == 3
     assert state["rel_types"]["IMPORTS"] == 2
 
-    # Status booleans: files exist (complete — file embeddings no longer exist),
-    # 0/5 methods embedded (not started)
+    # Status booleans: files and methods exist (complete)
     assert state["files_complete"] is True
-    assert state["methods_complete"] is False
+    assert state["methods_complete"] is True
     assert state["imports_complete"] is True
     assert state["calls_partial"] is True

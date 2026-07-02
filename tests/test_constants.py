@@ -21,47 +21,21 @@ from src.constants import (
     DEFAULT_NEO4J_URI,
     DEFAULT_NEO4J_USERNAME,
     DEPENDENCY_FILES,
-    EMBEDDING_DIMENSION,
-    EMBEDDING_TYPE,
     ENV_VARS,
-    KNN_NEIGHBORS,
     LOG_FORMAT,
     MAX_FILE_SIZE_MB,
     MAX_LOG_FILE_SIZE_MB,
     MAX_RETRIES,
     MAX_WORKERS,
-    MODEL_NAME,
     NVD_API_BASE_URL,
     PAGERANK_ALPHA,
     PAGERANK_MAX_ITERATIONS,
     PIPELINE_TIMEOUT_SECONDS,
     PROGRESS_BAR_WIDTH,
-    SIMILARITY_THRESHOLD,
     STATUS_ICONS,
     SUMMARY_LINE_LENGTH,
     SUPPORTED_JAVA_EXTENSIONS,
 )
-
-
-class TestModelConfiguration:
-    """Test model-related constants."""
-
-    def test_model_name_is_valid(self):
-        """Test that model name follows expected format."""
-        assert isinstance(MODEL_NAME, str)
-        assert "/" in MODEL_NAME  # Hugging Face format: org/model
-        assert MODEL_NAME == "microsoft/unixcoder-base"
-
-    def test_embedding_type_consistency(self):
-        """Test embedding type matches model name."""
-        assert EMBEDDING_TYPE == "unixcoder"
-        assert "unixcoder" in MODEL_NAME.lower()
-
-    def test_embedding_dimension_is_valid(self):
-        """Test embedding dimension is reasonable."""
-        assert isinstance(EMBEDDING_DIMENSION, int)
-        assert EMBEDDING_DIMENSION > 0
-        assert EMBEDDING_DIMENSION == 768  # Standard transformer size
 
 
 class TestDatabaseConfiguration:
@@ -176,18 +150,6 @@ class TestGraphAnalysisConfiguration:
         assert isinstance(PAGERANK_MAX_ITERATIONS, int)
         assert 10 <= PAGERANK_MAX_ITERATIONS <= 1000
         assert PAGERANK_MAX_ITERATIONS == 100
-
-    def test_similarity_threshold_range(self):
-        """Test similarity threshold is in valid range."""
-        assert isinstance(SIMILARITY_THRESHOLD, float)
-        assert 0.0 <= SIMILARITY_THRESHOLD <= 1.0
-        assert SIMILARITY_THRESHOLD == 0.8
-
-    def test_knn_neighbors_reasonable(self):
-        """Test KNN neighbors count is reasonable."""
-        assert isinstance(KNN_NEIGHBORS, int)
-        assert 1 <= KNN_NEIGHBORS <= 100
-        assert KNN_NEIGHBORS == 5
 
 
 class TestLoggingConfiguration:
@@ -326,14 +288,6 @@ class TestConfigurationConsistency:
         max_time_with_retries = PIPELINE_TIMEOUT_SECONDS // (MAX_RETRIES + 1)
         assert max_time_with_retries >= 60  # At least 1 minute per attempt
 
-    def test_similarity_knn_relationship(self):
-        """Test similarity threshold and KNN neighbors are compatible."""
-        # High threshold with reasonable neighbor count makes sense
-        assert SIMILARITY_THRESHOLD >= 0.5  # Not too permissive
-        assert KNN_NEIGHBORS <= 20  # Not too many neighbors
-
     def test_graph_analysis_ranges(self):
         """Test graph analysis parameters are in valid ranges."""
         assert 0.5 <= PAGERANK_ALPHA <= 0.99
-        assert 0.1 <= SIMILARITY_THRESHOLD <= 0.95
-        assert 2 <= KNN_NEIGHBORS <= 50

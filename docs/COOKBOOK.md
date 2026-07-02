@@ -165,21 +165,6 @@ RETURN f.path
 ORDER BY f.path;
 ```
 
-## Method-level similarity (KNN over embeddings)
-
-```cypher
-// Methods structurally similar to a target -- 0.8 cutoff is the default
-// at write time, so any edge here is already above that.
-MATCH (target:Method {method_signature: $sig})-[r:SIMILAR]-(other:Method)
-RETURN other.class_name, other.name, r.score
-ORDER BY r.score DESC
-LIMIT 10;
-```
-
-Caveat: trivial methods (e.g. plain getters) embed near-identically across
-unrelated classes. Filter on `m.estimated_lines >= 5` if you only want
-methods with substantive bodies.
-
 ---
 
 ## What's NOT in this cookbook

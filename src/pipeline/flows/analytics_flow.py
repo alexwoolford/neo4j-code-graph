@@ -11,9 +11,7 @@ except Exception:  # pragma: no cover
 
 T_centrality_task = _dbt.centrality_task
 T_cve_task = _dbt.cve_task
-T_louvain_task = _dbt.louvain_task
 T_calls_louvain_task = _dbt.calls_louvain_task
-T_similarity_task = _dbt.similarity_task
 
 
 def run_post_ingest_analytics(
@@ -25,20 +23,6 @@ def run_post_ingest_analytics(
 ) -> None:
     logger = get_run_logger()
     if gds_available:
-        sim_state = T_similarity_task.submit(uri, username, password, database)
-        try:
-            if hasattr(sim_state, "result"):
-                sim_state.result()  # type: ignore[attr-defined]
-        except Exception:
-            pass
-
-        louv_state = T_louvain_task.submit(uri, username, password, database)
-        try:
-            if hasattr(louv_state, "result"):
-                louv_state.result()  # type: ignore[attr-defined]
-        except Exception:
-            pass
-
         cent_state = T_centrality_task.submit(uri, username, password, database)
         try:
             if hasattr(cent_state, "result"):
@@ -53,7 +37,7 @@ def run_post_ingest_analytics(
         except Exception:
             pass
     else:
-        logger.warning("GDS not available; skipping similarity, Louvain, and centrality stages")
+        logger.warning("GDS not available; skipping centrality and Louvain stages")
 
     cve_state = T_cve_task.submit(uri, username, password, database)
     try:

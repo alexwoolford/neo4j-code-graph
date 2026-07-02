@@ -32,17 +32,10 @@ def test_flow_respects_cleanup_flag_and_calls_in_order(monkeypatch, tmp_path):
         ),
     )
     monkeypatch.setattr(pf, "extract_code_task", rec("extract_code"))
-    monkeypatch.setattr(pf, "embed_methods_task", rec("embed_methods"))
     monkeypatch.setattr(pf, "write_graph_task", rec("write_graph"))
     monkeypatch.setattr(pf, "cleanup_artifacts_task", rec("cleanup_artifacts"))
     monkeypatch.setattr(pf, "git_history_task", rec("git_history"))
     monkeypatch.setattr(pf, "coupling_task", rec("coupling"))
-    monkeypatch.setattr(
-        pf, "similarity_task", type("T2", (), {"submit": staticmethod(lambda *a, **k: "sim_state")})
-    )
-    monkeypatch.setattr(
-        pf, "louvain_task", type("T3", (), {"submit": staticmethod(lambda *a, **k: "louv_state")})
-    )
     monkeypatch.setattr(
         pf,
         "centrality_task",
@@ -70,7 +63,6 @@ def test_flow_respects_cleanup_flag_and_calls_in_order(monkeypatch, tmp_path):
     expected_order = [
         "setup_schema",
         "extract_code",
-        "embed_methods",
         "write_graph",
         "cleanup_artifacts",
         "git_history",

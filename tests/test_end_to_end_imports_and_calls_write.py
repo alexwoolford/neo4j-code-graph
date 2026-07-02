@@ -126,11 +126,8 @@ def test_write_imports_and_calls_end_to_end():
             session.run("MATCH (n) DETACH DELETE n").consume()
 
             create_directories(session, files_data)
-            # Provide minimal dummy embeddings required by writers
-            method_embeddings = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
-
             create_files(session, files_data)
-            create_methods(session, files_data, method_embeddings=method_embeddings)
+            create_methods(session, files_data)
             create_imports(session, files_data)
             create_method_calls(session, files_data)
 

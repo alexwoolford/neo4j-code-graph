@@ -14,10 +14,9 @@ except Exception:  # pragma: no cover
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Java code structure and embeddings loader")
+    parser = argparse.ArgumentParser(description="Java code structure loader")
     add_common_args(parser)
     parser.add_argument("repo_url", help="Git repository URL or local path to analyze")
-    parser.add_argument("--batch-size", type=int, help="Override automatic batch size selection")
     parser.add_argument(
         "--parallel-files",
         type=int,
@@ -25,35 +24,13 @@ def parse_args() -> argparse.Namespace:
         help="Number of files to process in parallel",
     )
     parser.add_argument(
-        "--force-reprocess",
-        action="store_true",
-        help="Force reprocessing of all files even if they exist in database",
-    )
-    parser.add_argument(
         "--skip-db",
         action="store_true",
-        help="Skip database writes (extract + embeddings only) for benchmarking",
-    )
-    parser.add_argument(
-        "--skip-embed",
-        action="store_true",
-        help="Skip embedding computation (extract only) for benchmarking",
-    )
-    parser.add_argument(
-        "--embed-target",
-        choices=["methods"],
-        default="methods",
-        help="Which embeddings to compute (only method embeddings are supported)",
+        help="Skip database writes (extract only) for benchmarking",
     )
     # Artifact inputs/outputs to enable granular pipeline tasks
     parser.add_argument("--out-files-data", help="Write extracted files data JSON to this path")
     parser.add_argument("--in-files-data", help="Read extracted files data JSON from this path")
-    parser.add_argument(
-        "--out-method-embeddings", help="Write method embeddings (NPZ) to this path"
-    )
-    parser.add_argument(
-        "--in-method-embeddings", help="Read method embeddings (NPZ) from this path"
-    )
     parser.add_argument(
         "--out-dependencies", help="Write extracted dependency versions JSON to this path"
     )

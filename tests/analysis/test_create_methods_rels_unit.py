@@ -46,7 +46,7 @@ def test_create_methods_relationship_cypher_shapes():
         }
     ]
     s = _FakeSession()
-    create_methods(s, files_data, method_embeddings=[])
+    create_methods(s, files_data)
     joined = "\n".join(s.calls)
     # Method-File rel
     assert "MATCH (f:File {path: rel.file_path})" in joined

@@ -25,7 +25,7 @@ def _write(p: Path, content: str) -> None:
     p.write_text(content, encoding="utf-8")
 
 
-def test_light_code_to_graph_pipeline_without_embeddings(tmp_path: Path) -> None:
+def test_light_code_to_graph_pipeline(tmp_path: Path) -> None:
     # Small Java repo
     repo = tmp_path / "tiny"
     repo.mkdir()
@@ -36,7 +36,6 @@ def test_light_code_to_graph_pipeline_without_embeddings(tmp_path: Path) -> None
         bulk_create_nodes_and_relationships,
         extract_file_data,
     )
-    from src.constants import EMBEDDING_DIMENSION
     from src.data.schema_management import setup_complete_schema
 
     driver, database = _get_driver_or_skip()
@@ -54,15 +53,8 @@ def test_light_code_to_graph_pipeline_without_embeddings(tmp_path: Path) -> None
                 if fd:
                     files_data.append(fd)
 
-            # Create dummy embeddings (zeros) to avoid heavy model
-            method_embeddings = [
-                [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
-            ]
-
             # Write to DB
-            bulk_create_nodes_and_relationships(
-                session, files_data, method_embeddings=method_embeddings, dependency_versions={}
-            )
+            bulk_create_nodes_and_relationships(session, files_data, dependency_versions={})
 
             # Assertions on graph contents
             single = session.run("MATCH (f:File) RETURN count(f) as c").single()

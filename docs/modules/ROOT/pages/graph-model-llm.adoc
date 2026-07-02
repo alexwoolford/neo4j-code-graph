@@ -63,7 +63,6 @@ Composed patterns to reuse:
     {"type": "CONTAINS", "from": "Directory", "to": "Directory"},
     {"type": "CONTAINS", "from": "Directory", "to": "File"},
     {"type": "CO_CHANGED", "from": "File", "to": "File", "properties": ["support", "confidence"]},
-    {"type": "SIMILAR", "from": "Method", "to": "Method", "properties": ["score"]},
     {"type": "CALLS", "from": "Method", "to": "Method"}
   ],
   "canonical_chains": [
@@ -95,9 +94,4 @@ ORDER BY date DESC LIMIT 20;
 MATCH (cve:CVE {id: $cveId})-[:AFFECTS]->(dep:ExternalDependency)
 MATCH (dep)<-[:DEPENDS_ON]-(i:Import)<-[:IMPORTS]-(f:File)
 RETURN f.path AS file, dep.package AS package;
-
-// Similar methods (SIMILAR edges are directed but represent similarity)
-MATCH (m:Method {method_signature: $sig})-[:SIMILAR]->(n:Method)
-RETURN n.method_signature AS candidate, n.name AS name, n.class_name AS class_name
-ORDER BY coalesce(m.score, 0.0) DESC LIMIT 10;
 ----

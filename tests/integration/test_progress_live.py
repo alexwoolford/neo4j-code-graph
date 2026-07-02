@@ -80,7 +80,6 @@ def test_progress_flags_after_bulk_live():
             bulk_create_nodes_and_relationships(
                 s,
                 files_data,
-                method_embeddings=[],
                 dependency_versions={
                     "org.example.lib": "1.0.0",
                     "org.example.lib:lib-api:1.0.0": "1.0.0",
@@ -88,6 +87,5 @@ def test_progress_flags_after_bulk_live():
             )
 
         state = check_database_state(driver, database)
-        # Files/methods embeddings are optional in this test data, so expect partial flags
         assert state["imports_complete"] is True
         assert state["calls_partial"] in (False, True)  # may be False if no calls in this dataset

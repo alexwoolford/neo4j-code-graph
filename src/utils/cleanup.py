@@ -2,8 +2,8 @@
 """
 Cleanup script to remove analysis results or perform complete database reset.
 
-Default behavior: Remove SIMILAR relationships and community properties
-before re-running similarity and community detection algorithms.
+Default behavior: Drop lingering GDS graph projections before re-running
+analytics stages.
 
 Complete reset: Delete all nodes, relationships, indexes, and constraints
 for a fresh start (use --complete flag).
@@ -61,84 +61,6 @@ def parse_args():
 from neo4j import Session
 
 
-def cleanup_similarities(session: Session, dry_run: bool = False) -> int:
-    """Remove SIMILAR relationships.
-
-    Returns the number of relationships found before deletion (0 for dry run).
-    """
-    # Count existing relationships (undirected to be robust)
-    result = session.run("MATCH ()-[r:SIMILAR]-() RETURN count(r) as count")
-    single = result.single()
-    count = int(single["count"]) if single and "count" in single else 0
-
-    if count == 0:
-        logger.info("No SIMILAR relationships found")
-        return 0
-
-    logger.info("Found %d SIMILAR relationships", count)
-
-    if dry_run:
-        logger.info("[DRY RUN] Would delete %d SIMILAR relationships", count)
-        return 0
-
-    # Aggressive batched deletion loop using simple LIMIT pattern within a write tx
-    batch_size = 50000
-
-    def _batch_delete(tx) -> int:
-        rec = tx.run(
-            (
-                "MATCH ()-[r:SIMILAR]-() "
-                "WITH collect(r)[..$limit] AS rels "
-                "FOREACH (rel IN rels | DELETE rel) "
-                "RETURN size(rels) AS deleted"
-            ),
-            {"limit": batch_size},
-        ).single()
-        return int(rec["deleted"]) if rec and "deleted" in rec else 0
-
-    while True:
-        deleted = session.execute_write(_batch_delete)
-        if deleted == 0:
-            break
-
-    logger.info("Deleted SIMILAR relationships")
-    return count
-
-
-def cleanup_communities(
-    session: Session, community_property: str = "similarity_community", dry_run: bool = False
-) -> None:
-    """Remove community properties from Method nodes."""
-    # Count nodes with community property (static property name for strict typing)
-    result = session.run(
-        "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL RETURN count(m) as count"
-    )
-    single = result.single()
-    count = int(single["count"]) if single and "count" in single else 0
-
-    if count == 0:
-        logger.info("No nodes found with %s property", community_property)
-        return
-
-    logger.info("Found %d Method nodes with %s property", count, community_property)
-
-    if dry_run:
-        logger.info(
-            "[DRY RUN] Would remove %s property from %d nodes",
-            community_property,
-            count,
-        )
-    else:
-
-        def _remove_prop(tx):
-            tx.run(
-                "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL REMOVE m.similarity_community"
-            ).consume()
-
-        session.execute_write(_remove_prop)
-        logger.info("Removed %s property from %d Method nodes", community_property, count)
-
-
 def cleanup_graph_projections(session: Session, dry_run: bool = False) -> None:
     """Remove any lingering GDS graph projections using proper GDS Python client."""
     try:
@@ -179,41 +101,14 @@ def cleanup_graph_projections(session: Session, dry_run: bool = False) -> None:
         logger.warning("Could not check GDS graph projections: %s", e)
 
 
-def cleanup_vector_index(session: Session, dry_run: bool = False) -> None:
-    """Check vector index status but don't remove it (embeddings are expensive!)."""
-    try:
-        result = session.run("SHOW VECTOR INDEXES")
-        indexes = list(result)
-
-        if indexes:
-            logger.info(
-                "Found %d vector indexes (keeping them - embeddings are expensive!)",
-                len(indexes),
-            )
-            for record in indexes:
-                logger.info(
-                    "  - %s on %s",
-                    record.get("name", "unnamed"),
-                    record.get("labelsOrTypes", ""),
-                )
-        else:
-            logger.info("No vector indexes found")
-
-    except Exception as e:
-        logger.warning("Could not check vector indexes: %s", e)
-
-
 def selective_cleanup(session: Session, dry_run: bool = False) -> None:
     """
-    Remove analysis artifacts only (SIMILAR relationships, community properties, GDS graphs).
+    Remove analysis artifacts only (lingering GDS graph projections).
 
-    This is safe to run before re-computing similarity/community stages and is idempotent.
+    This is safe to run before re-computing analytics stages and is idempotent.
     """
     logger.info("Starting selective cleanup%s...", " (DRY RUN)" if dry_run else "")
-    cleanup_similarities(session, dry_run)
-    cleanup_communities(session, "similarity_community", dry_run)
     cleanup_graph_projections(session, dry_run)
-    cleanup_vector_index(session, dry_run)
     logger.info("Selective cleanup completed%s", " (DRY RUN)" if dry_run else "")
 
 
@@ -373,24 +268,6 @@ def complete_database_reset(session: Session, dry_run: bool = False) -> None:
         logger.info("⏳ Dropping managed schema (constraints/indexes) created by this project...")
         _drop_schema(session)
 
-    # Also drop any vector indexes created for embeddings (discovered dynamically)
-    try:
-        vidx = session.run("SHOW VECTOR INDEXES")
-        for rec in vidx:
-            name = rec.get("name")
-            if name:
-                try:
-                    session.run(f"DROP VECTOR INDEX {name} IF EXISTS").consume()
-                    logger.info("  ✅ Dropped vector index %s", name)
-                except Exception:
-                    try:
-                        session.run(f"DROP INDEX {name} IF EXISTS").consume()
-                        logger.info("  ✅ Dropped index %s", name)
-                    except Exception as e2:
-                        logger.debug("  ⚠️  Could not drop vector index %s: %s", name, e2)
-    except Exception:
-        pass
-
     # Final verification with retry to avoid any transactional visibility edge cases
     attempts = 0
     final_count = -1
@@ -505,17 +382,8 @@ def main():
                     # Selective cleanup (default behavior)
                     logger.info("Starting cleanup%s...", " (DRY RUN)" if args.dry_run else "")
 
-                    # Clean up similarities
-                    cleanup_similarities(session, args.dry_run)
-
-                    # Clean up community properties
-                    cleanup_communities(session, "similarity_community", args.dry_run)
-
                     # Clean up GDS graph projections
                     cleanup_graph_projections(session, args.dry_run)
-
-                    # Check vector indexes (but don't remove)
-                    cleanup_vector_index(session, args.dry_run)
 
                     logger.info("Cleanup completed%s", " (DRY RUN)" if args.dry_run else "")
     except Exception as e:

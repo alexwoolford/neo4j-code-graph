@@ -35,31 +35,6 @@ def _require_gds(session):
 
 
 @pytest.mark.integration
-def test_gds_empty_projection_similarity():
-    driver, session = _get_session_or_skip()
-    try:
-        _require_gds(session)
-        # Empty in-memory graph projection for similarity-like topology
-        # Use a projection that always yields at least one node to satisfy GDS
-        session.run(
-            "CALL gds.graph.project.cypher(\n"
-            "  $name,\n"
-            "  'OPTIONAL MATCH (m:Method) WITH coalesce(id(m), 0) AS id RETURN id LIMIT 1',\n"
-            "  'RETURN null AS source, null AS target LIMIT 0'\n"
-            ")",
-            name="similarityTest",
-        ).consume()
-        # Drop graph (no-op if not created)
-        session.run(
-            "CALL gds.graph.drop($name, false) YIELD graphName RETURN graphName",
-            name="similarityTest",
-        ).consume()
-    finally:
-        session.close()
-        driver.close()
-
-
-@pytest.mark.integration
 def test_gds_empty_projection_centrality():
     driver, session = _get_session_or_skip()
     try:

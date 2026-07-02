@@ -36,11 +36,13 @@ def get_database_batch_size(
 ) -> int:
     """Choose an appropriate batch size for Neo4j writes.
 
-    - Smaller batches when embeddings are present or data is large
+    - Smaller batches for large per-record payloads
     - Larger batches for simple operations
+
+    The ``has_embeddings`` flag is retained for signature compatibility and
+    selects the smallest batch size for very large per-record payloads.
     """
     if has_embeddings:
-        # Embeddings payloads are large; prefer smaller batches to avoid memory pressure
         return 250
     if estimated_size_mb and estimated_size_mb > 1:
         return 500

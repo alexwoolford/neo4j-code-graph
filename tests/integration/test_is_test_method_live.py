@@ -71,7 +71,7 @@ def test_is_test_method_tagged_from_canonical_test_path(tmp_path: Path) -> None:
                 fd = extract_file_data(p, repo)
                 if fd:
                     files_data.append(fd)
-            bulk_create_nodes_and_relationships(s, files_data, method_embeddings=[])
+            bulk_create_nodes_and_relationships(s, files_data)
 
             r = s.run(
                 """

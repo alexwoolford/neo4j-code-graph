@@ -80,11 +80,9 @@ def test_pipeline_live_with_maven_pom(tmp_path: Path):
 
             dep_versions = extract_enhanced_dependencies_for_neo4j(repo)
 
-            # No embeddings provided (current DAG defaults) but we pass empty arrays for API shape
             bulk_create_nodes_and_relationships(
                 session,
                 files_data,
-                method_embeddings=[],
                 dependency_versions=dep_versions,
             )
 

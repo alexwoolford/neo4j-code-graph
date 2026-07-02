@@ -25,14 +25,12 @@ try:
     from src.pipeline.tasks.code_tasks import (  # type: ignore  # noqa: F401
         cleanup_artifacts_task,
         clone_repo_task,
-        embed_methods_task,
         extract_code_task,
     )
 except Exception:  # pragma: no cover
     from pipeline.tasks.code_tasks import (  # type: ignore  # noqa: F401
         cleanup_artifacts_task,
         clone_repo_task,
-        embed_methods_task,
         extract_code_task,
     )
 
@@ -47,9 +45,7 @@ centrality_task = _db_tasks.centrality_task  # type: ignore[attr-defined]
 coupling_task = _db_tasks.coupling_task  # type: ignore[attr-defined]
 cve_task = _db_tasks.cve_task  # type: ignore[attr-defined]
 git_history_task = _db_tasks.git_history_task  # type: ignore[attr-defined]
-louvain_task = _db_tasks.louvain_task  # type: ignore[attr-defined]
 setup_schema_task = _db_tasks.setup_schema_task  # type: ignore[attr-defined]
-similarity_task = _db_tasks.similarity_task  # type: ignore[attr-defined]
 write_graph_task = _db_tasks.write_graph_task  # type: ignore[attr-defined]
 selective_cleanup_task = _db_tasks.selective_cleanup_task  # type: ignore[attr-defined]
 
@@ -67,15 +63,12 @@ __all__ = [
     "cleanup_task",
     "git_history_task",
     "write_graph_task",
-    "similarity_task",
-    "louvain_task",
     "centrality_task",
     "cve_task",
     "coupling_task",
     # Code tasks
     "clone_repo_task",
     "extract_code_task",
-    "embed_methods_task",
     "cleanup_artifacts_task",
 ]
 
@@ -136,7 +129,6 @@ def code_graph_flow(
 
     if _os.getenv("RESOLVE_BUILD_DEPS", "false").lower() in {"1", "true", "yes"}:
         resolve_build_dependencies_task(repo_path, artifacts_dir)
-    embed_methods_task(repo_path, artifacts_dir)
     write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
     cleanup_artifacts_task(artifacts_dir)
 
@@ -147,8 +139,6 @@ def code_graph_flow(
     coupling_task(uri, username, password, database, days=coupling_days)
 
     # Analytics (submit/async-compatible)
-    similarity_task.submit(uri, username, password, database)
-    louvain_task.submit(uri, username, password, database)
     centrality_task.submit(uri, username, password, database)
     cve_task.submit(uri, username, password, database)
 

@@ -44,7 +44,6 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
         bulk_create_nodes_and_relationships,
         extract_file_data,
     )
-    from src.constants import EMBEDDING_DIMENSION, EMBEDDING_PROPERTY
     from src.data.schema_management import setup_complete_schema
 
     driver, database = _get_driver_or_skip()
@@ -62,72 +61,14 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
                 if fd:
                     files_data.append(fd)
 
-            # Zero embeddings for smoke
-            method_embeddings = [
-                [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
-            ]
-
             # Load graph with explicit dependency versions (strict policy: version required)
             bulk_create_nodes_and_relationships(
                 session,
                 files_data,
-                method_embeddings=method_embeddings,
                 dependency_versions={
                     "com.fasterxml.jackson.core:jackson-databind:2.15.0": "2.15.0"
                 },
             )
-
-            # Quick GDS kNN on existing embeddings (vector index required)
-            session.run(
-                f"""
-            CREATE VECTOR INDEX method_embeddings_smoke IF NOT EXISTS
-            FOR (m:Method) ON (m.{EMBEDDING_PROPERTY})
-            OPTIONS {{indexConfig: {{
-              `vector.dimensions`: {EMBEDDING_DIMENSION},
-              `vector.similarity_function`: 'cosine'
-            }}}}
-            """
-            ).consume()
-            # Await all indexes to be online (name may differ if an equivalent exists)
-            session.run("CALL db.awaitIndexes()").consume()
-            session.run(
-                """
-            CALL gds.graph.exists('pipeGraph') YIELD exists
-            WITH exists
-            WHERE exists
-            CALL gds.graph.drop('pipeGraph') YIELD graphName
-            RETURN graphName
-            """
-            ).consume()
-            session.run(
-                """
-            CALL gds.graph.project(
-              'pipeGraph',
-              ['Method'],
-              { DECLARES: { type: 'DECLARES', orientation: 'UNDIRECTED' } },
-              { nodeProperties: [$prop] }
-            )
-            """,
-                prop=EMBEDDING_PROPERTY,
-            ).consume()
-            session.run(
-                """
-            CALL gds.knn.write('pipeGraph', {
-              nodeProperties:$propList, topK:1, similarityCutoff:0.0,
-              writeRelationshipType:'SIMILAR', writeProperty:'score'
-            })
-            """,
-                propList=[EMBEDDING_PROPERTY],
-            ).consume()
-            session.run(
-                """
-            CALL gds.graph.exists('pipeGraph') YIELD exists
-            WITH exists
-            WHERE exists
-            CALL gds.graph.drop('pipeGraph') YIELD graphName
-            RETURN graphName
-            """
-            ).consume()
 
             # Assertions: basic pipeline outputs
             rec = session.run("MATCH (:File) RETURN count(*) AS c").single()
@@ -147,14 +88,12 @@ def test_pipeline_smoke_live(tmp_path: Path) -> None:
                 "MATCH (:Import {import_path:'com.fasterxml.jackson.databind.ObjectMapper'})-[:DEPENDS_ON]->(e:ExternalDependency) RETURN count(e) AS c"
             ).single()
             assert rec and int(rec["c"]) >= 1
-            # SIMILAR may be zero with trivial equal embeddings, but ensure query runs and community write works
-            session.run("MATCH ()-[r:SIMILAR]->() RETURN count(r) AS c").single()
-            # Build similarity graph and run Louvain write to ensure property is set when relationships exist
+            # Build a CALLS graph and run Louvain write to ensure property is set when relationships exist
             session.run(
-                "CALL gds.graph.project('pipeComm', ['Method'], { SIMILAR: { type: 'SIMILAR', orientation: 'UNDIRECTED' } })"
+                "CALL gds.graph.project('pipeComm', ['Method'], { CALLS: { type: 'CALLS', orientation: 'UNDIRECTED' } })"
             ).consume()
             session.run(
-                "CALL gds.louvain.write('pipeComm', {writeProperty:'similarity_community'})"
+                "CALL gds.louvain.write('pipeComm', {writeProperty:'calls_community'})"
             ).consume()
             session.run(
                 "CALL gds.graph.drop('pipeComm', false) YIELD graphName RETURN graphName"

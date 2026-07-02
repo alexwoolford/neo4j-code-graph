@@ -73,7 +73,7 @@ def test_parameters_created_and_linked_with_package_resolution():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
 
             # Two parameters created with correct indices
             rec = s.run(
@@ -149,7 +149,7 @@ def test_parameter_type_ambiguous_does_not_link():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
 
             # Parameter exists
             rec = s.run(
@@ -225,7 +225,7 @@ def test_value_query_public_api_exposes_internal_types():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
 
             # Query: Public API methods whose parameter type is in internal package
             q = (
@@ -274,7 +274,7 @@ def test_value_query_public_api_exposes_internal_types():
                     ],
                 }
             ]
-            create_methods(s, files_data2, method_embeddings=[])
+            create_methods(s, files_data2)
             rec = s.run(
                 "MATCH (:Method {method_signature:'com.app.api.Controller#mk():void'})-[:CREATES]->(:Class {name:'Model', package:'com.app.internal'}) RETURN count(*) AS c"
             ).single()
@@ -331,7 +331,7 @@ def test_constructor_ambiguous_does_not_create():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
 
             rec = s.run(
                 "MATCH (:Method {method_signature:'Q#m():void'})-[:CREATES]->(:Class {name:'Z'}) RETURN count(*) AS c"

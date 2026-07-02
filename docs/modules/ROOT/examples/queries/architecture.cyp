@@ -34,11 +34,11 @@ LIMIT 25
 // end::top_central_methods[]
 
 // tag::validate_louvain_writeback[]
-// Validate Louvain write-back on similarity communities (if previously run)
+// Validate Louvain write-back on call-graph communities (if previously run)
 MATCH (m:Method)
-WHERE m.similarity_community IS NOT NULL
-RETURN m.similarity_community AS community,
-       count(*)               AS members
+WHERE m.calls_community IS NOT NULL
+RETURN m.calls_community AS community,
+       count(*)          AS members
 ORDER BY members DESC, community
 LIMIT 10
 // end::validate_louvain_writeback[]
@@ -62,12 +62,12 @@ LIMIT 25
 // end::high_blast_radius_methods[]
 
 // tag::community_modules_summary[]
-// Candidate modules from similarity communities
+// Candidate modules from call-graph communities
 // Value: reveal cohesive clusters that can map to modules or ownership boundaries.
 MATCH (m:Method)
-WHERE m.similarity_community IS NOT NULL
+WHERE m.calls_community IS NOT NULL
 OPTIONAL MATCH (m)<-[:CONTAINS_METHOD]-(c:Class)<-[:CONTAINS]-(p:Package)
-WITH m.similarity_community AS community,
+WITH m.calls_community AS community,
      count(*)               AS members,
      count(DISTINCT c)      AS classes,
      count(DISTINCT p)      AS packages
@@ -80,11 +80,11 @@ LIMIT 20
 // Classes whose methods span multiple communities (potential split/refactor candidates)
 // Value: identify units where responsibilities are mixed across unrelated clusters.
 MATCH (cls:Class)-[:CONTAINS_METHOD]->(m:Method)
-WHERE m.similarity_community IS NOT NULL
+WHERE m.calls_community IS NOT NULL
 WITH cls,
-     count(DISTINCT m.similarity_community) AS distinct_communities,
+     count(DISTINCT m.calls_community) AS distinct_communities,
      count(m) AS methods,
-     apoc.coll.toSet(collect(DISTINCT m.similarity_community))[..5] AS sample
+     apoc.coll.toSet(collect(DISTINCT m.calls_community))[..5] AS sample
 WHERE distinct_communities >= 2
 RETURN cls.name AS class,
        cls.file AS file,

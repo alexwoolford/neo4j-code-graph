@@ -53,29 +53,3 @@ def enrich_node_ids_with_method_details(gds: Any, node_ids: list[int]) -> Any:
 
 
 __all__.append("enrich_node_ids_with_method_details")
-
-
-def create_similarity_projection(
-    gds: Any, threshold: float = 0.8, graph_name: str = "similarityGraph"
-) -> tuple[Any, Any]:
-    """Create a projection over SIMILAR relationships with score threshold.
-
-    Returns (graph, meta) from project.cypher
-    """
-    try:
-        gds.graph.drop(graph_name)
-    except Exception:
-        pass
-
-    node_query = "MATCH (m:Method) RETURN id(m) AS id"
-    rel_query = (
-        "MATCH (m1:Method)-[s:SIMILAR]->(m2:Method) "
-        "WHERE s.score >= $threshold "
-        "RETURN id(m1) AS source, id(m2) AS target, s.score AS score"
-    )
-    return gds.graph.project.cypher(
-        graph_name, node_query, rel_query, parameters={"threshold": threshold}
-    )
-
-
-__all__.append("create_similarity_projection")

@@ -25,10 +25,8 @@ from neo4j import READ_ACCESS, Driver
 
 # Reuse shared connection helpers and config discovery
 try:
-    from constants import EMBEDDING_PROPERTY
     from utils.common import add_common_args, create_neo4j_driver
 except Exception:  # repo-relative execution
-    from src.constants import EMBEDDING_PROPERTY  # type: ignore
     from src.utils.common import add_common_args, create_neo4j_driver  # type: ignore
 
 
@@ -43,8 +41,6 @@ KNOWN_DESCRIPTIONS: dict[str, dict[str, str]] = {
     "File": {
         "path": "Repository-relative file path (unique).",
         "name": "File name (basename).",
-        EMBEDDING_PROPERTY: "Vector embedding for file content (if generated).",
-        "embedding_type": "Embedding model tag used to produce the vector.",
         "language": "Primary language detected for the file (e.g., java).",
         "ecosystem": "Build ecosystem (e.g., maven).",
         "total_lines": "Total number of lines in the file.",
@@ -73,15 +69,13 @@ KNOWN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "is_public": "True if the method is public.",
         "return_type": "Declared return type.",
         "modifiers": "List of Java modifiers present on the method.",
-        EMBEDDING_PROPERTY: "Vector embedding for method body (if generated).",
-        "embedding_type": "Embedding model tag used to produce the vector.",
         # Derived metrics (optional)
         "pagerank_score": "PageRank centrality score on the call graph.",
         "betweenness_score": "Betweenness centrality score on the call graph.",
         "in_degree": "Number of distinct incoming CALLS.",
         "out_degree": "Number of distinct outgoing CALLS.",
         "total_degree": "Sum of in_degree and out_degree.",
-        "similarity_community": "Community id from similarity clustering (Louvain).",
+        "calls_community": "Community id from Louvain over the CALLS graph.",
     },
     "Class": {
         "name": "Class name (unique with file).",
@@ -149,9 +143,6 @@ def _infer_description(label: str, prop: str) -> str:
     label_map = descriptions.get(label, {})
     if prop in label_map:
         return label_map[prop]
-    # Fallbacks for common dynamic/derived properties
-    if prop.startswith("embedding_"):
-        return "Vector embedding written by the embedding stage."
     return "Derived or auxiliary property written by specific stages."
 
 

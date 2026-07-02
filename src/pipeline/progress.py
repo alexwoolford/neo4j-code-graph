@@ -80,14 +80,8 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
         total_files = int(node_types.get("File", 0))
         print(f"  Files: {total_files:,}")
 
-        # Methods with embeddings
-        result = session.run(
-            "MATCH (m:Method) WHERE m.embedding IS NOT NULL RETURN count(m) as count"
-        )
-        single = result.single()
-        methods_with_embeddings = int(single["count"]) if single and "count" in single else 0
         total_methods = int(node_types.get("Method", 0))
-        print(f"  Methods with embeddings: {methods_with_embeddings:,} / {total_methods:,}")
+        print(f"  Methods: {total_methods:,}")
 
         # Import relationships
         imports_count = int(rel_types.get("IMPORTS", 0))
@@ -105,10 +99,8 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
         else:
             print("  ❌ File processing: NOT STARTED")
 
-        if 0 < total_methods == methods_with_embeddings:
+        if total_methods > 0:
             print("  ✅ Method processing: COMPLETE")
-        elif total_methods > 0:
-            print(f"  ⚠️  Method processing: PARTIAL ({methods_with_embeddings}/{total_methods})")
         else:
             print("  ❌ Method processing: NOT STARTED")
 
@@ -128,7 +120,7 @@ def check_database_state(driver: Any, database: str) -> dict[str, Any]:
             "total_nodes": total_nodes,
             "total_rels": total_rels,
             "files_complete": total_files > 0,
-            "methods_complete": 0 < total_methods == methods_with_embeddings,
+            "methods_complete": total_methods > 0,
             "imports_complete": imports_count > 0,
             "calls_partial": calls_count > 0,
         }
@@ -148,7 +140,7 @@ def main() -> None:
 
         print("\n💡 RECOMMENDATIONS:")
         if state["files_complete"] and state["methods_complete"] and state["imports_complete"]:
-            print("  🚀 Ready for: similarity analysis, CVE analysis, etc.")
+            print("  🚀 Ready for: centrality analysis, CVE analysis, etc.")
         else:
             print("  ⚠️  Consider re-running: code-graph-code-to-graph <repo-path>")
 

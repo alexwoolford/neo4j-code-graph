@@ -10,7 +10,6 @@ from prefect import get_run_logger, task
 try:
     _centrality = import_module("src.analysis.centrality")
     _git_analysis = import_module("src.analysis.git_analysis")
-    _similarity = import_module("src.analysis.similarity")
     _temporal = import_module("src.analysis.temporal_analysis")
     _schema = import_module("src.data.schema_management")
     _cve = import_module("src.security.cve_analysis")
@@ -18,7 +17,6 @@ try:
 except Exception:  # pragma: no cover - installed package execution path
     _centrality = import_module("analysis.centrality")
     _git_analysis = import_module("analysis.git_analysis")
-    _similarity = import_module("analysis.similarity")
     _temporal = import_module("analysis.temporal_analysis")
     _schema = import_module("data.schema_management")
     _cve = import_module("security.cve_analysis")
@@ -33,9 +31,6 @@ cent_betweenness = _centrality.run_betweenness_analysis
 cent_degree = _centrality.run_degree_analysis
 cent_pagerank = _centrality.run_pagerank_analysis
 load_history = _git_analysis.load_history
-sim_create_index = _similarity.create_index
-sim_run_knn = _similarity.run_knn
-sim_run_louvain = _similarity.run_louvain
 run_coupling = _temporal.run_coupling
 setup_complete_schema = _schema.setup_complete_schema
 CVEAnalyzer = _cve.CVEAnalyzer
@@ -93,7 +88,7 @@ def _should_run_gds(
                 )
                 return False
             if not projection_ok:
-                # Proceed: tasks have their own guards (embedding/CALLS checks). Probe can be flaky on empty graphs.
+                # Proceed: tasks have their own guards (CALLS checks). Probe can be flaky on empty graphs.
                 logger.info(
                     "GDS available but projection probe failed; proceeding with GDS tasks; task-level guards apply"
                 )
@@ -136,7 +131,7 @@ def selective_cleanup_task(
         logger = get_run_logger()
     except Exception:
         logger = logging.getLogger(__name__)
-    logger.info("Selective cleanup before similarity/community stages...")
+    logger.info("Selective cleanup before analytics stages...")
     try:
         from src.utils.cleanup import selective_cleanup as _sel  # type: ignore
     except Exception:  # pragma: no cover
@@ -164,21 +159,17 @@ def write_graph_task(
         logger = get_run_logger()
     except Exception:
         logger = logging.getLogger(__name__)
-    logger.info("Writing extracted data and embeddings to Neo4j from %s", artifacts_dir)
+    logger.info("Writing extracted data to Neo4j from %s", artifacts_dir)
     in_files = str(Path(artifacts_dir) / "files_data.json")
     in_deps = str(Path(artifacts_dir) / "dependencies.json")
-    in_method_emb = str(Path(artifacts_dir) / "method_embeddings.npy")
 
     base = [
         "prog",
         repo_path,
-        "--skip-embed",
         "--in-files-data",
         in_files,
         "--in-dependencies",
         in_deps,
-        "--in-method-embeddings",
-        in_method_emb,
     ]
     overrides: dict[str, object] = {}
     if uri:
@@ -226,26 +217,6 @@ def write_graph_task(
     except Exception:
         pass
 
-    try:
-        from graphdatascience import GraphDataScience as _GDS  # type: ignore
-
-        _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
-        try:
-            _constants = import_module("src.constants")
-        except Exception:  # pragma: no cover
-            _constants = import_module("constants")
-        _emb_name = _constants.EMBEDDING_PROPERTY
-
-        gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
-        df = gds.run_cypher(
-            f"MATCH (m:Method) WHERE m.{_emb_name} IS NOT NULL RETURN count(m) AS c"
-        )
-        count = int(df.iloc[0]["c"]) if not df.empty else 0
-        logger.info("Methods with embeddings (%s): %d", _emb_name, count)
-        gds.close()
-    except Exception:
-        pass
-
 
 @task(retries=1)
 def git_history_task(
@@ -277,79 +248,6 @@ def git_history_task(
         skip_file_changes=False,  # Fixed: optimized relationship creation to avoid O(n²) performance
         file_changes_only=False,
     )
-
-
-@task(retries=1)
-def similarity_task(
-    uri: str | None, username: str | None, password: str | None, database: str | None
-) -> None:
-    try:
-        logger = get_run_logger()
-    except Exception:
-        logger = logging.getLogger(__name__)
-    logger.info("Running similarity (kNN + optional Louvain)")
-    if not _should_run_gds(uri, username, password, database, logger):
-        return
-    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
-    from graphdatascience import GraphDataScience as _GDS  # type: ignore
-
-    gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
-    try:
-        gds.run_cypher("RETURN 1")
-        sim_create_index(gds)
-        # Guard: only run when nodes with embeddings exist
-        try:
-            _constants = import_module("src.constants")
-        except Exception:  # pragma: no cover
-            _constants = import_module("constants")
-        _emb_name = _constants.EMBEDDING_PROPERTY
-
-        df = gds.run_cypher(
-            f"MATCH (m:Method) WHERE m.{_emb_name} IS NOT NULL RETURN count(m) AS c"
-        )
-        count = int(df.iloc[0]["c"]) if not df.empty else 0
-        if count == 0:
-            logger.info("No methods with embeddings present; skipping kNN")
-            return
-        sim_run_knn(gds, top_k=5, cutoff=0.8)
-    finally:
-        gds.close()
-
-
-@task(retries=1)
-def louvain_task(
-    uri: str | None, username: str | None, password: str | None, database: str | None
-) -> None:
-    try:
-        logger = get_run_logger()
-    except Exception:
-        logger = logging.getLogger(__name__)
-    logger.info("Running community detection (Louvain)")
-    if not _should_run_gds(uri, username, password, database, logger):
-        return
-    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
-    from graphdatascience import GraphDataScience as _GDS  # type: ignore
-
-    gds = _GDS(_uri, auth=(_user, _pwd), database=_db, arrow=False)
-    try:
-        gds.run_cypher("RETURN 1")
-        # Guard: ensure similarity graph has nodes
-        try:
-            _constants = import_module("src.constants")
-        except Exception:  # pragma: no cover
-            _constants = import_module("constants")
-        _emb_name = _constants.EMBEDDING_PROPERTY
-
-        df = gds.run_cypher(
-            f"MATCH (m:Method) WHERE m.{_emb_name} IS NOT NULL RETURN count(m) AS c"
-        )
-        count = int(df.iloc[0]["c"]) if not df.empty else 0
-        if count == 0:
-            logger.info("No methods with embeddings present; skipping Louvain")
-            return
-        sim_run_louvain(gds, threshold=0.8)
-    finally:
-        gds.close()
 
 
 @task(retries=1)

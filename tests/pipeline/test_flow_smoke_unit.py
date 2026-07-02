@@ -6,7 +6,7 @@ from unittest.mock import patch
 def test_flow_wiring_smoke(tmp_path):
     """Fast smoke test: ensure flow wires tasks together without heavy work.
 
-    We stub task entrypoints to avoid real cloning, parsing, embeddings, or Neo4j work.
+    We stub task entrypoints to avoid real cloning, parsing, or Neo4j work.
     """
     from src.pipeline import prefect_flow as pf
 
@@ -38,19 +38,14 @@ def test_flow_wiring_smoke(tmp_path):
         patch.object(pf, "cleanup_task", side_effect=_mark("cleanup")),
         patch.object(pf, "clone_repo_task", side_effect=lambda url: str(repo_dir)),
         patch.object(pf, "extract_code_task", side_effect=_mark("extract_code")),
-        patch.object(pf, "embed_methods_task", side_effect=_mark("embed_methods")),
         patch.object(pf, "write_graph_task", side_effect=_mark("write_graph")),
         patch.object(pf, "cleanup_artifacts_task", side_effect=_mark("cleanup_artifacts")),
         patch.object(pf, "git_history_task", side_effect=_mark("git_history")),
         patch.object(pf, "coupling_task", side_effect=_mark("coupling")),
-        patch.object(pf, "similarity_task"),
-        patch.object(pf, "louvain_task"),
         patch.object(pf, "centrality_task"),
         patch.object(pf, "cve_task"),
     ):
-        # Patch .submit on the three tasks used that way to return a dummy future
-        pf.similarity_task.submit = _submit_stub  # type: ignore[attr-defined]
-        pf.louvain_task.submit = _submit_stub  # type: ignore[attr-defined]
+        # Patch .submit on the tasks used that way to return a dummy future
         pf.centrality_task.submit = _submit_stub  # type: ignore[attr-defined]
         pf.cve_task.submit = _submit_stub  # type: ignore[attr-defined]
 

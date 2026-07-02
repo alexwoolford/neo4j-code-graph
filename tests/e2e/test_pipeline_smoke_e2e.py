@@ -21,23 +21,16 @@ def test_builds_minimal_graph(neo4j_driver, tmp_path: Path):
 
     # Run minimal pipeline pieces directly to keep e2e fast
     from src.analysis.code_analysis import bulk_create_nodes_and_relationships, extract_file_data
-    from src.constants import EMBEDDING_DIMENSION
     from src.data.schema_management import setup_complete_schema
 
     java_files = list((tmp_path / "src").rglob("*.java"))
     files_data = [extract_file_data(p, tmp_path) for p in java_files]
     files_data = [fd for fd in files_data if fd]
 
-    method_embeddings = [
-        [0.0] * EMBEDDING_DIMENSION for _ in [m for fd in files_data for m in fd["methods"]]
-    ]
-
     with neo4j_driver.session() as s:
         s.run("MATCH (n) DETACH DELETE n").consume()
         setup_complete_schema(s)
-        bulk_create_nodes_and_relationships(
-            s, files_data, method_embeddings=method_embeddings, dependency_versions={}
-        )
+        bulk_create_nodes_and_relationships(s, files_data, dependency_versions={})
 
         # Invariants: nodes exist and identities are unique
         rows = s.run(

@@ -25,16 +25,3 @@ def load_dependencies_from_json(path: Path) -> dict[str, str]:
 def save_dependencies_to_json(path: Path, deps: dict[str, str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(deps, ensure_ascii=False), encoding="utf-8")
-
-
-def load_embeddings(path: Path) -> Any:
-    import numpy as _np  # lazy import
-
-    return _np.load(str(path), allow_pickle=False)
-
-
-def save_embeddings(path: Path, embeddings: list[list[float]]) -> None:
-    import numpy as _np  # lazy import
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    _np.save(str(path), _np.array(embeddings, dtype="float32"))

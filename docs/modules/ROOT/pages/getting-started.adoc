@@ -43,7 +43,6 @@ python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-
 ----
 code-graph-code-to-graph /path/to/repo
 code-graph-git-history /path/to/repo
-code-graph-similarity --top-k 5 --cutoff 0.8
 code-graph-centrality --algorithms pagerank betweenness degree --top-n 20 --write-back
 code-graph-cve --risk-threshold 7.0 --max-hops 4
 ----
@@ -53,7 +52,7 @@ code-graph-cve --risk-threshold 7.0 --max-hops 4
 - Code structure (files, classes, methods, imports)
 - Git history (commits, changes, co-change patterns)
 - Security (CVE vulnerabilities in dependencies)
-- Derived insights (PageRank, community, similarity)
+- Derived insights (PageRank, call-graph communities)
 
 == Monitor runs with Prefect UI
 

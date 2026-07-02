@@ -439,9 +439,7 @@ def create_classes(session: Any, files_data: list[dict[str, Any]]) -> None:
             )
 
 
-def create_methods(
-    session: Any, files_data: list[dict[str, Any]], method_embeddings: list[list[float]]
-) -> None:
+def create_methods(session: Any, files_data: list[dict[str, Any]]) -> None:
     """Delegate to writers.methods.create_methods to avoid duplication."""
     try:
         from src.data.writers.methods import (
@@ -450,7 +448,7 @@ def create_methods(
     except Exception:  # pragma: no cover
         from data.writers.methods import create_methods as _create_methods  # type: ignore
 
-    _create_methods(session, files_data, method_embeddings)
+    _create_methods(session, files_data)
 
 
 def create_imports(
@@ -484,13 +482,12 @@ def create_method_calls(session: Any, files_data: list[dict[str, Any]]) -> None:
 def bulk_create_nodes_and_relationships(
     session: Any,
     files_data: list[dict[str, Any]],
-    method_embeddings: list[list[float]] | None = None,
     dependency_versions: dict[str, str] | None = None,
 ) -> None:
     create_directories(session, files_data)
     create_files(session, files_data)
     create_classes(session, files_data)
-    create_methods(session, files_data, method_embeddings or [])
+    create_methods(session, files_data)
     # B1 schema additions: Field, Annotation, Exception nodes + NESTED_IN edges.
     # Must run after create_classes/create_methods (they reference Method/Class
     # nodes via MATCH).

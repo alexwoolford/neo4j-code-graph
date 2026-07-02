@@ -27,8 +27,6 @@ classifiers = [
 ]
 dependencies = [
     "neo4j>=5.28,<7",
-    "torch>=2.11.0,<3",
-    "transformers>=5.6.2,<6",
     "gitpython>=3.1.47,<4",
     "pandas>=2.3.3,<3",
     "tqdm>=4.67.3,<5",
@@ -38,7 +36,6 @@ dependencies = [
     "graphdatascience>=1.21,<2",
     "packaging>=21.0",
     "prefect>=2.16.0",
-    "sentencepiece>=0.2.1,<1",
     "tree_sitter>=0.25.2,<0.26",
     "tree-sitter-language-pack>=1.6.0,<2",
 ]
@@ -69,7 +66,6 @@ Issues = "https://github.com/your-org/neo4j-code-graph/issues"
 code-graph-code-to-graph = "analysis.code_analysis:main"
 code-graph-git-history = "analysis.git_analysis:main"
 code-graph-centrality = "analysis.centrality:main"
-code-graph-similarity = "analysis.similarity:main"
 code-graph-temporal = "analysis.temporal_analysis:main"
 code-graph-cleanup = "utils.cleanup:main"
 code-graph-schema = "data.schema_management:main"

@@ -197,11 +197,6 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
         "Method",
         "CREATE INDEX method_betweenness IF NOT EXISTS FOR (m:Method) ON (m.betweenness_score)",
     ),
-    (
-        "method_similarity_community",
-        "Method",
-        "CREATE INDEX method_similarity_community IF NOT EXISTS FOR (m:Method) ON (m.similarity_community)",
-    ),
     # Keep a non-unique index on package for lookup and joins
     # ExternalDependencyPackage removed: all external deps must resolve to versioned ExternalDependency
 ]

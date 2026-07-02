@@ -7,13 +7,6 @@ from importlib import import_module
 from typing import Any
 
 try:
-    _constants = import_module("src.constants")
-except Exception:  # pragma: no cover
-    _constants = import_module("constants")
-EMBEDDING_TYPE = _constants.EMBEDDING_TYPE
-EMBEDDING_PROPERTY_NAME = _constants.EMBEDDING_PROPERTY
-
-try:
     _batching = import_module("src.utils.batching")
 except Exception:  # pragma: no cover
     _batching = import_module("utils.batching")
@@ -49,42 +42,15 @@ def _looks_like_test_path(file_path: str) -> bool:
     )
 
 
-def create_methods(
-    session: Any, files_data: list[dict[str, Any]], method_embeddings: list[list[float]]
-) -> None:
+def create_methods(session: Any, files_data: list[dict[str, Any]]) -> None:
     method_nodes: list[dict[str, Any]] = []
-    method_idx = 0
-    warned_short = False
 
     for file_data in files_data:
         for method in file_data["methods"]:
-            has_embedding = method_idx < len(method_embeddings)
-            if not has_embedding and not warned_short:
-                total_methods = sum(len(f.get("methods", [])) for f in files_data)
-                logger.warning(
-                    "Missing method embedding(s) (%d embeddings for %d methods); leaving embedding unset",
-                    len(method_embeddings),
-                    total_methods,
-                )
-                warned_short = True
-            emb_value = None
-            if has_embedding:
-                try:
-                    emb = method_embeddings[method_idx]
-                    emb_value = emb.tolist() if hasattr(emb, "tolist") else emb  # type: ignore[arg-type]
-                except Exception:
-                    emb_value = None
-
             method_node = {
                 "name": method["name"],
                 "file": method["file"],
                 "line": method["line"],
-                **(
-                    {EMBEDDING_PROPERTY_NAME: emb_value}
-                    if has_embedding and emb_value is not None
-                    else {}
-                ),
-                "embedding_type": EMBEDDING_TYPE,
                 "estimated_lines": method.get("estimated_lines", 0),
                 "is_static": method.get("is_static", False),
                 "is_abstract": method.get("is_abstract", False),
@@ -120,9 +86,8 @@ def create_methods(
                 method_node["containing_type"] = method.get("containing_type", "class")
 
             method_nodes.append(method_node)
-            method_idx += 1
 
-    batch_size = get_database_batch_size(has_embeddings=True)
+    batch_size = get_database_batch_size(has_embeddings=False)
     total_batches = (len(method_nodes) + batch_size - 1) // batch_size
     logger.info(f"Creating {len(method_nodes)} method nodes in {total_batches} batches...")
 
@@ -139,10 +104,6 @@ def create_methods(
                 SET m.name = method.name,
                     m.file = method.file,
                     m.line = method.line,
-                """
-                + f"m.{EMBEDDING_PROPERTY_NAME} = CASE WHEN method.{EMBEDDING_PROPERTY_NAME} IS NOT NULL THEN method.{EMBEDDING_PROPERTY_NAME} ELSE m.{EMBEDDING_PROPERTY_NAME} END, "
-                + f"m.embedding_type = CASE WHEN method.{EMBEDDING_PROPERTY_NAME} IS NOT NULL THEN method.embedding_type ELSE m.embedding_type END,"
-                + """
                     m.estimated_lines = method.estimated_lines,
                     m.is_static = method.is_static,
                     m.is_abstract = method.is_abstract,

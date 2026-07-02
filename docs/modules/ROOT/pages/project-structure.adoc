@@ -4,7 +4,7 @@
 ----
 neo4j-code-graph/
 ├── src/                       # Core library code
-│   ├── analysis/              # Code & Git analyzers, similarity, temporal coupling
+│   ├── analysis/              # Code & Git analyzers, centrality, temporal coupling
 │   ├── security/              # CVE enrichment & matching
 │   ├── data/                  # Schema/constraints management
 │   ├── pipeline/              # Prefect flow orchestration

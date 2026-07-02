@@ -65,15 +65,12 @@ def _render_static_graph() -> None:
         ("cleanup", "Cleanup Previous Run"),
         ("clone_repo", "Clone Repo"),
         ("extract_code", "Extract Code Structure"),
-        ("embed_files", "Embed Files"),
-        ("embed_methods", "Embed Methods"),
         ("write_graph", "Write to Neo4j"),
         ("cleanup_artifacts", "Cleanup Artifacts"),
         ("git_history", "Load Git History"),
         ("coupling", "Create CO_CHANGED"),
-        ("similarity", "Similarity (kNN)"),
-        ("louvain", "Communities (Louvain)"),
         ("centrality", "Centrality"),
+        ("calls_louvain", "Communities (Louvain on CALLS)"),
         ("cve", "CVE Analysis (optional)"),
     ]
 
@@ -85,16 +82,13 @@ def _render_static_graph() -> None:
         ("setup_schema", "cleanup"),
         ("cleanup", "clone_repo"),
         ("clone_repo", "extract_code"),
-        ("extract_code", "embed_files"),
-        ("embed_files", "embed_methods"),
-        ("embed_methods", "write_graph"),
+        ("extract_code", "write_graph"),
         ("write_graph", "cleanup_artifacts"),
         ("write_graph", "git_history"),
         ("git_history", "coupling"),
-        ("coupling", "similarity"),
-        ("similarity", "louvain"),
-        ("louvain", "centrality"),
-        ("centrality", "cve"),
+        ("coupling", "centrality"),
+        ("centrality", "calls_louvain"),
+        ("calls_louvain", "cve"),
     ]
 
     for a, b in edges:

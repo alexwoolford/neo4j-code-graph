@@ -12,18 +12,18 @@ from prefect import flow, get_run_logger
 try:
     _CT = import_module("src.pipeline.tasks.code_tasks")
     _DT = import_module("src.pipeline.tasks.db_tasks")
-    _SIM = import_module("src.pipeline.flows.similarity_flow")
+    _ANALYTICS = import_module("src.pipeline.flows.analytics_flow")
     _PREF = import_module("src.pipeline.preflight")
 except Exception:  # pragma: no cover - script execution path
     _CT = import_module("pipeline.tasks.code_tasks")
     _DT = import_module("pipeline.tasks.db_tasks")
-    _SIM = import_module("pipeline.flows.similarity_flow")
+    _ANALYTICS = import_module("pipeline.flows.analytics_flow")
     _PREF = import_module("pipeline.preflight")
 
 
 # Bind names once
 def run_post_ingest_analytics(*args, **kwargs):
-    return _SIM.run_post_ingest_analytics(*args, **kwargs)
+    return _ANALYTICS.run_post_ingest_analytics(*args, **kwargs)
 
 
 def run_preflight(*args, **kwargs):
@@ -32,7 +32,6 @@ def run_preflight(*args, **kwargs):
 
 T_cleanup_artifacts_task = _CT.cleanup_artifacts_task
 T_clone_repo_task = _CT.clone_repo_task
-T_embed_methods_task = _CT.embed_methods_task
 T_extract_code_task = _CT.extract_code_task
 T_cleanup_task = _DT.cleanup_task
 T_git_history_task = _DT.git_history_task
@@ -81,13 +80,9 @@ def code_graph_flow(
 
     artifacts_dir = str(Path(tempfile.mkdtemp(prefix="cg_artifacts_")))
     T_extract_code_task(repo_path, artifacts_dir)
-    T_embed_methods_task(repo_path, artifacts_dir)
     T_write_graph_task(repo_path, artifacts_dir, uri, username, password, database)
     T_cleanup_artifacts_task(artifacts_dir)
 
     T_git_history_task(repo_path, uri, username, password, database)
 
-    from prefect import get_run_logger as _get_log
-
-    _get_log().info("Summary and intent similarity stages are not part of this flow")
     run_post_ingest_analytics(uri, username, password, database, gds_available=gds_ok)

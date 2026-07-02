@@ -50,7 +50,7 @@ include::example$queries/architecture.cyp[tag=architectural_bottlenecks]
 include::example$queries/architecture.cyp[tag=top_central_methods]
 ----
 
-=== Validate Louvain community write-back
+=== Validate call-graph community (Louvain on CALLS) write-back
 
 [source,cypher]
 ----
@@ -64,7 +64,7 @@ include::example$queries/architecture.cyp[tag=validate_louvain_writeback]
 include::example$queries/architecture.cyp[tag=high_blast_radius_methods]
 ----
 
-=== Community-to-module mapping candidates
+=== Call-graph community-to-module mapping candidates
 
 [source,cypher]
 ----

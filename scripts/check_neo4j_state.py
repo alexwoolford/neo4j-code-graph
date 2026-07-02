@@ -7,7 +7,6 @@ import sys
 
 def main() -> int:
     try:
-        from src.constants import EMBEDDING_PROPERTY
         from src.utils.common import create_neo4j_driver, get_neo4j_config
     except Exception as e:  # pragma: no cover
         print(json.dumps({"error": f"import_error: {e}"}))
@@ -18,8 +17,6 @@ def main() -> int:
         "database": None,
         "calls_count": None,
         "pagerank_methods": None,
-        "similarity_community_methods": None,
-        "embeddings_methods": None,
         "external_dependencies": None,
         "external_with_version": None,
         "gds_version": None,
@@ -57,26 +54,6 @@ def main() -> int:
                     errors = report.get("errors")
                     if isinstance(errors, list):
                         errors.append(f"pagerank_query_error: {e}")
-
-                try:
-                    sim = s.run(
-                        "MATCH (m:Method) WHERE m.similarity_community IS NOT NULL RETURN count(m) AS c"
-                    ).single()
-                    report["similarity_community_methods"] = int(sim["c"]) if sim else 0
-                except Exception as e:
-                    errors = report.get("errors")
-                    if isinstance(errors, list):
-                        errors.append(f"sim_query_error: {e}")
-
-                try:
-                    emb = s.run(
-                        f"MATCH (m:Method) WHERE m.{EMBEDDING_PROPERTY} IS NOT NULL RETURN count(m) AS c"
-                    ).single()
-                    report["embeddings_methods"] = int(emb["c"]) if emb else 0
-                except Exception as e:
-                    errors = report.get("errors")
-                    if isinstance(errors, list):
-                        errors.append(f"emb_query_error: {e}")
 
                 try:
                     # gds.version() returns a scalar; use scalar form so we don't

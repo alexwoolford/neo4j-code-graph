@@ -26,7 +26,6 @@ def test_console_entry_points_visible():
 def test_analysis_modules_import_via_runpath_without_main_execution():
     # Ensure module files load and top-level imports resolve without executing main()
     for module_path in [
-        SRC / "analysis" / "similarity.py",
         SRC / "analysis" / "centrality.py",
         SRC / "analysis" / "temporal_analysis.py",
     ]:
@@ -42,6 +41,6 @@ def test_analysis_modules_import_as_package_with_src_on_syspath(monkeypatch):
 
     import importlib
 
-    for module_name in ["analysis.similarity", "analysis.centrality"]:
+    for module_name in ["analysis.centrality"]:
         mod = importlib.import_module(module_name)
         assert mod is not None

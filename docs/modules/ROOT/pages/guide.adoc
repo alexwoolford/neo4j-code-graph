@@ -26,10 +26,6 @@ NEO4J_DATABASE=neo4j
 
 # Optional (recommended) for faster CVE analysis
 NVD_API_KEY=your_nvd_api_key
-
-# Optional similarity defaults (overridable by CLI flags)
-SIMILARITY_TOP_K=5
-SIMILARITY_CUTOFF=0.8
 ----
 
 Tips:
@@ -40,7 +36,7 @@ Tips:
 
 * Code analysis
 * Git history ingestion
-* Similarity and centrality calculations
+* Centrality and call-graph community calculations
 * CVE analysis
 * Temporal coupling
 

@@ -94,7 +94,7 @@ def test_live_docs_created_and_linked():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
             create_docs(s, files_data)
 
             # Doc nodes exist

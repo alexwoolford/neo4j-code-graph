@@ -8,9 +8,9 @@
 [![Issues](https://img.shields.io/github/issues/alexwoolford/neo4j-code-graph)](https://github.com/alexwoolford/neo4j-code-graph/issues)
 [![Pull Requests](https://img.shields.io/github/issues-pr/alexwoolford/neo4j-code-graph)](https://github.com/alexwoolford/neo4j-code-graph/pulls)
 
-A structural- and ML-aided overview of a Java codebase, materialised as a Neo4j
+A structural overview of a Java codebase, materialised as a Neo4j
 knowledge graph. Combines tree-sitter Java parsing, Git history analysis,
-UniXcoder method embeddings, GDS centrality + KNN similarity, and NVD/CPE +
+GDS centrality and call-graph community detection, and NVD/CPE +
 GHSA CVE matching against versioned Maven dependencies. Useful for
 collaboration analysis, hotspot discovery, dependency-vulnerability triage, and
 exploratory architecture review via Cypher.
@@ -40,7 +40,7 @@ Per ingest, against a Java repo:
 | `Directory`, `Package`  | filesystem layout                                                                              |
 | `File`, `FileVer`       | files at HEAD + per-commit revisions                                                           |
 | `Class`, `Interface`    | tree-sitter type declarations. Records and enums also carry secondary `:Record` / `:Enum` labels |
-| `Method`, `Parameter`   | with `arity`, modifiers (`is_public`/`is_protected`/`is_private`/`is_package_private`/`is_static`/`is_final`/`is_synchronized`/`is_default`), `cyclomatic_complexity`, `embedding_unixcoder` (768-dim), and centrality scores after analytics |
+| `Method`, `Parameter`   | with `arity`, modifiers (`is_public`/`is_protected`/`is_private`/`is_package_private`/`is_static`/`is_final`/`is_synchronized`/`is_default`), `cyclomatic_complexity`, and centrality scores after analytics |
 | `Field`                 | with full visibility/storage modifiers (B1)                                                    |
 | `Annotation`            | deduped by name (`@Override`, `@Autowired`, `@Entity`, …) (B1)                                 |
 | `Exception`             | every type referenced in a `throws` clause (B1)                                                |
@@ -54,7 +54,7 @@ Relationships include: `CONTAINS`, `CONTAINS_METHOD`, `DECLARES`,
 `DECLARES_FIELD`, `HAS_PARAMETER`, `OF_TYPE`, `IMPORTS`, `DEPENDS_ON`,
 `EXTENDS`, `IMPLEMENTS`, `NESTED_IN`, `CREATES`, `CALLS`, `THROWS`,
 `ANNOTATED`, `HAS_DOC`, `AUTHORED`, `CHANGED`, `OF_FILE`, `CO_CHANGED`,
-`SIMILAR`, `AFFECTS`.
+`AFFECTS`.
 
 ## Limitations
 
@@ -101,18 +101,6 @@ RETURN cls, name, count(*) AS callers, sum(overloads_hit) AS edges
 ORDER BY edges DESC LIMIT 20
 ```
 
-### Embeddings and similarity
-
-- Method bodies are embedded with `microsoft/unixcoder-base` (768-dim, CLS
-  pooled). Methods over ~512 tokens are silently truncated; trivial methods
-  (`return x;`) embed nearly identically across unrelated classes. KNN
-  `SIMILAR` results should be read as "syntactically/structurally similar
-  code", not "semantically equivalent".
-- KNN parameters: `topK=5`, `similarityCutoff=0.8`. These are defaults;
-  validate against your codebase before drawing conclusions.
-- GDS produces single-direction `SIMILAR` edges in 2.x; older 1.x produced
-  bidirectional. The pair count is the same; the edge count differs by ~2x.
-
 ### CVE matching
 
 - Sources: NVD/CPE (primary, `nvd.nist.gov`) and — when in scope — GHSA. OSV
@@ -128,7 +116,7 @@ ORDER BY edges DESC LIMIT 20
 
 ### Test code is not separated from production code
 
-Centrality and similarity treat test methods identically to production
+Centrality treats test methods identically to production
 methods. The `is_test_method` flag (B6) is the recommended filter:
 
 ```cypher
@@ -147,10 +135,10 @@ their own grammar + extractor. Out of scope for this project.
 The pipeline is orchestrated by Prefect and runs as a deterministic DAG:
 
 ```
-clone → extract → embed (file + method) → write graph
-                                          → git history
-                                          → centrality + KNN + Louvain
-                                          → CVE linking
+clone → extract → write graph
+                  → git history
+                  → centrality + Louvain (on CALLS)
+                  → CVE linking
 ```
 
 State passes between stages via filesystem artifacts, not implicit DB state,
@@ -158,7 +146,7 @@ so any stage can be replayed individually.
 
 Source layout:
 
-- `src/analysis/` — parsers, embedders, similarity/centrality/temporal-coupling algorithms
+- `src/analysis/` — parsers, centrality/temporal-coupling algorithms
 - `src/data/` — schema management, graph writers
 - `src/pipeline/` — Prefect tasks and flows
 - `src/security/` — NVD client, GAV-CPE matcher, CVE-to-dep linking
@@ -181,7 +169,7 @@ Aim to use the schema-aware filters (`m.arity`, `m.is_test_method`,
 
 ```bash
 pre-commit run --all-files                          # ruff + black + mypy + codespell + interrogate
-pytest -m "not live and not e2e and not security"   # fast unit path (~309 tests)
+pytest -m "not live and not e2e and not security"   # fast unit path (~316 tests)
 pytest -m live                                      # live tests against a Neo4j you control
 pip-audit -r config/requirements.txt                # CVE check on pinned deps
 ```
@@ -189,6 +177,19 @@ pip-audit -r config/requirements.txt                # CVE check on pinned deps
 Live tests need either Docker (Testcontainers will start a Neo4j) or a
 `NEO4J_*`-pointed test database that's safe to wipe — the `_reset_db_between_tests`
 autouse fixture executes `MATCH (n) DETACH DELETE n` before every test.
+
+## Upgrading an existing graph
+
+Similarity/embeddings were removed from the pipeline; existing graphs can drop the artifacts:
+
+```cypher
+CALL apoc.periodic.iterate('MATCH ()-[r:SIMILAR]->() RETURN r','DELETE r',{batchSize:50000});
+MATCH (m:Method) WHERE m.similarity_community IS NOT NULL REMOVE m.similarity_community;
+MATCH (m:Method) WHERE m.embedding_unixcoder IS NOT NULL REMOVE m.embedding_unixcoder, m.embedding_type;
+MATCH (f:File) WHERE f.embedding_unixcoder IS NOT NULL REMOVE f.embedding_unixcoder, f.embedding_type;
+DROP INDEX method_similarity_community IF EXISTS;
+DROP INDEX method_embeddings_embedding_unixcoder IF EXISTS;
+```
 
 ## License
 

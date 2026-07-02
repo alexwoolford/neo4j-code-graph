@@ -114,7 +114,7 @@ def test_method_calls_mixed_types_idempotent_live():
                 create_directories(s, files_data)
                 create_files(s, files_data)
                 create_classes(s, files_data)
-                create_methods(s, files_data, method_embeddings=[])
+                create_methods(s, files_data)
                 create_method_calls(s, files_data)
 
             r1 = s.run(

@@ -129,7 +129,7 @@ def test_live_methods_and_relationships_created():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
 
             # Asserts
             # Methods created
@@ -173,7 +173,7 @@ def test_live_methods_and_relationships_created():
                 }
             ]
             create_classes(s, files_data2)
-            create_methods(s, files_data2, method_embeddings=[])
+            create_methods(s, files_data2)
             rec = s.run(
                 "MATCH (:Method {method_signature:'p.P#use(p.A,p.I):void'})-[:HAS_PARAMETER]->(p:Parameter) RETURN count(p) AS c"
             ).single()
@@ -335,7 +335,7 @@ def test_live_method_calls_smoke():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
             create_method_calls(s, files_data)
 
             # Same-class call exists
@@ -456,7 +456,7 @@ def test_live_method_calls_instance_other_branch():
             create_directories(s, files_data)
             create_files(s, files_data)
             create_classes(s, files_data)
-            create_methods(s, files_data, method_embeddings=[])
+            create_methods(s, files_data)
             create_method_calls(s, files_data)
 
             rec = s.run(
@@ -508,7 +508,6 @@ def test_live_bulk_create_smoke():
             bulk_create_nodes_and_relationships(
                 s,
                 files_data,
-                method_embeddings=[],
                 dependency_versions={"org.example.lib:core:1.0.0": "1.0.0"},
             )
 
@@ -661,7 +660,6 @@ def test_live_bulk_idempotent():
                 bulk_create_nodes_and_relationships(
                     s,
                     files_data,
-                    method_embeddings=[],
                     dependency_versions={"org.sample.lib:core:9.9.9": "9.9.9"},
                 )
 
@@ -823,9 +821,7 @@ def test_live_bulk_with_calls_creates_calls():
             s.run("MATCH (n) DETACH DELETE n").consume()
             setup_complete_schema(s)
 
-            bulk_create_nodes_and_relationships(
-                s, files_data, method_embeddings=[], dependency_versions=None
-            )
+            bulk_create_nodes_and_relationships(s, files_data, dependency_versions=None)
 
             rec = s.run(
                 "MATCH (:Method {name:'a'})-[:CALLS]->(:Method {name:'b'}) RETURN count(*) AS c"
