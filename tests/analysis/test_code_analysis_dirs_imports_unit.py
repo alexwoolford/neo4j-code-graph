@@ -15,6 +15,12 @@ class _FakeSession:
             def consume():
                 return None
 
+            @staticmethod
+            def single():
+                # The import-coverage fail-fast reads .single(); None means
+                # "no unresolved imports" for this fake.
+                return None
+
         return _R()
 
 

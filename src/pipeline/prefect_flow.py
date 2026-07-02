@@ -99,6 +99,7 @@ def code_graph_flow(
     password: str | None = None,
     database: str | None = None,
     cleanup: bool = True,
+    coupling_days: int | None = None,
 ) -> None:
     """Flow wrapper that references tasks via this module for easy monkeypatching in tests."""
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
@@ -147,7 +148,7 @@ def code_graph_flow(
     git_history_task(repo_path, uri, username, password, database)
 
     # Coupling (call directly so tests can monkeypatch a plain function)
-    coupling_task(uri, username, password, database)
+    coupling_task(uri, username, password, database, days=coupling_days)
 
     # Analytics (submit/async-compatible)
     similarity_task.submit(uri, username, password, database)
@@ -165,6 +166,7 @@ def main() -> None:
         password=args.password,
         database=args.database,
         cleanup=not args.no_cleanup,
+        coupling_days=args.coupling_days,
     )
 
 

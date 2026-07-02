@@ -180,7 +180,9 @@ def bulk_load_to_neo4j(
             )
             t_filever = time.monotonic() - step_start
 
-            # Step 2: Create CHANGED relationships (use CREATE for performance)
+            # Step 2: Create CHANGED relationships (MERGE: endpoints are unique by
+            # constraint, so re-ingesting an overlapping commit range must not
+            # duplicate edges — CO_CHANGED/hotspots double-count otherwise)
             step2_start = time.monotonic()
             session = execute_with_retry(
                 session,
@@ -188,7 +190,7 @@ def bulk_load_to_neo4j(
                 UNWIND $changes AS change
                 MATCH (c:Commit {sha: change.sha})
                 MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
-                CREATE (c)-[rel:CHANGED]->(fv)
+                MERGE (c)-[rel:CHANGED]->(fv)
                 SET rel.change_type = change.change_type,
                     rel.additions = change.additions,
                     rel.deletions = change.deletions,
@@ -199,7 +201,7 @@ def bulk_load_to_neo4j(
             )
             t_changed = time.monotonic() - step2_start
 
-            # Step 3: Create OF_FILE relationships (use CREATE for performance)
+            # Step 3: Create OF_FILE relationships (MERGE for idempotent re-runs)
             step3_start = time.monotonic()
             session = execute_with_retry(
                 session,
@@ -207,7 +209,7 @@ def bulk_load_to_neo4j(
                 UNWIND $changes AS change
                 MATCH (f:File {path: change.file_path})
                 MATCH (fv:FileVer {sha: change.sha, path: change.file_path})
-                CREATE (fv)-[:OF_FILE]->(f)
+                MERGE (fv)-[:OF_FILE]->(f)
                 """,
                 {"changes": batch},
                 f"OF_FILE relationships batch {batch_num}",

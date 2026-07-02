@@ -97,6 +97,23 @@ def run_coupling(
     ORDER BY support DESC, confidence DESC, file1, file2
     """
 
+    # CO_CHANGED is a pure function of CHANGED history: rebuild from scratch on
+    # every write run. Without this reset, the ON MATCH `support = support + 1`
+    # below inflates support across repeated runs (support is per-run evidence,
+    # not a cumulative counter), and stale change_count values poison confidence.
+    reset_co_changed = """
+    CALL apoc.periodic.iterate(
+      'MATCH ()-[cc:CO_CHANGED]->() RETURN cc',
+      'DELETE cc',
+      {batchSize: 50000}
+    )
+    """
+    reset_change_counts = """
+    MATCH (f:File)
+    WHERE f.change_count IS NOT NULL
+    REMOVE f.change_count
+    """
+
     # Batched write path using APOC to avoid large in-memory combinations
     apoc_iterate = """
     CALL apoc.periodic.iterate(
@@ -164,6 +181,14 @@ def run_coupling(
 
     with driver.session(database=database) as session:  # type: ignore[no-untyped-call]
         if write:
+            # Deterministic rebuild: clear prior CO_CHANGED edges and change counts
+            for reset_query in (reset_co_changed, reset_change_counts):
+                res_reset = session.run(reset_query, {})  # type: ignore[no-untyped-call]
+                try:
+                    res_reset.consume()
+                except Exception:
+                    # Allow lightweight mocks that don't implement `.consume()`
+                    pass
             # Build support counts in batches
             res = session.run(  # type: ignore[no-untyped-call]
                 apoc_iterate,

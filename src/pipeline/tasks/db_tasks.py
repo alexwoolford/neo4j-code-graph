@@ -459,12 +459,14 @@ def coupling_task(
     min_support: int = 5,
     confidence_threshold: float = 0.6,
     create_relationships: bool = True,
+    days: int | None = None,
 ) -> None:
     logger = get_run_logger()
     logger.info(
-        "Running change coupling (min_support=%d, confidence>=%.2f)",
+        "Running change coupling (min_support=%d, confidence>=%.2f, days=%s)",
         min_support,
         confidence_threshold,
+        days,
     )
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     with create_neo4j_driver(_uri, _user, _pwd) as driver:
@@ -474,6 +476,7 @@ def coupling_task(
             min_support=int(min_support),
             confidence_threshold=float(confidence_threshold),
             write=bool(create_relationships),
+            days=int(days) if days is not None else None,
         )
 
 

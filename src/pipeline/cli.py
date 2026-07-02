@@ -30,6 +30,14 @@ def parse_cli_args() -> argparse.Namespace:
         "--branch",
         help="Git branch or tag to ingest (applies to checkout and git history)",
     )
+    parser.add_argument(
+        "--coupling-days",
+        dest="coupling_days",
+        type=int,
+        default=None,
+        help="Restrict CO_CHANGED temporal coupling to commits from the last N days "
+        "(default: full history)",
+    )
 
     args = parser.parse_args()
     if not (args.repo_url or args.pos_repo_url):
