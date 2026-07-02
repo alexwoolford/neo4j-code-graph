@@ -57,6 +57,10 @@ __all__ = [
     "reachability_for_cve",
     "triage_summary",
     "blast_radius_ownership",
+    "hotspots",
+    "ownership",
+    "dependency_cves",
+    "graph_summary",
 ]
 
 # Var-length CALLS bounds interpolated into the flagship query. Floor 1 keeps
@@ -241,6 +245,106 @@ ORDER BY commits DESC, email ASC
 FILE_LAST_TOUCHED_QUERY = """
 MATCH (:File {path: $file_path})<-[:OF_FILE]-(:FileVer)<-[:CHANGED]-(c:Commit)
 RETURN toString(max(c.date)) AS last_touched
+"""
+
+# Change-frequency hotspots: files changed most in the window, joined with the
+# peak method PageRank of the methods they declare. change_count is recomputed
+# from the commit graph over the window (the same distinct-commit count the
+# temporal stage persists onto File.change_count) so ``days`` stays meaningful
+# even when that stage has not been run. peak_pagerank is null when centrality
+# has not been run (see graph_summary()).
+HOTSPOTS_QUERY = """
+MATCH (f:File)<-[:OF_FILE]-(:FileVer)<-[:CHANGED]-(c:Commit)
+WHERE $days IS NULL OR c.date >= datetime() - duration({days: $days})
+WITH f, count(DISTINCT c) AS change_count
+WHERE change_count > 0
+OPTIONAL MATCH (f)-[:DECLARES]->(m:Method)
+WITH f, change_count, max(m.pagerank_score) AS peak_pagerank
+RETURN f.path AS path,
+       change_count,
+       peak_pagerank
+ORDER BY change_count DESC, coalesce(peak_pagerank, 0.0) DESC, path ASC
+LIMIT $top_n
+"""
+
+# Ownership over a path prefix: distinct commits, distinct files touched, last
+# commit date and per-developer share of the commits in scope. share sums to
+# ~1.0 across the returned rows (each commit counted once per author).
+OWNERSHIP_QUERY = """
+MATCH (d:Developer)-[:AUTHORED]->(c:Commit)-[:CHANGED]->(:FileVer)-[:OF_FILE]->(f:File)
+WHERE f.path STARTS WITH $path_prefix
+  AND ($days IS NULL OR c.date >= datetime() - duration({days: $days}))
+WITH d,
+     count(DISTINCT c) AS commits,
+     count(DISTINCT f) AS files_touched,
+     max(c.date) AS last_commit_date
+WITH collect({
+       developer_email: d.email,
+       developer_name: d.name,
+       commits: commits,
+       files_touched: files_touched,
+       last_commit_date: toString(last_commit_date)
+     }) AS devs,
+     sum(commits) AS total
+UNWIND devs AS dev
+RETURN dev.developer_email AS developer_email,
+       dev.developer_name AS developer_name,
+       dev.commits AS commits,
+       dev.files_touched AS files_touched,
+       dev.last_commit_date AS last_commit_date,
+       (CASE WHEN total > 0 THEN toFloat(dev.commits) / total ELSE 0.0 END) AS share
+ORDER BY commits DESC, developer_email ASC
+"""
+
+# Direct CVE lookup for one exact Maven coordinate (group:artifact:version).
+DEPENDENCY_CVES_QUERY = """
+MATCH (cve:CVE)-[aff:AFFECTS]->(dep:ExternalDependency)
+WHERE dep.group_id = $group_id
+  AND dep.artifact_id = $artifact_id
+  AND dep.version = $version
+RETURN cve.id AS cve_id,
+       cve.cvss_score AS cvss_score,
+       cve.severity AS severity,
+       aff.confidence AS affects_confidence,
+       aff.match_type AS match_type,
+       dep.group_id AS group_id,
+       dep.artifact_id AS artifact_id,
+       dep.version AS version
+ORDER BY coalesce(cve.cvss_score, 0.0) DESC, cve_id ASC
+"""
+
+# Whole-graph census: node/relationship counts by label/type, plus flags for
+# analytics stages (pagerank_score, CO_CHANGED) so an agent can tell "no rows"
+# apart from "that pipeline stage has not run".
+GRAPH_SUMMARY_COUNTS_QUERY = """
+RETURN count{ (n:File) } AS files,
+       count{ (n:Method) } AS methods,
+       count{ (n:Class) } AS classes,
+       count{ (n:Interface) } AS interfaces,
+       count{ (n:Import) } AS imports,
+       count{ (n:ExternalDependency) } AS external_dependencies,
+       count{ (n:CVE) } AS cves,
+       count{ (n:Commit) } AS commits,
+       count{ (n:Developer) } AS developers,
+       count{ (n:FileVer) } AS file_versions,
+       count{ (n:Annotation) } AS annotations,
+       count{ ()-[r:CALLS]->() } AS calls,
+       count{ ()-[r:CALLS_EXTERNAL]->() } AS calls_external,
+       count{ ()-[r:IMPORTS]->() } AS imports_edges,
+       count{ ()-[r:DEPENDS_ON]->() } AS depends_on,
+       count{ ()-[r:DECLARES]->() } AS declares,
+       count{ ()-[r:AFFECTS]->() } AS affects,
+       count{ ()-[r:CO_CHANGED]->() } AS co_changed,
+       count{ ()-[r:AUTHORED]->() } AS authored,
+       count{ ()-[r:CHANGED]->() } AS changed,
+       count{ ()-[r:OF_FILE]->() } AS of_file,
+       count{ ()-[r:ANNOTATED]->() } AS annotated,
+       exists{ (m:Method) WHERE m.pagerank_score IS NOT NULL } AS has_pagerank_score
+"""
+
+GRAPH_SUMMARY_LATEST_COMMIT_QUERY = """
+MATCH (c:Commit)
+RETURN toString(max(c.date)) AS latest_commit_date
 """
 
 
@@ -498,4 +602,107 @@ def blast_radius_ownership(
             "last_touched": last_touched,
             "bus_factor": _bus_factor([c["commits"] for c in committers]),
         },
+    }
+
+
+def hotspots(session: Any, days: int | None = 90, top_n: int = 20) -> list[dict[str, Any]]:
+    """Change-frequency hotspots joined with peak method PageRank.
+
+    Files with the most distinct commits in the last ``days`` (``None`` = all
+    history), each joined with the maximum ``pagerank_score`` across the
+    methods it declares. Rows: path, change_count, peak_pagerank
+    (``peak_pagerank`` is null until the centrality stage has run). Ordered by
+    change_count desc, then peak_pagerank desc. ``top_n`` caps the result.
+    """
+    result = session.run(
+        HOTSPOTS_QUERY,
+        days=(None if days is None else int(days)),
+        top_n=int(top_n),
+    )
+    return [dict(record) for record in result]
+
+
+def ownership(session: Any, path_prefix: str, days: int | None = None) -> list[dict[str, Any]]:
+    """Per-developer ownership of files under a path prefix.
+
+    Matches ``Developer-[:AUTHORED]->Commit-[:CHANGED]->FileVer-[:OF_FILE]->File``
+    where ``File.path`` starts with ``path_prefix`` (optionally windowed to the
+    last ``days``). Rows: developer_email, developer_name, commits,
+    files_touched, last_commit_date (ISO-8601 string), share (fraction of the
+    in-scope commits authored, ~sums to 1.0). Ordered by commits desc.
+    """
+    result = session.run(
+        OWNERSHIP_QUERY,
+        path_prefix=path_prefix,
+        days=(None if days is None else int(days)),
+    )
+    return [dict(record) for record in result]
+
+
+def dependency_cves(
+    session: Any, group_id: str, artifact_id: str, version: str
+) -> list[dict[str, Any]]:
+    """CVEs AFFECTS an exact Maven coordinate (group:artifact:version).
+
+    One row per CVE. Keys: cve_id, cvss_score, severity, affects_confidence,
+    match_type, group_id, artifact_id, version. Ordered by CVSS desc.
+    """
+    result = session.run(
+        DEPENDENCY_CVES_QUERY,
+        group_id=group_id,
+        artifact_id=artifact_id,
+        version=version,
+    )
+    return [dict(record) for record in result]
+
+
+def graph_summary(session: Any) -> dict[str, Any]:
+    """Whole-graph census for self-diagnosing an unrun pipeline stage.
+
+    Returns node_counts and relationship_counts (per label / type), the
+    booleans has_pagerank_score (centrality stage) and has_co_changed
+    (temporal-coupling stage), and latest_commit_date (ISO-8601 string or
+    ``None``). Lets an agent distinguish an empty result from a pipeline stage
+    that has not been run yet.
+    """
+    counts_rec = session.run(GRAPH_SUMMARY_COUNTS_QUERY).single()
+    counts = dict(counts_rec) if counts_rec is not None else {}
+    latest_rec = session.run(GRAPH_SUMMARY_LATEST_COMMIT_QUERY).single()
+    latest_commit_date = latest_rec["latest_commit_date"] if latest_rec is not None else None
+
+    def _c(key: str) -> int:
+        return int(counts.get(key, 0) or 0)
+
+    node_counts = {
+        "File": _c("files"),
+        "Method": _c("methods"),
+        "Class": _c("classes"),
+        "Interface": _c("interfaces"),
+        "Import": _c("imports"),
+        "ExternalDependency": _c("external_dependencies"),
+        "CVE": _c("cves"),
+        "Commit": _c("commits"),
+        "Developer": _c("developers"),
+        "FileVer": _c("file_versions"),
+        "Annotation": _c("annotations"),
+    }
+    relationship_counts = {
+        "CALLS": _c("calls"),
+        "CALLS_EXTERNAL": _c("calls_external"),
+        "IMPORTS": _c("imports_edges"),
+        "DEPENDS_ON": _c("depends_on"),
+        "DECLARES": _c("declares"),
+        "AFFECTS": _c("affects"),
+        "CO_CHANGED": _c("co_changed"),
+        "AUTHORED": _c("authored"),
+        "CHANGED": _c("changed"),
+        "OF_FILE": _c("of_file"),
+        "ANNOTATED": _c("annotated"),
+    }
+    return {
+        "node_counts": node_counts,
+        "relationship_counts": relationship_counts,
+        "has_pagerank_score": bool(counts.get("has_pagerank_score", False)),
+        "has_co_changed": relationship_counts["CO_CHANGED"] > 0,
+        "latest_commit_date": latest_commit_date,
     }

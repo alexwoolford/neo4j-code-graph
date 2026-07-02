@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-02T21:36:00+00:00",
+  "generated_at": "2026-07-02T22:21:32+00:00",
   "database": "neo4j",
   "tool_version": "1.0.0",
   "parameters": {
@@ -12,12 +12,2757 @@
     "risk_threshold": 7.0
   },
   "summary": {
-    "cves_dep_level": 0,
-    "cves_with_reachable_frontier": 0,
+    "cves_dep_level": 34,
+    "cves_with_reachable_frontier": 29,
     "cves_no_frontier": 0,
-    "cves_frontier_unreachable": 0,
-    "cves_not_imported": 0,
-    "triage_reduction_pct": 0.0
+    "cves_frontier_unreachable": 1,
+    "cves_not_imported": 4,
+    "triage_reduction_pct": 14.7
   },
-  "risk_register": []
+  "risk_register": [
+    {
+      "rank": 1,
+      "cve_id": "CVE-2013-7285",
+      "cvss_score": 9.8,
+      "severity": "CRITICAL",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 9.8,
+      "score_components": {
+        "cvss": 9.8,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 2,
+      "cve_id": "CVE-2021-39139",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 3,
+      "cve_id": "CVE-2021-39141",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 4,
+      "cve_id": "CVE-2021-39144",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 5,
+      "cve_id": "CVE-2021-39145",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 6,
+      "cve_id": "CVE-2021-39146",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 7,
+      "cve_id": "CVE-2021-39147",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 8,
+      "cve_id": "CVE-2021-39148",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 9,
+      "cve_id": "CVE-2021-39149",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 10,
+      "cve_id": "CVE-2021-39150",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 11,
+      "cve_id": "CVE-2021-39151",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 12,
+      "cve_id": "CVE-2021-39152",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 13,
+      "cve_id": "CVE-2021-39153",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 14,
+      "cve_id": "CVE-2021-39154",
+      "cvss_score": 8.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.5,
+      "score_components": {
+        "cvss": 8.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 15,
+      "cve_id": "CVE-2022-41966",
+      "cvss_score": 8.2,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.2,
+      "score_components": {
+        "cvss": 8.2,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 16,
+      "cve_id": "CVE-2020-26217",
+      "cvss_score": 8.0,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 8.0,
+      "score_components": {
+        "cvss": 8.0,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 17,
+      "cve_id": "CVE-2017-7957",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 7.5,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 18,
+      "cve_id": "CVE-2021-21341",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 7.5,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 19,
+      "cve_id": "CVE-2021-29505",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 7.5,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 20,
+      "cve_id": "CVE-2021-43859",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.thoughtworks.xstream",
+        "artifact_id": "xstream",
+        "version": "1.4.5"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+          "file": "webgoat-lessons/vulnerable-components/src/main/java/org/owasp/webgoat/vulnerable_components/VulnerableComponentsLesson.java",
+          "line": 35
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "XStream",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "setClassLoader",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "processAnnotations",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.thoughtworks.xstream.XStream",
+            "method_name": "fromXML",
+            "target_class": "XStream"
+          },
+          {
+            "confidence": "HIGH",
+            "import_path": "com.thoughtworks.xstream.io.xml.DomDriver",
+            "method_name": "DomDriver",
+            "target_class": "DomDriver"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.vulnerable_components.VulnerableComponentsLesson#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 7.5,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 21,
+      "cve_id": "CVE-2021-37714",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "org.jsoup",
+        "artifact_id": "jsoup",
+        "version": "1.11.3"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 0,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.CrossSiteScriptingLesson3#completed(String):AttackResult",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/CrossSiteScriptingLesson3.java",
+          "line": 42
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "org.jsoup.Jsoup",
+            "method_name": "parse",
+            "target_class": "Jsoup"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "org.jsoup.nodes.Document",
+            "method_name": "select",
+            "target_class": "Document"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.CrossSiteScriptingLesson3#completed(String):AttackResult",
+            "hops": 0,
+            "path": [
+              "org.owasp.webgoat.xss.CrossSiteScriptingLesson3#completed(String):AttackResult"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 3,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 2,
+            "last_touched": "2020-01-25T11:11:45Z"
+          }
+        ],
+        "last_touched": "2020-01-25T11:11:45Z",
+        "bus_factor": 1
+      },
+      "risk_score": 7.5,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2350
+      },
+      "note": null
+    },
+    {
+      "rank": 22,
+      "cve_id": "CVE-2026-54512",
+      "cvss_score": 8.1,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 7.0435,
+      "score_components": {
+        "cvss": 8.1,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 23,
+      "cve_id": "CVE-2026-54513",
+      "cvss_score": 8.1,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 7.0435,
+      "score_components": {
+        "cvss": 8.1,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 24,
+      "cve_id": "CVE-2020-25649",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 6.5217,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 25,
+      "cve_id": "CVE-2020-36518",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 6.5217,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 26,
+      "cve_id": "CVE-2021-46877",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 6.5217,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 27,
+      "cve_id": "CVE-2022-42003",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 6.5217,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 28,
+      "cve_id": "CVE-2022-42004",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 6.5217,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 29,
+      "cve_id": "CVE-2026-50193",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "com.fasterxml.jackson.core",
+        "artifact_id": "jackson-databind",
+        "version": "2.10.1"
+      },
+      "affects": {
+        "confidence": 1.0,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "REACHABLE",
+        "confidence_tier": "HIGH",
+        "min_hops": 1,
+        "frontier_method": {
+          "signature": "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment",
+          "file": "webgoat-lessons/cross-site-scripting/src/main/java/org/owasp/webgoat/xss/stored/StoredXssComments.java",
+          "line": 97
+        },
+        "evidence": [
+          {
+            "confidence": "HIGH",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "ObjectMapper",
+            "target_class": "ObjectMapper"
+          },
+          {
+            "confidence": "MEDIUM",
+            "import_path": "com.fasterxml.jackson.databind.ObjectMapper",
+            "method_name": "readValue",
+            "target_class": "ObjectMapper"
+          }
+        ],
+        "example_paths": [
+          {
+            "entry": "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+            "hops": 1,
+            "path": [
+              "org.owasp.webgoat.xss.stored.StoredXssComments#createNewComment(String):AttackResult",
+              "org.owasp.webgoat.xss.stored.StoredXssComments#parseJson(String):Comment"
+            ]
+          }
+        ]
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [
+          {
+            "email": "nanne.baars@owasp.org",
+            "name": "nbaars",
+            "commits": 2,
+            "last_touched": "2019-11-17T12:39:56Z"
+          },
+          {
+            "email": "rene@zubcevic.com",
+            "name": "René Zubcevic",
+            "commits": 1,
+            "last_touched": "2019-09-29T12:46:18Z"
+          }
+        ],
+        "last_touched": "2019-11-17T12:39:56Z",
+        "bus_factor": 1
+      },
+      "risk_score": 6.5217,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 1.0,
+        "hop_factor": 0.8696,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 2419
+      },
+      "note": null
+    },
+    {
+      "rank": 30,
+      "cve_id": "CVE-2020-10683",
+      "cvss_score": 9.8,
+      "severity": "CRITICAL",
+      "dependency": {
+        "group_id": "org.dom4j",
+        "artifact_id": "dom4j",
+        "version": "2.1.1"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "NOT_IMPORTED",
+        "confidence_tier": "NONE",
+        "min_hops": null,
+        "frontier_method": null,
+        "evidence": [],
+        "example_paths": []
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [],
+        "last_touched": null,
+        "bus_factor": null
+      },
+      "risk_score": 0.49,
+      "score_components": {
+        "cvss": 9.8,
+        "tier_weight": 0.05,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 0
+      },
+      "note": "no call-path evidence — deprioritize, not proof of safety"
+    },
+    {
+      "rank": 31,
+      "cve_id": "CVE-2022-1471",
+      "cvss_score": 8.3,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "org.yaml",
+        "artifact_id": "snakeyaml",
+        "version": "1.25"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "NOT_IMPORTED",
+        "confidence_tier": "NONE",
+        "min_hops": null,
+        "frontier_method": null,
+        "evidence": [],
+        "example_paths": []
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [],
+        "last_touched": null,
+        "bus_factor": null
+      },
+      "risk_score": 0.415,
+      "score_components": {
+        "cvss": 8.3,
+        "tier_weight": 0.05,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 0
+      },
+      "note": "no call-path evidence — deprioritize, not proof of safety"
+    },
+    {
+      "rank": 32,
+      "cve_id": "CVE-2022-41853",
+      "cvss_score": 8.0,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "org.hsqldb",
+        "artifact_id": "hsqldb",
+        "version": "2.5.0"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "FRONTIER_UNREACHABLE",
+        "confidence_tier": "NONE",
+        "min_hops": null,
+        "frontier_method": null,
+        "evidence": [],
+        "example_paths": []
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [],
+        "last_touched": null,
+        "bus_factor": null
+      },
+      "risk_score": 0.4,
+      "score_components": {
+        "cvss": 8.0,
+        "tier_weight": 0.05,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 0
+      },
+      "note": "no call-path evidence — deprioritize, not proof of safety"
+    },
+    {
+      "rank": 33,
+      "cve_id": "CVE-2017-6015",
+      "cvss_score": 7.8,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "javax.activation",
+        "artifact_id": "activation",
+        "version": "1.1.1"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "NOT_IMPORTED",
+        "confidence_tier": "NONE",
+        "min_hops": null,
+        "frontier_method": null,
+        "evidence": [],
+        "example_paths": []
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [],
+        "last_touched": null,
+        "bus_factor": null
+      },
+      "risk_score": 0.39,
+      "score_components": {
+        "cvss": 7.8,
+        "tier_weight": 0.05,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 0
+      },
+      "note": "no call-path evidence — deprioritize, not proof of safety"
+    },
+    {
+      "rank": 34,
+      "cve_id": "CVE-2017-18640",
+      "cvss_score": 7.5,
+      "severity": "HIGH",
+      "dependency": {
+        "group_id": "org.yaml",
+        "artifact_id": "snakeyaml",
+        "version": "1.25"
+      },
+      "affects": {
+        "confidence": 0.7,
+        "match_type": "precise_gav"
+      },
+      "reachability": {
+        "status": "NOT_IMPORTED",
+        "confidence_tier": "NONE",
+        "min_hops": null,
+        "frontier_method": null,
+        "evidence": [],
+        "example_paths": []
+      },
+      "blast_radius": {
+        "co_change_count": 0,
+        "co_changed_files": []
+      },
+      "ownership": {
+        "top_committers": [],
+        "last_touched": null,
+        "bus_factor": null
+      },
+      "risk_score": 0.375,
+      "score_components": {
+        "cvss": 7.5,
+        "tier_weight": 0.05,
+        "hop_factor": 1.0,
+        "tiebreak_blast_radius": 0,
+        "tiebreak_staleness_days": 0
+      },
+      "note": "no call-path evidence — deprioritize, not proof of safety"
+    }
+  ]
 }

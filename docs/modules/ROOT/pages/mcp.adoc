@@ -1,29 +1,153 @@
-= MCP Integration (Natural Language → Cypher)
+= MCP Integration
 
-Use the official Neo4j MCP servers to query your code graph with natural language from IDEs like Cursor or Claude Desktop.
+Query your code graph from an MCP client (Claude Code, Claude Desktop, Cursor)
+with two complementary servers:
 
-== Reference
+- **`code-graph-mcp`** (this project) — a curated server exposing eight typed,
+  read-only *risk* tools with stable contracts. Use this for the questions this
+  project is built to answer (CVE reachability, blast radius, ownership,
+  hotspots).
+- **`mcp-neo4j-cypher`** (Neo4j Labs, companion) — natural-language-to-Cypher
+  over the same database for ad-hoc exploration that the curated tools do not
+  cover.
 
-- Project: `mcp-neo4j` — Neo4j MCP Clients & Servers
-  - `mcp-neo4j-cypher`: natural language to Cypher over your database
-  - Transport: stdio (default), HTTP, or SSE
-- Repository: `https://github.com/neo4j-contrib/mcp-neo4j`
+Both speak stdio, share the `NEO4J_*` env convention, and can run side by side.
 
-== Cursor configuration
+== Primary: the curated `code-graph-mcp` server
 
-Add an entry to `~/.cursor/mcp.json` (adjust names and environment for your DB):
+Every tool validates its arguments, opens a **read-only** Neo4j session, calls
+one canned query from `src/security/reachability.py` (the single source of
+truth — the MCP layer contains zero Cypher), and returns a versioned envelope:
+
+[source,json]
+----
+{
+  "schema_version": "1.0",
+  "tool": "cve_reachability",
+  "summary": "3 reachable frontier method(s) for CVE-2024-0001 within 6 hop(s).",
+  "row_count": 3,
+  "truncated": false,
+  "caveats": [
+    "Java only.",
+    "CALLS is receiver-class + arity matched; no reflection, DI, or dynamic dispatch — ranked triage, not proof."
+  ],
+  "rows": [ { "...": "stable snake_case keys" } ]
+}
+----
+
+The `caveats` array repeats the scope + soundness ceiling in-band, and every
+tool description ends with the same two sentences, so an agent reading only the
+tool list or only a payload still sees them.
+
+=== The eight tools
+
+[cols="1,3",options="header"]
+|===
+| Tool | Answers
+
+| `cve_reachability(cve_id, max_hops=6, include_tests=false)`
+| Which of your Java methods can reach a given CVE's vulnerable dependency, with example call paths ranked by confidence tier and hop distance.
+
+| `blast_radius(file_path, min_support=5)`
+| What else tends to change with a file and who owns it: change-coupling co-change partners plus top committers and bus factor.
+
+| `hotspots(days=90, top_n=20)`
+| Which files change most often and declare the highest-centrality methods (change frequency joined with peak method PageRank).
+
+| `ownership(path_or_package, days=null)`
+| Who owns the code under a path or package: commits, files touched, last commit date, and each developer's share.
+
+| `risk_register(min_cvss=7.0, max_hops=6, limit=25)`
+| The ranked CVE risk register — every AFFECTS-linked CVE with its reachability status (REACHABLE / FRONTIER_UNREACHABLE / NO_FRONTIER / NOT_IMPORTED). The pitch in one call.
+
+| `dependency_cves(gav)`
+| Which CVEs affect an exact Maven coordinate `group:artifact:version`, with CVSS, match type, and AFFECTS confidence.
+
+| `unreachable_cves(min_cvss=0.0, max_hops=6)`
+| Which CVEs have no reachable call path (NOT_IMPORTED / NO_FRONTIER / FRONTIER_UNREACHABLE), each with an evidence string for safe dismissal.
+
+| `graph_summary()`
+| Node/relationship counts per label/type plus flags for the PageRank and CO_CHANGED stages and the latest commit date — self-diagnose an unrun pipeline stage instead of misreading empty results.
+|===
+
+=== Install and run
+
+`code-graph-mcp` is installed as a console entry point with the project
+(`pip install -e .` in the `neo4j-code-graph` conda env). It reads
+`NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, and `NEO4J_DATABASE` from the
+environment (or a `.env` file). Sessions are read-only; still, prefer a
+read-only Neo4j role for defense in depth.
+
+Register it with Claude Code:
+
+[source,bash]
+----
+claude mcp add code-graph \
+  --env NEO4J_URI=neo4j+s://<your-instance-id>.databases.neo4j.io \
+  --env NEO4J_USERNAME=neo4j \
+  --env NEO4J_PASSWORD=<password> \
+  --env NEO4J_DATABASE=neo4j \
+  -- code-graph-mcp
+----
+
+Cursor / Claude Desktop — add to `~/.cursor/mcp.json`
+(or `claude_desktop_config.json`):
 
 [source,json]
 ----
 {
   "mcpServers": {
-    "neo4j-codegraph": {
+    "code-graph": {
+      "command": "code-graph-mcp",
+      "env": {
+        "NEO4J_URI": "neo4j+s://<your-instance-id>.databases.neo4j.io",
+        "NEO4J_USERNAME": "neo4j",
+        "NEO4J_PASSWORD": "<password>",
+        "NEO4J_DATABASE": "neo4j"
+      }
+    }
+  }
+}
+----
+
+Set the optional `CODEGRAPH_MCP_NAMESPACE` env var to prefix every tool name
+(e.g. `CODEGRAPH_MCP_NAMESPACE=cg` exposes `cg_cve_reachability`), which lets
+this server coexist with other MCP servers that use the same tool names.
+
+=== Example prompts
+
+- "Is CVE-2024-0001 actually reachable from an entry point?"
+- "Show me the risk register at CVSS 7 and above."
+- "Which CVEs can I safely deprioritize, and why?"
+- "What's the blast radius of changing `PaymentService.java`, and who owns it?"
+- "Has the PageRank stage run on this graph?"
+
+=== Versioning
+
+The response envelope carries `schema_version` (`1.0`). Additive keys bump the
+minor version; renames or removals bump the major. The version history lives as
+a comment block in `src/mcp_server/contracts.py`.
+
+== Companion: `mcp-neo4j-cypher` for ad-hoc exploration
+
+For questions the curated tools do not cover, run the Neo4j Labs
+natural-language-to-Cypher server alongside `code-graph-mcp`. We do **not**
+depend on it — it solves NL→Cypher over arbitrary schemas, whereas the curated
+server gives typed tools with stable contracts — but its conventions (stdio
+default, `NEO4J_*` env, namespace prefix) are the ones we adopted, and it is a
+handy exploration companion.
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "neo4j-cypher": {
       "command": "uvx",
       "args": ["mcp-neo4j-cypher@0.4.0", "--transport", "stdio"],
       "env": {
-        "NEO4J_URI": "neo4j://10.0.1.27",
+        "NEO4J_URI": "neo4j+s://<your-instance-id>.databases.neo4j.io",
         "NEO4J_USERNAME": "readonly",
-        "NEO4J_PASSWORD": "password",
+        "NEO4J_PASSWORD": "<password>",
         "NEO4J_DATABASE": "neo4j",
         "NEO4J_NAMESPACE": "neo4j"
       }
@@ -32,31 +156,13 @@ Add an entry to `~/.cursor/mcp.json` (adjust names and environment for your DB):
 }
 ----
 
-Tips:
+Running via `uvx` does not require this project's conda env. Use a read-only
+Neo4j role for exploration.
 
-- Use a read-only Neo4j role for safety during exploration.
-- Point `NEO4J_NAMESPACE` to the graph namespace you want the MCP to use (optional; used by some clients for scoping).
-- For HTTP transport instead of stdio: run `mcp-neo4j-cypher --transport http [--host 127.0.0.1 --port 8080 --path /api/mcp/]` and configure the client accordingly.
+== Which repository is which
 
-== Example prompts
-
-- "Which methods call processData?"
-- "Top 20 methods by PageRank and their files."
-- "Show files importing package X."
-- "List classes that implement interface Y."
-
-These map to Cypher over your existing schema (`File`, `Class`, `Method`, `CALLS`, `IMPORTS`, `IMPLEMENTS`, etc.).
-
-== Environment
-
-MCP does not require this project's conda environment. Use the `neo4j-code-graph` conda env when you are running this project's pipeline (code graph creation) or developer scripts. For MCP specifically:
-
-- If you run `mcp-neo4j-cypher` via `uvx` (as in the example), you do NOT need to activate the project conda env.
-- If you installed `mcp-neo4j-cypher` into the `neo4j-code-graph` conda env and want to use that interpreter, then activate it first:
-
-[source,bash]
-----
-conda activate neo4j-code-graph
-----
-
-Then start your IDE and the MCP server if not launched automatically by the client.
+- `code-graph-mcp` — this project's curated risk server (in `src/mcp_server/`).
+- `mcp-neo4j-cypher` — part of **neo4j-contrib/mcp-neo4j** (Neo4j *Labs*): MCP
+  clients & servers, including the NL→Cypher server used above.
+- `neo4j/mcp` — the separate **official Neo4j product** MCP server; distinct
+  from the Labs repository above.
