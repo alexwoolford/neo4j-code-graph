@@ -325,11 +325,16 @@ Examples:
         default=7.0,
         help="CVSS score threshold for vulnerability analysis (default: 7.0)",
     )
+    try:
+        from src.constants import DEFAULT_MAX_HOPS  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        from constants import DEFAULT_MAX_HOPS  # type: ignore
+
     parser.add_argument(
         "--max-hops",
         type=int,
-        default=4,
-        help="Maximum hops for vulnerability impact analysis (default: 4)",
+        default=DEFAULT_MAX_HOPS,
+        help=f"Maximum hops for vulnerability impact analysis (default: {DEFAULT_MAX_HOPS})",
     )
 
     args = parser.parse_args()

@@ -78,7 +78,9 @@ class TestCVEConfiguration:
         """Test max hops is a reasonable number for graph traversal."""
         assert isinstance(DEFAULT_MAX_HOPS, int)
         assert 1 <= DEFAULT_MAX_HOPS <= 10
-        assert DEFAULT_MAX_HOPS == 4
+        # 6 covers layered Java apps (controller -> service -> facade -> repo
+        # -> client-wrapper); see src/constants.py rationale.
+        assert DEFAULT_MAX_HOPS == 6
 
     def test_days_back_is_positive(self):
         """Test days back is a positive integer."""

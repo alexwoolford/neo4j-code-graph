@@ -26,6 +26,12 @@ try:
     _caps_utils = import_module("src.utils.neo4j_utils")
 except Exception:  # pragma: no cover
     _caps_utils = import_module("utils.neo4j_utils")
+try:
+    _constants = import_module("src.constants")
+except Exception:  # pragma: no cover
+    _constants = import_module("constants")
+
+DEFAULT_MAX_HOPS = _constants.DEFAULT_MAX_HOPS
 
 cent_create_graph = _centrality.create_call_graph_projection
 cent_betweenness = _centrality.run_betweenness_analysis
@@ -463,5 +469,7 @@ def cve_task(
                 logger.warning("Linking failed: %s", link_err)
 
             # Impact analysis (HIGH and above by default)
-            impact = analyzer.analyze_vulnerability_impact(risk_threshold=7.0, max_hops=4)
+            impact = analyzer.analyze_vulnerability_impact(
+                risk_threshold=7.0, max_hops=DEFAULT_MAX_HOPS
+            )
             analyzer.generate_impact_report(impact)

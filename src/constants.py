@@ -18,8 +18,39 @@ DEFAULT_NEO4J_PORT = 7687
 
 # CVE Analysis Configuration
 DEFAULT_CVSS_THRESHOLD = 7.0
-DEFAULT_MAX_HOPS = 4
+# Maximum internal CALLS hops for CVE reachability path search.
+# Layered Java apps typically run controller -> service -> facade -> repository
+# -> client-wrapper before touching an external API (~4-5 internal hops), so
+# the old default of 4 truncated wrapper-heavy codebases; 6 leaves headroom.
+# Values above ~8 explode the shortest-path search for negligible extra recall
+# because CALLS is internal-only and receiver-class/arity pruned.
+DEFAULT_MAX_HOPS = 6
 DEFAULT_CVE_DAYS_BACK = 30
+
+# Annotations that mark a method (or its declaring class) as an externally
+# triggerable entry point for reachability analysis: Spring MVC/messaging,
+# Kafka/JMS/Rabbit listeners, scheduling, Spring events, and JAX-RS.
+DEFAULT_ENTRY_ANNOTATIONS = (
+    "RestController",
+    "Controller",
+    "RequestMapping",
+    "GetMapping",
+    "PostMapping",
+    "PutMapping",
+    "DeleteMapping",
+    "PatchMapping",
+    "MessageMapping",
+    "KafkaListener",
+    "JmsListener",
+    "RabbitListener",
+    "Scheduled",
+    "EventListener",
+    "Path",
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+)
 DEFAULT_MAX_RESULTS = 1000
 NVD_API_BASE_URL = "https://nvd.nist.gov/rest/json/cves/2.0"
 CVE_CACHE_DIR = "data/cve_cache"
