@@ -132,7 +132,10 @@ class CVECacheManager:
 
         # Create cache key
         terms_hash = hashlib.md5(str(sorted(search_terms)).encode()).hexdigest()[:8]
-        cache_key = f"targeted_cves_{terms_hash}_{days_back}d_{max_results}"
+        # v2: max_results became a per-query safety valve (was a global pool cap
+        # that stopped all fetching once the newest-first walk hit the budget,
+        # silently dropping older CVEs — the ones pinned deps actually have).
+        cache_key = f"targeted_cves_{terms_hash}_{days_back}d_{max_results}_v2"
 
         # Check for existing complete cache
         store = self.store
@@ -256,11 +259,24 @@ class CVECacheManager:
                                         total_results
                                     ):
                                         break
-                                    if len(all_cves) + len(local_found) >= max_results:
+                                    # Per-query safety valve only. A global cap here
+                                    # starved the backwards time-walk: the budget was
+                                    # spent on the newest slices across all queries and
+                                    # the older CVEs that actually affect pinned
+                                    # dependencies were never fetched.
+                                    if len(local_found) >= max_results:
+                                        logger.warning(
+                                            "Query '%s' hit per-query cap (%d kept); "
+                                            "older CVEs for these terms may be missing",
+                                            query_term,
+                                            max_results,
+                                        )
                                         break
 
                                 # Next slice
                                 slice_end = slice_start
+                                if len(local_found) >= max_results:
+                                    break
 
                         except Exception as e:  # pragma: no cover - network errors
                             logger.error(f"❌ Error searching '{query_term}': {e}")
@@ -285,9 +301,6 @@ class CVECacheManager:
                                 f"💾 Checkpoint: {len(all_cves)} CVEs, "
                                 f"{len(completed_terms_set)} terms completed"
                             )
-
-                        if len(all_cves) >= max_results:
-                            stop_event.set()
 
                 tasks = [
                     asyncio.create_task(fetch_query(i, q, terms))
