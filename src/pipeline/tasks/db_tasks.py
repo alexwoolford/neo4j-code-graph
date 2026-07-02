@@ -227,6 +227,65 @@ def write_graph_task(
         pass
 
 
+@task(retries=0)
+def patch_graph_task(
+    repo_path: str,
+    artifacts_dir: str,
+    changed_files: list[str],
+    deleted_files: list[str],
+    uri: str | None,
+    username: str | None,
+    password: str | None,
+    database: str | None,
+) -> None:
+    """WP4 incremental write: reconcile stale footprints + subset-write.
+
+    Reads the subset extraction artifacts (``files_data.json`` for the
+    changed/added files and the global ``dependencies.json``) and applies
+    :func:`src.data.incremental.patch_changed_files`.
+    """
+    try:
+        logger = get_run_logger()
+    except Exception:
+        logger = logging.getLogger(__name__)
+    logger.info(
+        "Patching graph incrementally: %d changed, %d deleted",
+        len(changed_files),
+        len(deleted_files),
+    )
+    in_files = Path(artifacts_dir) / "files_data.json"
+    in_deps = Path(artifacts_dir) / "dependencies.json"
+
+    try:
+        _io = import_module("src.analysis.io")
+        _incremental = import_module("src.data.incremental")
+    except Exception:  # pragma: no cover
+        _io = import_module("analysis.io")
+        _incremental = import_module("data.incremental")
+
+    files_data = _io.read_files_data(in_files) if in_files.exists() else []
+    dependency_versions: dict[str, str] = {}
+    if in_deps.exists():
+        dependency_versions = _io.load_dependencies_from_json(in_deps)
+
+    _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
+    with create_neo4j_driver(_uri, _user, _pwd) as driver:
+        with driver.session(database=_db) as session:  # type: ignore[reportUnknownMemberType]
+            _incremental.patch_changed_files(
+                session,
+                repo_path,
+                files_data,
+                list(changed_files),
+                list(deleted_files),
+                dependency_versions=dependency_versions,
+            )
+    # Mark success for downstream tasks (CVE guard reads this).
+    try:
+        os.environ["CODE_GRAPH_WRITE_OK"] = "true"
+    except Exception:
+        pass
+
+
 @task(retries=1)
 def git_history_task(
     repo_path: str,
@@ -234,12 +293,16 @@ def git_history_task(
     username: str | None,
     password: str | None,
     database: str | None,
+    since_sha: str | None = None,
 ) -> None:
     try:
         logger = get_run_logger()
     except Exception:
         logger = logging.getLogger(__name__)
-    logger.info("Loading git history from %s", repo_path)
+    if since_sha:
+        logger.info("Loading incremental git history from %s (since %s)", repo_path, since_sha)
+    else:
+        logger.info("Loading git history from %s", repo_path)
     _uri, _user, _pwd, _db = resolve_neo4j_args(uri, username, password, database)
     import os
 
@@ -256,6 +319,7 @@ def git_history_task(
         max_commits=None,
         skip_file_changes=False,  # Fixed: optimized relationship creation to avoid O(n²) performance
         file_changes_only=False,
+        since_sha=since_sha,
     )
 
 

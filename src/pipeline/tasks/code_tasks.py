@@ -91,7 +91,7 @@ def clone_repo_task(repo_url: str) -> str:
 
 
 @task(retries=1)
-def extract_code_task(repo_path: str, out_dir: str) -> str:
+def extract_code_task(repo_path: str, out_dir: str, files_subset: list[str] | None = None) -> str:
     logger = get_run_logger()
     logger.info("Extracting code structure from %s", repo_path)
     out_files = str(Path(out_dir) / "files_data.json")
@@ -105,6 +105,13 @@ def extract_code_task(repo_path: str, out_dir: str) -> str:
         "--out-dependencies",
         out_deps,
     ]
+    # WP4 subset extract: restrict parsing to the changed/added files. Written to
+    # a JSON file (deltas can be thousands of paths — avoids argv length limits).
+    if files_subset:
+        subset_path = Path(out_dir) / "changed_files.json"
+        subset_path.write_text(json.dumps(list(files_subset)), encoding="utf-8")
+        base.extend(["--files", str(subset_path)])
+        logger.info("Subset extract: %d changed/added files", len(files_subset))
     import sys
 
     old_argv = sys.argv

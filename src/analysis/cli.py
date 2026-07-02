@@ -44,4 +44,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Suppress per-file Java parse warnings on console; show only a summary",
     )
+    parser.add_argument(
+        "--files",
+        action="append",
+        default=None,
+        help=(
+            "Restrict extraction to a subset of files (WP4 incremental ingest). "
+            "Repeatable; each value is a comma-separated list of repo-relative "
+            "paths, or a path to a .json file containing a JSON list of paths. "
+            "Missing paths are skipped."
+        ),
+    )
     return parser.parse_args()

@@ -38,6 +38,18 @@ def parse_cli_args() -> argparse.Namespace:
         help="Restrict CO_CHANGED temporal coupling to commits from the last N days "
         "(default: full history)",
     )
+    # WP4 incremental ingest: opt-in HEAD-delta patching against an existing graph.
+    parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Opt into incremental ingest: patch only files changed since the last "
+        "successful ingest (falls back to full when no valid high-water mark exists)",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Force a full re-ingest even if --incremental is also passed",
+    )
 
     args = parser.parse_args()
     if not (args.repo_url or args.pos_repo_url):

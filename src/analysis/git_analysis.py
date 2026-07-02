@@ -103,8 +103,15 @@ def load_history(
     max_commits: int | None = None,
     skip_file_changes: bool = False,
     file_changes_only: bool = False,
+    since_sha: str | None = None,
 ) -> None:
-    """Load git history using optimized approach."""
+    """Load git history using optimized approach.
+
+    When ``since_sha`` is provided (WP4 incremental ingest), only commits in
+    ``<since_sha>..HEAD`` are read and MERGEd. With the Phase-0 idempotency fixes
+    (CHANGED/OF_FILE are MERGE, PARENT edges MERGE by sha) the boundary overlap
+    with the previous ingest is harmless, and CO_CHANGED is rebuilt separately.
+    """
     # Check if repo_url is a local path or a URL
     repo_path = Path(repo_url)
     if repo_path.exists() and repo_path.is_dir():
@@ -156,8 +163,12 @@ def load_history(
                     logger.error(f"No suitable branch found. Error: {e}")
                     raise
 
-        # Extract git history from the repository directory
-        commits, file_changes = extract_git_history(repo_dir, branch, max_commits)
+        # Extract git history from the repository directory. Incremental runs
+        # pass a rev_range so only new commits since the last HWM are read.
+        rev_range = f"{since_sha}..HEAD" if since_sha else None
+        commits, file_changes = extract_git_history(
+            repo_dir, branch, max_commits, rev_range=rev_range
+        )
 
         # Create DataFrames
         commits_df, developers_df, files_df, file_changes_df = create_dataframes(

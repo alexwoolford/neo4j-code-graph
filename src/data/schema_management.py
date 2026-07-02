@@ -132,6 +132,22 @@ SCHEMA_CONSTRAINTS: list[tuple[str, str, str, str]] = [
         "name",
         "CREATE CONSTRAINT exception_name_unique IF NOT EXISTS FOR (e:Exception) REQUIRE e.name IS UNIQUE",
     ),
+    # WP4 provenance: Repository + Ingest high-water-mark nodes. These are new
+    # node types written only by the provenance layer; they are intentionally
+    # NOT part of ensure_constraints_exist_or_fail's required subset so existing
+    # graphs and pre-provenance tests keep loading without them.
+    (
+        "repository_url_unique",
+        "Repository",
+        "url",
+        "CREATE CONSTRAINT repository_url_unique IF NOT EXISTS FOR (r:Repository) REQUIRE r.url IS UNIQUE",
+    ),
+    (
+        "ingest_id_unique",
+        "Ingest",
+        "id",
+        "CREATE CONSTRAINT ingest_id_unique IF NOT EXISTS FOR (i:Ingest) REQUIRE i.id IS UNIQUE",
+    ),
 ]
 
 SCHEMA_INDEXES: list[tuple[str, str, str]] = [
@@ -212,6 +228,12 @@ SCHEMA_INDEXES: list[tuple[str, str, str]] = [
     ),
     # Keep a non-unique index on package for lookup and joins
     # ExternalDependencyPackage removed: all external deps must resolve to versioned ExternalDependency
+    # WP4 provenance: latest-successful-ingest lookups order by finished_at.
+    (
+        "ingest_finished_at",
+        "Ingest",
+        "CREATE INDEX ingest_finished_at IF NOT EXISTS FOR (i:Ingest) ON (i.finished_at)",
+    ),
 ]
 
 

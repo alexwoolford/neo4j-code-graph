@@ -10,10 +10,20 @@ logger = logging.getLogger(__name__)
 
 
 def extract_git_history(
-    repo_path: str | Path, branch: str, max_commits: int | None = None
+    repo_path: str | Path,
+    branch: str,
+    max_commits: int | None = None,
+    rev_range: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Extract git history using `git log` with streaming output."""
+    """Extract git history using `git log` with streaming output.
+
+    When ``rev_range`` is given (e.g. ``"<since_sha>..HEAD"`` for WP4 incremental
+    ingest) it replaces the branch/ref selector so only commits in that range are
+    read. When None, behavior is unchanged (full history of ``branch``).
+    """
     logger.info("Extracting git history...")
+    # Incremental runs select a commit range; full runs select the branch tip.
+    selector = rev_range if rev_range else branch
     cmd: list[str] = [
         "git",
         "log",
@@ -22,7 +32,7 @@ def extract_git_history(
         # Place %P before %s so the commit message remains the trailing field.
         "--pretty=format:%H|%an|%ae|%ad|%P|%s",
         "--date=iso",
-        branch,
+        selector,
     ]
     if max_commits:
         cmd.append(f"-{max_commits}")
@@ -92,7 +102,7 @@ def extract_git_history(
         "--name-status",
         "-M",
         "--numstat",
-        branch,
+        selector,
     ]
     proc = subprocess.Popen(
         log_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True

@@ -106,6 +106,15 @@ PIPELINE_TIMEOUT_SECONDS = 3600  # 1 hour
 MAX_RETRIES = 2
 CLEANUP_CONFIRMATION_REQUIRED = True
 
+# Ingest provenance / incremental high-water mark (WP4).
+#
+# SCHEMA_VERSION is stamped on every :Ingest node. When it differs from the
+# value stored on the last successful ingest, incremental ingest falls back to a
+# full re-ingest (the on-disk graph shape changed and a HEAD-delta patch can no
+# longer be trusted). Bump this whenever the node/relationship model changes in
+# a way that would make a partial patch diverge from a fresh full ingest.
+SCHEMA_VERSION = 1
+
 # Output Formatting
 SUMMARY_LINE_LENGTH = 80
 PROGRESS_BAR_WIDTH = 50

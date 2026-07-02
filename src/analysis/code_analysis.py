@@ -270,6 +270,53 @@ if _batching is not None:
         )
 
 
+def _resolve_subset_files(entries: list[str], repo_root: Path) -> list[Path]:
+    """Resolve --files entries into existing ``*.java`` paths under repo_root.
+
+    Each entry is either a comma-separated list of repo-relative paths or a path
+    to a ``.json`` file containing a JSON list of repo-relative paths. Paths are
+    resolved under ``repo_root``; anything missing, non-Java, or outside the repo
+    is skipped.
+    """
+    import json as _json
+
+    wanted: list[str] = []
+    for entry in entries or []:
+        if not entry:
+            continue
+        entry = entry.strip()
+        candidate_json = Path(entry)
+        if entry.lower().endswith(".json") and candidate_json.exists():
+            try:
+                data = _json.loads(candidate_json.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    wanted.extend(str(p) for p in data)
+            except Exception as e:  # pragma: no cover - defensive
+                logger.warning("Failed to read --files JSON %s: %s", entry, e)
+            continue
+        wanted.extend(part.strip() for part in entry.split(",") if part.strip())
+
+    resolved: list[Path] = []
+    seen: set[str] = set()
+    repo_root_resolved = repo_root.resolve()
+    for rel in wanted:
+        cand = (repo_root / rel).resolve()
+        # Guard: must stay under repo root, exist, and be a Java file.
+        try:
+            cand.relative_to(repo_root_resolved)
+        except ValueError:
+            logger.warning("Skipping --files path outside repo root: %s", rel)
+            continue
+        if cand.suffix != ".java" or not cand.exists():
+            continue
+        key = str(cand)
+        if key in seen:
+            continue
+        seen.add(key)
+        resolved.append(cand)
+    return resolved
+
+
 def main():
     """Main function."""
     from pathlib import Path as _Path
@@ -297,6 +344,20 @@ def main():
 
     java_files = list_java_files(repo_root)
     logger.info("Found %d Java files to process", len(java_files))
+
+    # WP4 subset extract: when --files is given, restrict to that subset. Paths
+    # are resolved under the repo root; missing paths are skipped (a deleted file
+    # is handled by the reconcile step, not extraction).
+    subset_files = getattr(args, "files", None)
+    if subset_files:
+        wanted = _resolve_subset_files(subset_files, repo_root)
+        before = len(java_files)
+        java_files = [p for p in wanted]
+        logger.info(
+            "Subset extract: %d of %d repo Java files selected via --files",
+            len(java_files),
+            before,
+        )
 
     # Dependency extraction (allow artifact in/out)
     dependency_versions: dict[str, str] = {}
