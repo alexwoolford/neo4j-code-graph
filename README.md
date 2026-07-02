@@ -171,8 +171,9 @@ Each recipe is paired with a note on what it actually answers vs what an
 analyst might assume it answers — important given the call-graph soundness
 ceiling.
 
-Older sample queries are in [`examples/queries.yml`](examples/queries.yml) and
-[`cypher_templates_for_bloom.cypher`](cypher_templates_for_bloom.cypher).
+Risk-intelligence query walkthroughs (CVE exposure, blast radius, ownership)
+are in [`examples/business_queries.md`](examples/business_queries.md); the
+CI-validated query catalog is bound by [`examples/queries.yml`](examples/queries.yml).
 Aim to use the schema-aware filters (`m.arity`, `m.is_test_method`,
 `r.confidence` on AFFECTS) over name-based string matching wherever possible.
 
