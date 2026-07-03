@@ -66,3 +66,31 @@ def test_universal_search_terms_keeps_distinctive_segments_drops_generic():
     assert "core" not in terms
     assert "org" not in terms
     assert "com" not in terms
+
+
+def test_universal_search_terms_drops_bare_generic_dependency_names():
+    """Regression: partial build resolution can yield bare-word dependency
+    names (e.g. GDS submodules) that match tens of thousands of CVEs and stall
+    the NVD fetch. Bare generic/short words must not become search terms, while
+    specific single-word library names (xstream, snakeyaml) survive."""
+    from src.security.cve_analysis import CVEAnalyzer
+
+    a = CVEAnalyzer(driver=None, database="neo4j")
+    deps = {
+        "java:maven": {
+            "apache",
+            "core",
+            "service",
+            "testing",
+            "value",
+            "gds",  # too short + project-generic
+            "xstream",
+            "snakeyaml",
+            "jackson-databind",
+        }
+    }
+    terms = a.create_universal_component_search_terms(deps)
+    for noise in ("apache", "core", "service", "testing", "value", "gds"):
+        assert noise not in terms, f"generic term leaked: {noise}"
+    for real in ("xstream", "snakeyaml", "jackson-databind"):
+        assert real in terms

@@ -96,40 +96,70 @@ class CVEAnalyzerCore:
         "io",
         "www",
         "github",
+        "annotations",
         "api",
         "apache",
+        "auto",
         "boot",
         "client",
         "common",
         "commons",
+        "config",
         "core",
         "data",
         "engine",
         "framework",
         "google",
         "impl",
+        "info",
+        "internal",
         "jakarta",
         "java",
         "javax",
         "lang",
         "library",
+        "main",
         "misc",
         "model",
         "platform",
         "plugin",
+        "proc",
+        "processor",
+        "proto",
+        "protoc",
         "release",
         "runtime",
         "security",
         "server",
         "service",
+        "shared",
         "spring",
         "starter",
         "test",
+        "testing",
         "tools",
         "util",
         "utils",
+        "value",
         "web",
     }
+
+    @staticmethod
+    def _is_useful_search_term(term: str) -> bool:
+        """A term identifies a component only if it is specific enough.
+
+        Structured names (dotted packages / hyphenated artifacts like
+        ``jackson-databind`` or ``org.apache.commons.lang3``) are kept as-is.
+        Bare single words are keyword-search noise unless they are both
+        long enough and not a generic token (this drops GDS-style
+        partial-resolution artifacts such as ``core``/``apache``/``testing``
+        that otherwise match tens of thousands of CVEs and stall the fetch).
+        """
+        if term in CVEAnalyzerCore._GENERIC_TOKENS or term.isdigit():
+            return False
+        if "." in term or "-" in term or ":" in term:
+            return True
+        return len(term) >= 5
 
     @staticmethod
     def create_universal_component_search_terms(dependencies: dict[str, set[str]]) -> set[str]:
@@ -139,7 +169,8 @@ class CVEAnalyzerCore:
         high-recall terms — NVD tokenizes hyphenated keywords, so splitting
         them only produced generic noise tokens. Dotted package paths are kept
         whole and additionally contribute their distinctive segments (vendor
-        names like ``fasterxml``), never generic ones.
+        names like ``fasterxml``), never generic ones. Bare generic words are
+        dropped entirely (see ``_is_useful_search_term``).
         """
         search_terms: set[str] = set()
         for _ecosystem, deps in dependencies.items():
@@ -147,7 +178,8 @@ class CVEAnalyzerCore:
                 if not dep:
                     continue
                 dep_lower = dep.lower()
-                search_terms.add(dep_lower)
+                if CVEAnalyzerCore._is_useful_search_term(dep_lower):
+                    search_terms.add(dep_lower)
                 if "." in dep_lower:
                     for part in dep_lower.split("."):
                         if (
