@@ -70,7 +70,7 @@
     <a class="nav-link" href="../development.html">Development</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="../mcp.html">MCP (NL→Cypher) Integration</a>
+    <a class="nav-link" href="../mcp.html">MCP Integration</a>
   </li>
 </ul>
   </li>
@@ -224,14 +224,14 @@ LIMIT 25</code></pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_validate_louvain_community_write_back"><a class="anchor" href="#_validate_louvain_community_write_back"></a>Validate Louvain community write-back</h3>
+<h3 id="_validate_call_graph_community_louvain_on_calls_write_back"><a class="anchor" href="#_validate_call_graph_community_louvain_on_calls_write_back"></a>Validate call-graph community (Louvain on CALLS) write-back</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Validate Louvain write-back on similarity communities (if previously run)
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Validate Louvain write-back on call-graph communities (if previously run)
 MATCH (m:Method)
-WHERE m.similarity_community IS NOT NULL
-RETURN m.similarity_community AS community,
-       count(*)               AS members
+WHERE m.calls_community IS NOT NULL
+RETURN m.calls_community AS community,
+       count(*)          AS members
 ORDER BY members DESC, community
 LIMIT 10</code></pre>
 </div>
@@ -260,15 +260,15 @@ LIMIT 25</code></pre>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_community_to_module_mapping_candidates"><a class="anchor" href="#_community_to_module_mapping_candidates"></a>Community-to-module mapping candidates</h3>
+<h3 id="_call_graph_community_to_module_mapping_candidates"><a class="anchor" href="#_call_graph_community_to_module_mapping_candidates"></a>Call-graph community-to-module mapping candidates</h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Candidate modules from similarity communities
+<pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Candidate modules from call-graph communities
 // Value: reveal cohesive clusters that can map to modules or ownership boundaries.
 MATCH (m:Method)
-WHERE m.similarity_community IS NOT NULL
+WHERE m.calls_community IS NOT NULL
 OPTIONAL MATCH (m)&lt;-[:CONTAINS_METHOD]-(c:Class)&lt;-[:CONTAINS]-(p:Package)
-WITH m.similarity_community AS community,
+WITH m.calls_community AS community,
      count(*)               AS members,
      count(DISTINCT c)      AS classes,
      count(DISTINCT p)      AS packages
@@ -285,11 +285,11 @@ LIMIT 20</code></pre>
 <pre class="highlightjs highlight"><code class="language-cypher hljs" data-lang="cypher">// Classes whose methods span multiple communities (potential split/refactor candidates)
 // Value: identify units where responsibilities are mixed across unrelated clusters.
 MATCH (cls:Class)-[:CONTAINS_METHOD]-&gt;(m:Method)
-WHERE m.similarity_community IS NOT NULL
+WHERE m.calls_community IS NOT NULL
 WITH cls,
-     count(DISTINCT m.similarity_community) AS distinct_communities,
+     count(DISTINCT m.calls_community) AS distinct_communities,
      count(m) AS methods,
-     apoc.coll.toSet(collect(DISTINCT m.similarity_community))[..5] AS sample
+     apoc.coll.toSet(collect(DISTINCT m.calls_community))[..5] AS sample
 WHERE distinct_communities &gt;= 2
 RETURN cls.name AS class,
        cls.file AS file,

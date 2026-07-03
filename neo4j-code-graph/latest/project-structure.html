@@ -70,7 +70,7 @@
     <a class="nav-link" href="development.html">Development</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="mcp.html">MCP (NL→Cypher) Integration</a>
+    <a class="nav-link" href="mcp.html">MCP Integration</a>
   </li>
 </ul>
   </li>
@@ -121,7 +121,7 @@
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-none hljs">neo4j-code-graph/
 ├── src/                       # Core library code
-│   ├── analysis/              # Code &amp; Git analyzers, similarity, temporal coupling
+│   ├── analysis/              # Code &amp; Git analyzers, centrality, temporal coupling
 │   ├── security/              # CVE enrichment &amp; matching
 │   ├── data/                  # Schema/constraints management
 │   ├── pipeline/              # Prefect flow orchestration
@@ -130,8 +130,7 @@
 ├── scripts/                   # CI/build helpers (DAG gen, wait for Neo4j, snippet validation)
 ├── logs/                      # Runtime logs (created on demand; contains .gitkeep)
 ├── examples/                  # Example code; Cypher catalog lives in docs/modules/ROOT/examples
-├── tests/                     # Unit + live tests
-└── (legacy) cypher_templates_for_bloom.cypher  # to be removed; use Queries catalog instead</code></pre>
+└── tests/                     # Unit + live tests</code></pre>
 </div>
 </div>
 </article>

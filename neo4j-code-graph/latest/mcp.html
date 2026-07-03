@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>MCP Integration (Natural Language → Cypher) :: Neo4j Code Graph</title>
+    <title>MCP Integration :: Neo4j Code Graph</title>
     <meta name="generator" content="Antora 3.1.12">
 <link rel="stylesheet" href="../../_/css/site.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
@@ -70,7 +70,7 @@
     <a class="nav-link" href="development.html">Development</a>
   </li>
   <li class="nav-item is-current-page" data-depth="2">
-    <a class="nav-link" href="mcp.html">MCP (NL→Cypher) Integration</a>
+    <a class="nav-link" href="mcp.html">MCP Integration</a>
   </li>
 </ul>
   </li>
@@ -106,7 +106,7 @@
   <ul>
     <li><a href="index.html">Docs</a></li>
     <li>Developer Guide</li>
-    <li><a href="mcp.html">MCP (NL→Cypher) Integration</a></li>
+    <li><a href="mcp.html">MCP Integration</a></li>
   </ul>
 </nav>
 <div class="edit-this-page"><a href="https://github.com/alexwoolford/neo4j-code-graph/edit/main/docs/modules/ROOT/pages/mcp.adoc">Edit this Page</a></div>
@@ -116,52 +116,214 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">MCP Integration (Natural Language → Cypher)</h1>
+<h1 class="page">MCP Integration</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
-<p>Use the official Neo4j MCP servers to query your code graph with natural language from IDEs like Cursor or Claude Desktop.</p>
+<p>Query your code graph from an MCP client (Claude Code, Claude Desktop, Cursor)
+with two complementary servers:</p>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_reference"><a class="anchor" href="#_reference"></a>Reference</h2>
-<div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p>Project: <code>mcp-neo4j</code> — Neo4j MCP Clients &amp; Servers</p>
+<p><strong><code>code-graph-mcp</code></strong> (this project) — a curated server exposing eight typed,
+read-only <strong>risk</strong> tools with stable contracts. Use this for the questions this
+project is built to answer (CVE reachability, blast radius, ownership,
+hotspots).</p>
 </li>
 <li>
-<p><code>mcp-neo4j-cypher</code>: natural language to Cypher over your database</p>
-</li>
-<li>
-<p>Transport: stdio (default), HTTP, or SSE</p>
-</li>
-<li>
-<p>Repository: <code><a href="https://github.com/neo4j-contrib/mcp-neo4j" class="bare">https://github.com/neo4j-contrib/mcp-neo4j</a></code></p>
+<p><strong><code>mcp-neo4j-cypher</code></strong> (Neo4j Labs, companion) — natural-language-to-Cypher
+over the same database for ad-hoc exploration that the curated tools do not
+cover.</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>Both speak stdio, share the <code>NEO4J_*</code> env convention, and can run side by side.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_cursor_configuration"><a class="anchor" href="#_cursor_configuration"></a>Cursor configuration</h2>
+<h2 id="_primary_the_curated_code_graph_mcp_server"><a class="anchor" href="#_primary_the_curated_code_graph_mcp_server"></a>Primary: the curated <code>code-graph-mcp</code> server</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Add an entry to <code>~/.cursor/mcp.json</code> (adjust names and environment for your DB):</p>
+<p>Every tool validates its arguments, opens a <strong>read-only</strong> Neo4j session, calls
+one canned query from <code>src/security/reachability.py</code> (the single source of
+truth — the MCP layer contains zero Cypher), and returns a versioned envelope:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  "schema_version": "1.0",
+  "tool": "cve_reachability",
+  "summary": "3 reachable frontier method(s) for CVE-2024-0001 within 6 hop(s).",
+  "row_count": 3,
+  "truncated": false,
+  "caveats": [
+    "Java only.",
+    "CALLS is receiver-class + arity matched; no reflection, DI, or dynamic dispatch — ranked triage, not proof."
+  ],
+  "rows": [ { "...": "stable snake_case keys" } ]
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>caveats</code> array repeats the scope + soundness ceiling in-band, and every
+tool description ends with the same two sentences, so an agent reading only the
+tool list or only a payload still sees them.</p>
+</div>
+<div class="sect2">
+<h3 id="_the_eight_tools"><a class="anchor" href="#_the_eight_tools"></a>The eight tools</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Tool</th>
+<th class="tableblock halign-left valign-top">Answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cve_reachability(cve_id, max_hops=6, include_tests=false)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which of your Java methods can reach a given CVE&#8217;s vulnerable dependency, with example call paths ranked by confidence tier and hop distance.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>blast_radius(file_path, min_support=5)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What else tends to change with a file and who owns it: change-coupling co-change partners plus top committers and bus factor.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>hotspots(days=90, top_n=20)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which files change most often and declare the highest-centrality methods (change frequency joined with peak method PageRank).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ownership(path_or_package, days=null)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Who owns the code under a path or package: commits, files touched, last commit date, and each developer&#8217;s share.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>risk_register(min_cvss=7.0, max_hops=6, limit=25)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The ranked CVE risk register — every AFFECTS-linked CVE with its reachability status (REACHABLE / FRONTIER_UNREACHABLE / NO_FRONTIER / NOT_IMPORTED). The pitch in one call.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>dependency_cves(gav)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which CVEs affect an exact Maven coordinate <code>group:artifact:version</code>, with CVSS, match type, and AFFECTS confidence.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>unreachable_cves(min_cvss=0.0, max_hops=6)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Which CVEs have no reachable call path (NOT_IMPORTED / NO_FRONTIER / FRONTIER_UNREACHABLE), each with an evidence string for safe dismissal.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>graph_summary()</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Node/relationship counts per label/type plus flags for the PageRank and CO_CHANGED stages and the latest commit date — self-diagnose an unrun pipeline stage instead of misreading empty results.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_install_and_run"><a class="anchor" href="#_install_and_run"></a>Install and run</h3>
+<div class="paragraph">
+<p><code>code-graph-mcp</code> is installed as a console entry point with the project
+(<code>pip install -e .</code> in the <code>neo4j-code-graph</code> conda env). It reads
+<code>NEO4J_URI</code>, <code>NEO4J_USERNAME</code>, <code>NEO4J_PASSWORD</code>, and <code>NEO4J_DATABASE</code> from the
+environment (or a <code>.env</code> file). Sessions are read-only; still, prefer a
+read-only Neo4j role for defense in depth.</p>
+</div>
+<div class="paragraph">
+<p>Register it with Claude Code:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">claude mcp add code-graph \
+  --env NEO4J_URI=neo4j+s://&lt;your-instance-id&gt;.databases.neo4j.io \
+  --env NEO4J_USERNAME=neo4j \
+  --env NEO4J_PASSWORD=&lt;password&gt; \
+  --env NEO4J_DATABASE=neo4j \
+  -- code-graph-mcp</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Cursor / Claude Desktop — add to <code>~/.cursor/mcp.json</code>
+(or <code>claude_desktop_config.json</code>):</p>
 </div>
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
   "mcpServers": {
-    "neo4j-codegraph": {
+    "code-graph": {
+      "command": "code-graph-mcp",
+      "env": {
+        "NEO4J_URI": "neo4j+s://&lt;your-instance-id&gt;.databases.neo4j.io",
+        "NEO4J_USERNAME": "neo4j",
+        "NEO4J_PASSWORD": "&lt;password&gt;",
+        "NEO4J_DATABASE": "neo4j"
+      }
+    }
+  }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Set the optional <code>CODEGRAPH_MCP_NAMESPACE</code> env var to prefix every tool name
+(e.g. <code>CODEGRAPH_MCP_NAMESPACE=cg</code> exposes <code>cg_cve_reachability</code>), which lets
+this server coexist with other MCP servers that use the same tool names.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_example_prompts"><a class="anchor" href="#_example_prompts"></a>Example prompts</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>"Is CVE-2024-0001 actually reachable from an entry point?"</p>
+</li>
+<li>
+<p>"Show me the risk register at CVSS 7 and above."</p>
+</li>
+<li>
+<p>"Which CVEs can I safely deprioritize, and why?"</p>
+</li>
+<li>
+<p>"What&#8217;s the blast radius of changing <code>PaymentService.java</code>, and who owns it?"</p>
+</li>
+<li>
+<p>"Has the PageRank stage run on this graph?"</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_versioning"><a class="anchor" href="#_versioning"></a>Versioning</h3>
+<div class="paragraph">
+<p>The response envelope carries <code>schema_version</code> (<code>1.0</code>). Additive keys bump the
+minor version; renames or removals bump the major. The version history lives as
+a comment block in <code>src/mcp_server/contracts.py</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_companion_mcp_neo4j_cypher_for_ad_hoc_exploration"><a class="anchor" href="#_companion_mcp_neo4j_cypher_for_ad_hoc_exploration"></a>Companion: <code>mcp-neo4j-cypher</code> for ad-hoc exploration</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>For questions the curated tools do not cover, run the Neo4j Labs
+natural-language-to-Cypher server alongside <code>code-graph-mcp</code>. We do <strong>not</strong>
+depend on it — it solves NL→Cypher over arbitrary schemas, whereas the curated
+server gives typed tools with stable contracts — but its conventions (stdio
+default, <code>NEO4J_*</code> env, namespace prefix) are the ones we adopted, and it is a
+handy exploration companion.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  "mcpServers": {
+    "neo4j-cypher": {
       "command": "uvx",
       "args": ["mcp-neo4j-cypher@0.4.0", "--transport", "stdio"],
       "env": {
-        "NEO4J_URI": "neo4j://10.0.1.27",
+        "NEO4J_URI": "neo4j+s://&lt;your-instance-id&gt;.databases.neo4j.io",
         "NEO4J_USERNAME": "readonly",
-        "NEO4J_PASSWORD": "password",
+        "NEO4J_PASSWORD": "&lt;password&gt;",
         "NEO4J_DATABASE": "neo4j",
         "NEO4J_NAMESPACE": "neo4j"
       }
@@ -171,70 +333,28 @@
 </div>
 </div>
 <div class="paragraph">
-<p>Tips:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Use a read-only Neo4j role for safety during exploration.</p>
-</li>
-<li>
-<p>Point <code>NEO4J_NAMESPACE</code> to the graph namespace you want the MCP to use (optional; used by some clients for scoping).</p>
-</li>
-<li>
-<p>For HTTP transport instead of stdio: run <code>mcp-neo4j-cypher --transport http [--host 127.0.0.1 --port 8080 --path /api/mcp/]</code> and configure the client accordingly.</p>
-</li>
-</ul>
+<p>Running via <code>uvx</code> does not require this project&#8217;s conda env. Use a read-only
+Neo4j role for exploration.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_example_prompts"><a class="anchor" href="#_example_prompts"></a>Example prompts</h2>
+<h2 id="_which_repository_is_which"><a class="anchor" href="#_which_repository_is_which"></a>Which repository is which</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p>"Which methods call processData?"</p>
+<p><code>code-graph-mcp</code> — this project&#8217;s curated risk server (in <code>src/mcp_server/</code>).</p>
 </li>
 <li>
-<p>"Top 20 methods by PageRank and their files."</p>
+<p><code>mcp-neo4j-cypher</code> — part of <strong>neo4j-contrib/mcp-neo4j</strong> (Neo4j <strong>Labs</strong>): MCP
+clients &amp; servers, including the NL→Cypher server used above.</p>
 </li>
 <li>
-<p>"Show files importing package X."</p>
-</li>
-<li>
-<p>"List classes that implement interface Y."</p>
+<p><code>neo4j/mcp</code> — the separate <strong>official Neo4j product</strong> MCP server; distinct
+from the Labs repository above.</p>
 </li>
 </ul>
-</div>
-<div class="paragraph">
-<p>These map to Cypher over your existing schema (<code>File</code>, <code>Class</code>, <code>Method</code>, <code>CALLS</code>, <code>IMPORTS</code>, <code>IMPLEMENTS</code>, etc.).</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_environment"><a class="anchor" href="#_environment"></a>Environment</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>MCP does not require this project&#8217;s conda environment. Use the <code>neo4j-code-graph</code> conda env when you are running this project&#8217;s pipeline (code graph creation) or developer scripts. For MCP specifically:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>If you run <code>mcp-neo4j-cypher</code> via <code>uvx</code> (as in the example), you do NOT need to activate the project conda env.</p>
-</li>
-<li>
-<p>If you installed <code>mcp-neo4j-cypher</code> into the <code>neo4j-code-graph</code> conda env and want to use that interpreter, then activate it first:</p>
-</li>
-</ul>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">conda activate neo4j-code-graph</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Then start your IDE and the MCP server if not launched automatically by the client.</p>
 </div>
 </div>
 </div>

@@ -70,7 +70,7 @@
     <a class="nav-link" href="development.html">Development</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="mcp.html">MCP (NL→Cypher) Integration</a>
+    <a class="nav-link" href="mcp.html">MCP Integration</a>
   </li>
 </ul>
   </li>
@@ -125,7 +125,15 @@
 </div>
 </div>
 <div class="sect1">
-<h2 id="_research_papers_and_journals"><a class="anchor" href="#_research_papers_and_journals"></a>Research papers and journals</h2>
+<h2 id="_how_this_project_is_positioned"><a class="anchor" href="#_how_this_project_is_positioned"></a>How this project is positioned</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>neo4j-code-graph does <strong>not</strong> compete in the agent-context category (local-first indexing, many languages, token-budget optimization for coding agents) — that space is well served by the tools listed under <a href="#related-tools">Related tools</a>. Its differentiation is joining four signals in <strong>one queryable Neo4j graph</strong>: git history as a graph (Commit/Developer/FileVer/CO_CHANGED temporal coupling), versioned Maven dependency → CVE linkage (NVD + GHSA, version-range aware), a method-level CALLS graph, and GDS analytics. CodeQL and Joern own <strong>sound</strong> static analysis; this project is honest, ranked triage on a lexical graph — evidence, not proof.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_research_papers_published"><a class="anchor" href="#_research_papers_published"></a>Research papers (published)</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
@@ -136,7 +144,16 @@
 <p><a href="https://semantic-web-journal.net/system/files/swj2575.pdf">Abdelaziz et al., 2022 — GRAPH4CODE</a> — A large-scale Python code knowledge graph with usage and documentation signals.</p>
 </li>
 <li>
-<p><a href="https://arxiv.org/abs/2203.03850">Guo et al., 2022 — UniXcoder</a> — The embedding model paper used widely for code tasks; unified cross-modal pretraining for understanding and generation.</p>
+<p><a href="https://arxiv.org/abs/2410.14684">Ouyang et al., ICLR 2025 — RepoGraph</a> — Plug-in repository-level code-graph module that lifts SWE-bench agent performance; evidence that deterministic repo graphs help LLM software engineering.</p>
+</li>
+<li>
+<p><a href="https://arxiv.org/abs/2408.03910">Liu et al., NAACL 2025 — CodexGraph</a> — LLM agents query a code-graph <strong>database</strong> (schema-aware retrieval over a graph DB) rather than embedding search; closest published architecture to this project&#8217;s query-first design.</p>
+</li>
+<li>
+<p><a href="https://arxiv.org/abs/2503.09089">Chen et al., ACL 2025 — LocAgent</a> — Parses repositories into directed heterogeneous graphs for multi-hop LLM code localization.</p>
+</li>
+<li>
+<p><a href="https://arxiv.org/abs/2406.07003">Liu et al., ASE 2024 — GraphCoder: Enhancing Repository-Level Code Completion via Coarse-to-fine Retrieval Based on Code Context Graph</a> — Code context graph (control/data dependence) driving repo-level completion retrieval.</p>
 </li>
 </ul>
 </div>
@@ -148,6 +165,15 @@
 <div class="ulist">
 <ul>
 <li>
+<p><a href="https://arxiv.org/abs/2507.19942">Prometheus (2025 preprint)</a> — Knowledge-graph + memory-augmented multi-agent framework for repository-level problem solving.</p>
+</li>
+<li>
+<p><a href="https://arxiv.org/abs/2510.04905">Retrieval-Augmented Code Generation survey (2025 preprint)</a> — Survey of repo-level RAG; frames graph-based vs non-graph retrieval paradigms.</p>
+</li>
+<li>
+<p><a href="https://arxiv.org/abs/2601.08773">AST-Derived Graphs vs LLM-Extracted Knowledge Graphs (2026 preprint)</a> — Benchmarks deterministic Tree-sitter AST graphs against LLM-extracted KGs on Java repos; finds AST graphs give more reliable coverage and multi-hop grounding at far lower indexing cost — direct support for this project&#8217;s deterministic-extraction design.</p>
+</li>
+<li>
 <p><a href="https://arxiv.org/html/2505.14394v1">Knowledge Graph Based Repository-Level Code Generation (2025 preprint)</a> — Repository-level schema with File/Class/Method and description nodes for codegen.</p>
 </li>
 <li>
@@ -158,6 +184,48 @@
 </li>
 <li>
 <p><a href="https://arxiv.org/abs/2505.16901">Tao et al., 2025 — Code Graph Model (CGM)</a> — Graph-integrated LLM for repository-level tasks; integrates repository code graph structure into attention.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><em>Historical note:</em> <a href="https://arxiv.org/abs/2203.03850">UniXcoder (Guo et al., 2022)</a> powered this project&#8217;s method-embedding/KNN-similarity stage, which was removed in 2026 during the repositioning toward change-risk and vulnerability-reachability intelligence.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="related-tools"><a class="anchor" href="#related-tools"></a>Related tools</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Verified July 2026; star counts drift — treat as orders of magnitude.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://github.com/colbymchenry/codegraph">colbymchenry/codegraph "CodeGraph"</a> (~57k★) — Pre-indexed, fully local code knowledge graph (symbols, call edges, blast radius) served to AI coding agents. Note: distinct from the older <a href="https://github.com/ChrisRoyse/CodeGraph">ChrisRoyse/CodeGraph</a> listed under prior art below.</p>
+</li>
+<li>
+<p><a href="https://github.com/abhigyanpatwari/GitNexus">GitNexus</a> (~43k★) — Zero-server, browser-side (tree-sitter → WebGL) code knowledge graph with a built-in graph-RAG agent; MCP-native.</p>
+</li>
+<li>
+<p><a href="https://github.com/DeusData/codebase-memory-mcp">codebase-memory-mcp</a> (~24k★) — Tree-sitter knowledge-graph MCP server, 158 languages, single static binary.</p>
+</li>
+<li>
+<p><a href="https://github.com/CodeGraphContext/CodeGraphContext">CodeGraphContext</a> (~4k★) — MCP server + CLI indexing local code into a graph DB for AI assistants.</p>
+</li>
+<li>
+<p><a href="https://github.com/Cranot/roam-code">roam-code</a> — Local codebase-intelligence CLI + MCP with a SQLite code graph and change-safety gates.</p>
+</li>
+<li>
+<p><a href="https://github.com/repowise-dev/repowise">repowise</a> (~3k★) — The nearest differentiated neighbor: deterministic PR bot flagging hotspots and hidden coupling, plus reachability-aware CVE triage and SBOM on the real dependency graph.</p>
+</li>
+<li>
+<p><a href="https://github.com/github/codeql">CodeQL</a> and <a href="https://joern.io/">Joern</a> — Sound(er) static analysis with real dataflow/taint tracking. If you need proof-grade call graphs, use these; this project&#8217;s CALLS edges are receiver-class + arity matched lexical triage.</p>
+</li>
+<li>
+<p><a href="https://codescene.com/">CodeScene</a> — Commercial behavioral code analysis (hotspots, knowledge maps from git history); the closest commercial analogue to this project&#8217;s temporal-coupling and ownership signals.</p>
+</li>
+<li>
+<p><a href="https://github.com/neo4j-contrib/mcp-neo4j">mcp-neo4j-cypher (Neo4j Labs)</a> — Community-maintained NL→Cypher MCP server; a good <strong>companion</strong> to this project&#8217;s curated MCP tools for ad-hoc graph exploration. (The separate <a href="https://github.com/neo4j/mcp">neo4j/mcp</a> repository is Neo4j&#8217;s official product MCP server.)</p>
 </li>
 </ul>
 </div>
@@ -215,7 +283,7 @@
 </div>
 </div>
 <div class="sect1">
-<h2 id="_open_source_repositories"><a class="anchor" href="#_open_source_repositories"></a>Open-source repositories</h2>
+<h2 id="_open_source_repositories_prior_art"><a class="anchor" href="#_open_source_repositories_prior_art"></a>Open-source repositories (prior art)</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
@@ -259,7 +327,7 @@
 <div class="ulist">
 <ul>
 <li>
-<p><a href="https://www.diva-portal.org/smash/get/diva2%3A1851736/FULLTEXT01.pdf">Master’s thesis (2024/2025)</a> — Applied study building and querying code knowledge graphs; included for related background.</p>
+<p><a href="https://www.diva-portal.org/smash/get/diva2%3A1851736/FULLTEXT01.pdf">Master&#8217;s thesis (2024/2025)</a> — Applied study building and querying code knowledge graphs; included for related background.</p>
 </li>
 </ul>
 </div>
@@ -270,26 +338,6 @@
 <div class="sectionbody">
 <div class="paragraph">
 <p>Have a relevant paper, blog, or implementation to include? Open a PR adding it here and, if helpful, a short one-line description. Please keep descriptions neutral and scoped to what is covered.</p>
-</div>
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>Are there specific programming languages your code graph currently supports or is designed for (e.g. Java, Python, JS)?
-Initially, I&#8217;d like to do one language well (i.e. Java). But, ultimately, I&#8217;d like to expand this project to different languages (e.g. Python, Rust, Javascript, etc.).</p>
-</li>
-<li>
-<p>Do you have a list of features already implemented in your graph (e.g. file, class, method nodes, call edges, etc.)?
-Please look at the docs page I have already shared to see what&#8217;s already been implemented. Also, there&#8217;s the actual code.</p>
-</li>
-<li>
-<p>Are you primarily targeting static code structure (e.g., AST, dependencies) or are you also considering runtime info or developer activity (e.g., git commits, issues)?
-Git commits are certainly in-scope. Ideally, I&#8217;d like this to be Git-provider agnostic. So that starts to get tricky when we have different ways to extract the data from the Github, Bitbucker, Gitlab, etc&#8230;&#8203;</p>
-</li>
-<li>
-<p>Any preferences on types of insights you’re looking to enable with GDS algorithms (e.g. finding important methods, detecting clusters, recommending refactoring)?
-I&#8217;m open to any and all suggestions/recommendations.</p>
-</li>
-</ol>
 </div>
 </div>
 </div>

@@ -70,7 +70,7 @@
     <a class="nav-link" href="development.html">Development</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="mcp.html">MCP (NL→Cypher) Integration</a>
+    <a class="nav-link" href="mcp.html">MCP Integration</a>
   </li>
 </ul>
   </li>
@@ -203,7 +203,7 @@
 <p><strong><code>(Method)-[:CALLS]&#8594;(Method)</code></strong>: Static call graph edges.</p>
 </li>
 <li>
-<p><strong><code>(Method)-[:SIMILAR]&#8594;(Method)</code></strong>: Semantic similarity from embeddings (<code>score</code>).</p>
+<p><strong><code>(Method)-[:CALLS_EXTERNAL]&#8594;(Import)</code></strong>: Frontier call into an external library API; edge carries <code>confidence</code> (<code>HIGH</code>/<code>MEDIUM</code>/<code>LOW</code>), <code>confidence_rank</code>, <code>target_class</code>, <code>call_type</code>, and <code>call_count</code>. Resolution uses declared imports and receiver declared types only (reflection/DI invisible).</p>
 </li>
 <li>
 <p><strong><code>(File)-[:DECLARES]&#8594;(Method)</code></strong>: File declares a method.</p>
@@ -298,45 +298,6 @@
 </div>
 </div>
 <div class="sect1">
-<h2 id="_method_similarity_unixcoder"><a class="anchor" href="#_method_similarity_unixcoder"></a>Method similarity (UniXcoder)</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>We embed <code>Method</code> nodes with <strong>UniXcoder</strong> to capture functional similarity beyond token overlap or call‑graph adjacency. UniXcoder learns from code, its AST, and comments, yielding embeddings that reflect what code does, not just how it’s spelled (ACL 2022).</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Model</strong>: UniXcoder (<code>microsoft/unixcoder-base</code>). See the paper: <a href="https://arxiv.org/abs/2203.03850">UniXcoder: Unified Cross‑Modal Pre‑training for Code Representation</a>. The encoder‑only embedding is 768‑dimensional.</p>
-</li>
-<li>
-<p><strong>Context length</strong>: Up to ~1k tokens (<code>max_position_embeddings</code> ≈ 1026); longer methods are truncated.</p>
-</li>
-<li>
-<p><strong>Storage</strong>: each <code>Method</code> stores its vector in <code>m.embedding_unixcoder</code> and the model tag in <code>m.embedding_type</code> (e.g., <code>unixcoder</code>).</p>
-</li>
-<li>
-<p><strong>Index + edges</strong>: we create a Neo4j vector index on <code>Method.embedding_unixcoder</code> and run kNN to write <code>(:Method)-[:SIMILAR {score, model}]&#8594;(:Method)</code> using cosine similarity. Thresholds such as <code>topK</code> and <code>cutoff</code> are configurable.</p>
-</li>
-<li>
-<p><strong>Interpretation</strong>: a higher <code>SIMILAR.score</code> implies closer intent‑level similarity in UniXcoder’s embedding space. Combine with <code>CALLS</code>, <code>IMPORTS/DEPENDS_ON</code>, and <code>CO_CHANGED</code> for stronger evidence.</p>
-</li>
-</ul>
-</div>
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-note" title="Note"></i>
-</td>
-<td class="content">
-If you change the embedding model (e.g., switching to UniXcoder or between UniXcoder variants), re‑compute embeddings and rebuild the vector index before comparing results; embedding spaces are not interchangeable.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
 <h2 id="_notes"><a class="anchor" href="#_notes"></a>Notes</h2>
 <div class="sectionbody">
 <div class="ulist">
@@ -369,12 +330,6 @@ If you change the embedding model (e.g., switching to UniXcoder or between UniXc
 </li>
 <li>
 <p><code>ecosystem</code> (String): Build ecosystem (e.g., maven).</p>
-</li>
-<li>
-<p><code>embedding_type</code> (String): Embedding model tag used to produce the vector.</p>
-</li>
-<li>
-<p><code>embedding_unixcoder</code> (DoubleArray): Vector embedding for file content (if generated).</p>
 </li>
 <li>
 <p><code>interface_count</code> (Long): Number of interface declarations in this file.</p>
@@ -422,12 +377,6 @@ If you change the embedding model (e.g., switching to UniXcoder or between UniXc
 </li>
 <li>
 <p><code>containing_type</code> (String): Declaring type (class or interface) name when known.</p>
-</li>
-<li>
-<p><code>embedding_type</code> (String): Embedding model tag used to produce the vector.</p>
-</li>
-<li>
-<p><code>embedding_unixcoder</code> (DoubleArray): Vector embedding for method body (if generated).</p>
 </li>
 <li>
 <p><code>estimated_lines</code> (Long): Approximate number of source lines in the method.</p>
@@ -490,7 +439,7 @@ If you change the embedding model (e.g., switching to UniXcoder or between UniXc
 <p><code>return_type</code> (String): Declared return type.</p>
 </li>
 <li>
-<p><code>similarity_community</code> (Long): Community id from similarity clustering (Louvain).</p>
+<p><code>calls_community</code> (Long): Community id from Louvain over the CALLS graph.</p>
 </li>
 <li>
 <p><code>total_degree</code> (Long): Sum of in_degree and out_degree.</p>

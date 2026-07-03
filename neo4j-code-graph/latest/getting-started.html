@@ -70,7 +70,7 @@
     <a class="nav-link" href="development.html">Development</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="mcp.html">MCP (NL→Cypher) Integration</a>
+    <a class="nav-link" href="mcp.html">MCP Integration</a>
   </li>
 </ul>
   </li>
@@ -175,7 +175,6 @@ python -m src.pipeline.prefect_flow --repo-url https://github.com/your-org/your-
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">code-graph-code-to-graph /path/to/repo
 code-graph-git-history /path/to/repo
-code-graph-similarity --top-k 5 --cutoff 0.8
 code-graph-centrality --algorithms pagerank betweenness degree --top-n 20 --write-back
 code-graph-cve --risk-threshold 7.0 --max-hops 4</code></pre>
 </div>
@@ -197,7 +196,7 @@ code-graph-cve --risk-threshold 7.0 --max-hops 4</code></pre>
 <p>Security (CVE vulnerabilities in dependencies)</p>
 </li>
 <li>
-<p>Derived insights (PageRank, community, similarity)</p>
+<p>Derived insights (PageRank, call-graph communities)</p>
 </li>
 </ul>
 </div>
