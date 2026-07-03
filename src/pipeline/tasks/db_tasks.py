@@ -308,6 +308,14 @@ def git_history_task(
 
     branch_env = os.getenv("CODE_GRAPH_BRANCH")
     branch = branch_env if branch_env else "master"
+    # Bound history for very large repos / demos. Default None = full history.
+    max_commits_env = os.getenv("CODE_GRAPH_MAX_COMMITS")
+    max_commits: int | None = None
+    if max_commits_env:
+        try:
+            max_commits = int(max_commits_env)
+        except ValueError:
+            logger.warning("Ignoring non-integer CODE_GRAPH_MAX_COMMITS=%r", max_commits_env)
     load_history(
         repo_url=repo_path,
         branch=branch,
@@ -316,7 +324,7 @@ def git_history_task(
         password=_pwd,
         database=_db,
         csv_export=None,
-        max_commits=None,
+        max_commits=max_commits,
         skip_file_changes=False,  # Fixed: optimized relationship creation to avoid O(n²) performance
         file_changes_only=False,
         since_sha=since_sha,
